@@ -1,9 +1,16 @@
-"""Audio streaming preparation — codec detection + on-the-fly ALAC→FLAC transcoding.
+"""Audio streaming preparation — codec detection + on-the-fly transcoding of
+m4a codecs the browser cannot decode.
 
 ALAC (Apple Lossless) is not natively decoded by Chrome, Edge, or Firefox —
 only Safari supports it. To make ALAC-in-m4a files playable cross-browser
 while preserving bit-exact lossless quality, we transcode them to FLAC on
 the first request and cache the result on disk.
+
+Dolby (AC-3, E-AC-3 — every "Dolby Atmos" release) and DTS in m4a are not
+decoded by Chrome or Firefox either: the file arrives with a 200 and <audio>
+refuses it. Those sources are lossy already, so they go to stereo AAC-LC in
+m4a — lossless FLAC of a 5.1 lossy bed would be ~200 MB a track for nothing.
+Atmos objects are lost; ffmpeg decodes only the 5.1 bed, then downmixes.
 
 FLAC, MP3, AAC-in-m4a, OGG, WAV, OPUS are served as-is.
 
@@ -39,10 +46,28 @@ AUDIO_CONTENT_TYPES: dict[str, str] = {
     ".opus": "audio/opus",
 }
 
-_FLAC_MIME = "audio/flac"
+# m4a codecs the browser cannot decode, each under BOTH spellings: the Qdrant
+# payload hint is mutagen's MP4 sample-entry fourcc ("ec-3"), the ffprobe
+# fallback ffmpeg's decoder name ("eac3") — and the quiz route reads the
+# SQLite mirror, which carries no hint, so it always takes the ffprobe path.
+_LOSSLESS_FOREIGN = frozenset({"alac"})
+_LOSSY_FOREIGN = frozenset({
+    "ac-3", "ac3",                           # Dolby Digital
+    "ec-3", "eac3",                          # Dolby Digital Plus, incl. Atmos (JOC)
+    "dtsc", "dtsh", "dtsl", "dtse", "dts",   # DTS family
+})
 
-# Per-track locks so two concurrent first-time requests for the same ALAC
-# track don't spawn two ffmpeg processes writing the same output file.
+# Transcode target (= cache file extension) → ffmpeg output args and the mime
+# type the transcoded file is served with.
+_FFMPEG_OUTPUT_ARGS: dict[str, list[str]] = {
+    "flac": ["-c:a", "flac", "-compression_level", "5", "-f", "flac"],
+    "m4a":  ["-c:a", "aac", "-b:a", "256k", "-ac", "2",
+             "-movflags", "+faststart", "-f", "mp4"],
+}
+_TARGET_MIME = {"flac": "audio/flac", "m4a": "audio/mp4"}
+
+# Per-track locks so two concurrent first-time requests for the same foreign-
+# codec track don't spawn two ffmpeg processes writing the same output file.
 _locks: dict[str, asyncio.Lock] = defaultdict(asyncio.Lock)
 
 # ── Hot-path caches ──────────────────────────────────────────────────────────
@@ -114,19 +139,33 @@ def _detect_codec_ffprobe(file_path: Path) -> str | None:
         return None
 
 
-async def _needs_alac_transcode(file_path: Path, codec_hint: str | None = None) -> bool:
-    """Is this an .m4a file using the ALAC codec? (AAC-in-m4a plays everywhere.)
+def _target_for_codec(codec: str | None) -> str | None:
+    """"flac" for lossless foreign codecs, "m4a" (AAC) for lossy ones, None
+    for anything the browser plays as-is (AAC, FLAC-in-mp4, unknown)."""
+    if not codec:
+        return None
+    codec = codec.lower()
+    if codec in _LOSSLESS_FOREIGN:
+        return "flac"
+    if codec in _LOSSY_FOREIGN:
+        return "m4a"
+    return None
 
+
+async def _transcode_target(file_path: Path, codec_hint: str | None = None) -> str | None:
+    """Which transcode (if any) does this file need before a browser can play it?
+
+    Only .m4a is inspected — every other served extension is browser-native.
     ``codec_hint`` comes from the Qdrant payload (written at index time by
-    mutagen: "alac" or "mp4a.40.2") — when present, no ffprobe runs at all.
+    mutagen: "alac", "ec-3", "mp4a.40.2", …) — when present, no ffprobe runs.
     Legacy libraries without the payload field fall back to ffprobe, executed
     in a thread and cached per (mtime, size) so it runs once per file, not once
     per Range request.
     """
     if file_path.suffix.lower() != ".m4a":
-        return False
+        return None
     if codec_hint:
-        return codec_hint.lower().startswith("alac")
+        return _target_for_codec(codec_hint)
 
     try:
         st = file_path.stat()
@@ -138,7 +177,7 @@ async def _needs_alac_transcode(file_path: Path, codec_hint: str | None = None) 
     if identity is not None:
         cached = _codec_cache.get(key)
         if cached is not None and cached[0] == identity:
-            return cached[1] == "alac"
+            return _target_for_codec(cached[1])
 
     codec = await asyncio.get_running_loop().run_in_executor(
         None, _detect_codec_ffprobe, file_path,
@@ -147,13 +186,16 @@ async def _needs_alac_transcode(file_path: Path, codec_hint: str | None = None) 
         if len(_codec_cache) >= _CODEC_CACHE_MAX:
             _codec_cache.clear()
         _codec_cache[key] = (identity, codec)
-    return codec == "alac"
+    return _target_for_codec(codec)
 
 
-def _transcode_alac_to_flac(src: Path, dst: Path) -> bool:
-    """Lossless→lossless transcode. Returns True on success.
+def _transcode(src: Path, dst: Path, target: str) -> bool:
+    """Transcode the first audio stream of ``src`` into ``dst``. True on success.
 
-    -compression_level 5 is the FLAC default; trades CPU for file size.
+    ALAC→FLAC is lossless→lossless (-compression_level 5 is the FLAC default).
+    Dolby/DTS→AAC is lossy→lossy at 256k stereo; -movflags +faststart puts
+    moov first so <audio> can seek with Range before the whole file arrives.
+    -map 0:a:0 drops the embedded cover (an mjpeg "video" stream).
     -map_metadata 0 preserves tags. Writes to a .tmp first then atomic rename
     so partial writes (crash, kill) don't leave a corrupt cache entry.
     """
@@ -164,10 +206,8 @@ def _transcode_alac_to_flac(src: Path, dst: Path) -> bool:
                 "ffmpeg", "-nostdin", "-y",
                 "-i", str(src),
                 "-map", "0:a:0",
-                "-c:a", "flac",
-                "-compression_level", "5",
+                *_FFMPEG_OUTPUT_ARGS[target],
                 "-map_metadata", "0",
-                "-f", "flac",
                 str(tmp),
             ],
             check=True, capture_output=True, timeout=180,
@@ -175,7 +215,7 @@ def _transcode_alac_to_flac(src: Path, dst: Path) -> bool:
         tmp.replace(dst)
         return True
     except FileNotFoundError:
-        logger.error("[audio_streaming] ffmpeg not installed — cannot transcode ALAC")
+        logger.error("[audio_streaming] ffmpeg not installed — cannot transcode %s", src.name)
         return False
     except subprocess.TimeoutExpired:
         logger.error("[audio_streaming] ffmpeg timeout for %s", src.name)
@@ -190,7 +230,7 @@ def _transcode_alac_to_flac(src: Path, dst: Path) -> bool:
         return False
 
 
-def _cache_path(account_id: str, track_id: str) -> Path:
+def _cache_path(account_id: str, track_id: str, ext: str = "flac") -> Path:
     """Per-account, content-addressed transcoded cache path (Phase B §6.6).
 
     Namespacing by ``account_id`` closes the cross-account leak: ``track_id`` is
@@ -198,9 +238,10 @@ def _cache_path(account_id: str, track_id: str) -> Path:
     would otherwise collide on a single flat ``cache/transcoded/<id>.flac`` and
     one would serve the other's audio. Callers pass the owning collection name
     as ``account_id`` (Phase D renames collections to ``acct_<id>``, at which
-    point the key is literally per-account).
+    point the key is literally per-account). ``ext`` is the transcode target
+    (see ``_TARGET_MIME``).
     """
-    return _CACHE_DIR / account_id / f"{track_id}.flac"
+    return _CACHE_DIR / account_id / f"{track_id}.{ext}"
 
 
 async def get_streamable_path(
@@ -211,24 +252,26 @@ async def get_streamable_path(
 ) -> tuple[Path, str]:
     """Resolve the path FastAPI should hand to FileResponse, plus its mime type.
 
-    - Non-ALAC files: returned as-is with their native mime type.
-    - ALAC m4a files: transcoded to FLAC (cached at
-      ``cache/transcoded/<account_id>/<track_id>.flac``) and the cache path is
-      returned with audio/flac. First call blocks ~1–2s; subsequent calls are
+    - Browser-native files: returned as-is with their native mime type.
+    - ALAC m4a: transcoded to FLAC (``cache/transcoded/<account_id>/<track_id>.flac``,
+      audio/flac). Dolby/DTS m4a: transcoded to AAC (``…/<track_id>.m4a``,
+      audio/mp4). First call blocks a few seconds; subsequent calls are
       instant. Concurrent first-calls are serialized per (account_id, track_id)
       so only one ffmpeg runs.
 
     ``codec``: optional hint from the track's Qdrant payload (index-time
     mutagen read) — skips codec detection entirely when present.
     """
-    if not await _needs_alac_transcode(file_path, codec_hint=codec):
+    target = await _transcode_target(file_path, codec_hint=codec)
+    if target is None:
         return file_path, _content_type(file_path)
 
-    cached = _cache_path(account_id, track_id)
+    cached = _cache_path(account_id, track_id, target)
+    mime = _TARGET_MIME[target]
     cached.parent.mkdir(parents=True, exist_ok=True)
 
     if cached.exists():
-        return cached, _FLAC_MIME
+        return cached, mime
 
     # Lock key includes account_id so two different accounts transcoding the
     # same (rare) track_id aren't serialised against each other.
@@ -236,26 +279,29 @@ async def get_streamable_path(
     async with lock:
         # Re-check after acquiring the lock — another request may have just finished.
         if cached.exists():
-            return cached, _FLAC_MIME
+            return cached, mime
 
-        logger.info("[audio_streaming] transcoding ALAC→FLAC: %s (acct=%s)", file_path.name, account_id)
+        logger.info(
+            "[audio_streaming] transcoding %s→%s: %s (acct=%s)",
+            codec or "m4a", target, file_path.name, account_id,
+        )
         # ffmpeg is blocking; run in default thread executor so the event loop
         # stays responsive for other requests.
         ok = await asyncio.get_running_loop().run_in_executor(
-            None, _transcode_alac_to_flac, file_path, cached,
+            None, _transcode, file_path, cached, target,
         )
 
     if not ok or not cached.exists():
-        # Fall back to serving the original ALAC file. It won't play in
+        # Fall back to serving the original file. It won't play in
         # Chrome/Firefox but at least the HTTP response is honest, and Safari
         # users still get audio.
         logger.warning(
-            "[audio_streaming] transcoding failed for %s — serving original ALAC",
+            "[audio_streaming] transcoding failed for %s — serving original",
             file_path.name,
         )
         return file_path, _content_type(file_path)
 
-    return cached, _FLAC_MIME
+    return cached, mime
 
 
 def drop_transcoded_for_tracks(account_id: str, track_ids: Iterable[str]) -> int:
@@ -269,13 +315,14 @@ def drop_transcoded_for_tracks(account_id: str, track_ids: Iterable[str]) -> int
         return 0
     n = 0
     for tid in track_ids:
-        p = account_dir / f"{tid}.flac"
-        if p.exists():
-            try:
-                p.unlink()
-                n += 1
-            except OSError as e:
-                logger.warning("[audio_streaming] failed to remove %s: %s", p, e)
+        for ext in _TARGET_MIME:
+            p = account_dir / f"{tid}.{ext}"
+            if p.exists():
+                try:
+                    p.unlink()
+                    n += 1
+                except OSError as e:
+                    logger.warning("[audio_streaming] failed to remove %s: %s", p, e)
     return n
 
 

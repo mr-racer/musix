@@ -21,7 +21,7 @@ FROM pytorch/pytorch:2.6.0-cuda12.4-cudnn9-runtime
 
 # System libs that were provided by the OS on Windows but must be installed
 # explicitly on Debian:
-#   ffmpeg      — ALAC -> FLAC transcode on stream (app/services/audio_streaming.py)
+#   ffmpeg      — ALAC -> FLAC, Dolby/DTS -> AAC transcode on stream (app/services/audio_streaming.py)
 #   libmagic1   — MIME sniff for uploads (python-magic)
 #   libsndfile1 — librosa / soundfile audio feature extraction
 #   git         — a few pip packages build from git

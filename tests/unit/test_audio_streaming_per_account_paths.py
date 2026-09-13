@@ -72,7 +72,7 @@ async def test_codec_hint_skips_ffprobe(tmp_path, monkeypatch):
     assert path == src
     assert mime == "audio/mp4"
 
-    assert await audio_streaming._needs_alac_transcode(src, codec_hint="alac") is True
+    assert await audio_streaming._transcode_target(src, codec_hint="alac") == "flac"
 
 
 @pytest.mark.asyncio
@@ -86,9 +86,43 @@ async def test_codec_detection_cached_per_file_identity(tmp_path, monkeypatch):
     src = tmp_path / "song.m4a"
     src.write_bytes(b"m4a-bytes")
 
-    assert await audio_streaming._needs_alac_transcode(src) is False
-    assert await audio_streaming._needs_alac_transcode(src) is False
+    assert await audio_streaming._transcode_target(src) is None
+    assert await audio_streaming._transcode_target(src) is None
     assert len(calls) == 1
+
+
+@pytest.mark.asyncio
+async def test_dolby_m4a_transcoded_to_aac_under_both_codec_spellings(tmp_path, monkeypatch):
+    """E-AC-3 (Dolby Atmos) m4a must reach the browser as AAC, not as-is.
+
+    Both spellings matter: the Qdrant hint is mutagen's "ec-3", the ffprobe
+    fallback (quiz route, legacy payloads) returns ffmpeg's "eac3".
+    """
+    calls = []
+
+    def _fake_transcode(src, dst, target):
+        calls.append(target)
+        dst.write_bytes(b"aac-bytes")
+        return True
+
+    monkeypatch.setattr(audio_streaming, "_transcode", _fake_transcode)
+    monkeypatch.setattr(audio_streaming, "_detect_codec_ffprobe", lambda p: "eac3")
+    src = tmp_path / "01 Bad.m4a"
+    src.write_bytes(b"ec3-bytes")
+
+    path, mime = await audio_streaming.get_streamable_path(
+        account_id="acct-X", track_id="t1", file_path=src, codec="ec-3",
+    )
+    assert path == audio_streaming._cache_path("acct-X", "t1", "m4a")
+    assert mime == "audio/mp4"
+    assert calls == ["m4a"]
+
+    # ffprobe spelling picks the same branch.
+    assert await audio_streaming._transcode_target(src) == "m4a"
+
+    # Cache purge must know about the new extension, or a re-index serves stale audio.
+    assert audio_streaming.drop_transcoded_for_tracks("acct-X", ["t1"]) == 1
+    assert not path.exists()
 
 
 def test_source_cache_roundtrip_and_scoped_drop():
