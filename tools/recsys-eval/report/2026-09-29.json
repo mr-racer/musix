@@ -1,0 +1,263 @@
+{
+  "snapshot": "2026-09-29",
+  "e1": {
+    "ranker": {
+      "owner/all": {
+        "gauc": 0.738440303657695,
+        "ci90": "0.711–0.765",
+        "pairs": 7245
+      },
+      "owner/stream": {
+        "gauc": 0.7641449459631278,
+        "ci90": "0.719–0.806",
+        "pairs": 1573
+      },
+      "owner/non-album": {
+        "gauc": 0.6854754440961337,
+        "ci90": "0.652–0.719",
+        "pairs": 5742
+      },
+      "friend/all": {
+        "gauc": 0.769861609431061,
+        "ci90": "0.703–0.813",
+        "pairs": 1951
+      },
+      "friend/stream": {
+        "gauc": 0.6842105263157895,
+        "ci90": "0.614–0.755",
+        "pairs": 152
+      },
+      "friend/non-album": {
+        "gauc": 0.7213426219126029,
+        "ci90": "0.650–0.766",
+        "pairs": 1579
+      }
+    },
+    "v1_score": {
+      "owner": {
+        "gauc": 0.49206349206349204,
+        "ci90": "0.463–0.518",
+        "pairs": 7245
+      },
+      "friend": {
+        "gauc": 0.44746283956945154,
+        "ci90": "0.402–0.493",
+        "pairs": 1951
+      }
+    }
+  },
+  "e2": {
+    "owner": {
+      "per_source_recall@200": {
+        "artist affinity": {
+          "organic": 0.091,
+          "stream": 0.086,
+          "unlabelled": 0.206,
+          "never_played": 0.114
+        },
+        "artists liked this session": {
+          "organic": 0.147,
+          "stream": 0.096,
+          "unlabelled": 0.241,
+          "never_played": 0.161
+        },
+        "audio[clap]": {
+          "organic": 0.084,
+          "stream": 0.12,
+          "unlabelled": 0.158,
+          "never_played": 0.106
+        },
+        "co-listen (PPMI-SVD)": {
+          "organic": 0.161,
+          "stream": 0.04,
+          "unlabelled": 0.162,
+          "never_played": 0.0
+        },
+        "hybrid artist+audio[clap]": {
+          "organic": 0.147,
+          "stream": 0.068,
+          "unlabelled": 0.196,
+          "never_played": 0.092
+        },
+        "popularity (own plays)": {
+          "organic": 0.322,
+          "stream": 0.008,
+          "unlabelled": 0.083,
+          "never_played": 0.0
+        },
+        "random": {
+          "organic": 0.049,
+          "stream": 0.024,
+          "unlabelled": 0.048,
+          "never_played": 0.044
+        }
+      },
+      "merged_set": {
+        "chosen": 0.21,
+        "never_played": 0.143,
+        "random500_chosen": 0.084,
+        "random500_never_played": 0.103
+      }
+    },
+    "friend": {
+      "per_source_recall@200": {
+        "artist affinity": {
+          "organic": 0.729,
+          "stream": 0.25,
+          "unlabelled": 0.5,
+          "never_played": 0.398
+        },
+        "artists liked this session": {
+          "organic": 0.743,
+          "stream": 0.389,
+          "unlabelled": 0.5,
+          "never_played": 0.462
+        },
+        "audio[clap]": {
+          "organic": 0.6,
+          "stream": 0.75,
+          "unlabelled": 0.667,
+          "never_played": 0.656
+        },
+        "co-listen (PPMI-SVD)": {
+          "organic": 0.514,
+          "stream": 0.056,
+          "unlabelled": 0.169,
+          "never_played": 0.076
+        },
+        "hybrid artist+audio[clap]": {
+          "organic": 0.786,
+          "stream": 0.583,
+          "unlabelled": 0.697,
+          "never_played": 0.57
+        },
+        "popularity (own plays)": {
+          "organic": 0.471,
+          "stream": 0.167,
+          "unlabelled": 0.258,
+          "never_played": 0.011
+        },
+        "random": {
+          "organic": 0.257,
+          "stream": 0.167,
+          "unlabelled": 0.273,
+          "never_played": 0.226
+        }
+      },
+      "merged_set": {
+        "chosen": 0.814,
+        "never_played": 0.699,
+        "random500_chosen": 0.743,
+        "random500_never_played": 0.667
+      }
+    }
+  },
+  "e3": {
+    "n": 150,
+    "counts": {
+      "calm": 30,
+      "mid": 61,
+      "energetic": 59
+    },
+    "clap_energy_axis": {
+      "spearman": 0.702,
+      "auc_calm_vs_energetic": 0.99,
+      "balanced_acc_3": 0.601
+    },
+    "clap_linear_probe_cv": {
+      "spearman": 0.755,
+      "auc_calm_vs_energetic": 0.999,
+      "balanced_acc_3": 0.673
+    }
+  },
+  "e4": {
+    "owner": {
+      "real_v1": {
+        "est. дослушивание": 0.7934959349593496,
+        "P(не скип) ср.": 0.857888296881431,
+        "артистов/10": 7.924242424242424,
+        "жанров/10": 2.8636363636363638,
+        "топ-регион/10": 0.5848484848484848,
+        "топ-жанр/10": 0.7469696969696971,
+        "артист подряд": NaN,
+        "непрослушанных": 0.6504065040650406,
+        "повторы за день": 0.0,
+        "энергия (перцентиль)": 0.5580719118716098,
+        "listener_predicted": 0.857888296881431,
+        "actual_not_skipped": 0.7934959349593496
+      },
+      "reference_policy": {
+        "est. дослушивание": 0.9566666666666667,
+        "P(не скип) ср.": 0.9548145553041826,
+        "артистов/10": 8.533333333333333,
+        "жанров/10": 3.32,
+        "топ-регион/10": 0.24666666666666667,
+        "топ-жанр/10": 0.44266666666666654,
+        "артист подряд": 0.0,
+        "непрослушанных": 0.30333333333333334,
+        "пулы факт": {
+          "familiar": 0.47,
+          "unplayed": 0.3,
+          "rediscover": 0.23
+        },
+        "повторы за день": 0.0,
+        "энергия (перцентиль)": 0.6609718727282895
+      },
+      "invariants": {
+        "same_day_repeat": 0,
+        "locked_served": 0,
+        "outside_library": 0,
+        "preset_window": 0
+      },
+      "sessions": 30
+    },
+    "friend": {
+      "real_v1": {
+        "est. дослушивание": 0.5342465753424658,
+        "P(не скип) ср.": 0.5927129465837799,
+        "артистов/10": 9.25,
+        "жанров/10": 3.25,
+        "топ-регион/10": 0.55,
+        "топ-жанр/10": 0.65,
+        "артист подряд": NaN,
+        "непрослушанных": 0.5616438356164384,
+        "повторы за день": 0.0,
+        "энергия (перцентиль)": 0.4976001647955506,
+        "listener_predicted": 0.5927129465837799,
+        "actual_not_skipped": 0.5342465753424658
+      },
+      "reference_policy": {
+        "est. дослушивание": 0.9083333333333333,
+        "P(не скип) ср.": 0.8645760750549982,
+        "артистов/10": 9.316666666666666,
+        "жанров/10": 4.166666666666667,
+        "топ-регион/10": 0.3183333333333334,
+        "топ-жанр/10": 0.43666666666666665,
+        "артист подряд": 0.0,
+        "непрослушанных": 0.31666666666666665,
+        "пулы факт": {
+          "familiar": 0.48,
+          "unplayed": 0.32,
+          "rediscover": 0.21
+        },
+        "повторы за день": 0.0,
+        "энергия (перцентиль)": 0.5578028404344194
+      },
+      "invariants": {
+        "same_day_repeat": 0,
+        "locked_served": 0,
+        "outside_library": 0,
+        "preset_window": 0
+      },
+      "sessions": 12
+    }
+  },
+  "gates": {
+    "E1 ranker GAUC ≥ 0.70 (owner, all)": true,
+    "E3 CLAP axis AUC ≥ 0.95": true,
+    "E4 top genre / 10 ≤ 0.50": true,
+    "E4 genres / 10 ≥ 3.0": true,
+    "E4 artists / 10 ≥ 8.0": true,
+    "invariants: 0 violations": true
+  }
+}
