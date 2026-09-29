@@ -8,7 +8,7 @@ infrastructure:
 - ingest intelligence (lyrics, embeddings, sonic axes);
 - search (lyrics, sound, catalog);
 - «Поток» and the other recommendation surfaces;
-- the knowledge base (facts, bios, relations, gems, vibes);
+- the knowledge base (facts, bios, relations, vibes);
 - the assistant, the quiz, the Yandex import.
 
 **Behaviour is ported, not redesigned**, with one exception: **«Поток»**.
@@ -122,8 +122,7 @@ an account sees knowledge about songs and artists it owns tracks of, by a join. 
 | `artist_bios` (artist_id, lang, text, facets jsonb, sources jsonb, generated_at) | `artist_bios` |
 | `song_relations` (song_id, kind `producer\|label\|sample\|sampled_by`, target_song_id?, target_artist_id?, target_text, evidence, confidence, verified, source) | `songs.producers*`, `label`, `sample_links`, `sample_link_verdicts` |
 | `song_vibes` (song_id, lang, phrase) | `sonic_vibes` (per track → per song) |
-| `lyric_gems` (account_id, track_id, kind, canonical, display, quote, detail, score) | `track_gems`. It stays **per account**: namedrop and songref depend on that library |
-| `artist_aliases`, `source_fetch_log` (source, key, status, fetched_at: the negative cache), `verification_cache` | `artist_aliases`, `fact_fetch_misses`, `gem_resolution_cache` |
+| `artist_aliases`, `source_fetch_log` (source, key, status, fetched_at: the negative cache), `verification_cache` | `artist_aliases`, `fact_fetch_misses`, `sample_link_verdicts` |
 
 Pipelines ported as queue tasks, their logic copied with tests:
 
@@ -132,7 +131,6 @@ Pipelines ported as queue tasks, their logic copied with tests:
 - the sample-link cleaner plus the MusicBrainz verify lane, which keeps its 1 req/s budget as
   a queue rate limit;
 - fact_relations (the producers leg);
-- the lyric gems;
 - bio_v2 (Wikipedia first);
 - AudioDB/Deezer artist images, going through the phase 1 `images` pipeline;
 - the sonic vibe line.
@@ -198,15 +196,15 @@ stays at < 30 ms.
 
 The same state serves the other surfaces, which now become SQL or single ANN calls:
 
-- autoplay queue;
-- similar tracks;
-- sonic sibling;
-- axis playlist;
-- the profile (islands, vibes, portrait);
+- вайбики (the short-term mood clusters of recent positive plays, as a `taste_profile`
+  job) with their AI names, and the hero's vibe phrase;
 - the taste map (PCA/k-means as a job, cached);
 - discoveries;
-- top pairs;
 - listening stats, rhythm, weekly pulse, engagement (all aggregate SQL).
+
+A tap on a вайбик and the end of a user-built queue start «Поток» seeded with those tracks
+(stream spec §3.4). The v1 autoplay queue, similar tracks, sonic sibling, axis playlists,
+islands, the taste portrait and top pairs are not rebuilt (program §4.3).
 
 ## 7. The assistant, chat, AI playlists, the quiz, imports
 
@@ -220,7 +218,8 @@ The same state serves the other surfaces, which now become SQL or single ANN cal
     becomes a queue rate limit.
   - `local_pack` reads the knowledge tables of §5.
 - **Track chat and lyric explain:** the same turn mechanism, the `interactive` priority.
-- **AI playlists** (`recsys_ai_service`, `playlist_agent`) and **profile enrichment:**
+- **AI playlists by request** (`recsys_ai_service`, `playlist_agent`, the assistant's
+  playlist branch) and **the вайбик names / vibe phrase:**
   jobs, cached by the hash of their inputs.
 - **The quiz:** pure functions ported with their tests, and the tables `quiz_rounds`,
   `quiz_skill`, `quiz_streak`. Invariant I-1/I-2 is kept: the quiz writes no listens or
@@ -250,14 +249,13 @@ The same state serves the other surfaces, which now become SQL or single ANN cal
 |---|---|
 | `GET /stream/next` | p95 < 150 ms |
 | `GET /search` (all sections) | p95 < 250 ms (a dense query encode is ~20 ms on GPU) |
-| Similar / autoplay | p95 < 100 ms |
 | Ingest of a 6k-track library (all intelligence, excluding the LLM enrichment) | ≤ v1 wall-clock, with a GPU CLAP expected well under it |
 | A listen → the next chunk reflects it | < 1 s (the state update is async) |
 
 ## 10. Testing
 
 - **Ported unit tests** travel with the ported code: artist split, text normalize,
-  sanitizer, gems, facts_v2, quiz modes, assistant stages.
+  sanitizer, facts_v2, quiz modes, assistant stages.
 - «Поток» is new code with its own tests:
   - the feature-parity test (training and serving produce identical features for the same
     moment);
@@ -276,7 +274,7 @@ The same state serves the other surfaces, which now become SQL or single ANN cal
 5. The «Поток» engine per the stream spec §12: sources, ranker + training job, policy,
    reasons, decision log. Then the online `/stream/next` and the other rec surfaces.
    Gate 4.4 (`tools/recsys-eval`).
-6. Knowledge tables and pipelines (facts, refinements, bios, relations, gems, vibes).
+6. Knowledge tables and pipelines (facts, refinements, bios, relations, vibes).
    Gate 4.5.
 7. Assistant, chat, AI playlists (jobs + WS).
 8. Quiz, Yandex import.

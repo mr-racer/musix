@@ -292,7 +292,7 @@ Clients never compute colors from pixels again.
   | `GET /library/summary` | library counts and summary |
   | `GET /albums/{id}` | album + tracks |
   | `GET /artists/{id}/page` | the artist page |
-  | `GET /player/context/{trackId}` | lyrics + credits + facts + gems + badges |
+  | `GET /player/context/{trackId}` | lyrics + credits + facts + badges |
 
 - **Idempotency:** every mutating POST accepts `Idempotency-Key`. Event batches carry
   per-item `clientEventId`.

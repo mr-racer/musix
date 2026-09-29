@@ -101,8 +101,7 @@ Changes:
 - **The identity surfaces** (component specs from phase 0):
   - the player: the cover and the vinyl swipe transition, the ambient field driven by the
     **server palette** and the огонёк/вода combustion;
-  - the For-You hero and the wave orb;
-  - taste islands;
+  - the For-You hero, the wave orb and вайбики;
   - the artist atlas hero (cutout on its field, photo blur by contour).
 - **The spectrum wave:** the web one read an `AnalyserNode`. Android's `Visualizer` needs
   the RECORD_AUDIO permission, which is not acceptable for a player. Phase 4 renders it from
@@ -119,14 +118,13 @@ Changes:
 | Surface | v1 source | Notes |
 |---|---|---|
 | Server + login / invite | `LoginScreen`, `ServerUrlField` | owner setup stays on the web |
-| Home | `LandingScreen`, `ForYouHero`, islands, vibes, recent | one `GET /home` |
+| Home | `LandingScreen`, `ForYouHero`, вайбики (a tap starts a seeded «Поток»), recent | one `GET /home` |
 | «Поток» | `startStream`, the stream settings slider | server state, native refill |
-| Player | `PlayerSection` (1799 lines) | cover, controls, lyrics (synced LRC highlighting), `FactsRail`, gems, producer/sample badges, queue (reorder, remove, play next), `SimilarityRail`, огонёк/вода, the AI chat drawer, lyric explain; one `GET /player/context` |
+| Player | `PlayerSection` (1799 lines) | cover, controls, lyrics (synced LRC highlighting), `FactsRail`, producer/sample badges, queue (reorder, remove, play next), огонёк/вода, the AI chat drawer, lyric explain; one `GET /player/context` |
 | Library | `LibrarySection`, `AlbumsGridTab`, `AlbumModal`, playlists | Paging over Room; sorts (слушаю чаще / год / А-Я), groups |
 | Search | `SearchSection` | sections from `GET /search` |
-| Recommend / For You | `RecommendSection` | islands as playlists, AI playlist prompt, axis knobs, album suggestions |
 | Artist | `AtlasHero`, facts classes, discography | `GET /artists/{id}/page` |
-| Stats | listening stats, rhythm, taste map, discoveries, gems, top pairs, engagement | aggregate endpoints |
+| Stats | listening stats, rhythm, taste map, discoveries, engagement | aggregate endpoints |
 | Assistant | `AssistantSection`, `AsxAnswerCard`, discoveries rail | turns over WS |
 | Quiz | `QuizSection` | rounds, snippet playback through the player core in a separate "no-listen" mode (quiz invariant I-2) |
 | Settings | `SettingsPanel` | quality per network, normalization, theme, language, devices (sign out others), cache size, updates |

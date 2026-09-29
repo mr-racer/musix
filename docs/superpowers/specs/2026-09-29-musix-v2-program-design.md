@@ -211,6 +211,30 @@ Every phase spec carries its own version of this table and must not reintroduce 
     `frontend/packages/musix-ui`), which Compose, WinUI and the web all consume.
   - A redesign later only changes the tokens and specs, not three codebases by hand.
 
+### 4.3 Removed from v2 — not rebuilt (owner, 2026-09-29)
+
+| v1 feature | Why | What goes | Instead |
+|---|---|---|---|
+| The «Рекомендации» tab | The owner: useless in practice | The wish → AI playlist entry, quick mixes, the axis radar and knobs, the vibe album rail. Routes: `/recommend/profile`, `/profile/ai-enrich`, `/axis-playlist`, `/similar`, `/sonic-sibling`, `/vibes/album-suggestions`, `/ai-playlist*` | Playlists by request stay in the assistant's playlist branch. The «Поток» presets cover the mixes |
+| Taste islands and the AI taste portrait | v1's long-term taste model; the new «Поток» engine does not use it | The islands; `profile_enrich` LLM texts | — (вайбики stay) |
+| Lyric gems (самоцветы) | The owner | The namedrop / songref pipeline, `track_gems`, `gem_resolution_cache`, `/metadata/tracks/{id}/gems`, `/library/gems/tracks` | — |
+| The player's «похожие / контраст» rail | The owner. Similarity is not a relevance signal (stream spec §2) | The `top-pairs` cache and route | — |
+| The playback diagnostics journal | Built for the v1 web background-playback bug; the native player and the client event outbox remove its cause | `POST /playback/diagnostics`, `cache/diagnostics/` | Debug builds may keep a local log |
+| A separate autoplay recommender | A second engine next to «Поток», with its own rules | `/recommend/autoplay-queue` | The end of a queue and a tap on a вайбик start «Поток» seeded with those tracks (stream spec §3.4) |
+| Hearts (`track_reactions`) and their dislike filter | The UI was already removed in v1; 0 rows | The table, the filter | огонёк / вода |
+| Legacy assistant modules | Not called since the unified assistant | `router.py`, `intent_llm.py`, `facts_executor.py` | — |
+
+**Kept** (the owner, 2026-09-29):
+- вайбики with their AI names, and the hero's vibe phrase;
+- the quiz;
+- the stats tab;
+- the assistant;
+- producers and samples;
+- the per-track vibe line;
+- facts and bios;
+- the sound and year filters;
+- the models API for external RAG.
+
 ## 5. Quality gates — v2 must be provably not worse
 
 Built in phase 0, run on every phase after:
@@ -249,7 +273,7 @@ phase spec in turn.
 |---|---|---|---|
 | 0 | **Foundation** | Monorepo layout `server/ clients/{android,windows,web} contracts/ design/`; dev compose (Postgres, Qdrant, nginx); prod-snapshot tooling; quality gates (§5); perf baselines of v1; design tokens + component specs from musix-ui; the Playwright suite moved into the repo | Gates run in CI against v1 and produce the baseline numbers |
 | 1 | **Core v2** | Postgres schema + Alembic; accounts, devices, auth; library and catalog; media pipeline + tiers + nginx delivery; playback events; reactions (огонёк/вода); playlists; `/sync`; realtime channel; OpenAPI + generated clients | Budgets met; contract tests green |
-| 2 | **Intelligence** | Indexing pipeline on workers + the `ml` service; lyric/sound/hybrid search; «Поток» and the long-term profile; facts, bios, gems, relations; the assistant; the quiz; Yandex import | Search and «Поток» gates equal to or better than v1 |
+| 2 | **Intelligence** | Indexing pipeline on workers + the `ml` service; lyric/sound/hybrid search; «Поток» and вайбики; facts, bios, relations; the assistant; the quiz; Yandex import | Search and «Поток» gates equal to or better than v1 |
 | 3 | **Data migration** | A repeatable SQLite + Qdrant → v2 migrator; dry runs on prod snapshots | Migration gate green on the latest snapshot |
 | 4 | **Android on v2** | The Compose app: login/server, library, player, «Поток», search, playlists, artist, огонёк/вода, settings incl. quality; the Media3 core on v2 | Covers everything friends use daily; budgets met on a Pixel |
 | 5 | **Web on v2** | The lean TS client: player + admin | Covers browser listening and the admin |

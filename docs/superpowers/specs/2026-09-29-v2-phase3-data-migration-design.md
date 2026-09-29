@@ -4,7 +4,8 @@
 **Status:** draft for the owner's review
 **Goal:** a repeatable tool that turns a v1 snapshot into a fully populated v2 (Postgres +
 Qdrant + media layout) **losing nothing a user can see or the recommender uses**: accounts,
-history, taste, reactions, playlists, facts, bios, gems, library indexes.
+history, taste, reactions, playlists, facts, bios, library indexes. Features the owner removed
+from v2 (program §4.3) are deliberately not migrated.
 
 **Exit criteria.**
 
@@ -31,7 +32,7 @@ history, taste, reactions, playlists, facts, bios, gems, library indexes.
 | Entity | Rule |
 |---|---|
 | Accounts | **v1 ids kept.** Collections `acct_<id>` map to `account_id` |
-| Tracks | **v1 track ids kept** (canonical dashed UUID, `canonical_track_id`). Listen events, playlists, signals and gems reference them, and the Android Media3 cache keys by them |
+| Tracks | **v1 track ids kept** (canonical dashed UUID, `canonical_track_id`). Listen events, playlists and signals reference them, and the Android Media3 cache keys by them |
 | Media files | New UUIDv7, unique by sha256. v1 had one Qdrant point per (account, file); v2 has one per content |
 | Artists / songs / albums | New UUIDv7. `slug` is kept unique, so the v1 slug scheme (the three `_slugify`s) resolves through a `migr_slug_map` table |
 | Facts | New ids. `migr_fact_map(v1_table, v1_id → fact_id)` lets refinements and the `facts` vectors follow |
@@ -55,15 +56,16 @@ history, taste, reactions, playlists, facts, bios, gems, library indexes.
 | `artist_bios` (1332) | `artist_bios` | per (artist, lang); if several collections hold one, the latest `generated_at` wins. The facet columns go to `facets` jsonb |
 | `sample_links` (1225), `sample_link_verdicts` (1232) | `song_relations` (sample / sampled_by) + `verification_cache` | deduped across collections; the verdicts keep `verified`, `mbid`, `score` |
 | `sonic_vibes` (4090) | `song_vibes` | per track → per song. Conflicting phrases: latest wins |
-| `track_gems` (6811) | `lyric_gems` | per account + track, unchanged |
+| `track_gems` (6811) | — | the gems feature is removed (program §4.3) |
 | `artist_aliases` (1737) | `artist_aliases` | |
-| `fact_fetch_misses` (1555), `gem_resolution_cache` (1677) | `source_fetch_log`, `verification_cache` | the negative caches are kept, so no re-fetch storm after the cutover |
+| `fact_fetch_misses` (1555) | `source_fetch_log` | the negative cache is kept, so no re-fetch storm after the cutover |
+| `gem_resolution_cache` (1677) | — | belongs to the removed gems |
 | `playback_events` (5648) | `listen_events` + a **recomputed** `account_track_stats` | `played_sec` → `played_ms`; `total_dur` → `duration_ms`. `end_reason` = `completed` if played ≥ 90%, else `skipped` if `skipped_early`, else `stopped`. `client_event_id` = uuid5(v1 id). `context_type` = `legacy` |
 | `taste_signals` (227) | `taste_signals` | charge and lock are recomputed from timestamps, so the state is identical |
 | `track_reactions` (0) | — | the legacy hearts are empty |
 | `playlists` (7), `playlist_tracks` (98) | `playlists`, `playlist_items` | integer positions → fractional-index keys in the same order |
 | `quiz_rounds` (71), `quiz_skill` (7), `quiz_streak` (0) | same | only answered rounds; expired, unanswered ones are dropped |
-| `recsys_llm_texts` (13) | `llm_cache` | saves LLM calls after the cutover |
+| `recsys_llm_texts` (13) | `llm_cache` | `taste_vibe` and `vibe_names` only; `profile_enrich` (the portrait and island names) is removed |
 | `yandex_accounts` (4), `yandex_imports` (1801) | same | tokens are decrypted with the v1 key resolution and re-encrypted with the v2 key. The import history keeps dedup working |
 | `ai_indexing_jobs` (95), `pending_uploads` (13), `fact_visibility` (12032) | — | transient, or derived in v2 (visibility is a join) |
 
@@ -100,7 +102,7 @@ history, taste, reactions, playlists, facts, bios, gems, library indexes.
 
   `accounts` → `catalog` (artists, songs, albums, slug map) → `media` (media_files from the
   manifest) → `library` (tracks, track_artists) → `knowledge` (facts, refinements, bios,
-  relations, vibes, gems, caches) → `listening` (events, stats, signals, playlists) → `misc`
+  relations, vibes, caches) → `listening` (events, stats, signals, playlists) → `misc`
   (quiz, llm cache, yandex, instance) → `vectors` (Qdrant) → `files` (hardlinks, image and
   rendition queueing) → `verify`.
 
@@ -119,11 +121,10 @@ history, taste, reactions, playlists, facts, bios, gems, library indexes.
    - playlist item sequences, by exact order;
    - the set of track ids;
    - the fact count per visible subject;
-   - the gem count;
    - the bio presence.
 3. **Spot checks:** for 5 random tracks per account, a side-by-side JSON of v1
    (`/api/v1/...`) and v2 (`/api/v2/...`) of the player context: metadata, lyrics, facts,
-   credits, gems, vibe. They are diffed and must match on the fields that exist in both.
+   credits, vibe. They are diffed and must match on the fields that exist in both.
 4. **The gates:** the phase 0 search gates (4.1–4.3) and the «Поток» replay (4.4) on the
    migrated v2 must equal v1 on the same snapshot. For search, the vectors are identical, so
    the numbers must be too.

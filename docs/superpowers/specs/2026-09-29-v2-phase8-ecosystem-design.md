@@ -48,7 +48,7 @@ The model is Spotify Connect's, on our own realtime channel (phase 1 §8):
   - «Недавнее»;
   - «Плейлисты» → playlists;
   - «Альбомы», «Исполнители»;
-  - «Острова вкуса» (islands as playlists).
+  - «Вайбики» (each one starts a seeded «Поток»).
 - **Search** via `onSearch`, using `GET /search`.
 - **Custom actions:** огонёк/вода appear through the media button preferences already
   defined. Auto renders up to the three compact slots plus an overflow.

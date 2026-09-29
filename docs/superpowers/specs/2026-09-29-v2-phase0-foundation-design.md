@@ -224,7 +224,7 @@ and the inline styles in `main.jsx`.
    composite surfaces that carry the identity:
    - the player (cover, vinyl transition, spectrum/ambient, огонёк/вода combustion, facts
      rail, producer/sample badges, queue);
-   - home (For-You hero, the wave orb, taste islands, vibes);
+   - home (For-You hero, the wave orb, вайбики);
    - library (album grid, stats tabs);
    - artist atlas;
    - quiz;
