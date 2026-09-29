@@ -151,6 +151,19 @@
         "title": "InviteOut",
         "type": "object"
       },
+      "JobOut": {
+        "properties": {
+          "job": {
+            "title": "Job",
+            "type": "string"
+          }
+        },
+        "required": [
+          "job"
+        ],
+        "title": "JobOut",
+        "type": "object"
+      },
       "LoginIn": {
         "properties": {
           "device": {
@@ -232,6 +245,31 @@
           "inviteCode"
         ],
         "title": "RegisterIn",
+        "type": "object"
+      },
+      "ScanIn": {
+        "properties": {
+          "accountId": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Accountid"
+          },
+          "path": {
+            "title": "Path",
+            "type": "string"
+          }
+        },
+        "required": [
+          "path"
+        ],
+        "title": "ScanIn",
         "type": "object"
       },
       "SettingsIO": {
@@ -318,6 +356,238 @@
           "role"
         ],
         "title": "Tokens",
+        "type": "object"
+      },
+      "TrackArtist": {
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "role": {
+            "title": "Role",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "role"
+        ],
+        "title": "TrackArtist",
+        "type": "object"
+      },
+      "TrackOut": {
+        "properties": {
+          "addedAt": {
+            "format": "date-time",
+            "title": "Addedat",
+            "type": "string"
+          },
+          "album": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Album"
+          },
+          "albumId": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Albumid"
+          },
+          "artistDisplay": {
+            "title": "Artistdisplay",
+            "type": "string"
+          },
+          "artists": {
+            "items": {
+              "$ref": "#/components/schemas/TrackArtist"
+            },
+            "title": "Artists",
+            "type": "array"
+          },
+          "coverImageId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Coverimageid"
+          },
+          "discNo": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Discno"
+          },
+          "durationMs": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Durationms"
+          },
+          "genre": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Genre"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "titleDisplay": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Titledisplay"
+          },
+          "trackNo": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Trackno"
+          },
+          "year": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Year"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "titleDisplay",
+          "artistDisplay",
+          "artists",
+          "albumId",
+          "album",
+          "year",
+          "genre",
+          "trackNo",
+          "discNo",
+          "durationMs",
+          "coverImageId",
+          "addedAt"
+        ],
+        "title": "TrackOut",
+        "type": "object"
+      },
+      "UploadIn": {
+        "properties": {
+          "filename": {
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Filename",
+            "type": "string"
+          },
+          "sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Sha256",
+            "type": "string"
+          },
+          "size": {
+            "exclusiveMinimum": 0.0,
+            "maximum": 2147483648.0,
+            "title": "Size",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "sha256",
+          "size",
+          "filename"
+        ],
+        "title": "UploadIn",
+        "type": "object"
+      },
+      "UploadOut": {
+        "properties": {
+          "exists": {
+            "default": false,
+            "title": "Exists",
+            "type": "boolean"
+          },
+          "id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id"
+          },
+          "offset": {
+            "default": 0,
+            "title": "Offset",
+            "type": "integer"
+          },
+          "state": {
+            "default": "receiving",
+            "title": "State",
+            "type": "string"
+          }
+        },
+        "title": "UploadOut",
         "type": "object"
       },
       "ValidationError": {
@@ -744,6 +1014,52 @@
         ]
       }
     },
+    "/api/v2/library/scan": {
+      "post": {
+        "operationId": "scan_api_v2_library_scan_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ScanIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Scan",
+        "tags": [
+          "library"
+        ]
+      }
+    },
     "/api/v2/ready": {
       "get": {
         "description": "Readiness: every dependency answers. 503 names the ones that do not.",
@@ -843,6 +1159,208 @@
         "summary": "Put Settings",
         "tags": [
           "identity"
+        ]
+      }
+    },
+    "/api/v2/tracks": {
+      "get": {
+        "operationId": "get_tracks_api_v2_tracks_get",
+        "parameters": [
+          {
+            "description": "comma-separated, ≤ 200",
+            "in": "query",
+            "name": "ids",
+            "required": true,
+            "schema": {
+              "description": "comma-separated, ≤ 200",
+              "title": "Ids",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/TrackOut"
+                  },
+                  "title": "Response Get Tracks Api V2 Tracks Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Tracks",
+        "tags": [
+          "library"
+        ]
+      }
+    },
+    "/api/v2/uploads": {
+      "post": {
+        "operationId": "start_upload_api_v2_uploads_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UploadIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UploadOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Start Upload",
+        "tags": [
+          "library"
+        ]
+      }
+    },
+    "/api/v2/uploads/{upload_id}": {
+      "get": {
+        "operationId": "get_upload_api_v2_uploads__upload_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "upload_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Upload Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UploadOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Upload",
+        "tags": [
+          "library"
+        ]
+      },
+      "patch": {
+        "operationId": "upload_chunk_api_v2_uploads__upload_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "upload_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Upload Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "upload-offset",
+            "required": true,
+            "schema": {
+              "title": "Upload-Offset",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UploadOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Upload Chunk",
+        "tags": [
+          "library"
         ]
       }
     }

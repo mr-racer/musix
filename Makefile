@@ -1,4 +1,6 @@
 # MusiX v2 — run from v2/.
+export UV_CACHE_DIR ?= /mnt/data/.cache/uv
+export PIP_CACHE_DIR ?= /mnt/data/.cache/pip
 COMPOSE = docker compose -f deploy/compose.dev.yml $(if $(GPU),-f deploy/compose.dev.gpu.yml)
 
 .PHONY: dev down logs test lint openapi check

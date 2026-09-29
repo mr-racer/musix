@@ -1,7 +1,8 @@
 """The Procrastinate app (Postgres-backed task queue).
 
 Procrastinate talks to Postgres through psycopg 3, not asyncpg, so it takes the
-plain libpq conninfo from `Settings`.
+plain libpq conninfo from `Settings`. Tasks are registered per App (see
+contexts/library/tasks.py for why not a shared Blueprint).
 """
 
 from __future__ import annotations
@@ -12,10 +13,12 @@ from musix.settings import Settings
 
 
 def make_queue_app(settings: Settings) -> procrastinate.App:
-    from musix.workers.tasks import blueprint
+    from musix.contexts.library import tasks as library
+    from musix.workers import tasks as core
 
     app = procrastinate.App(
         connector=procrastinate.PsycopgConnector(conninfo=settings.procrastinate_conninfo)
     )
-    app.add_tasks_from(blueprint, namespace="core")
+    core.register(app)
+    library.register(app)
     return app

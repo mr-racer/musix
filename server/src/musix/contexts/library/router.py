@@ -1,0 +1,82 @@
+import uuid
+from pathlib import Path
+from typing import Annotated
+
+from fastapi import APIRouter, Header, Query, Request
+
+from musix.api.deps import Auth, Owner, Session
+from musix.contexts.library import schemas as S
+from musix.contexts.library import service
+from musix.errors import Invalid
+
+router = APIRouter(tags=["library"])
+
+
+def _queue(request: Request):  # type: ignore[no-untyped-def]
+    return request.app.state.queue
+
+
+@router.post("/library/scan", response_model=S.JobOut, status_code=202)
+async def scan(body: S.ScanIn, p: Owner, request: Request) -> S.JobOut:
+    root = Path(body.path)
+    if not root.is_absolute():
+        raise Invalid("path must be absolute")
+    job = (
+        await _queue(request)
+        .configure_task("library:scan_folder")
+        .defer_async(account_id=str(body.account_id or p.account_id), root=str(root))
+    )
+    return S.JobOut(job=str(job))
+
+
+@router.post("/uploads", response_model=S.UploadOut, status_code=201)
+async def start_upload(body: S.UploadIn, p: Auth, s: Session, request: Request) -> S.UploadOut:
+    out, existing = await service.start_upload(s, p.account_id, body)
+    if existing:
+        await (
+            _queue(request)
+            .configure_task("library:register_existing")
+            .defer_async(account_id=str(p.account_id), media_file_id=str(existing))
+        )
+    return out
+
+
+@router.patch("/uploads/{upload_id}", response_model=S.UploadOut)
+async def upload_chunk(
+    upload_id: uuid.UUID,
+    p: Auth,
+    s: Session,
+    request: Request,
+    upload_offset: Annotated[int, Header()],
+) -> S.UploadOut:
+    out = await service.append_chunk(
+        s,
+        Path(request.app.state.settings.media_dir),
+        p.account_id,
+        upload_id,
+        upload_offset,
+        await request.body(),
+    )
+    if out.state == "verifying":
+        await (
+            _queue(request)
+            .configure_task("library:finalize_upload")
+            .defer_async(upload_id=str(upload_id))
+        )
+    return out
+
+
+@router.get("/uploads/{upload_id}", response_model=S.UploadOut)
+async def get_upload(upload_id: uuid.UUID, p: Auth, s: Session) -> S.UploadOut:
+    return await service.get_upload(s, p.account_id, upload_id)
+
+
+@router.get("/tracks", response_model=list[S.TrackOut])
+async def get_tracks(
+    p: Auth, s: Session, ids: Annotated[str, Query(description="comma-separated, ≤ 200")]
+) -> list[S.TrackOut]:
+    try:
+        parsed = [uuid.UUID(x) for x in ids.split(",") if x][:200]
+    except ValueError as e:
+        raise Invalid("ids must be uuids") from e
+    return await service.get_tracks(s, p.account_id, parsed)

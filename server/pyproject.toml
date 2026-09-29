@@ -56,6 +56,7 @@ ignore = ["S101"]  # assert is how pytest tests assert
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = ["S105", "S106"]  # test DSNs carry throwaway passwords
 "migrations/**" = ["E501"]
+"src/musix/contexts/library/{tags,sanitizer,artist_split,slug}.py" = ["E", "W", "B", "UP", "RUF", "SIM", "S", "I"]
 
 [tool.mypy]
 strict = true
@@ -76,3 +77,9 @@ markers = [
     "integration: needs Docker (testcontainers)",
 ]
 filterwarnings = ["error", "ignore::DeprecationWarning:testcontainers.*"]
+
+# Proven v1 algorithms copied as-is (phase 0 rule: copied with their tests, owned here);
+# they are typed loosely and stay that way rather than being rewritten.
+[[tool.mypy.overrides]]
+module = ["musix.contexts.library.tags", "musix.contexts.library.sanitizer", "musix.contexts.library.artist_split"]
+ignore_errors = true

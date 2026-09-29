@@ -15,6 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from musix import __version__, errors, observability
 from musix.infra import db, secrets
+from musix.infra.queue import make_queue_app
 from musix.schemas import Model
 from musix.settings import Settings
 
@@ -90,7 +91,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
         app.state.checks = {"postgres": postgres, "qdrant": qdrant_check}
         depth = asyncio.create_task(_queue_depth_loop(app.state.sessionmaker))
+        app.state.queue = make_queue_app(settings)
+        await app.state.queue.open_async()
         yield
+        await app.state.queue.close_async()
         depth.cancel()
         with contextlib.suppress(asyncio.CancelledError):
             await depth  # let it release its pooled connection before the engine is disposed
@@ -116,5 +120,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 def context_routers() -> list[APIRouter]:
     """Every bounded context's router. Explicit list (no import side effects)."""
     from musix.contexts.identity.router import router as identity
+    from musix.contexts.library.router import router as library
 
-    return [identity]
+    return [identity, library]

@@ -13,7 +13,8 @@ COPY migrations ./migrations
 COPY src ./src
 RUN --mount=type=cache,target=/root/.cache/uv uv sync --frozen --no-dev
 ENV PATH="/app/.venv/bin:$PATH"
-RUN useradd --system --uid 10001 musix && mkdir -p /var/lib/musix/secrets && chown -R musix /var/lib/musix
+ARG UID=1000
+RUN useradd --system --uid ${UID} musix && mkdir -p /var/lib/musix/secrets && chown -R musix /var/lib/musix
 USER musix
 EXPOSE 8000
 CMD ["uvicorn", "musix.api.app:create_app", "--factory", "--host", "0.0.0.0", "--port", "8000"]

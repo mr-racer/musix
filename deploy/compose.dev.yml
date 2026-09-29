@@ -9,6 +9,11 @@ x-server: &server
   environment:
     MUSIX_DATABASE_URL: postgresql://musix:musix@postgres:5432/musix
     MUSIX_QDRANT_URL: http://qdrant:6333
+    MUSIX_MEDIA_DIR: /mnt/data/musix-v2-media
+  # Same paths inside and out: media_files.path is a host path, and nginx serves the same.
+  volumes:
+    - /mnt/data/musix-v2-media:/mnt/data/musix-v2-media
+    - /mnt/data/music:/mnt/data/music:ro
 
 services:
   postgres:
@@ -40,7 +45,10 @@ services:
   api:
     <<: *server
     ports: ["127.0.0.1:18000:8000"]
-    volumes: ["secrets:/var/lib/musix/secrets"]
+    volumes:
+      - secrets:/var/lib/musix/secrets
+      - /mnt/data/musix-v2-media:/mnt/data/musix-v2-media
+      - /mnt/data/music:/mnt/data/music:ro
     depends_on:
       migrate: {condition: service_completed_successfully}
       qdrant: {condition: service_healthy}
