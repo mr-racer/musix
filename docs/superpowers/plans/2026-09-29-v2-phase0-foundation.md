@@ -46,7 +46,7 @@ below (`server/`, `deploy/…`, `tools/…`, `design/`, `contracts/`, `Makefile`
 
 ---
 
-## A. Server skeleton, dev stack, CI (exit criterion 4)
+## Task 1 — A. Server skeleton, dev stack, CI (exit criterion 4)
 
 **Do:**
 - **`server/`** (uv project, package `musix` in `src/`):
@@ -133,7 +133,7 @@ below (`server/`, `deploy/…`, `tools/…`, `design/`, `contracts/`, `Makefile`
 - `docker ps` shows v1's `musix` untouched (same container id, ports 8000/6333);
 - the e2e suite from `tools/e2e-v1/` passes its 4 tests against the repo's v1.
 
-## B. Prod snapshot — `tools/snapshot/`
+## Task 2 — B. Prod snapshot — `tools/snapshot/`
 
 **Do:** `make snapshot` runs `tools/snapshot/take.py` →
 `/mnt/data/musix-snapshots/<YYYY-MM-DD>/`, containing:
@@ -172,7 +172,7 @@ driver.
 - restore brings up the collections in the dev Qdrant with point counts equal to prod;
 - a second `take` reuses the hash cache (< 1 min for the manifest).
 
-## C. Search gates 4.1–4.3 + 4.5 + 4.6 — `tools/gates/`
+## Task 3 — C. Search gates 4.1–4.3 + 4.5 + 4.6 — `tools/gates/`
 
 **Do:**
 - **`make gates TARGET=v1 SNAP=<date>`:**
@@ -213,7 +213,7 @@ driver.
 - a re-run gives identical numbers (determinism);
 - v1-vs-v1 sound overlap = 1.0.
 
-## D. «Поток» harness — `tools/recsys-eval/` (spec 4.4)
+## Task 4 — D. «Поток» harness — `tools/recsys-eval/` (spec 4.4)
 
 **Do:** rebuild the spike as a small package reading the snapshot.
 - **Modules:**
@@ -255,7 +255,7 @@ driver.
   - real v1 top genre / 10 ≈ 0.75;
 - the invariants report 0 violations for the reference policy.
 
-## E. Benches — `tools/bench/` (spec §5)
+## Task 5 — E. Benches — `tools/bench/` (spec §5)
 
 **Do:** `make bench`:
 - brings up a **v1 copy** (the prod image `lyrics-search-musix`, container
@@ -283,7 +283,7 @@ driver.
 **Done when:** the report has every row of spec §5 (or an explicit "deferred" / "CPU"
 note), and the copy is torn down afterwards.
 
-## F. Design — `design/` (exit criterion 3)
+## Task 6 — F. Design — `design/` (exit criterion 3)
 
 **Do:**
 - **`design/tokens/*.json` (DTCG):** colors (both themes, from `useColors` in
@@ -318,7 +318,7 @@ note), and the copy is torn down afterwards.
 - every musix-ui component has a spec;
 - the golden set exists for both sizes and themes.
 
-## G. Baseline report (exit criterion 1–2 wrap-up)
+## Task 7 — G. Baseline report (exit criterion 1–2 wrap-up)
 
 `docs/superpowers/specs/2026-09-xx-v2-baseline-report.md`: the v1 numbers from C, D and E
 (and the 4.5 rows), the snapshot date, the environment notes (CPU/GPU, LLM model, the
