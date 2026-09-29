@@ -76,7 +76,8 @@ After the switch:
 - **Day 7:** if nothing forced a rollback, v1 containers and volumes are archived: the
   SQLite backup + the Qdrant snapshots go to `/mnt/data/musix-snapshots/final-v1/`, and the
   v1 volumes are deleted.
-- **Day 14:** v1 code (`app/`, `frontend/`) is removed from the branch in one commit. The
+- **Day 14:** in one commit, the v1 code at the root is removed and `v2/`'s content moves
+  to the root; phase 0 §1 lists which files stay because prod mounts them. The
   `genius-addition` prod branch gets the v2 merge.
 - The optional VPS edge cache (phase 1 §5.3) is evaluated with real traffic and enabled if
   the VPS disk allows.

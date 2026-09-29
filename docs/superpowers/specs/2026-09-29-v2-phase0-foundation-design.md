@@ -24,7 +24,11 @@
 
 ## 1. Repository layout (monorepo)
 
+**All of v2 lives under `v2/` in this repository** (owner, 2026-09-29). The old code is not
+touched or moved. At the cutover (phase 6) the root is replaced by `v2/`'s content.
+
 ```
+v2/
 server/                  v2 backend — Python package `musix`
   pyproject.toml         uv-managed; ruff + mypy --strict + pytest
   src/musix/
@@ -60,10 +64,19 @@ tools/
                          at /mnt/data/musix-v2-staging/e2e-v1/ (README there)
 ```
 
+All paths above are under `v2/`, except the two files tools require at the repository
+root: `.github/workflows/v2-*.yml` (GitHub Actions) and nothing else. pre-commit runs with
+`-c v2/.pre-commit-config.yaml`.
+
 Rules:
 
-- **v1 stays where it is** (`app/`, `frontend/`) and is **not edited** (the prod freeze).
-  It is deleted in phase 6.
+- **v1 stays where it is** (`app/`, `frontend/`, `scripts/`, `tests/`, the compose files,
+  `deploy/`) and is **neither edited nor moved** (the prod freeze).
+  - Its runtime data and configs (`cache/`, `media/`, `weights/`, `downloads/`,
+    `frontend/covers/`, `.env`, `searxng/settings.yml`) are bind-mounted by the running
+    prod containers.
+  - The root `.gitignore` is not edited either: v2 has its own `v2/.gitignore`.
+  - It is replaced by `v2/` in phase 6.
 - **Nothing in `server/` imports from `app/`.** Pure algorithms that are proven (the stream
   signal math, artist split, text normalize, lyric sanitizer) are **copied with their
   tests** into their v2 context, then owned there.
