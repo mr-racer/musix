@@ -91,6 +91,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         depth = asyncio.create_task(_queue_depth_loop(app.state.sessionmaker))
         yield
         depth.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await depth  # let it release its pooled connection before the engine is disposed
         await qdrant.close()
         await engine.dispose()
 
