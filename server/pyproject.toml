@@ -51,10 +51,10 @@ src = ["src", "tests"]
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "B", "UP", "ASYNC", "S", "RUF", "SIM", "PT"]
-ignore = ["S101"]  # assert is how pytest tests assert
+ignore = ["S101", "RUF001", "RUF002", "RUF003"]  # asserts in tests; −, × and Cyrillic in text are intended
 
 [tool.ruff.lint.per-file-ignores]
-"tests/**" = ["S105", "S106"]  # test DSNs carry throwaway passwords
+"tests/**" = ["S105", "S106", "S603", "S607", "S310", "ASYNC221", "ASYNC240"]  # throwaway secrets, local tools
 "migrations/**" = ["E501"]
 "src/musix/contexts/library/{tags,sanitizer,artist_split,slug}.py" = ["E", "W", "B", "UP", "RUF", "SIM", "S", "I"]
 
@@ -65,7 +65,7 @@ mypy_path = "src"
 packages = ["musix"]
 
 [[tool.mypy.overrides]]
-module = ["procrastinate.*", "testcontainers.*"]
+module = ["procrastinate.*", "testcontainers.*", "pyvips.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]

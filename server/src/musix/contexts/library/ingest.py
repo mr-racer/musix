@@ -13,6 +13,7 @@ import json
 import os
 import shutil
 import uuid
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -255,8 +256,15 @@ async def register(
     return track_id
 
 
+OnRegistered = Callable[[uuid.UUID], Awaitable[None]] | None
+
+
 async def ingest_file(
-    sm: SM, account_id: uuid.UUID, path: Path, storage: str = "reference"
+    sm: SM,
+    account_id: uuid.UUID,
+    path: Path,
+    storage: str = "reference",
+    on_registered: OnRegistered = None,
 ) -> uuid.UUID | None:
     """hash → probe → tags → register for one file. Returns the track id, or None on failure."""
     st = await asyncio.to_thread(path.stat)
@@ -306,10 +314,14 @@ async def ingest_file(
             .values(state="registered")
         )
         await s.commit()
+    if on_registered is not None:
+        await on_registered(mf_id)
     return track_id
 
 
-async def scan_folder(sm: SM, account_id: uuid.UUID, root: Path) -> dict[str, int]:
+async def scan_folder(
+    sm: SM, account_id: uuid.UUID, root: Path, on_registered: OnRegistered = None
+) -> dict[str, int]:
     """Walk a granted folder; only new or changed files (by path, size, mtime) are ingested."""
 
     def walk() -> list[tuple[Path, int, float]]:  # directory walk + stat off the event loop
@@ -359,7 +371,7 @@ async def scan_folder(sm: SM, account_id: uuid.UUID, root: Path) -> dict[str, in
         k = known.get(str(f))
         if k and k[0] == size and k[1] == mtime and k[2] in mine:
             counts["unchanged"] += 1
-        elif await ingest_file(sm, account_id, f):
+        elif await ingest_file(sm, account_id, f, on_registered=on_registered):
             counts["ingested"] += 1
         else:
             counts["failed"] += 1
@@ -393,7 +405,9 @@ async def scan_folder(sm: SM, account_id: uuid.UUID, root: Path) -> dict[str, in
     return counts
 
 
-async def finalize_upload(sm: SM, media_dir: Path, upload_id: uuid.UUID) -> uuid.UUID | None:
+async def finalize_upload(
+    sm: SM, media_dir: Path, upload_id: uuid.UUID, on_registered: OnRegistered = None
+) -> uuid.UUID | None:
     """Verify the declared sha256, move the file into managed storage, ingest it."""
     async with sm() as s:
         up = (await s.execute(sa.select(uploads).where(uploads.c.id == upload_id))).one()
@@ -412,7 +426,9 @@ async def finalize_upload(sm: SM, media_dir: Path, upload_id: uuid.UUID) -> uuid
     dest = media_dir / got[:2] / f"{got}{ext}"
     dest.parent.mkdir(parents=True, exist_ok=True)
     await asyncio.to_thread(shutil.move, str(part), str(dest))
-    track = await ingest_file(sm, up.account_id, dest, storage="managed")
+    track = await ingest_file(
+        sm, up.account_id, dest, storage="managed", on_registered=on_registered
+    )
     async with sm() as s:
         await s.execute(
             sa.update(uploads)

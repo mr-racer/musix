@@ -59,7 +59,7 @@ services:
 
   worker:
     <<: *server
-    command: procrastinate --app=musix.workers.app.app worker
+    command: procrastinate --app=musix.workers.app.app worker --concurrency 3
     depends_on: {migrate: {condition: service_completed_successfully}}
     healthcheck:
       test: ["CMD", "procrastinate", "--app=musix.workers.app.app", "healthchecks"]
@@ -78,7 +78,14 @@ services:
 
   nginx:
     image: nginx:1.29-alpine
-    volumes: ["./nginx/v2-dev.conf:/etc/nginx/conf.d/default.conf:ro"]
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/v2-dev.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./nginx/media.conf:/etc/nginx/media.conf:ro
+      - ./nginx/njs:/etc/nginx/njs:ro
+      - secrets:/etc/nginx/secrets:ro
+      - /mnt/data/musix-v2-media:/mnt/data/musix-v2-media:ro
+      - /mnt/data/music:/mnt/data/music:ro
     ports: ["127.0.0.1:18080:80"]
     depends_on: {api: {condition: service_healthy}}
 

@@ -13,15 +13,20 @@ from typing import Any
 import procrastinate
 
 from musix.contexts.library import ingest
+from musix.contexts.media.tasks import enqueue as media
 from musix.workers.context import sessionmaker, settings
 
 
 async def scan_folder(account_id: str, root: str) -> dict[str, int]:
-    return await ingest.scan_folder(sessionmaker(), uuid.UUID(account_id), Path(root))
+    return await ingest.scan_folder(
+        sessionmaker(), uuid.UUID(account_id), Path(root), on_registered=media
+    )
 
 
 async def ingest_file(account_id: str, path: str, storage: str = "reference") -> str | None:
-    t = await ingest.ingest_file(sessionmaker(), uuid.UUID(account_id), Path(path), storage)
+    t = await ingest.ingest_file(
+        sessionmaker(), uuid.UUID(account_id), Path(path), storage, on_registered=media
+    )
     return str(t) if t else None
 
 
@@ -37,13 +42,13 @@ async def register_existing(account_id: str, media_file_id: str) -> str | None:
         path = await s.scalar(
             sa.select(media_files.c.path).where(media_files.c.id == uuid.UUID(media_file_id))
         )
-    t = await ingest.ingest_file(sm, uuid.UUID(account_id), Path(str(path)))
+    t = await ingest.ingest_file(sm, uuid.UUID(account_id), Path(str(path)), on_registered=media)
     return str(t) if t else None
 
 
 async def finalize_upload(upload_id: str) -> str | None:
     t = await ingest.finalize_upload(
-        sessionmaker(), Path(settings().media_dir), uuid.UUID(upload_id)
+        sessionmaker(), Path(settings().media_dir), uuid.UUID(upload_id), on_registered=media
     )
     return str(t) if t else None
 

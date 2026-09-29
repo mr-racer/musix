@@ -1,6 +1,39 @@
 {
   "components": {
     "schemas": {
+      "AppRelease": {
+        "properties": {
+          "notes": {
+            "default": "",
+            "title": "Notes",
+            "type": "string"
+          },
+          "sha256": {
+            "title": "Sha256",
+            "type": "string"
+          },
+          "url": {
+            "title": "Url",
+            "type": "string"
+          },
+          "versionCode": {
+            "title": "Versioncode",
+            "type": "integer"
+          },
+          "versionName": {
+            "title": "Versionname",
+            "type": "string"
+          }
+        },
+        "required": [
+          "versionCode",
+          "versionName",
+          "url",
+          "sha256"
+        ],
+        "title": "AppRelease",
+        "type": "object"
+      },
       "DeviceIn": {
         "properties": {
           "appVersion": {
@@ -184,6 +217,51 @@
           "device"
         ],
         "title": "LoginIn",
+        "type": "object"
+      },
+      "ManifestIn": {
+        "properties": {
+          "network": {
+            "default": "wifi",
+            "enum": [
+              "wifi",
+              "cellular"
+            ],
+            "title": "Network",
+            "type": "string"
+          },
+          "trackIds": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "maxItems": 20,
+            "minItems": 1,
+            "title": "Trackids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "trackIds"
+        ],
+        "title": "ManifestIn",
+        "type": "object"
+      },
+      "ManifestOut": {
+        "properties": {
+          "items": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "ManifestOut",
         "type": "object"
       },
       "Ready": {
@@ -644,6 +722,53 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/api/v2/app/{platform}/latest": {
+      "get": {
+        "description": "Read from downloads/manifest.json; publishing a release = copying files + manifest.",
+        "operationId": "latest_api_v2_app__platform__latest_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "platform",
+            "required": true,
+            "schema": {
+              "enum": [
+                "android",
+                "windows"
+              ],
+              "title": "Platform",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppRelease"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Latest",
+        "tags": [
+          "media"
+        ]
+      }
+    },
     "/api/v2/auth/login": {
       "post": {
         "operationId": "login_api_v2_auth_login_post",
@@ -1057,6 +1182,53 @@
         "summary": "Scan",
         "tags": [
           "library"
+        ]
+      }
+    },
+    "/api/v2/playback/manifest": {
+      "post": {
+        "description": "Signed URLs for the current track and the next ones in the queue (clients prefetch).",
+        "operationId": "manifest_api_v2_playback_manifest_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ManifestIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ManifestOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Manifest",
+        "tags": [
+          "media"
         ]
       }
     },

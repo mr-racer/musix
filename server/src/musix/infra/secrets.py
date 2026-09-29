@@ -2,7 +2,7 @@
 Never in the database, never in git, never logged.
 
 - jwt_ed25519.pem: the access-token signing key (EdDSA);
-- media_hmac.key:  the signed-URL secret nginx verifies with njs;
+- media_hmac.key:  the signed-URL secret nginx verifies with njs (0644, see below);
 - fernet.key:      encrypts secrets kept in instance_settings (the LLM API key).
 """
 
@@ -26,8 +26,8 @@ class Secrets:
     fernet: Fernet
 
 
-def _write(path: Path, data: bytes) -> None:
-    fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+def _write(path: Path, data: bytes, mode: int = 0o600) -> None:
+    fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, mode)
     with os.fdopen(fd, "wb") as f:
         f.write(data)
 
@@ -47,7 +47,9 @@ def load_or_create(directory: str) -> Secrets:
             ),
         )
     if not hmac_path.exists():
-        _write(hmac_path, secrets.token_hex(32).encode())
+        # 0644: nginx (another uid) verifies signed URLs with it; the volume is mounted
+        # only into api and nginx. The signing key and the Fernet key stay 0600.
+        _write(hmac_path, secrets.token_hex(32).encode(), 0o644)
     if not fernet_path.exists():
         _write(fernet_path, Fernet.generate_key())
     private = serialization.load_pem_private_key(pem.read_bytes(), password=None)
