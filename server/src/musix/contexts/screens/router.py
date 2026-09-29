@@ -34,15 +34,17 @@ def _uuids(raw: str) -> list[uuid.UUID]:
 
 @router.get("/home", response_model=S.HomeOut, responses=etag.NOT_MODIFIED)
 async def home(p: Auth, request: Request, response: Response) -> Any:
-    tag = await _tag(request, p, "home", with_plays=True)
-    return await etag.conditional(request, response, tag, lambda: service.home(_ctx(request, p)))
+    tag, head = await etag.versioned_tag(request, p.account_id, "home", with_plays=True)
+    return await etag.conditional(
+        request, response, tag, lambda: service.home(_ctx(request, p), head)
+    )
 
 
 @router.get("/library/summary", response_model=S.LibrarySummaryOut, responses=etag.NOT_MODIFIED)
 async def library_summary(p: Auth, request: Request, response: Response) -> Any:
-    tag = await _tag(request, p, "summary", with_plays=True)
+    tag, head = await etag.versioned_tag(request, p.account_id, "summary", with_plays=True)
     return await etag.conditional(
-        request, response, tag, lambda: service.library_summary(_ctx(request, p))
+        request, response, tag, lambda: service.library_summary(_ctx(request, p), head)
     )
 
 

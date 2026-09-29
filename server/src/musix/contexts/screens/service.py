@@ -67,7 +67,14 @@ async def _ids(c: Ctx, q: sa.Select[Any]) -> list[uuid.UUID]:
     return list(await c.run(lambda s: s.scalars(q)))
 
 
-async def counts(c: Ctx) -> S.Counts:
+_COUNTS: dict[tuple[uuid.UUID, int], S.Counts] = {}
+
+
+async def counts(c: Ctx, head: int | None = None) -> S.Counts:
+    """Library counts. They change only with the account's change_log, so given its head
+    (the ETag version, already read) they are memoized per process."""
+    if head is not None and (hit := _COUNTS.get((c.account_id, head))):
+        return hit
     album_ids = sa.select(T.album_id).where(c.live(), T.album_id.is_not(None)).distinct().subquery()
     artist_ids = (
         sa.select(Ta.artist_id)
@@ -85,30 +92,38 @@ async def counts(c: Ctx) -> S.Counts:
         .scalar_subquery(),
     )
     row = (await c.run(lambda s: s.execute(q))).one()
-    return S.Counts(tracks=row[0], albums=row[1], artists=row[2], playlists=row[3])
+    out = S.Counts(tracks=row[0], albums=row[1], artists=row[2], playlists=row[3])
+    if head is not None:
+        if len(_COUNTS) > 4096:
+            _COUNTS.clear()
+        _COUNTS[(c.account_id, head)] = out
+    return out
 
 
-async def home(c: Ctx) -> S.HomeOut:
+async def home(c: Ctx, head: int | None = None) -> S.HomeOut:
+    live = sa.select(T.id).where(T.id == St.track_id, T.deleted_at.is_(None))
     recent_ids, added_ids, pls, cnt = await asyncio.gather(
-        _ids(
+        _ids(  # walks account_track_stats_recent_idx, probing tracks by key
             c,
             sa.select(St.track_id)
-            .join(tracks, T.id == St.track_id)
-            .where(St.account_id == c.account_id, c.live())
+            .where(St.account_id == c.account_id, sa.exists(live))
             .order_by(St.last_played_at.desc().nulls_last())
             .limit(20),
         ),
         _ids(c, sa.select(T.id).where(c.live()).order_by(T.added_at.desc()).limit(20)),
         c.run(lambda s: list_playlists(s, c.account_id)),
-        counts(c),
+        counts(c, head),
     )
-    recent, added = await asyncio.gather(c.tracks(recent_ids), c.tracks(added_ids))
+    both = await c.tracks(list(dict.fromkeys([*recent_ids, *added_ids])))
+    by = {t.id: t for t in both}
+    recent = [by[i] for i in recent_ids if i in by]
+    added = [by[i] for i in added_ids if i in by]
     pls = pls[:12]
-    imgs = await c.images([*_covers(recent), *_covers(added), *(p.cover_image_id for p in pls)])
+    imgs = await c.images([*_covers(both), *(p.cover_image_id for p in pls)])
     return S.HomeOut(recent=recent, recently_added=added, playlists=pls, counts=cnt, images=imgs)
 
 
-async def library_summary(c: Ctx) -> S.LibrarySummaryOut:
+async def library_summary(c: Ctx, head: int | None = None) -> S.LibrarySummaryOut:
     async def totals(s: AsyncSession) -> Any:
         return (
             await s.execute(
@@ -140,7 +155,9 @@ async def library_summary(c: Ctx) -> S.LibrarySummaryOut:
             )
         ).one()
 
-    cnt, tot, gen, pl = await asyncio.gather(counts(c), c.run(totals), c.run(genres), c.run(plays))
+    cnt, tot, gen, pl = await asyncio.gather(
+        counts(c, head), c.run(totals), c.run(genres), c.run(plays)
+    )
     return S.LibrarySummaryOut(
         counts=cnt,
         duration_ms=int(tot[0]),

@@ -1,0 +1,163 @@
+{
+  "load": {
+    "home": {
+      "n": 6642,
+      "errors": 0,
+      "p50": 56.8,
+      "p95": 112.3,
+      "p99": 147.9,
+      "rps": 332
+    },
+    "album": {
+      "n": 10108,
+      "errors": 0,
+      "p50": 35.4,
+      "p95": 81.1,
+      "p99": 106.7,
+      "rps": 505
+    },
+    "player_context": {
+      "n": 5128,
+      "errors": 0,
+      "p50": 78.4,
+      "p95": 125.1,
+      "p99": 152.5,
+      "rps": 256
+    },
+    "sync_delta_100": {
+      "n": 23866,
+      "errors": 0,
+      "p50": 15.6,
+      "p95": 28.2,
+      "p99": 42.4,
+      "rps": 1193
+    },
+    "listens_10": {
+      "n": 27201,
+      "errors": 0,
+      "p50": 12.4,
+      "p95": 29.8,
+      "p99": 51.4,
+      "rps": 1360
+    },
+    "listens_100": {
+      "n": 10314,
+      "errors": 0,
+      "p50": 24.7,
+      "p95": 95.5,
+      "p99": 282.4,
+      "rps": 516
+    },
+    "manifest_5": {
+      "n": 26914,
+      "errors": 0,
+      "p50": 13.3,
+      "p95": 27.4,
+      "p99": 49.2,
+      "rps": 1346
+    },
+    "initial_sync": {
+      "ms": 342,
+      "pages": 9,
+      "changes": 8423
+    },
+    "api_rss_mb": {
+      "max": 179,
+      "samples": 69
+    },
+    "pg_top10": [
+      {
+        "calls": "37515",
+        "total_ms": "83450.9",
+        "mean_ms": "2.224",
+        "rows": "37515",
+        "query": "WITH input AS ( SELECT * FROM jsonb_to_recordset($1::JSONB) AS x( client_event_id uuid, session_id text, track_id uuid, started_at timestamptz, "
+      },
+      {
+        "calls": "26914",
+        "total_ms": "3610.7",
+        "mean_ms": "0.134",
+        "rows": "134151",
+        "query": "SELECT tracks.album_id, avg(media_files.lufs_integrated) AS avg_1 FROM tracks JOIN media_files ON media_files.id = tracks.media_file_id WHERE tracks.album_id "
+      },
+      {
+        "calls": "16771",
+        "total_ms": "2677.6",
+        "mean_ms": "0.160",
+        "rows": "384474",
+        "query": "SELECT tracks.id, tracks.account_id, tracks.media_file_id, tracks.song_id, tracks.album_id, tracks.title, tracks.title_display, tracks.artist_display, tracks.di"
+      },
+      {
+        "calls": "16771",
+        "total_ms": "2116.8",
+        "mean_ms": "0.126",
+        "rows": "423000",
+        "query": "SELECT track_artists.track_id, artists.id, artists.name, track_artists.role FROM track_artists JOIN artists ON artists.id = track_artists.artist_id WHERE trac"
+      },
+      {
+        "calls": "23869",
+        "total_ms": "2053.5",
+        "mean_ms": "0.086",
+        "rows": "2387200",
+        "query": "SELECT DISTINCT ON (taste_signals.track_id) taste_signals.track_id, taste_signals.kind, taste_signals.created_at FROM taste_signals WHERE taste_signals.accoun"
+      },
+      {
+        "calls": "26914",
+        "total_ms": "980.6",
+        "mean_ms": "0.036",
+        "rows": "134570",
+        "query": "SELECT tracks.id, tracks.album_id, media_files.id AS mf, media_files.sha256, media_files.path, media_files.codec, media_files.bitrate_kbps, media_files.duration"
+      },
+      {
+        "calls": "6642",
+        "total_ms": "967.3",
+        "mean_ms": "0.146",
+        "rows": "132840",
+        "query": "SELECT playlists.id, playlists.account_id, playlists.name, playlists.description, playlists.cover_image_id, playlists.created_at, playlists.updated_at, playlist"
+      },
+      {
+        "calls": "23866",
+        "total_ms": "909.8",
+        "mean_ms": "0.038",
+        "rows": "2386600",
+        "query": "SELECT change_log.seq, change_log.entity, change_log.entity_id FROM change_log WHERE change_log.account_id = $1::UUID AND change_log.seq > $2::BIGINT ORDER BY"
+      },
+      {
+        "calls": "26914",
+        "total_ms": "798.7",
+        "mean_ms": "0.030",
+        "rows": "305045",
+        "query": "SELECT renditions.media_file_id, renditions.tier, renditions.path, renditions.codec, renditions.bitrate_kbps, renditions.size_bytes, renditions.created_at FROM"
+      },
+      {
+        "calls": "16753",
+        "total_ms": "619.7",
+        "mean_ms": "0.037",
+        "rows": "218832",
+        "query": "SELECT images.id, images.kind, images.width, images.height, images.variants, images.palette, images.blurhash, images.created_at FROM images WHERE images.id IN"
+      }
+    ],
+    "dataset": {
+      "tracks": 6000,
+      "albums": 600
+    }
+  },
+  "stream": {
+    "lan": {
+      "median_ms": 24,
+      "max_ms": 92,
+      "runs": 10,
+      "tiers": [
+        "high/aac"
+      ]
+    },
+    "lte": {
+      "median_ms": 198,
+      "max_ms": 200,
+      "runs": 10,
+      "tiers": [
+        "high/aac"
+      ]
+    }
+  }
+}

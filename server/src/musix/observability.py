@@ -3,13 +3,21 @@
 from __future__ import annotations
 
 import logging
+import os
 import time
 import uuid
-from collections.abc import Awaitable, Callable
 
 import structlog
-from fastapi import FastAPI, Request, Response
-from prometheus_client import CONTENT_TYPE_LATEST, Gauge, Histogram, generate_latest
+from fastapi import FastAPI, Response
+from prometheus_client import (
+    CONTENT_TYPE_LATEST,
+    CollectorRegistry,
+    Gauge,
+    Histogram,
+    generate_latest,
+    multiprocess,
+)
+from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from musix.settings import Settings
 
@@ -19,8 +27,14 @@ REQUESTS = Histogram(
     ["method", "route", "status"],
     buckets=(0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5),
 )
-WS_CONNECTIONS = Gauge("musix_ws_connections", "Open realtime sockets")
-QUEUE_DEPTH = Gauge("musix_queue_jobs", "Queue jobs by queue and status", ["queue", "status"])
+# with several uvicorn workers, PROMETHEUS_MULTIPROC_DIR makes /metrics the sum of all
+WS_CONNECTIONS = Gauge("musix_ws_connections", "Open realtime sockets", multiprocess_mode="livesum")
+QUEUE_DEPTH = Gauge(
+    "musix_queue_jobs",
+    "Queue jobs by queue and status",
+    ["queue", "status"],
+    multiprocess_mode="max",
+)
 
 
 def configure_logging(level: str) -> None:
@@ -36,28 +50,45 @@ def configure_logging(level: str) -> None:
     )
 
 
+class Observe:
+    """Request log context + latency histogram. Pure ASGI: BaseHTTPMiddleware
+    (`@app.middleware`) costs a task and a stream per request."""
+
+    def __init__(self, app: ASGIApp) -> None:
+        self.app = app
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] != "http":
+            return await self.app(scope, receive, send)
+        structlog.contextvars.clear_contextvars()
+        rid = dict(scope["headers"]).get(b"x-request-id")
+        structlog.contextvars.bind_contextvars(trace_id=rid.decode() if rid else uuid.uuid4().hex)
+        t0, status = time.perf_counter(), 500
+
+        async def observed(m: Message) -> None:
+            nonlocal status
+            if m["type"] == "http.response.start":
+                status = m["status"]
+            await send(m)
+
+        try:
+            await self.app(scope, receive, observed)
+        finally:
+            # the route TEMPLATE, never the raw path: ids would explode the label cardinality
+            route = getattr(scope.get("route"), "path", "unmatched")
+            REQUESTS.labels(scope["method"], route, str(status)).observe(time.perf_counter() - t0)
+
+
 def install(app: FastAPI, settings: Settings) -> None:
     configure_logging(settings.log_level)
-
-    @app.middleware("http")
-    async def _observe(
-        request: Request, call_next: Callable[[Request], Awaitable[Response]]
-    ) -> Response:
-        structlog.contextvars.clear_contextvars()
-        structlog.contextvars.bind_contextvars(
-            trace_id=request.headers.get("x-request-id") or uuid.uuid4().hex
-        )
-        t0 = time.perf_counter()
-        response = await call_next(request)
-        # the route TEMPLATE, never the raw path: ids would explode the label cardinality
-        route = getattr(request.scope.get("route"), "path", "unmatched")
-        REQUESTS.labels(request.method, route, str(response.status_code)).observe(
-            time.perf_counter() - t0
-        )
-        return response
+    app.add_middleware(Observe)
 
     @app.get("/metrics", include_in_schema=False)
     async def metrics() -> Response:
+        if os.environ.get("PROMETHEUS_MULTIPROC_DIR"):
+            registry = CollectorRegistry()
+            multiprocess.MultiProcessCollector(registry)  # type: ignore[no-untyped-call]
+            return Response(generate_latest(registry), media_type=CONTENT_TYPE_LATEST)
         return Response(generate_latest(), media_type=CONTENT_TYPE_LATEST)
 
     if settings.otlp_endpoint:

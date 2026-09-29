@@ -20,8 +20,14 @@ NOT_MODIFIED: dict[int | str, dict[str, Any]] = {304: {"description": "Not modif
 async def tag_for(
     request: Request, account_id: uuid.UUID, shape: str, with_plays: bool = False
 ) -> str:
-    """Hashes the account's change_log head, plus (for shapes that rank by listening,
-    which is not change-logged) the latest play."""
+    return (await versioned_tag(request, account_id, shape, with_plays))[0]
+
+
+async def versioned_tag(
+    request: Request, account_id: uuid.UUID, shape: str, with_plays: bool = False
+) -> tuple[str, int]:
+    """(ETag, change_log head). The tag hashes the head plus, for shapes that rank by
+    listening (not change-logged), the latest play; the head doubles as a cache key."""
     cols: list[Any] = [
         sa.select(sa.func.max(change_log.c.seq))
         .where(change_log.c.account_id == account_id)
@@ -36,7 +42,7 @@ async def tag_for(
         )
     async with request.app.state.sessionmaker() as s:
         version = tuple((await s.execute(sa.select(*cols))).one())
-    return make(shape, account_id, version)
+    return make(shape, account_id, version), int(version[0] or 0)
 
 
 def make(*parts: object) -> str:

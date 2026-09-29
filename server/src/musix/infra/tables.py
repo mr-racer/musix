@@ -9,8 +9,9 @@ metadata = sa.MetaData()
 change_log = sa.Table(
     "change_log",
     metadata,
-    sa.Column("seq", sa.BigInteger, primary_key=True),
-    sa.Column("account_id", UUID(as_uuid=True), nullable=False),
+    # keyed (account_id, seq): see migration 0008 for why seq alone planned badly
+    sa.Column("account_id", UUID(as_uuid=True), primary_key=True),
+    sa.Column("seq", sa.BigInteger, sa.Identity(always=True), primary_key=True),
     sa.Column("entity", sa.Text, nullable=False),
     sa.Column("entity_id", sa.Text, nullable=False),
     sa.Column("op", sa.Text, nullable=False),

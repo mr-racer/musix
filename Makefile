@@ -20,13 +20,15 @@ openapi:
 check: lint test
 
 # ── contract: schemathesis against the dev api; the three generated clients ──
-.PHONY: contract codegen codegen-check
+.PHONY: contract codegen codegen-check bench-v2
 contract:
 	tools/contract/run.sh
 codegen:
 	contracts/codegen/run.sh gen
 codegen-check:
 	contracts/codegen/run.sh check
+bench-v2:
+	tools/bench/v2/run.sh
 
 # ── prod snapshot (tools/snapshot) ──────────────────────────────────────────
 .PHONY: snapshot snapshot-restore

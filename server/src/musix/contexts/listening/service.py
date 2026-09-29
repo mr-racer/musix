@@ -7,18 +7,19 @@ batch up from the NOTIFY."""
 from __future__ import annotations
 
 import datetime as dt
+import json
 import uuid
 
 import sqlalchemy as sa
-from sqlalchemy.dialects.postgresql import distinct_on
+from sqlalchemy.dialects.postgresql import JSONB, distinct_on
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from musix.contexts.library.service import own_track_ids
 from musix.contexts.listening import schemas as S
-from musix.contexts.listening.models import account_track_stats, listen_events, taste_signals
+from musix.contexts.listening.models import taste_signals
 from musix.errors import Conflict, NotFound
-from musix.infra.changelog import notify, record_change
+from musix.infra.changelog import CHANNEL, record_change
 
 COMPLETE_SHARE = 0.9
 H_REACTION_DAYS = 1.0  # v1: the «заряд» halves in a day; the button unlocks at 0.5
@@ -37,95 +38,82 @@ def _end_reason(e: S.ListenIn) -> str:
     return e.end_reason
 
 
+# One statement, one round trip: the batch is checked against the account's tracks,
+# inserted idempotently (ON CONFLICT DO NOTHING), and only the rows actually inserted are
+# folded into account_track_stats — so a replayed outbox flush changes nothing. The stats
+# rows are upserted in track order: one lock order for everyone, or concurrent batches
+# over the same tracks deadlock (seen in the phase-1 bench). pg_notify is transactional.
+_INGEST = sa.text("""
+WITH input AS (
+    SELECT * FROM jsonb_to_recordset(:events) AS x(
+        client_event_id uuid, session_id text, track_id uuid, started_at timestamptz,
+        played_ms int, duration_ms int, end_reason text, skipped_early bool,
+        interacted bool, influence bool, source text, context_type text, context_id text)
+), valid AS (
+    SELECT i.* FROM input i
+    JOIN tracks t ON t.id = i.track_id AND t.account_id = :account AND t.deleted_at IS NULL
+), ins AS (
+    INSERT INTO listen_events (client_event_id, account_id, device_id, session_id, track_id,
+        started_at, played_ms, duration_ms, end_reason, skipped_early, interacted, influence,
+        source, context_type, context_id)
+    SELECT client_event_id, :account, :device, session_id, track_id, started_at, played_ms,
+        duration_ms, end_reason, skipped_early, interacted, influence, source, context_type,
+        context_id
+    FROM valid
+    ON CONFLICT (client_event_id) DO NOTHING
+    RETURNING track_id, started_at, played_ms, end_reason, skipped_early
+), agg AS (
+    SELECT track_id,
+        count(*) FILTER (WHERE NOT skipped_early) AS plays,  -- v1: a play = not skipped early
+        count(*) FILTER (WHERE end_reason = 'completed') AS completes,
+        count(*) FILTER (WHERE end_reason = 'skipped') AS skips,
+        sum(played_ms) AS ms, min(started_at) AS first, max(started_at) AS last
+    FROM ins GROUP BY track_id
+), up AS (
+    INSERT INTO account_track_stats AS s (account_id, track_id, plays, completes, skips,
+        total_played_ms, first_played_at, last_played_at)
+    SELECT :account, track_id, plays, completes, skips, ms, first, last FROM agg ORDER BY track_id
+    ON CONFLICT (account_id, track_id) DO UPDATE SET
+        plays = s.plays + excluded.plays,
+        completes = s.completes + excluded.completes,
+        skips = s.skips + excluded.skips,
+        total_played_ms = s.total_played_ms + excluded.total_played_ms,
+        first_played_at = least(s.first_played_at, excluded.first_played_at),
+        last_played_at = greatest(s.last_played_at, excluded.last_played_at)
+    RETURNING 1
+)
+SELECT
+    (SELECT count(*) FROM ins) AS inserted,
+    (SELECT count(*) FROM valid) AS valid,
+    (SELECT coalesce(array_agg(client_event_id), '{}') FROM input
+        WHERE client_event_id NOT IN (SELECT client_event_id FROM valid)) AS rejected,
+    (SELECT count(*) FROM up) AS stats,
+    CASE WHEN EXISTS (SELECT 1 FROM ins) THEN pg_notify(:channel, :payload) END AS notified
+""").bindparams(sa.bindparam("events", type_=JSONB))
+
+
 async def ingest_listens(
     s: AsyncSession, account_id: uuid.UUID, device_id: uuid.UUID, body: S.ListenBatchIn
 ) -> S.ListenBatchOut:
-    own = await own_track_ids(s, account_id, (e.track_id for e in body.events))
-    good = [e for e in body.events if e.track_id in own]
-    rejected = [e.client_event_id for e in body.events if e.track_id not in own]
-    if not good:
-        return S.ListenBatchOut(accepted=0, duplicates=0, rejected=rejected)
-    # ON CONFLICT DO NOTHING + RETURNING: stats come from the rows actually inserted,
-    # so a replayed outbox flush changes nothing
-    inserted = (
+    events = [
+        {**e.model_dump(mode="json", exclude={"end_reason"}), "end_reason": _end_reason(e)}
+        for e in body.events
+    ]
+    row = (
         await s.execute(
-            pg_insert(listen_events)
-            .values(
-                [
-                    {
-                        **e.model_dump(exclude={"end_reason"}),
-                        "end_reason": _end_reason(e),
-                        "account_id": account_id,
-                        "device_id": device_id,
-                    }
-                    for e in good
-                ]
-            )
-            .on_conflict_do_nothing(index_elements=["client_event_id"])
-            .returning(
-                listen_events.c.track_id,
-                listen_events.c.started_at,
-                listen_events.c.played_ms,
-                listen_events.c.end_reason,
-                listen_events.c.skipped_early,
-            )
-        )
-    ).all()
-    # one row per track: ON CONFLICT DO UPDATE may not touch the same row twice
-    agg: dict[uuid.UUID, dict] = {}  # type: ignore[type-arg]
-    for r in inserted:
-        a = agg.setdefault(
-            r.track_id,
+            _INGEST,
             {
-                "plays": 0,
-                "completes": 0,
-                "skips": 0,
-                "ms": 0,
-                "first": r.started_at,
-                "last": r.started_at,
+                "events": events,
+                "account": account_id,
+                "device": device_id,
+                "channel": CHANNEL,
+                "payload": json.dumps({"account": str(account_id), "kind": "listens"}),
             },
         )
-        a["plays"] += not r.skipped_early  # v1: a play is any listen not skipped early
-        a["completes"] += r.end_reason == "completed"
-        a["skips"] += r.end_reason == "skipped"
-        a["ms"] += r.played_ms
-        a["first"] = min(a["first"], r.started_at)
-        a["last"] = max(a["last"], r.started_at)
-    if agg:
-        st = account_track_stats.c
-        ins = pg_insert(account_track_stats).values(
-            [
-                {
-                    "account_id": account_id,
-                    "track_id": tid,
-                    "plays": a["plays"],
-                    "completes": a["completes"],
-                    "skips": a["skips"],
-                    "total_played_ms": a["ms"],
-                    "first_played_at": a["first"],
-                    "last_played_at": a["last"],
-                }
-                for tid, a in agg.items()
-            ]
-        )
-        x = ins.excluded
-        await s.execute(
-            ins.on_conflict_do_update(
-                index_elements=["account_id", "track_id"],
-                set_={
-                    "plays": st.plays + x.plays,
-                    "completes": st.completes + x.completes,
-                    "skips": st.skips + x.skips,
-                    "total_played_ms": st.total_played_ms + x.total_played_ms,
-                    "first_played_at": sa.func.least(st.first_played_at, x.first_played_at),
-                    "last_played_at": sa.func.greatest(st.last_played_at, x.last_played_at),
-                },
-            )
-        )
-        await notify(s, account_id, "listens")
+    ).one()
     await s.commit()
     return S.ListenBatchOut(
-        accepted=len(inserted), duplicates=len(good) - len(inserted), rejected=rejected
+        accepted=row.inserted, duplicates=row.valid - row.inserted, rejected=list(row.rejected)
     )
 
 

@@ -33,7 +33,7 @@ def _json_bool(v: Any) -> Any:
 
 
 def _json_str(v: Any) -> Any:
-    if not isinstance(v, str):
+    if not isinstance(v, str | dt.datetime):  # a datetime can only come from Python code
         raise ValueError("must be an RFC 3339 string")
     return v
 

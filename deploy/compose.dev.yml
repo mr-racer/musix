@@ -6,7 +6,7 @@ name: musix-v2-dev
 x-server: &server
   build: ../server
   image: musix-v2-server:dev
-  environment:
+  environment: &server-env
     MUSIX_DATABASE_URL: postgresql://musix:musix@postgres:5432/musix
     MUSIX_QDRANT_URL: http://qdrant:6333
     MUSIX_MEDIA_DIR: /mnt/data/musix-v2-media
@@ -45,6 +45,14 @@ services:
 
   api:
     <<: *server
+    # spec §1: 4 workers (2 × cores, capped); the api holds no models, so they share nothing
+    # but Postgres. /metrics sums them through the multiprocess dir (fresh per start).
+    command: >-
+      sh -c "rm -rf /tmp/prom && mkdir -p /tmp/prom &&
+      exec uvicorn musix.api.app:create_app --factory --host 0.0.0.0 --port 8000 --workers 4"
+    environment:
+      <<: *server-env
+      PROMETHEUS_MULTIPROC_DIR: /tmp/prom
     ports: ["127.0.0.1:18000:8000"]
     volumes:
       - secrets:/var/lib/musix/secrets
