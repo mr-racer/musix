@@ -196,15 +196,24 @@ stays at < 30 ms.
 
 The same state serves the other surfaces, which now become SQL or single ANN calls:
 
+- **the autoplay queue**: it continues a finished list (album, playlist, search results)
+  and plays a вайбик. The v1 logic is kept, because the owner says it works:
+  - the CLAP neighbours of the seed track;
+  - minus the seed, the recently played (≤ 200 ids), the «вода»-locked tracks and tracks
+    under 60 s;
+  - at most 2 in a row by one artist: the extras are demoted to the tail and used only to
+    fill the list.
+
+  It is one Qdrant query with the `owners` filter. The v1 unit tests of `autoplay_service`
+  are ported with it.
 - вайбики (the short-term mood clusters of recent positive plays, as a `taste_profile`
   job) with their AI names, and the hero's vibe phrase;
 - the taste map (PCA/k-means as a job, cached);
 - discoveries;
 - listening stats, rhythm, weekly pulse, engagement (all aggregate SQL).
 
-A tap on a вайбик and the end of a user-built queue start «Поток» seeded with those tracks
-(stream spec §3.4). The v1 autoplay queue, similar tracks, sonic sibling, axis playlists,
-islands, the taste portrait and top pairs are not rebuilt (program §4.3).
+The v1 similar tracks, sonic sibling, axis playlists, islands, the taste portrait and top
+pairs are not rebuilt (program §4.3).
 
 ## 7. The assistant, chat, AI playlists, the quiz, imports
 
@@ -248,6 +257,7 @@ islands, the taste portrait and top pairs are not rebuilt (program §4.3).
 | Path | Budget |
 |---|---|
 | `GET /stream/next` | p95 < 150 ms |
+| Autoplay queue | p95 < 100 ms |
 | `GET /search` (all sections) | p95 < 250 ms (a dense query encode is ~20 ms on GPU) |
 | Ingest of a 6k-track library (all intelligence, excluding the LLM enrichment) | ≤ v1 wall-clock, with a GPU CLAP expected well under it |
 | A listen → the next chunk reflects it | < 1 s (the state update is async) |

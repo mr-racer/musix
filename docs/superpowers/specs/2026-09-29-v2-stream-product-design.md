@@ -260,16 +260,6 @@ repeats it.
    evaluation possible (§9).
 6. Pick the highest-ranked candidate that passes.
 
-### 3.4 Seeded start — the only other way into «Поток»
-
-- A tap on a **вайбик**, or the end of a queue the listener built (an album, a playlist,
-  search results), starts a «Поток» session **seeded** with those tracks. They become the
-  session's first positives for retrieval (§3.1), and the reason chip says
-  «От вайбика „…“» or «Продолжаем после „…“».
-- This replaces v1's separate autoplay-queue recommender (program §4.3). There is one
-  engine with one set of rules (served-today, presets, fatigue) everywhere.
-- A seeded session keeps the listener's current presets.
-
 ## 4. Presets replace the slider
 
 Two rows of chips, **visually separate** (the owner's requirement): how familiar the music
@@ -369,7 +359,6 @@ with `taste_profile`) are only used to choose where to go and how to get there.
   | `bridge` | a genre transition | «Мост: из рока в электронику» |
   | `preset_match` | a sound preset | «Под „Спокойное“: энергия ниже 60% библиотеки» |
   | `explore` | the exploration slot | «Пробуем: вне твоего обычного» |
-  | `seeded` | the first tracks of a seeded session (§3.4) | «От вайбика „Ночной драйв“» |
 
   - A `similar_to` chip is never shown unless the audio source actually proposed the track.
     v1's «похоже на» could claim a similarity that did not drive the choice.
@@ -384,7 +373,7 @@ with `taste_profile`) are only used to choose where to go and how to get there.
 ## 8. API surface (v2)
 
 - `PUT /stream/settings` `{familiarity: "mix|favorites|rediscover|unfamiliar", sound: null|"calm"|"energetic"}`. Synced via `account_settings`.
-- `GET /stream/next` accepts `seed` (≤ 20 track ids) when it opens a session (§3.4), and its tracks gain `reason`. Chunk metadata gains
+- `GET /stream/next` tracks gain `reason`. Chunk metadata gains
   `{genre_run, fatigue_trigger, model_version}` (debug builds only).
 - `POST /stream/feedback` `{trackId, kind: "less_like_this"}` for the session down-weight.
   «Больше такого» is the existing signal endpoint.

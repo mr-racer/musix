@@ -118,7 +118,7 @@ Changes:
 | Surface | v1 source | Notes |
 |---|---|---|
 | Server + login / invite | `LoginScreen`, `ServerUrlField` | owner setup stays on the web |
-| Home | `LandingScreen`, `ForYouHero`, вайбики (a tap starts a seeded «Поток»), recent | one `GET /home` |
+| Home | `LandingScreen`, `ForYouHero`, вайбики (a tap plays the вайбик's autoplay queue), recent | one `GET /home` |
 | «Поток» | `startStream`, the stream settings slider | server state, native refill |
 | Player | `PlayerSection` (1799 lines) | cover, controls, lyrics (synced LRC highlighting), `FactsRail`, producer/sample badges, queue (reorder, remove, play next), огонёк/вода, the AI chat drawer, lyric explain; one `GET /player/context` |
 | Library | `LibrarySection`, `AlbumsGridTab`, `AlbumModal`, playlists | Paging over Room; sorts (слушаю чаще / год / А-Я), groups |

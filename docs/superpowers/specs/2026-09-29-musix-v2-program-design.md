@@ -2,7 +2,8 @@
 
 **Date:** 2026-09-29
 **Status:** program approved by the owner. Each phase gets its own spec + plan before any code.
-All phase specs were written 2026-09-29 and await the owner's review:
+All phase specs were written 2026-09-29. The owner approved them the same day and asked to execute
+them in order, one implementation plan per phase:
 [phase 0](2026-09-29-v2-phase0-foundation-design.md) ·
 [1](2026-09-29-v2-phase1-core-design.md) ·
 [2](2026-09-29-v2-phase2-intelligence-design.md) ·
@@ -220,12 +221,13 @@ Every phase spec carries its own version of this table and must not reintroduce 
 | Lyric gems (самоцветы) | The owner | The namedrop / songref pipeline, `track_gems`, `gem_resolution_cache`, `/metadata/tracks/{id}/gems`, `/library/gems/tracks` | — |
 | The player's «похожие / контраст» rail | The owner. Similarity is not a relevance signal (stream spec §2) | The `top-pairs` cache and route | — |
 | The playback diagnostics journal | Built for the v1 web background-playback bug; the native player and the client event outbox remove its cause | `POST /playback/diagnostics`, `cache/diagnostics/` | Debug builds may keep a local log |
-| A separate autoplay recommender | A second engine next to «Поток», with its own rules | `/recommend/autoplay-queue` | The end of a queue and a tap on a вайбик start «Поток» seeded with those tracks (stream spec §3.4) |
 | Hearts (`track_reactions`) and their dislike filter | The UI was already removed in v1; 0 rows | The table, the filter | огонёк / вода |
 | Legacy assistant modules | Not called since the unified assistant | `router.py`, `intent_llm.py`, `facts_executor.py` | — |
 
 **Kept** (the owner, 2026-09-29):
 - вайбики with their AI names, and the hero's vibe phrase;
+- the autoplay queue, which continues a finished list or plays a вайбик, with the v1 logic
+  (phase 2 §6);
 - the quiz;
 - the stats tab;
 - the assistant;
