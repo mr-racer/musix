@@ -1,0 +1,166 @@
+{
+  "snapshot": "2026-09-29",
+  "target": "v1",
+  "lyrics": {
+    "exact": {
+      "n": 300,
+      "runs": 3,
+      "recall@1": 0.4749999999999999,
+      "recall@10": 0.8933333333333332,
+      "mrr": 0.6435906084656084,
+      "spread": {
+        "recall@1": 0.0,
+        "recall@10": 0.0,
+        "mrr": 0.0
+      }
+    },
+    "noisy": {
+      "n": 300,
+      "runs": 3,
+      "recall@1": 0.38222222222222224,
+      "recall@10": 0.8022222222222223,
+      "mrr": 0.5353994708994709,
+      "spread": {
+        "recall@1": 0.0,
+        "recall@10": 0.0033333333333332993,
+        "mrr": 0.0003333333333332966
+      }
+    },
+    "partial": {
+      "n": 300,
+      "runs": 3,
+      "recall@1": 0.2627777777777778,
+      "recall@10": 0.6033333333333334,
+      "mrr": 0.3784609788359788,
+      "spread": {
+        "recall@1": 0.0,
+        "recall@10": 0.0,
+        "mrr": 0.0
+      }
+    },
+    "translit": {
+      "n": 114,
+      "runs": 3,
+      "recall@1": 0.2982456140350877,
+      "recall@10": 0.6929824561403509,
+      "mrr": 0.466593567251462,
+      "spread": {
+        "recall@1": 0.0,
+        "recall@10": 0.0,
+        "mrr": 0.0
+      }
+    }
+  },
+  "sound": {
+    "n": 80.0,
+    "precision@10": 0.49000000000000005,
+    "overlap@10_vs_v1": 1.0
+  },
+  "catalog": {
+    "album": {
+      "n": 50,
+      "recall@1": 0.88,
+      "recall@5": 1.0
+    },
+    "all": {
+      "n": 300,
+      "recall@1": 0.77,
+      "recall@5": 0.94
+    },
+    "exact": {
+      "n": 50,
+      "recall@1": 0.88,
+      "recall@5": 1.0
+    },
+    "feat": {
+      "n": 50,
+      "recall@1": 0.84,
+      "recall@5": 1.0
+    },
+    "prefix": {
+      "n": 50,
+      "recall@1": 0.78,
+      "recall@5": 1.0
+    },
+    "translit": {
+      "n": 50,
+      "recall@1": 0.68,
+      "recall@5": 0.84
+    },
+    "typo": {
+      "n": 50,
+      "recall@1": 0.56,
+      "recall@5": 0.8
+    }
+  },
+  "migration": {
+    "sqlite": {
+      "ai_indexing_jobs": 95,
+      "artist_aliases": 1737,
+      "artist_bios": 1332,
+      "artist_facts": 6706,
+      "artists": 2689,
+      "collection_settings": 5,
+      "fact_fetch_misses": 1555,
+      "fact_visibility": 12032,
+      "gem_resolution_cache": 1677,
+      "instance_config": 1,
+      "instance_settings": 5,
+      "invites": 41,
+      "pending_uploads": 13,
+      "playback_events": 5694,
+      "playlist_tracks": 98,
+      "playlists": 7,
+      "quiz_rounds": 71,
+      "quiz_skill": 7,
+      "quiz_streak": 0,
+      "recsys_llm_texts": 13,
+      "refined_fact_items": 60852,
+      "refined_facts": 537,
+      "sample_link_verdicts": 1232,
+      "sample_links": 1225,
+      "song_facts": 60473,
+      "songs": 7897,
+      "sonic_vibes": 4090,
+      "sqlite_sequence": 6,
+      "taste_signals": 228,
+      "track_artist_slugs": 8615,
+      "track_gems": 6811,
+      "track_metadata": 7282,
+      "track_reactions": 0,
+      "users": 6,
+      "yandex_accounts": 4,
+      "yandex_imports": 1801
+    },
+    "qdrant": {
+      "friend": 665,
+      "member-1": 188,
+      "member-2": 418,
+      "owner": 5961,
+      "member-3": 50,
+      "facts": 1820
+    },
+    "v2": "pending phase 3"
+  },
+  "evals": {
+    "facts": {
+      "отбраковка": 0.9285714285714286,
+      "сохранность": 0.8717948717948718,
+      "класс": 0.8717948717948718,
+      "off-scope": 0.5
+    },
+    "llm_model": "qwen3.8-27b-ud-iq3_s",
+    "bio": {
+      "n": 10,
+      "empty": 0,
+      "wrong_lang": 1,
+      "median_chars": 774
+    },
+    "routing": {
+      "exit": 0,
+      "lines": [
+        "11 passed in 42.28s"
+      ]
+    }
+  }
+}
