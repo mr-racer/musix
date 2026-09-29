@@ -2,37 +2,19 @@
 
 import datetime as dt
 import random
-import shutil
 import uuid
-from pathlib import Path
 
 import pytest
 import sqlalchemy as sa
 from fastapi.testclient import TestClient
 
-from musix.contexts.library import ingest
-from musix.contexts.library.models import tracks
 from musix.contexts.listening.models import account_track_stats, taste_signals
 from musix.contexts.playlists.models import playlist_items
 from musix.infra.tables import change_log
-from tests.integration.conftest import bearer, member
+from tests.integration.conftest import bearer
 
 pytestmark = pytest.mark.integration
-AUDIO = Path(__file__).resolve().parents[1] / "fixtures" / "audio"
 T0 = dt.datetime(2026, 9, 1, 12, tzinfo=dt.UTC)
-
-
-@pytest.fixture
-async def listener(sm, tmp_path: Path, client: TestClient, owner: dict[str, str]):  # type: ignore[no-untyped-def]
-    """A fresh member with the three fixture tracks."""
-    tok = member(client, owner, f"l-{uuid.uuid4().hex[:8]}@example.com")
-    for f in AUDIO.glob("tiny.*"):
-        shutil.copy(f, tmp_path / f.name)
-    acct = uuid.UUID(tok["accountId"])
-    await ingest.scan_folder(sm, acct, tmp_path)
-    async with sm() as s:
-        ids = list(await s.scalars(sa.select(tracks.c.id).where(tracks.c.account_id == acct)))
-    return tok, acct, sorted(ids)
 
 
 def event(track: uuid.UUID, **kw: object) -> dict[str, object]:

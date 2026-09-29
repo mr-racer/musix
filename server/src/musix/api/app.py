@@ -14,6 +14,7 @@ from qdrant_client import AsyncQdrantClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from musix import __version__, errors, observability
+from musix.api.realtime import Hub
 from musix.infra import db, secrets
 from musix.infra.queue import make_queue_app
 from musix.schemas import Model
@@ -93,7 +94,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         depth = asyncio.create_task(_queue_depth_loop(app.state.sessionmaker))
         app.state.queue = make_queue_app(settings)
         await app.state.queue.open_async()
+        app.state.hub = Hub(settings.procrastinate_conninfo)
+        app.state.hub.start()
         yield
+        await app.state.hub.stop()
         await app.state.queue.close_async()
         depth.cancel()
         with contextlib.suppress(asyncio.CancelledError):
@@ -119,10 +123,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
 def context_routers() -> list[APIRouter]:
     """Every bounded context's router. Explicit list (no import side effects)."""
+    from musix.api.realtime import router as realtime
     from musix.contexts.identity.router import router as identity
     from musix.contexts.library.router import router as library
     from musix.contexts.listening.router import router as listening
     from musix.contexts.media.router import router as media
     from musix.contexts.playlists.router import router as playlists
+    from musix.contexts.sync.router import router as sync
 
-    return [identity, library, media, listening, playlists]
+    return [identity, library, media, listening, playlists, sync, realtime]

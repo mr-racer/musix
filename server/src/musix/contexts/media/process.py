@@ -88,11 +88,14 @@ async def _cover(s: AsyncSession, media_dir: Path, mf_id: uuid.UUID, src: Path) 
     ).all()
     for r in rows:
         if r.album_id:
-            await s.execute(
+            hit = await s.scalar(
                 sa.update(albums)
                 .where(albums.c.id == r.album_id, albums.c.cover_image_id.is_(None))
                 .values(cover_image_id=iid)
+                .returning(albums.c.id)
             )
+            if hit is not None:
+                await record_change(s, r.account_id, "album", r.album_id)
         await record_change(s, r.account_id, "track", r.id)
     return iid
 

@@ -1,6 +1,100 @@
 {
   "components": {
     "schemas": {
+      "AlbumChange": {
+        "properties": {
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AlbumData"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "entity": {
+            "const": "album",
+            "title": "Entity",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "op": {
+            "enum": [
+              "upsert",
+              "delete"
+            ],
+            "title": "Op",
+            "type": "string"
+          }
+        },
+        "required": [
+          "entity",
+          "id",
+          "op"
+        ],
+        "title": "AlbumChange",
+        "type": "object"
+      },
+      "AlbumData": {
+        "properties": {
+          "albumArtistId": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Albumartistid"
+          },
+          "coverImageId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Coverimageid"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "year": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Year"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "year",
+          "albumArtistId",
+          "coverImageId"
+        ],
+        "title": "AlbumData",
+        "type": "object"
+      },
       "AppRelease": {
         "properties": {
           "notes": {
@@ -32,6 +126,87 @@
           "sha256"
         ],
         "title": "AppRelease",
+        "type": "object"
+      },
+      "ArtistChange": {
+        "properties": {
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ArtistData"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "entity": {
+            "const": "artist",
+            "title": "Entity",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "op": {
+            "enum": [
+              "upsert",
+              "delete"
+            ],
+            "title": "Op",
+            "type": "string"
+          }
+        },
+        "required": [
+          "entity",
+          "id",
+          "op"
+        ],
+        "title": "ArtistChange",
+        "type": "object"
+      },
+      "ArtistData": {
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "imageId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Imageid"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "sortName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sortname"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "sortName",
+          "imageId"
+        ],
+        "title": "ArtistData",
         "type": "object"
       },
       "DeviceIn": {
@@ -152,6 +327,114 @@
           "version"
         ],
         "title": "Health",
+        "type": "object"
+      },
+      "ImageChange": {
+        "properties": {
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ImageData"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "entity": {
+            "const": "image",
+            "title": "Entity",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "op": {
+            "enum": [
+              "upsert",
+              "delete"
+            ],
+            "title": "Op",
+            "type": "string"
+          }
+        },
+        "required": [
+          "entity",
+          "id",
+          "op"
+        ],
+        "title": "ImageChange",
+        "type": "object"
+      },
+      "ImageData": {
+        "properties": {
+          "blurhash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Blurhash"
+          },
+          "height": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Height"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "palette": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Palette"
+          },
+          "urls": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Urls",
+            "type": "object"
+          },
+          "width": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Width"
+          }
+        },
+        "required": [
+          "id",
+          "width",
+          "height",
+          "blurhash",
+          "palette",
+          "urls"
+        ],
+        "title": "ImageData",
         "type": "object"
       },
       "InviteOut": {
@@ -567,6 +850,44 @@
         "title": "ManifestOut",
         "type": "object"
       },
+      "PlaylistChange": {
+        "properties": {
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PlaylistOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "entity": {
+            "const": "playlist",
+            "title": "Entity",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "op": {
+            "enum": [
+              "upsert",
+              "delete"
+            ],
+            "title": "Op",
+            "type": "string"
+          }
+        },
+        "required": [
+          "entity",
+          "id",
+          "op"
+        ],
+        "title": "PlaylistChange",
+        "type": "object"
+      },
       "PlaylistIn": {
         "properties": {
           "description": {
@@ -604,6 +925,81 @@
           "name"
         ],
         "title": "PlaylistIn",
+        "type": "object"
+      },
+      "PlaylistItemChange": {
+        "properties": {
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PlaylistItemData"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "entity": {
+            "const": "playlistItem",
+            "title": "Entity",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "op": {
+            "enum": [
+              "upsert",
+              "delete"
+            ],
+            "title": "Op",
+            "type": "string"
+          }
+        },
+        "required": [
+          "entity",
+          "id",
+          "op"
+        ],
+        "title": "PlaylistItemChange",
+        "type": "object"
+      },
+      "PlaylistItemData": {
+        "properties": {
+          "addedAt": {
+            "format": "date-time",
+            "title": "Addedat",
+            "type": "string"
+          },
+          "itemId": {
+            "format": "uuid",
+            "title": "Itemid",
+            "type": "string"
+          },
+          "playlistId": {
+            "format": "uuid",
+            "title": "Playlistid",
+            "type": "string"
+          },
+          "position": {
+            "title": "Position",
+            "type": "string"
+          },
+          "trackId": {
+            "format": "uuid",
+            "title": "Trackid",
+            "type": "string"
+          }
+        },
+        "required": [
+          "itemId",
+          "trackId",
+          "position",
+          "addedAt",
+          "playlistId"
+        ],
+        "title": "PlaylistItemData",
         "type": "object"
       },
       "PlaylistOut": {
@@ -783,6 +1179,58 @@
         "title": "ScanIn",
         "type": "object"
       },
+      "SettingsChange": {
+        "properties": {
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SettingsData"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "entity": {
+            "const": "settings",
+            "title": "Entity",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "op": {
+            "enum": [
+              "upsert",
+              "delete"
+            ],
+            "title": "Op",
+            "type": "string"
+          }
+        },
+        "required": [
+          "entity",
+          "id",
+          "op"
+        ],
+        "title": "SettingsChange",
+        "type": "object"
+      },
+      "SettingsData": {
+        "properties": {
+          "value": {
+            "additionalProperties": true,
+            "title": "Value",
+            "type": "object"
+          }
+        },
+        "required": [
+          "value"
+        ],
+        "title": "SettingsData",
+        "type": "object"
+      },
       "SettingsIO": {
         "properties": {
           "value": {
@@ -827,6 +1275,36 @@
           "device"
         ],
         "title": "SetupIn",
+        "type": "object"
+      },
+      "SignalData": {
+        "description": "Clients compute the «заряд» locally: 0.5 ** (age_days / 1), locked above 0.5.",
+        "properties": {
+          "createdAt": {
+            "format": "date-time",
+            "title": "Createdat",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "fire",
+              "water"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "trackId": {
+            "format": "uuid",
+            "title": "Trackid",
+            "type": "string"
+          }
+        },
+        "required": [
+          "trackId",
+          "kind",
+          "createdAt"
+        ],
+        "title": "SignalData",
         "type": "object"
       },
       "SignalIn": {
@@ -891,6 +1369,44 @@
         "title": "SignalState",
         "type": "object"
       },
+      "SignalStateChange": {
+        "properties": {
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SignalData"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "entity": {
+            "const": "signalState",
+            "title": "Entity",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "op": {
+            "enum": [
+              "upsert",
+              "delete"
+            ],
+            "title": "Op",
+            "type": "string"
+          }
+        },
+        "required": [
+          "entity",
+          "id",
+          "op"
+        ],
+        "title": "SignalStateChange",
+        "type": "object"
+      },
       "SignalStatesOut": {
         "properties": {
           "states": {
@@ -908,6 +1424,70 @@
           "states"
         ],
         "title": "SignalStatesOut",
+        "type": "object"
+      },
+      "SyncPage": {
+        "properties": {
+          "changes": {
+            "items": {
+              "discriminator": {
+                "mapping": {
+                  "album": "#/components/schemas/AlbumChange",
+                  "artist": "#/components/schemas/ArtistChange",
+                  "image": "#/components/schemas/ImageChange",
+                  "playlist": "#/components/schemas/PlaylistChange",
+                  "playlistItem": "#/components/schemas/PlaylistItemChange",
+                  "settings": "#/components/schemas/SettingsChange",
+                  "signalState": "#/components/schemas/SignalStateChange",
+                  "track": "#/components/schemas/TrackChange"
+                },
+                "propertyName": "entity"
+              },
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/ImageChange"
+                },
+                {
+                  "$ref": "#/components/schemas/ArtistChange"
+                },
+                {
+                  "$ref": "#/components/schemas/AlbumChange"
+                },
+                {
+                  "$ref": "#/components/schemas/TrackChange"
+                },
+                {
+                  "$ref": "#/components/schemas/PlaylistChange"
+                },
+                {
+                  "$ref": "#/components/schemas/PlaylistItemChange"
+                },
+                {
+                  "$ref": "#/components/schemas/SignalStateChange"
+                },
+                {
+                  "$ref": "#/components/schemas/SettingsChange"
+                }
+              ]
+            },
+            "title": "Changes",
+            "type": "array"
+          },
+          "cursor": {
+            "title": "Cursor",
+            "type": "string"
+          },
+          "hasMore": {
+            "title": "Hasmore",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "changes",
+          "cursor",
+          "hasMore"
+        ],
+        "title": "SyncPage",
         "type": "object"
       },
       "Tokens": {
@@ -972,6 +1552,44 @@
           "role"
         ],
         "title": "TrackArtist",
+        "type": "object"
+      },
+      "TrackChange": {
+        "properties": {
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TrackOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "entity": {
+            "const": "track",
+            "title": "Entity",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "op": {
+            "enum": [
+              "upsert",
+              "delete"
+            ],
+            "title": "Op",
+            "type": "string"
+          }
+        },
+        "required": [
+          "entity",
+          "id",
+          "op"
+        ],
+        "title": "TrackChange",
         "type": "object"
       },
       "TrackOut": {
@@ -2340,6 +2958,73 @@
         "summary": "Signal State",
         "tags": [
           "listening"
+        ]
+      }
+    },
+    "/api/v2/sync": {
+      "get": {
+        "operationId": "sync_api_v2_sync_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 512,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cursor"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 1000,
+              "maximum": 1000,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SyncPage"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Sync",
+        "tags": [
+          "sync"
         ]
       }
     },

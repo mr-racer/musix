@@ -39,6 +39,7 @@ class Principal:
     account_id: uuid.UUID
     device_id: uuid.UUID
     role: str
+    expires_at: int = 0  # unix seconds; long-lived sockets close when it passes
 
 
 def issue_access(sec: Secrets, p: Principal, now: dt.datetime | None = None) -> str:
@@ -64,7 +65,7 @@ def verify_access(sec: Secrets, token: str) -> Principal:
         raise Unauthorized("access token expired") from e
     except jwt.PyJWTError as e:
         raise Unauthorized("invalid access token") from e
-    return Principal(uuid.UUID(c["sub"]), uuid.UUID(c["dev"]), c["role"])
+    return Principal(uuid.UUID(c["sub"]), uuid.UUID(c["dev"]), c["role"], int(c["exp"]))
 
 
 def new_refresh() -> tuple[str, bytes]:

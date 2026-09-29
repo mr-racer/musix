@@ -37,7 +37,7 @@ from musix.contexts.library.models import (
 from musix.contexts.library.sanitizer import sanitize_lyrics
 from musix.contexts.library.slug import slugify
 from musix.contexts.library.tags import get_metadata, read_embedded_lyrics
-from musix.infra.changelog import record_change
+from musix.infra.changelog import notify, record_change
 
 log = structlog.get_logger()
 AUDIO_EXT = {
@@ -367,6 +367,7 @@ async def scan_folder(
         )
         await s.commit()
     counts = {"files": len(files), "ingested": 0, "unchanged": 0, "failed": 0}
+    last_pct = -1
     for i, (f, size, mtime) in enumerate(stats):
         k = known.get(str(f))
         if k and k[0] == size and k[1] == mtime and k[2] in mine:
@@ -375,32 +376,24 @@ async def scan_folder(
             counts["ingested"] += 1
         else:
             counts["failed"] += 1
-        if (i + 1) % 10 == 0 or i + 1 == len(files):
+        pct = (i + 1) * 100 // len(files)
+        if pct != last_pct and i + 1 < len(files):  # throttled to 1% steps
+            last_pct = pct
             async with sm() as s:
                 await s.execute(
                     sa.update(jobs)
                     .where(jobs.c.id == job)
                     .values(done=i + 1, updated_at=sa.func.now())
                 )
-                await s.execute(
-                    sa.text("select pg_notify('musix_events', :p)"),
-                    {
-                        "p": json.dumps(
-                            {
-                                "account": str(account_id),
-                                "kind": "job",
-                                "job": str(job),
-                                "done": i + 1,
-                                "total": len(files),
-                            }
-                        )
-                    },
-                )
+                await notify(s, account_id, "job", job=job, done=i + 1, total=len(files))
                 await s.commit()
     async with sm() as s:
         await s.execute(
-            sa.update(jobs).where(jobs.c.id == job).values(state="done", updated_at=sa.func.now())
+            sa.update(jobs)
+            .where(jobs.c.id == job)
+            .values(state="done", done=len(files), updated_at=sa.func.now())
         )
+        await notify(s, account_id, "job", job=job, done=len(files), total=len(files), state="done")
         await s.commit()
     return counts
 

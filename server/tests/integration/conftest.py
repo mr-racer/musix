@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import shutil
+import uuid
 from collections.abc import Iterator
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 import pytest
+import sqlalchemy as sa
 from alembic import command
 from alembic.config import Config
 from testcontainers.community.postgres import PostgresContainer
@@ -90,3 +93,22 @@ def member(client: TestClient, owner: dict[str, str], email: str) -> dict[str, s
     )
     assert r.status_code == 201, r.text
     return dict(r.json())
+
+
+AUDIO = SERVER / "tests" / "fixtures" / "audio"
+
+
+@pytest.fixture
+async def listener(sm, tmp_path: Path, client: TestClient, owner: dict[str, str]):  # type: ignore[no-untyped-def]
+    """A fresh member with the three fixture tracks."""
+    from musix.contexts.library import ingest
+    from musix.contexts.library.models import tracks
+
+    tok = member(client, owner, f"l-{uuid.uuid4().hex[:8]}@example.com")
+    for f in AUDIO.glob("tiny.*"):
+        shutil.copy(f, tmp_path / f.name)
+    acct = uuid.UUID(tok["accountId"])
+    await ingest.scan_folder(sm, acct, tmp_path)
+    async with sm() as s:
+        ids = list(await s.scalars(sa.select(tracks.c.id).where(tracks.c.account_id == acct)))
+    return tok, acct, sorted(ids)

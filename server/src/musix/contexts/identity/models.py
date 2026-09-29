@@ -64,3 +64,10 @@ account_settings = sa.Table(
     sa.Column("value", JSONB, nullable=False, server_default=sa.text("'{}'")),
     sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
 )
+instance_settings = sa.Table(
+    "instance_settings",
+    metadata,
+    sa.Column("key", sa.Text, primary_key=True),
+    sa.Column("value", JSONB, nullable=False),
+    sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
+)

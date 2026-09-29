@@ -7,7 +7,6 @@ batch up from the NOTIFY."""
 from __future__ import annotations
 
 import datetime as dt
-import json
 import uuid
 
 import sqlalchemy as sa
@@ -19,7 +18,7 @@ from musix.contexts.library.service import own_track_ids
 from musix.contexts.listening import schemas as S
 from musix.contexts.listening.models import account_track_stats, listen_events, taste_signals
 from musix.errors import NotFound
-from musix.infra.changelog import CHANNEL, record_change
+from musix.infra.changelog import notify, record_change
 
 COMPLETE_SHARE = 0.9
 H_REACTION_DAYS = 1.0  # v1: the «заряд» halves in a day; the button unlocks at 0.5
@@ -123,11 +122,7 @@ async def ingest_listens(
                 },
             )
         )
-        # transactional: delivered on commit only
-        await s.execute(
-            sa.text("select pg_notify(:ch, :payload)"),
-            {"ch": CHANNEL, "payload": json.dumps({"account": str(account_id), "kind": "listens"})},
-        )
+        await notify(s, account_id, "listens")
     await s.commit()
     return S.ListenBatchOut(
         accepted=len(inserted), duplicates=len(good) - len(inserted), rejected=rejected
