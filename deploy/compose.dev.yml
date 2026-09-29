@@ -1,0 +1,78 @@
+# MusiX v2 dev stack. Runs NEXT TO v1 prod on the same box, so: its own project
+# name, volumes and network, and every port on 127.0.0.1:18xxx (v1 uses 8000/6333).
+# `make dev` from v2/ brings it up; `make dev GPU=1` adds compose.dev.gpu.yml.
+name: musix-v2-dev
+
+x-server: &server
+  build: ../server
+  image: musix-v2-server:dev
+  environment:
+    MUSIX_DATABASE_URL: postgresql://musix:musix@postgres:5432/musix
+    MUSIX_QDRANT_URL: http://qdrant:6333
+
+services:
+  postgres:
+    image: postgres:18
+    command: postgres -c shared_preload_libraries=pg_stat_statements
+    environment: {POSTGRES_USER: musix, POSTGRES_PASSWORD: musix, POSTGRES_DB: musix}
+    ports: ["127.0.0.1:18432:5432"]
+    volumes: [pgdata:/var/lib/postgresql]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U musix -d musix"]
+      interval: 2s
+      retries: 30
+
+  qdrant:
+    image: qdrant/qdrant:v1.18.2  # = prod
+    ports: ["127.0.0.1:18333:6333"]
+    volumes: [qdrant:/qdrant/storage]
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c ':> /dev/tcp/127.0.0.1/6333'"]
+      interval: 2s
+      retries: 30
+
+  migrate:
+    <<: *server
+    command: alembic upgrade head
+    depends_on: {postgres: {condition: service_healthy}}
+    restart: "no"
+
+  api:
+    <<: *server
+    ports: ["127.0.0.1:18000:8000"]
+    depends_on:
+      migrate: {condition: service_completed_successfully}
+      qdrant: {condition: service_healthy}
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request as u; u.urlopen('http://127.0.0.1:8000/api/v2/ready', timeout=3)"]
+      interval: 3s
+      retries: 20
+
+  worker:
+    <<: *server
+    command: procrastinate --app=musix.workers.app.app worker
+    depends_on: {migrate: {condition: service_completed_successfully}}
+    healthcheck:
+      test: ["CMD", "procrastinate", "--app=musix.workers.app.app", "healthchecks"]
+      interval: 10s
+      retries: 6
+
+  ml:
+    <<: *server
+    command: uvicorn musix.ml.app:app --host 0.0.0.0 --port 8002
+    environment: {MUSIX_ML_DEVICE: cpu}
+    ports: ["127.0.0.1:18002:8002"]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request as u; u.urlopen('http://127.0.0.1:8002/health', timeout=3)"]
+      interval: 3s
+      retries: 20
+
+  nginx:
+    image: nginx:1.29-alpine
+    volumes: ["./nginx/v2-dev.conf:/etc/nginx/conf.d/default.conf:ro"]
+    ports: ["127.0.0.1:18080:80"]
+    depends_on: {api: {condition: service_healthy}}
+
+volumes:
+  pgdata:
+  qdrant:

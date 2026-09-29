@@ -1,0 +1,9 @@
+# Opt-in GPU for `ml` (make dev GPU=1). The box's GPU is shared with v1 prod and
+# llama-server, so it is never requested by default.
+services:
+  ml:
+    environment: {MUSIX_ML_DEVICE: cuda}
+    deploy:
+      resources:
+        reservations:
+          devices: [{driver: nvidia, count: 1, capabilities: [gpu]}]

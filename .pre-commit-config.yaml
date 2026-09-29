@@ -1,0 +1,10 @@
+# pre-commit install -c v2/.pre-commit-config.yaml   (v1 files are never checked)
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.16.9
+    hooks:
+      - id: ruff-check
+        args: [--fix]
+        files: ^v2/server/
+      - id: ruff-format
+        files: ^v2/server/
