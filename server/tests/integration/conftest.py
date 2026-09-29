@@ -40,6 +40,15 @@ def settings(tmp_path_factory: pytest.TempPathFactory) -> Iterator[Settings]:
         yield s
 
 
+@pytest.fixture
+async def sm(settings: Settings):  # type: ignore[no-untyped-def]
+    from musix.infra import db
+
+    engine = db.make_engine(settings)
+    yield db.make_sessionmaker(engine)
+    await engine.dispose()
+
+
 @pytest.fixture(scope="session")
 def client(settings: Settings) -> Iterator[TestClient]:
     from fastapi.testclient import TestClient

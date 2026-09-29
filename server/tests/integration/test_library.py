@@ -11,7 +11,6 @@ from fastapi.testclient import TestClient
 
 from musix.contexts.library import artist_split, ingest
 from musix.contexts.library.models import media_files, tracks, uploads
-from musix.infra import db
 from musix.settings import Settings
 from tests.integration.conftest import bearer, member
 
@@ -32,13 +31,6 @@ AUDIO = Path(__file__).resolve().parents[1] / "fixtures" / "audio"
 )
 def test_artist_split_keeps_v1_rules(raw: str, want: list[str]) -> None:
     assert artist_split.split_artists(raw) == want
-
-
-@pytest.fixture
-async def sm(settings: Settings):  # type: ignore[no-untyped-def]
-    engine = db.make_engine(settings)
-    yield db.make_sessionmaker(engine)
-    await engine.dispose()
 
 
 async def test_scan_skips_unchanged_files(sm, tmp_path: Path, owner: dict[str, str]) -> None:  # type: ignore[no-untyped-def]

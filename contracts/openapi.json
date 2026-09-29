@@ -184,6 +184,138 @@
         "title": "InviteOut",
         "type": "object"
       },
+      "ItemIn": {
+        "properties": {
+          "itemId": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Itemid"
+          },
+          "trackId": {
+            "format": "uuid",
+            "title": "Trackid",
+            "type": "string"
+          }
+        },
+        "required": [
+          "trackId"
+        ],
+        "title": "ItemIn",
+        "type": "object"
+      },
+      "ItemMove": {
+        "description": "Either the client's key (offline replay) or the neighbour to land after\n(`afterItemId` None = the top).",
+        "properties": {
+          "afterItemId": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Afteritemid"
+          },
+          "position": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Position"
+          }
+        },
+        "title": "ItemMove",
+        "type": "object"
+      },
+      "ItemOut": {
+        "properties": {
+          "addedAt": {
+            "format": "date-time",
+            "title": "Addedat",
+            "type": "string"
+          },
+          "itemId": {
+            "format": "uuid",
+            "title": "Itemid",
+            "type": "string"
+          },
+          "position": {
+            "title": "Position",
+            "type": "string"
+          },
+          "trackId": {
+            "format": "uuid",
+            "title": "Trackid",
+            "type": "string"
+          }
+        },
+        "required": [
+          "itemId",
+          "trackId",
+          "position",
+          "addedAt"
+        ],
+        "title": "ItemOut",
+        "type": "object"
+      },
+      "ItemsAdd": {
+        "description": "Placed after `afterItemId` (None: at the end), or at the client's own positions.",
+        "properties": {
+          "afterItemId": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Afteritemid"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ItemIn"
+            },
+            "maxItems": 500,
+            "minItems": 1,
+            "title": "Items",
+            "type": "array"
+          },
+          "positions": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Positions"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "ItemsAdd",
+        "type": "object"
+      },
       "JobOut": {
         "properties": {
           "job": {
@@ -195,6 +327,177 @@
           "job"
         ],
         "title": "JobOut",
+        "type": "object"
+      },
+      "ListenBatchIn": {
+        "properties": {
+          "events": {
+            "items": {
+              "$ref": "#/components/schemas/ListenIn"
+            },
+            "maxItems": 100,
+            "minItems": 1,
+            "title": "Events",
+            "type": "array"
+          }
+        },
+        "required": [
+          "events"
+        ],
+        "title": "ListenBatchIn",
+        "type": "object"
+      },
+      "ListenBatchOut": {
+        "properties": {
+          "accepted": {
+            "title": "Accepted",
+            "type": "integer"
+          },
+          "duplicates": {
+            "title": "Duplicates",
+            "type": "integer"
+          },
+          "rejected": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "title": "Rejected",
+            "type": "array"
+          }
+        },
+        "required": [
+          "accepted",
+          "duplicates"
+        ],
+        "title": "ListenBatchOut",
+        "type": "object"
+      },
+      "ListenIn": {
+        "properties": {
+          "clientEventId": {
+            "format": "uuid",
+            "title": "Clienteventid",
+            "type": "string"
+          },
+          "contextId": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Contextid"
+          },
+          "contextType": {
+            "anyOf": [
+              {
+                "enum": [
+                  "stream",
+                  "album",
+                  "playlist",
+                  "search",
+                  "artist",
+                  "queue"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Contexttype"
+          },
+          "durationMs": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Durationms"
+          },
+          "endReason": {
+            "enum": [
+              "completed",
+              "skipped",
+              "stopped",
+              "error"
+            ],
+            "title": "Endreason",
+            "type": "string"
+          },
+          "influence": {
+            "default": true,
+            "title": "Influence",
+            "type": "boolean"
+          },
+          "interacted": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Interacted"
+          },
+          "playedMs": {
+            "maximum": 86400000.0,
+            "minimum": 0.0,
+            "title": "Playedms",
+            "type": "integer"
+          },
+          "sessionId": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Sessionid",
+            "type": "string"
+          },
+          "skippedEarly": {
+            "default": false,
+            "title": "Skippedearly",
+            "type": "boolean"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source"
+          },
+          "startedAt": {
+            "format": "date-time",
+            "title": "Startedat",
+            "type": "string"
+          },
+          "trackId": {
+            "format": "uuid",
+            "title": "Trackid",
+            "type": "string"
+          }
+        },
+        "required": [
+          "clientEventId",
+          "sessionId",
+          "trackId",
+          "startedAt",
+          "playedMs",
+          "endReason"
+        ],
+        "title": "ListenIn",
         "type": "object"
       },
       "LoginIn": {
@@ -262,6 +565,136 @@
           "items"
         ],
         "title": "ManifestOut",
+        "type": "object"
+      },
+      "PlaylistIn": {
+        "properties": {
+          "description": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id"
+          },
+          "name": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "PlaylistIn",
+        "type": "object"
+      },
+      "PlaylistOut": {
+        "properties": {
+          "coverImageId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Coverimageid"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "title": "Createdat",
+            "type": "string"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "itemCount": {
+            "default": 0,
+            "title": "Itemcount",
+            "type": "integer"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "title": "Updatedat",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "description",
+          "coverImageId",
+          "createdAt",
+          "updatedAt"
+        ],
+        "title": "PlaylistOut",
+        "type": "object"
+      },
+      "PlaylistPatch": {
+        "properties": {
+          "description": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          }
+        },
+        "title": "PlaylistPatch",
         "type": "object"
       },
       "Ready": {
@@ -394,6 +827,87 @@
           "device"
         ],
         "title": "SetupIn",
+        "type": "object"
+      },
+      "SignalIn": {
+        "properties": {
+          "clientEventId": {
+            "format": "uuid",
+            "title": "Clienteventid",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "fire",
+              "water"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "sessionId": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sessionid"
+          }
+        },
+        "required": [
+          "kind",
+          "clientEventId"
+        ],
+        "title": "SignalIn",
+        "type": "object"
+      },
+      "SignalState": {
+        "properties": {
+          "contribution": {
+            "title": "Contribution",
+            "type": "number"
+          },
+          "kind": {
+            "enum": [
+              "fire",
+              "water"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "locked": {
+            "title": "Locked",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "kind",
+          "contribution",
+          "locked"
+        ],
+        "title": "SignalState",
+        "type": "object"
+      },
+      "SignalStatesOut": {
+        "properties": {
+          "states": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/SignalState"
+            },
+            "propertyNames": {
+              "format": "uuid"
+            },
+            "title": "States",
+            "type": "object"
+          }
+        },
+        "required": [
+          "states"
+        ],
+        "title": "SignalStatesOut",
         "type": "object"
       },
       "Tokens": {
@@ -1023,6 +1537,52 @@
         ]
       }
     },
+    "/api/v2/events/listens:batch": {
+      "post": {
+        "operationId": "listens_api_v2_events_listens_batch_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ListenBatchIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListenBatchOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Listens",
+        "tags": [
+          "listening"
+        ]
+      }
+    },
     "/api/v2/health": {
       "get": {
         "description": "Liveness: the process answers. Never touches a dependency.",
@@ -1232,6 +1792,406 @@
         ]
       }
     },
+    "/api/v2/playlists": {
+      "get": {
+        "operationId": "list_playlists_api_v2_playlists_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/PlaylistOut"
+                  },
+                  "title": "Response List Playlists Api V2 Playlists Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Playlists",
+        "tags": [
+          "playlists"
+        ]
+      },
+      "post": {
+        "operationId": "create_api_v2_playlists_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlaylistIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlaylistOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Create",
+        "tags": [
+          "playlists"
+        ]
+      }
+    },
+    "/api/v2/playlists/{playlist_id}": {
+      "delete": {
+        "operationId": "delete_api_v2_playlists__playlist_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "playlist_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Playlist Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Delete",
+        "tags": [
+          "playlists"
+        ]
+      },
+      "patch": {
+        "operationId": "update_api_v2_playlists__playlist_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "playlist_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Playlist Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlaylistPatch"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlaylistOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Update",
+        "tags": [
+          "playlists"
+        ]
+      }
+    },
+    "/api/v2/playlists/{playlist_id}/items": {
+      "get": {
+        "operationId": "items_api_v2_playlists__playlist_id__items_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "playlist_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Playlist Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ItemOut"
+                  },
+                  "title": "Response Items Api V2 Playlists  Playlist Id  Items Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Items",
+        "tags": [
+          "playlists"
+        ]
+      },
+      "post": {
+        "operationId": "add_items_api_v2_playlists__playlist_id__items_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "playlist_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Playlist Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ItemsAdd"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ItemOut"
+                  },
+                  "title": "Response Add Items Api V2 Playlists  Playlist Id  Items Post",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Add Items",
+        "tags": [
+          "playlists"
+        ]
+      }
+    },
+    "/api/v2/playlists/{playlist_id}/items/{item_id}": {
+      "delete": {
+        "operationId": "remove_item_api_v2_playlists__playlist_id__items__item_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "playlist_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Playlist Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "item_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Item Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Remove Item",
+        "tags": [
+          "playlists"
+        ]
+      },
+      "patch": {
+        "operationId": "move_item_api_v2_playlists__playlist_id__items__item_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "playlist_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Playlist Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "item_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Item Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ItemMove"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ItemOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Move Item",
+        "tags": [
+          "playlists"
+        ]
+      }
+    },
     "/api/v2/ready": {
       "get": {
         "description": "Readiness: every dependency answers. 503 names the ones that do not.",
@@ -1334,6 +2294,55 @@
         ]
       }
     },
+    "/api/v2/signals/state": {
+      "get": {
+        "operationId": "signal_state_api_v2_signals_state_get",
+        "parameters": [
+          {
+            "description": "≤ 200",
+            "in": "query",
+            "name": "trackIds",
+            "required": true,
+            "schema": {
+              "description": "≤ 200",
+              "title": "Trackids",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SignalStatesOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Signal State",
+        "tags": [
+          "listening"
+        ]
+      }
+    },
     "/api/v2/tracks": {
       "get": {
         "operationId": "get_tracks_api_v2_tracks_get",
@@ -1384,6 +2393,64 @@
         "summary": "Get Tracks",
         "tags": [
           "library"
+        ]
+      }
+    },
+    "/api/v2/tracks/{track_id}/signals": {
+      "post": {
+        "operationId": "add_signal_api_v2_tracks__track_id__signals_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "track_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Track Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SignalIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SignalState"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Add Signal",
+        "tags": [
+          "listening"
         ]
       }
     },

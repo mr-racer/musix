@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import asyncio
 import uuid
+from collections.abc import Iterable
 from pathlib import Path
 
 import sqlalchemy as sa
@@ -150,3 +151,13 @@ async def get_tracks(
         )
         for r in rows
     ]
+
+
+async def own_track_ids(
+    s: AsyncSession, account_id: uuid.UUID, ids: Iterable[uuid.UUID]
+) -> set[uuid.UUID]:
+    """The subset of `ids` that are this account's tracks (other contexts check refs here)."""
+    rows: Iterable[uuid.UUID] = await s.scalars(
+        sa.select(tracks.c.id).where(tracks.c.account_id == account_id, tracks.c.id.in_(set(ids)))
+    )
+    return set(rows)

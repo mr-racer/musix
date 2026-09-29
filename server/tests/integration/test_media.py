@@ -16,19 +16,11 @@ from musix.contexts.library import ingest
 from musix.contexts.library.models import renditions
 from musix.contexts.media import delivery
 from musix.contexts.media.process import process_media
-from musix.infra import db
 from musix.settings import Settings
 
 pytestmark = pytest.mark.integration
 AUDIO = Path(__file__).resolve().parents[1] / "fixtures" / "audio"
 NGINX = Path(__file__).resolve().parents[3] / "deploy" / "nginx"
-
-
-@pytest.fixture
-async def sm(settings: Settings):  # type: ignore[no-untyped-def]
-    engine = db.make_engine(settings)
-    yield db.make_sessionmaker(engine)
-    await engine.dispose()
 
 
 def codec(p: Path) -> str:

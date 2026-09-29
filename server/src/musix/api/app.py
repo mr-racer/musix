@@ -121,6 +121,8 @@ def context_routers() -> list[APIRouter]:
     """Every bounded context's router. Explicit list (no import side effects)."""
     from musix.contexts.identity.router import router as identity
     from musix.contexts.library.router import router as library
+    from musix.contexts.listening.router import router as listening
     from musix.contexts.media.router import router as media
+    from musix.contexts.playlists.router import router as playlists
 
-    return [identity, library, media]
+    return [identity, library, media, listening, playlists]
