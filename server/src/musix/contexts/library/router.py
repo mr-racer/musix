@@ -1,9 +1,10 @@
 import uuid
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Any
 
-from fastapi import APIRouter, Header, Query, Request
+from fastapi import APIRouter, Header, Query, Request, Response
 
+from musix.api import etag
 from musix.api.deps import Auth, Owner, Session
 from musix.contexts.library import schemas as S
 from musix.contexts.library import service
@@ -71,12 +72,19 @@ async def get_upload(upload_id: uuid.UUID, p: Auth, s: Session) -> S.UploadOut:
     return await service.get_upload(s, p.account_id, upload_id)
 
 
-@router.get("/tracks", response_model=list[S.TrackOut])
+@router.get("/tracks", response_model=list[S.TrackOut], responses=etag.NOT_MODIFIED)
 async def get_tracks(
-    p: Auth, s: Session, ids: Annotated[str, Query(description="comma-separated, ≤ 200")]
-) -> list[S.TrackOut]:
+    p: Auth,
+    s: Session,
+    request: Request,
+    response: Response,
+    ids: Annotated[str, Query(description="comma-separated, ≤ 200")],
+) -> Any:
     try:
         parsed = [uuid.UUID(x) for x in ids.split(",") if x][:200]
     except ValueError as e:
         raise Invalid("ids must be uuids") from e
-    return await service.get_tracks(s, p.account_id, parsed)
+    tag = await etag.tag_for(request, p.account_id, f"tracks:{sorted(parsed)}")
+    return await etag.conditional(
+        request, response, tag, lambda: service.get_tracks(s, p.account_id, parsed)
+    )

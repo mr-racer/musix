@@ -53,7 +53,18 @@ async def probe_instance(timestamp: int) -> str:
     return status["llm"]
 
 
+async def prune_idempotency(timestamp: int) -> int:
+    from musix.api.idempotency import prune
+
+    async with sessionmaker()() as s:
+        n = await prune(s)
+        await s.commit()
+    return n
+
+
 def register(app: procrastinate.App) -> None:
     app.task(name="core:ping", queue="default")(ping)
     probe = app.task(name="core:probe_instance", queue="default")(probe_instance)
     app.periodic(cron="* * * * *", periodic_id="probe_instance")(probe)
+    prune_task = app.task(name="core:prune_idempotency", queue="default")(prune_idempotency)
+    app.periodic(cron="17 * * * *", periodic_id="prune_idempotency")(prune_task)

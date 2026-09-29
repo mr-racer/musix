@@ -21,3 +21,12 @@ class AppRelease(Model):
     url: str
     sha256: str
     notes: str = ""
+
+
+class ImageData(Model):
+    id: str
+    width: int | None
+    height: int | None
+    blurhash: str | None
+    palette: dict[str, Any] | None
+    urls: dict[str, str]  # px → signed URL (content-addressed, a year's expiry)

@@ -24,18 +24,17 @@ from sqlalchemy.dialects.postgresql import distinct_on
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from musix.contexts.identity.models import account_settings
-from musix.contexts.library.models import albums, artists, images, track_artists, tracks
+from musix.contexts.library.models import albums, artists, track_artists, tracks
 from musix.contexts.library.service import get_tracks
 from musix.contexts.listening.models import taste_signals
-from musix.contexts.media.delivery import image_url
+from musix.contexts.media.delivery import load_images
 from musix.contexts.playlists.models import playlist_items, playlists
 from musix.contexts.playlists.service import _LIVE_ITEMS
 from musix.contexts.sync import schemas as S
 from musix.errors import Invalid
 from musix.infra.tables import change_log
 
-IMAGE_SIZES = (96, 256, 512, 1024)
-T, Al, Ar, Ta, Im = tracks.c, albums.c, artists.c, track_artists.c, images.c
+T, Al, Ar, Ta = tracks.c, albums.c, artists.c, track_artists.c
 Pl, It, Sg = playlists.c, playlist_items.c, taste_signals.c
 
 
@@ -106,23 +105,7 @@ def _image_ids(c: Ctx) -> sa.Select[Any]:
 
 
 async def _load_images(c: Ctx, ids: list[str]) -> dict[str, BaseModel]:
-    rows = await c.s.execute(sa.select(images).where(Im.id.in_(ids)))
-    return {
-        r.id: S.ImageData(
-            id=r.id,
-            width=r.width,
-            height=r.height,
-            blurhash=r.blurhash,
-            palette=r.palette,
-            urls={
-                str(px): url
-                for px in IMAGE_SIZES
-                if str(px) in (r.variants or {})
-                and (url := image_url(c.base_url, c.image_secret, r.id, px))
-            },
-        )
-        for r in rows
-    }
+    return dict(await load_images(c.s, c.base_url, c.image_secret, ids))
 
 
 async def _load_artists(c: Ctx, ids: list[str]) -> dict[str, BaseModel]:

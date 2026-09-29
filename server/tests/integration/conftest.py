@@ -98,9 +98,8 @@ def member(client: TestClient, owner: dict[str, str], email: str) -> dict[str, s
 AUDIO = SERVER / "tests" / "fixtures" / "audio"
 
 
-@pytest.fixture
-async def listener(sm, tmp_path: Path, client: TestClient, owner: dict[str, str]):  # type: ignore[no-untyped-def]
-    """A fresh member with the three fixture tracks."""
+async def new_listener(sm, tmp_path: Path, client: TestClient, owner: dict[str, str]):  # type: ignore[no-untyped-def]
+    """A fresh member with the three fixture tracks: (tokens, account id, sorted track ids)."""
     from musix.contexts.library import ingest
     from musix.contexts.library.models import tracks
 
@@ -112,3 +111,8 @@ async def listener(sm, tmp_path: Path, client: TestClient, owner: dict[str, str]
     async with sm() as s:
         ids = list(await s.scalars(sa.select(tracks.c.id).where(tracks.c.account_id == acct)))
     return tok, acct, sorted(ids)
+
+
+@pytest.fixture
+async def listener(sm, tmp_path: Path, client: TestClient, owner: dict[str, str]):  # type: ignore[no-untyped-def]
+    return await new_listener(sm, tmp_path, client, owner)

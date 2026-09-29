@@ -25,6 +25,7 @@ media_files = sa.Table(
     sa.Column("lufs_integrated", sa.Float),
     sa.Column("true_peak_dbtp", sa.Float),
     sa.Column("loudness_range", sa.Float),
+    sa.Column("credits", JSONB),
     sa.Column("state", sa.Text, nullable=False, server_default="hashed"),
     sa.Column("error", sa.Text),
     sa.Column("created_at", TS, server_default=sa.func.now()),

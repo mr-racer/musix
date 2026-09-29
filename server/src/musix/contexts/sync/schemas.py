@@ -5,19 +5,11 @@ from typing import Annotated, Any, Literal
 from pydantic import Field
 
 from musix.contexts.library.schemas import TrackOut
+from musix.contexts.media.schemas import ImageData
 from musix.contexts.playlists.schemas import ItemOut, PlaylistOut
 from musix.schemas import Model
 
 Op = Literal["upsert", "delete"]
-
-
-class ImageData(Model):
-    id: str
-    width: int | None
-    height: int | None
-    blurhash: str | None
-    palette: dict[str, Any] | None
-    urls: dict[str, str]  # px → signed URL (content-addressed, a year's expiry)
 
 
 class ArtistData(Model):

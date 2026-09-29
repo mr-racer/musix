@@ -7,6 +7,7 @@ import hashlib
 import hmac
 import time
 import uuid
+from collections.abc import Iterable
 from pathlib import Path
 from typing import Any
 
@@ -14,10 +15,12 @@ import sqlalchemy as sa
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from musix.contexts.identity.models import account_settings, devices
-from musix.contexts.library.models import media_files, renditions, tracks
+from musix.contexts.library.models import images, media_files, renditions, tracks
 from musix.contexts.media import audio
+from musix.contexts.media.schemas import ImageData
 
 MEDIA_TTL = 6 * 3600
+IMAGE_SIZES = (96, 256, 512, 1024)
 IMAGE_TTL = 365 * 24 * 3600
 DEFAULT_QUALITY = {"wifi": "lossless", "cellular": "high"}  # economy is opt-in
 
@@ -35,6 +38,31 @@ def image_url(base: str, secret: bytes, image_id: str | None, size: int = 512) -
     # the expiry is rounded to a day so the URL (and the browser cache) is stable
     exp_base = time.time() // 86400 * 86400
     return base + sign(secret, f"/i/{image_id}/{size}.webp", IMAGE_TTL, now=exp_base)
+
+
+async def load_images(
+    s: AsyncSession, base: str, secret: bytes, ids: Iterable[str | None]
+) -> dict[str, ImageData]:
+    """Image refs as clients render them: signed URL per variant, blurhash, palette."""
+    wanted = sorted({i for i in ids if i})
+    if not wanted:
+        return {}
+    rows = await s.execute(sa.select(images).where(images.c.id.in_(wanted)))
+    return {
+        r.id: ImageData(
+            id=r.id,
+            width=r.width,
+            height=r.height,
+            blurhash=r.blurhash,
+            palette=r.palette,
+            urls={
+                str(px): url
+                for px in IMAGE_SIZES
+                if str(px) in (r.variants or {}) and (url := image_url(base, secret, r.id, px))
+            },
+        )
+        for r in rows
+    }
 
 
 def choose_tier(requested: str, available: set[str], codec: str | None, platform: str) -> str:

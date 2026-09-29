@@ -95,6 +95,98 @@
         "title": "AlbumData",
         "type": "object"
       },
+      "AlbumOut": {
+        "properties": {
+          "albumArtist": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ArtistRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "coverImageId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Coverimageid"
+          },
+          "durationMs": {
+            "title": "Durationms",
+            "type": "integer"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "trackCount": {
+            "title": "Trackcount",
+            "type": "integer"
+          },
+          "year": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Year"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "year",
+          "albumArtist",
+          "coverImageId",
+          "trackCount",
+          "durationMs"
+        ],
+        "title": "AlbumOut",
+        "type": "object"
+      },
+      "AlbumPageOut": {
+        "properties": {
+          "album": {
+            "$ref": "#/components/schemas/AlbumOut"
+          },
+          "images": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/ImageData"
+            },
+            "title": "Images",
+            "type": "object"
+          },
+          "tracks": {
+            "items": {
+              "$ref": "#/components/schemas/TrackOut"
+            },
+            "title": "Tracks",
+            "type": "array"
+          }
+        },
+        "required": [
+          "album",
+          "tracks",
+          "images"
+        ],
+        "title": "AlbumPageOut",
+        "type": "object"
+      },
       "AppRelease": {
         "properties": {
           "notes": {
@@ -209,6 +301,225 @@
         "title": "ArtistData",
         "type": "object"
       },
+      "ArtistOut": {
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "imageId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Imageid"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "sortName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sortname"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "sortName",
+          "imageId"
+        ],
+        "title": "ArtistOut",
+        "type": "object"
+      },
+      "ArtistPageOut": {
+        "properties": {
+          "albums": {
+            "items": {
+              "$ref": "#/components/schemas/AlbumOut"
+            },
+            "title": "Albums",
+            "type": "array"
+          },
+          "appearsOn": {
+            "items": {
+              "$ref": "#/components/schemas/TrackOut"
+            },
+            "title": "Appearson",
+            "type": "array"
+          },
+          "artist": {
+            "$ref": "#/components/schemas/ArtistOut"
+          },
+          "images": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/ImageData"
+            },
+            "title": "Images",
+            "type": "object"
+          },
+          "topTracks": {
+            "items": {
+              "$ref": "#/components/schemas/TrackOut"
+            },
+            "title": "Toptracks",
+            "type": "array"
+          },
+          "trackCount": {
+            "title": "Trackcount",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "artist",
+          "albums",
+          "topTracks",
+          "appearsOn",
+          "trackCount",
+          "images"
+        ],
+        "title": "ArtistPageOut",
+        "type": "object"
+      },
+      "ArtistRef": {
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "ArtistRef",
+        "type": "object"
+      },
+      "AudioInfo": {
+        "properties": {
+          "bitDepth": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bitdepth"
+          },
+          "bitrateKbps": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bitratekbps"
+          },
+          "channels": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Channels"
+          },
+          "codec": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Codec"
+          },
+          "lufsIntegrated": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lufsintegrated"
+          },
+          "sampleRate": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Samplerate"
+          }
+        },
+        "required": [
+          "codec",
+          "sampleRate",
+          "bitDepth",
+          "channels",
+          "bitrateKbps",
+          "lufsIntegrated"
+        ],
+        "title": "AudioInfo",
+        "type": "object"
+      },
+      "Counts": {
+        "properties": {
+          "albums": {
+            "title": "Albums",
+            "type": "integer"
+          },
+          "artists": {
+            "title": "Artists",
+            "type": "integer"
+          },
+          "playlists": {
+            "title": "Playlists",
+            "type": "integer"
+          },
+          "tracks": {
+            "title": "Tracks",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "tracks",
+          "albums",
+          "artists",
+          "playlists"
+        ],
+        "title": "Counts",
+        "type": "object"
+      },
       "DeviceIn": {
         "properties": {
           "appVersion": {
@@ -298,6 +609,24 @@
         "title": "DeviceOut",
         "type": "object"
       },
+      "GenreCount": {
+        "properties": {
+          "genre": {
+            "title": "Genre",
+            "type": "string"
+          },
+          "tracks": {
+            "title": "Tracks",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "genre",
+          "tracks"
+        ],
+        "title": "GenreCount",
+        "type": "object"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -327,6 +656,50 @@
           "version"
         ],
         "title": "Health",
+        "type": "object"
+      },
+      "HomeOut": {
+        "properties": {
+          "counts": {
+            "$ref": "#/components/schemas/Counts"
+          },
+          "images": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/ImageData"
+            },
+            "title": "Images",
+            "type": "object"
+          },
+          "playlists": {
+            "items": {
+              "$ref": "#/components/schemas/PlaylistOut"
+            },
+            "title": "Playlists",
+            "type": "array"
+          },
+          "recent": {
+            "items": {
+              "$ref": "#/components/schemas/TrackOut"
+            },
+            "title": "Recent",
+            "type": "array"
+          },
+          "recentlyAdded": {
+            "items": {
+              "$ref": "#/components/schemas/TrackOut"
+            },
+            "title": "Recentlyadded",
+            "type": "array"
+          }
+        },
+        "required": [
+          "recent",
+          "recentlyAdded",
+          "playlists",
+          "counts",
+          "images"
+        ],
+        "title": "HomeOut",
         "type": "object"
       },
       "ImageChange": {
@@ -612,6 +985,67 @@
         "title": "JobOut",
         "type": "object"
       },
+      "LibrarySummaryOut": {
+        "properties": {
+          "counts": {
+            "$ref": "#/components/schemas/Counts"
+          },
+          "durationMs": {
+            "title": "Durationms",
+            "type": "integer"
+          },
+          "firstAddedAt": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Firstaddedat"
+          },
+          "genres": {
+            "items": {
+              "$ref": "#/components/schemas/GenreCount"
+            },
+            "title": "Genres",
+            "type": "array"
+          },
+          "lastAddedAt": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lastaddedat"
+          },
+          "playedMs": {
+            "title": "Playedms",
+            "type": "integer"
+          },
+          "plays": {
+            "title": "Plays",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "counts",
+          "durationMs",
+          "firstAddedAt",
+          "lastAddedAt",
+          "genres",
+          "plays",
+          "playedMs"
+        ],
+        "title": "LibrarySummaryOut",
+        "type": "object"
+      },
       "ListenBatchIn": {
         "properties": {
           "events": {
@@ -805,6 +1239,48 @@
         "title": "LoginIn",
         "type": "object"
       },
+      "LyricsOut": {
+        "properties": {
+          "language": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Language"
+          },
+          "source": {
+            "title": "Source",
+            "type": "string"
+          },
+          "syncedLrc": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Syncedlrc"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "text",
+          "syncedLrc",
+          "source",
+          "language"
+        ],
+        "title": "LyricsOut",
+        "type": "object"
+      },
       "ManifestIn": {
         "properties": {
           "network": {
@@ -848,6 +1324,61 @@
           "items"
         ],
         "title": "ManifestOut",
+        "type": "object"
+      },
+      "PlayerContextOut": {
+        "properties": {
+          "audio": {
+            "$ref": "#/components/schemas/AudioInfo"
+          },
+          "credits": {
+            "additionalProperties": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "title": "Credits",
+            "type": "object"
+          },
+          "extra": {
+            "additionalProperties": true,
+            "title": "Extra",
+            "type": "object"
+          },
+          "images": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/ImageData"
+            },
+            "title": "Images",
+            "type": "object"
+          },
+          "lyrics": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LyricsOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "stats": {
+            "$ref": "#/components/schemas/TrackStats"
+          },
+          "track": {
+            "$ref": "#/components/schemas/TrackOut"
+          }
+        },
+        "required": [
+          "track",
+          "lyrics",
+          "credits",
+          "audio",
+          "stats",
+          "images"
+        ],
+        "title": "PlayerContextOut",
         "type": "object"
       },
       "PlaylistChange": {
@@ -1739,6 +2270,32 @@
         "title": "TrackOut",
         "type": "object"
       },
+      "TrackStats": {
+        "properties": {
+          "lastPlayedAt": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lastplayedat"
+          },
+          "plays": {
+            "title": "Plays",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "plays",
+          "lastPlayedAt"
+        ],
+        "title": "TrackStats",
+        "type": "object"
+      },
       "UploadIn": {
         "properties": {
           "filename": {
@@ -1854,6 +2411,113 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/api/v2/albums": {
+      "get": {
+        "operationId": "albums_api_v2_albums_get",
+        "parameters": [
+          {
+            "description": "comma-separated, ≤ 200",
+            "in": "query",
+            "name": "ids",
+            "required": true,
+            "schema": {
+              "description": "comma-separated, ≤ 200",
+              "title": "Ids",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AlbumOut"
+                  },
+                  "title": "Response Albums Api V2 Albums Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "304": {
+            "description": "Not modified"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Albums",
+        "tags": [
+          "screens"
+        ]
+      }
+    },
+    "/api/v2/albums/{album_id}": {
+      "get": {
+        "operationId": "album_page_api_v2_albums__album_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "album_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Album Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AlbumPageOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "304": {
+            "description": "Not modified"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Album Page",
+        "tags": [
+          "screens"
+        ]
+      }
+    },
     "/api/v2/app/{platform}/latest": {
       "get": {
         "description": "Read from downloads/manifest.json; publishing a release = copying files + manifest.",
@@ -1898,6 +2562,113 @@
         "summary": "Latest",
         "tags": [
           "media"
+        ]
+      }
+    },
+    "/api/v2/artists": {
+      "get": {
+        "operationId": "artists_api_v2_artists_get",
+        "parameters": [
+          {
+            "description": "comma-separated, ≤ 200",
+            "in": "query",
+            "name": "ids",
+            "required": true,
+            "schema": {
+              "description": "comma-separated, ≤ 200",
+              "title": "Ids",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ArtistOut"
+                  },
+                  "title": "Response Artists Api V2 Artists Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "304": {
+            "description": "Not modified"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Artists",
+        "tags": [
+          "screens"
+        ]
+      }
+    },
+    "/api/v2/artists/{artist_id}/page": {
+      "get": {
+        "operationId": "artist_page_api_v2_artists__artist_id__page_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "artist_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Artist Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ArtistPageOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "304": {
+            "description": "Not modified"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Artist Page",
+        "tags": [
+          "screens"
         ]
       }
     },
@@ -2223,6 +2994,35 @@
         ]
       }
     },
+    "/api/v2/home": {
+      "get": {
+        "operationId": "home_api_v2_home_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HomeOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "304": {
+            "description": "Not modified"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Home",
+        "tags": [
+          "screens"
+        ]
+      }
+    },
     "/api/v2/invites": {
       "get": {
         "operationId": "list_invites_api_v2_invites_get",
@@ -2363,6 +3163,35 @@
         ]
       }
     },
+    "/api/v2/library/summary": {
+      "get": {
+        "operationId": "library_summary_api_v2_library_summary_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LibrarySummaryOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "304": {
+            "description": "Not modified"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Library Summary",
+        "tags": [
+          "screens"
+        ]
+      }
+    },
     "/api/v2/playback/manifest": {
       "post": {
         "description": "Signed URLs for the current track and the next ones in the queue (clients prefetch).",
@@ -2407,6 +3236,57 @@
         "summary": "Manifest",
         "tags": [
           "media"
+        ]
+      }
+    },
+    "/api/v2/player/context/{track_id}": {
+      "get": {
+        "operationId": "player_context_api_v2_player_context__track_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "track_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Track Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlayerContextOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "304": {
+            "description": "Not modified"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Player Context",
+        "tags": [
+          "screens"
         ]
       }
     },
@@ -3058,6 +3938,9 @@
               }
             },
             "description": "Successful Response"
+          },
+          "304": {
+            "description": "Not modified"
           },
           "422": {
             "content": {

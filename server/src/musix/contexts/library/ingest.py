@@ -99,7 +99,40 @@ def probe_fields(p: dict[str, Any]) -> dict[str, Any]:
         "channels": a.get("channels"),
         "bitrate_kbps": round(int(br) / 1000) if br else None,
         "duration_ms": round(dur * 1000) or None,
+        "credits": credits(fmt.get("tags") or {}),
     }
+
+
+# tag key (lowercased, as ffprobe reports Vorbis / ID3 / MP4 atoms) → credit role
+CREDIT_TAGS = {
+    "composer": "composer",
+    "lyricist": "lyricist",
+    "writer": "lyricist",
+    "producer": "producer",
+    "arranger": "arranger",
+    "conductor": "conductor",
+    "remixer": "remixer",
+    "mixer": "mixer",
+    "engineer": "engineer",
+    "label": "label",
+    "organization": "label",
+    "publisher": "publisher",
+    "copyright": "copyright",
+    "isrc": "isrc",
+    "tsrc": "isrc",
+}
+
+
+def credits(tags: dict[str, Any]) -> dict[str, list[str]] | None:
+    """Who made it, from the file's own tags. Multi-value tags arrive ';'-joined."""
+    out: dict[str, list[str]] = {}
+    for k, v in tags.items():
+        role = CREDIT_TAGS.get(k.lower())
+        if role and v:
+            for name in str(v).split(";"):
+                if (n := name.strip()) and n not in out.setdefault(role, []):
+                    out[role].append(n)
+    return out or None
 
 
 @dataclass

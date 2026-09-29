@@ -14,6 +14,7 @@ from qdrant_client import AsyncQdrantClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from musix import __version__, errors, observability
+from musix.api.idempotency import IdempotencyMiddleware
 from musix.api.realtime import Hub
 from musix.infra import db, secrets
 from musix.infra.queue import make_queue_app
@@ -114,6 +115,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         redoc_url=None,
     )
     errors.install(app)
+    app.add_middleware(IdempotencyMiddleware)
     observability.install(app, settings)
     app.include_router(router)
     for r in context_routers():
@@ -129,6 +131,7 @@ def context_routers() -> list[APIRouter]:
     from musix.contexts.listening.router import router as listening
     from musix.contexts.media.router import router as media
     from musix.contexts.playlists.router import router as playlists
+    from musix.contexts.screens.router import router as screens
     from musix.contexts.sync.router import router as sync
 
-    return [identity, library, media, listening, playlists, sync, realtime]
+    return [identity, library, media, listening, playlists, screens, sync, realtime]
