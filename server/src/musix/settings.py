@@ -28,6 +28,11 @@ class Settings(BaseSettings):
     qdrant_url: str = "http://localhost:18333"
     ml_device: Literal["cpu", "cuda"] = "cpu"
     log_level: str = "INFO"
+    otlp_endpoint: str | None = None
+    secrets_dir: str = "/var/lib/musix/secrets"
+    media_dir: str = "/mnt/data/musix-v2-media"
+    public_base_url: str = "http://127.0.0.1:18080"
+    rendition_budget_gb: int = 150
 
     @field_validator("database_url")
     @classmethod

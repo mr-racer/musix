@@ -15,6 +15,16 @@ dependencies = [
     "structlog>=26.1",
     "httpx>=0.28,<0.29",
     "psycopg[binary]>=3.3,<4",
+    "pyjwt[crypto]>=2.10",
+    "argon2-cffi>=25.1",
+    "mutagen>=1.47",
+    "pyvips>=3.0",
+    "blurhash-python>=1.2",
+    "prometheus-client>=0.23",
+    "opentelemetry-instrumentation-fastapi>=0.58b0",
+    "opentelemetry-exporter-otlp-proto-http>=1.37",
+    "numpy>=2.3",
+    "cryptography>=46",
 ]
 
 [dependency-groups]
@@ -25,6 +35,7 @@ dev = [
     "pytest-asyncio>=1.4,<2",
     "testcontainers[postgres,qdrant]>=4.15,<5",
     "httpx2>=2.13.1",
+    "schemathesis>=4.1",
 ]
 
 [build-system]

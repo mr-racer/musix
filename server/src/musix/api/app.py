@@ -1,28 +1,32 @@
-"""The v2 HTTP API. Phase 0: liveness and readiness only."""
+"""The v2 HTTP API: system routes + every context's router under /api/v2."""
 
 from __future__ import annotations
 
+import asyncio
+import contextlib
 from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
 
+import sqlalchemy as sa
 from fastapi import APIRouter, FastAPI, Request
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel
 from qdrant_client import AsyncQdrantClient
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from musix import __version__
+from musix import __version__, errors, observability
 from musix.infra import db
+from musix.schemas import Model
 from musix.settings import Settings
 
 Check = Callable[[], Awaitable[None]]
 
 
-class Health(BaseModel):
+class Health(Model):
     status: str
     version: str
 
 
-class Ready(BaseModel):
+class Ready(Model):
     status: str
     checks: dict[str, str]
 
@@ -49,7 +53,21 @@ async def ready(request: Request) -> JSONResponse:
             results[name] = f"error: {type(e).__name__}"
     ok = all(v == "ok" for v in results.values())
     body = Ready(status="ok" if ok else "degraded", checks=results)
-    return JSONResponse(body.model_dump(), status_code=200 if ok else 503)
+    return JSONResponse(body.model_dump(by_alias=True), status_code=200 if ok else 503)
+
+
+async def _queue_depth_loop(sessionmaker: async_sessionmaker[AsyncSession]) -> None:
+    while True:
+        with contextlib.suppress(Exception):
+            async with sessionmaker() as s:
+                rows = await s.execute(
+                    sa.text(
+                        "select queue_name, status, count(*) from procrastinate_jobs group by 1, 2"
+                    )
+                )
+                for q, st, n in rows:
+                    observability.QUEUE_DEPTH.labels(q, st).set(n)
+        await asyncio.sleep(5)
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -58,6 +76,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         engine = db.make_engine(settings)
+        app.state.engine = engine
+        app.state.sessionmaker = db.make_sessionmaker(engine)
+        app.state.settings = settings
         qdrant = AsyncQdrantClient(url=settings.qdrant_url, timeout=5)
 
         async def postgres() -> None:
@@ -67,7 +88,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             await qdrant.get_collections()
 
         app.state.checks = {"postgres": postgres, "qdrant": qdrant_check}
+        depth = asyncio.create_task(_queue_depth_loop(app.state.sessionmaker))
         yield
+        depth.cancel()
         await qdrant.close()
         await engine.dispose()
 
@@ -79,5 +102,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         docs_url=None,
         redoc_url=None,
     )
+    errors.install(app)
+    observability.install(app, settings)
     app.include_router(router)
+    for r in context_routers():
+        app.include_router(r, prefix="/api/v2")
     return app
+
+
+def context_routers() -> list[APIRouter]:
+    """Every bounded context's router. Explicit list (no import side effects)."""
+    return []
