@@ -1,0 +1,7 @@
+*/generated/
+kotlin/.gradle/
+kotlin/build/
+kotlin/.kotlin/
+csharp/bin/
+csharp/obj/
+ts/node_modules/

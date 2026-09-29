@@ -33,6 +33,7 @@ class Settings(BaseSettings):
     media_dir: str = "/mnt/data/musix-v2-media"
     public_base_url: str = "http://127.0.0.1:18080"
     rendition_budget_gb: int = 150
+    library_roots: list[str] = ["/mnt/data/music"]  # the only folders /library/scan may walk
     llm_base_url: str | None = None  # OpenAI-compatible; the admin's instance setting wins
 
     @field_validator("database_url")

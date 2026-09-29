@@ -1,0 +1,17 @@
+{
+  "name": "@musix/api",
+  "private": true,
+  "type": "module",
+  "description": "Types for the MusiX v2 API, generated from contracts/openapi.json (generated/ is not committed)",
+  "scripts": {
+    "gen": "openapi-typescript ../../openapi.json -o generated/schema.d.ts --default-non-nullable false",
+    "check": "tsc --noEmit -p ."
+  },
+  "dependencies": {
+    "openapi-fetch": "0.17.0"
+  },
+  "devDependencies": {
+    "openapi-typescript": "7.13.0",
+    "typescript": "5.9.3"
+  }
+}

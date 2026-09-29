@@ -9,6 +9,7 @@ from musix.contexts.identity.security import Principal
 from musix.contexts.screens import schemas as S
 from musix.contexts.screens import service
 from musix.errors import Invalid
+from musix.schemas import ID_LIST
 
 router = APIRouter(tags=["screens"])
 
@@ -78,7 +79,7 @@ async def albums(
     p: Auth,
     request: Request,
     response: Response,
-    ids: Annotated[str, Query(description="comma-separated, ≤ 200")],
+    ids: Annotated[str, Query(description="comma-separated, ≤ 200", **ID_LIST)],
 ) -> Any:
     parsed = _uuids(ids)
     tag = await _tag(request, p, f"albums:{sorted(parsed)}")
@@ -92,7 +93,7 @@ async def artists(
     p: Auth,
     request: Request,
     response: Response,
-    ids: Annotated[str, Query(description="comma-separated, ≤ 200")],
+    ids: Annotated[str, Query(description="comma-separated, ≤ 200", **ID_LIST)],
 ) -> Any:
     parsed = _uuids(ids)
     tag = await _tag(request, p, f"artists:{sorted(parsed)}")

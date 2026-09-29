@@ -19,6 +19,15 @@ openapi:
 	cd server && uv run python -m musix.api.openapi_export > ../contracts/openapi.json
 check: lint test
 
+# ── contract: schemathesis against the dev api; the three generated clients ──
+.PHONY: contract codegen codegen-check
+contract:
+	tools/contract/run.sh
+codegen:
+	contracts/codegen/run.sh gen
+codegen-check:
+	contracts/codegen/run.sh check
+
 # ── prod snapshot (tools/snapshot) ──────────────────────────────────────────
 .PHONY: snapshot snapshot-restore
 snapshot:

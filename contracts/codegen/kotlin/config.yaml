@@ -1,0 +1,15 @@
+# openapi-generator `kotlin` (image tag pinned in ../run.sh)
+library: jvm-okhttp4
+serializationLibrary: kotlinx_serialization
+packageName: app.musix.api
+groupId: app.musix
+artifactId: musix-api
+omitGradleWrapper: true
+enumUnknownDefaultCase: true
+# free-form objects (settings values, phase-2 extras) stay JSON: kotlinx has no serializer for Any
+typeMappings:
+  AnyType: kotlinx.serialization.json.JsonElement
+  object: kotlinx.serialization.json.JsonObject
+importMappings:
+  kotlinx.serialization.json.JsonElement: kotlinx.serialization.json.JsonElement
+  kotlinx.serialization.json.JsonObject: kotlinx.serialization.json.JsonObject

@@ -10,28 +10,34 @@ from musix.schemas import Model
 class DeviceIn(Model):
     name: str = Field(min_length=1, max_length=100)
     platform: Literal["android", "windows", "web"]
-    app_version: str | None = None
+    app_version: str | None = Field(default=None, max_length=64)
+
+
+EMAIL = Field(min_length=3, max_length=254)  # the shape is checked by the service (400)
 
 
 class SetupIn(Model):
-    email: str
-    password: str = Field(min_length=8)
+    email: str = EMAIL
+    password: str = Field(min_length=8, max_length=256)
     mode: Literal["personal", "shared"]
     device: DeviceIn
 
 
 class LoginIn(Model):
-    email: str
-    password: str
+    email: str = Field(min_length=1, max_length=254)  # anything: a wrong one is just a 401
+    password: str = Field(min_length=1, max_length=256)
     device: DeviceIn
 
 
-class RegisterIn(LoginIn):
-    invite_code: str
+class RegisterIn(Model):
+    email: str = EMAIL
+    password: str = Field(min_length=8, max_length=256)
+    device: DeviceIn
+    invite_code: str = Field(min_length=1, max_length=64)
 
 
 class RefreshIn(Model):
-    refresh_token: str
+    refresh_token: str = Field(min_length=1, max_length=256)
 
 
 class Tokens(Model):

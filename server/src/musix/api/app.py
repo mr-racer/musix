@@ -120,6 +120,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(router)
     for r in context_routers():
         app.include_router(r, prefix="/api/v2")
+    app.openapi = lambda: errors.document(app)  # type: ignore[method-assign]
     return app
 
 

@@ -3,11 +3,11 @@ import uuid
 
 from pydantic import Field
 
-from musix.schemas import Model
+from musix.schemas import JsonInt, Model
 
 
 class ScanIn(Model):
-    path: str
+    path: str = Field(pattern=r"^/", max_length=4096)  # under MUSIX_LIBRARY_ROOTS
     account_id: uuid.UUID | None = None  # default: the caller (owner)
 
 
@@ -17,7 +17,7 @@ class JobOut(Model):
 
 class UploadIn(Model):
     sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
-    size: int = Field(gt=0, le=2 * 1024**3)
+    size: JsonInt = Field(gt=0, le=2 * 1024**3)
     filename: str = Field(min_length=1, max_length=255)
 
 

@@ -17,7 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from musix.contexts.library.service import own_track_ids
 from musix.contexts.listening import schemas as S
 from musix.contexts.listening.models import account_track_stats, listen_events, taste_signals
-from musix.errors import NotFound
+from musix.errors import Conflict, NotFound
 from musix.infra.changelog import notify, record_change
 
 COMPLETE_SHARE = 0.9
@@ -176,5 +176,15 @@ async def add_signal(
     )
     if hit is not None:
         await record_change(s, account_id, "signalState", track_id)
+    else:
+        same = await s.scalar(
+            sa.select(taste_signals.c.id).where(
+                taste_signals.c.client_event_id == body.client_event_id,
+                taste_signals.c.account_id == account_id,
+                taste_signals.c.track_id == track_id,
+            )
+        )
+        if same is None:
+            raise Conflict("clientEventId was used for another signal")
     await s.commit()
     return (await signal_states(s, account_id, [track_id]))[track_id]

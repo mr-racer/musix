@@ -17,7 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from musix.contexts.identity.models import account_settings, devices
 from musix.contexts.library.models import images, media_files, renditions, tracks
 from musix.contexts.media import audio
-from musix.contexts.media.schemas import ImageData
+from musix.contexts.media.schemas import Gain, ImageData, ManifestItem, Source
 
 MEDIA_TTL = 6 * 3600
 IMAGE_SIZES = (96, 256, 512, 1024)
@@ -86,7 +86,7 @@ def choose_tier(requested: str, available: set[str], codec: str | None, platform
     return "lossless_compat" if "lossless_compat" in available else "lossless"
 
 
-def _entry(base: str, secret: bytes, row: Any, rend: dict[str, Any], tier: str) -> dict[str, Any]:
+def _entry(base: str, secret: bytes, row: Any, rend: dict[str, Any], tier: str) -> Source:
     if tier == "lossless":
         ext, codec, kbps, size = (
             Path(row.path).suffix.lower(),
@@ -97,13 +97,13 @@ def _entry(base: str, secret: bytes, row: Any, rend: dict[str, Any], tier: str) 
     else:
         x = rend[tier]
         ext, codec, kbps, size = Path(x.path).suffix, x.codec, x.bitrate_kbps, x.size_bytes
-    return {
-        "tier": tier,
-        "codec": codec,
-        "bitrateKbps": kbps,
-        "sizeBytes": size,
-        "url": base + sign(secret, f"/m/{row.sha256}/{tier}{ext}", MEDIA_TTL),
-    }
+    return Source(
+        tier=tier,  # type: ignore[arg-type]
+        codec=codec,
+        bitrate_kbps=kbps,
+        size_bytes=size,
+        url=base + sign(secret, f"/m/{row.sha256}/{tier}{ext}", MEDIA_TTL),
+    )
 
 
 async def manifest(
@@ -114,7 +114,7 @@ async def manifest(
     device_id: uuid.UUID,
     track_ids: list[uuid.UUID],
     network: str,
-) -> list[dict[str, Any]]:
+) -> list[ManifestItem]:
     quality = {
         **DEFAULT_QUALITY,
         **(
@@ -185,16 +185,16 @@ async def manifest(
             if t in avail and t != tier
         ]
         out.append(
-            {
-                **_entry(base, secret, row, mine, tier),
-                "trackId": str(row.id),
-                "durationMs": row.duration_ms,
-                "expiresAt": int(time.time() + MEDIA_TTL),
-                "gain": {
-                    "trackDb": audio.gains(row.lufs_integrated, row.true_peak_dbtp),
-                    "albumDb": audio.gains(album_lufs.get(row.album_id), row.true_peak_dbtp),
-                },
-                "fallbacks": [_entry(base, secret, row, mine, t) for t in fallbacks],
-            }
+            ManifestItem(
+                **_entry(base, secret, row, mine, tier).model_dump(),
+                track_id=row.id,
+                duration_ms=row.duration_ms,
+                expires_at=int(time.time() + MEDIA_TTL),
+                gain=Gain(
+                    track_db=audio.gains(row.lufs_integrated, row.true_peak_dbtp),
+                    album_db=audio.gains(album_lufs.get(row.album_id), row.true_peak_dbtp),
+                ),
+                fallbacks=[_entry(base, secret, row, mine, t) for t in fallbacks],
+            )
         )
     return out

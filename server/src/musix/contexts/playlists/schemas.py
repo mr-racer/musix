@@ -1,10 +1,13 @@
 import datetime as dt
 import uuid
+from typing import Annotated
 
 from pydantic import Field, field_validator
 
 from musix.contexts.playlists import fractional
 from musix.schemas import Model
+
+KEY_RE = r"^[A-Za-z][0-9A-Za-z]*$"  # necessary, not sufficient: see fractional.validate
 
 
 def _check_key(v: str | None) -> str | None:
@@ -23,7 +26,7 @@ class PlaylistIn(Model):
 
 
 class PlaylistPatch(Model):
-    name: str | None = Field(default=None, min_length=1, max_length=200)
+    name: str = Field(default=None, min_length=1, max_length=200)  # type: ignore[assignment]  # optional, never null
     description: str | None = Field(default=None, max_length=2000)
 
 
@@ -47,7 +50,7 @@ class ItemsAdd(Model):
 
     items: list[ItemIn] = Field(min_length=1, max_length=500)
     after_item_id: uuid.UUID | None = None
-    positions: list[str] | None = None
+    positions: list[Annotated[str, Field(pattern=KEY_RE)]] | None = None
 
     @field_validator("positions")
     @classmethod
@@ -59,7 +62,7 @@ class ItemMove(Model):
     """Either the client's key (offline replay) or the neighbour to land after
     (`afterItemId` None = the top)."""
 
-    position: str | None = None
+    position: str | None = Field(default=None, pattern=KEY_RE)
     after_item_id: uuid.UUID | None = None
 
     @field_validator("position")

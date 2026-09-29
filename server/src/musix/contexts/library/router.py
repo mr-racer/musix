@@ -9,6 +9,7 @@ from musix.api.deps import Auth, Owner, Session
 from musix.contexts.library import schemas as S
 from musix.contexts.library import service
 from musix.errors import Invalid
+from musix.schemas import ID_LIST
 
 router = APIRouter(tags=["library"])
 
@@ -20,8 +21,11 @@ def _queue(request: Request):  # type: ignore[no-untyped-def]
 @router.post("/library/scan", response_model=S.JobOut, status_code=202)
 async def scan(body: S.ScanIn, p: Owner, request: Request) -> S.JobOut:
     root = Path(body.path)
-    if not root.is_absolute():
-        raise Invalid("path must be absolute")
+    if not root.is_absolute() or ".." in root.parts:  # the roots check below must mean it
+        raise Invalid("path must be absolute, without '..'")
+    roots = [Path(r) for r in request.app.state.settings.library_roots]
+    if not any(root.is_relative_to(r) for r in roots):
+        raise Invalid("path is outside the library roots", roots=[str(r) for r in roots])
     job = (
         await _queue(request)
         .configure_task("library:scan_folder")
@@ -42,7 +46,20 @@ async def start_upload(body: S.UploadIn, p: Auth, s: Session, request: Request) 
     return out
 
 
-@router.patch("/uploads/{upload_id}", response_model=S.UploadOut)
+@router.patch(
+    "/uploads/{upload_id}",
+    response_model=S.UploadOut,
+    openapi_extra={
+        "requestBody": {
+            "required": True,
+            "content": {
+                "application/offset+octet-stream": {
+                    "schema": {"type": "string", "format": "binary"}
+                }
+            },
+        }
+    },
+)
 async def upload_chunk(
     upload_id: uuid.UUID,
     p: Auth,
@@ -78,7 +95,7 @@ async def get_tracks(
     s: Session,
     request: Request,
     response: Response,
-    ids: Annotated[str, Query(description="comma-separated, ≤ 200")],
+    ids: Annotated[str, Query(description="comma-separated, ≤ 200", **ID_LIST)],
 ) -> Any:
     try:
         parsed = [uuid.UUID(x) for x in ids.split(",") if x][:200]

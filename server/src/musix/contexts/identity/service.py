@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import datetime as dt
+import re
 import secrets as pysecrets
 import uuid
 from typing import Any
@@ -78,7 +79,12 @@ async def _new_device(s: AsyncSession, account_id: uuid.UUID, d: S.DeviceIn) -> 
     )
 
 
+EMAIL_RE = re.compile(r"[^@\s]+@[^@\s]+")
+
+
 async def _create_account(s: AsyncSession, email: str, password: str, role: str) -> uuid.UUID:
+    if not EMAIL_RE.fullmatch(email):
+        raise Invalid("not an email address")
     pw = await asyncio.to_thread(sec.hash_password, password)
     try:
         aid = await s.scalar(

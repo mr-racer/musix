@@ -1,0 +1,17 @@
+# 400 is a domain refusal of well-formed input (an unknown invite, a folder outside the
+# library roots, text Postgres cannot hold: NUL), which no schema can state; it is
+# accepted everywhere. 422 means the schema and the validation disagree, and stays a
+# failure — except where a rule sits inside a string (an opaque cursor, a fractional key
+# of the wrong length).
+[checks.positive_data_acceptance]
+expected-statuses = ["2xx", "400", "401", "403", "404", "409", "429"]
+
+[[operations]]
+include-path-regex = "^/api/v2/(sync|playlists/\\{playlist_id\\}/items.*)$"
+checks.positive_data_acceptance.expected-statuses = ["2xx", "400", "401", "403", "404", "409", "422", "429"]
+
+# A query string past uvicorn's request-line limit is refused by the HTTP parser itself
+# (text/plain 400, before the app; behind nginx it is a 414): transport, not contract.
+[[operations]]
+include-path-regex = "^/api/v2/(albums|artists|tracks|signals/state)$"
+checks.content_type_conformance.enabled = false

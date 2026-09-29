@@ -63,8 +63,11 @@ async def create(s: AsyncSession, account_id: uuid.UUID, body: S.PlaylistIn) -> 
         .returning(P.id)
     )
     if pid is None:  # a replayed offline create is fine; someone else's id is not
-        if await s.scalar(sa.select(P.account_id).where(P.id == body.id)) != account_id:
+        row = (await s.execute(sa.select(P.account_id, P.deleted_at).where(P.id == body.id))).one()
+        if row.account_id != account_id:
             raise Conflict("playlist id taken")
+        if row.deleted_at is not None:  # a replay must not resurrect what was deleted since
+            raise Conflict("playlist was deleted")
         return await _one(s, body.id)  # type: ignore[arg-type]
     await record_change(s, account_id, "playlist", pid)
     await s.commit()
@@ -126,8 +129,9 @@ async def add_items(
 ) -> list[S.ItemOut]:
     await _owned(s, account_id, pid)
     ids = {i.track_id for i in body.items}
-    if await own_track_ids(s, account_id, ids) != ids:
-        raise NotFound("track")
+    unknown = ids - await own_track_ids(s, account_id, ids)
+    if unknown:  # a bad reference in the body, not a missing URL resource: 400, not 404
+        raise Invalid("unknown trackId", track_ids=sorted(map(str, unknown)))
     if body.positions is not None:
         if len(body.positions) != len(body.items):
             raise Invalid("positions must match items")

@@ -1,23 +1,22 @@
-import datetime as dt
 import uuid
-from typing import Literal
+from typing import Annotated, Literal
 
 from pydantic import Field
 
-from musix.schemas import Model
+from musix.schemas import JSON_INT, JsonBool, JsonDatetime, JsonInt, Model
 
 
 class ListenIn(Model):
     client_event_id: uuid.UUID
     session_id: str = Field(min_length=1, max_length=64)
     track_id: uuid.UUID
-    started_at: dt.datetime
-    played_ms: int = Field(ge=0, le=24 * 3600 * 1000)  # time actually heard (v1 accumulator)
-    duration_ms: int | None = Field(default=None, ge=0)
+    started_at: JsonDatetime
+    played_ms: JsonInt = Field(ge=0, le=24 * 3600 * 1000)  # time actually heard (v1 accumulator)
+    duration_ms: Annotated[int, Field(ge=0), JSON_INT] | None = None
     end_reason: Literal["completed", "skipped", "stopped", "error"]
-    skipped_early: bool = False
-    interacted: bool | None = None
-    influence: bool = True
+    skipped_early: JsonBool = False
+    interacted: JsonBool | None = None
+    influence: JsonBool = True
     source: str | None = Field(default=None, max_length=64)  # pool label or "manual"
     context_type: Literal["stream", "album", "playlist", "search", "artist", "queue"] | None = None
     context_id: str | None = Field(default=None, max_length=128)

@@ -7,6 +7,7 @@ from musix.api.deps import Auth, Session
 from musix.contexts.listening import schemas as S
 from musix.contexts.listening import service
 from musix.errors import Invalid
+from musix.schemas import ID_LIST
 
 router = APIRouter(tags=["listening"])
 
@@ -23,7 +24,11 @@ async def add_signal(track_id: uuid.UUID, body: S.SignalIn, p: Auth, s: Session)
 
 @router.get("/signals/state", response_model=S.SignalStatesOut)
 async def signal_state(
-    p: Auth, s: Session, track_ids: Annotated[str, Query(alias="trackIds", description="≤ 200")]
+    p: Auth,
+    s: Session,
+    track_ids: Annotated[
+        str, Query(alias="trackIds", description="comma-separated, ≤ 200", **ID_LIST)
+    ],
 ) -> S.SignalStatesOut:
     try:
         ids = [uuid.UUID(x) for x in track_ids.split(",") if x][:200]

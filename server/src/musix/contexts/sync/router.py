@@ -14,7 +14,7 @@ async def sync(
     p: Auth,
     s: Session,
     request: Request,
-    cursor: Annotated[str | None, Query(max_length=512)] = None,
+    cursor: Annotated[str | None, Query(max_length=512, pattern=r"^[A-Za-z0-9_-]+$")] = None,
     limit: Annotated[int, Query(ge=1, le=1000)] = 1000,
 ) -> S.SyncPage:
     c = service.Ctx(

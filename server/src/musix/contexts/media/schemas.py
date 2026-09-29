@@ -1,5 +1,5 @@
 import uuid
-from typing import Any, Literal
+from typing import Literal
 
 from pydantic import Field
 
@@ -11,8 +11,34 @@ class ManifestIn(Model):
     network: Literal["wifi", "cellular"] = "wifi"
 
 
+Tier = Literal["economy", "high", "lossless", "lossless_compat"]
+
+
+class Source(Model):
+    tier: Tier
+    codec: str | None
+    bitrate_kbps: int | None
+    size_bytes: int | None
+    url: str  # signed, valid until `expiresAt`; a 403 means: ask for a new manifest
+
+
+class Gain(Model):
+    """dB to reach −14 LUFS; a boost never goes past −1 dBTP."""
+
+    track_db: float | None
+    album_db: float | None
+
+
+class ManifestItem(Source):
+    track_id: uuid.UUID
+    duration_ms: int | None
+    expires_at: int  # unix seconds
+    gain: Gain
+    fallbacks: list[Source]  # the next tiers to try, best first
+
+
 class ManifestOut(Model):
-    items: list[dict[str, Any]]
+    items: list[ManifestItem]  # in the order asked, unknown tracks left out
 
 
 class AppRelease(Model):
@@ -23,10 +49,22 @@ class AppRelease(Model):
     notes: str = ""
 
 
+class Accent(Model):
+    dark: str  # hsl() for the dark theme
+    light: str
+
+
+class Palette(Model):
+    dominant: str  # #rrggbb
+    vibrant: str
+    muted: str
+    accent: Accent  # the player accent (v1's rule)
+
+
 class ImageData(Model):
     id: str
     width: int | None
     height: int | None
     blurhash: str | None
-    palette: dict[str, Any] | None
+    palette: Palette | None
     urls: dict[str, str]  # px → signed URL (content-addressed, a year's expiry)

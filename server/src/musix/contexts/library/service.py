@@ -75,6 +75,8 @@ async def append_chunk(
         raise Conflict(f"upload is {up.state}")
     if offset != up.offset_bytes:  # the client resumes from the server's offset
         raise Conflict("offset mismatch", offset=up.offset_bytes)
+    if not data:
+        raise Invalid("empty chunk")
     if len(data) > MAX_CHUNK or offset + len(data) > up.size_bytes:
         raise Invalid("chunk too large")
     await asyncio.to_thread(_append, media_dir / "uploads" / f"{upload_id}.part", data)
