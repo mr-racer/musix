@@ -49,3 +49,10 @@ design-check:
 bench:
 	@test -n "$(SNAP)" || (echo "usage: make bench SNAP=<date> [MIN=5]"; exit 1)
 	tools/bench/run.sh $(SNAP) $(or $(MIN),5)
+
+# ── golden screenshots (design/golden) ──────────────────────────────────────
+.PHONY: golden golden-fixture
+golden:
+	design/golden/real.sh $(SNAP)
+golden-fixture:
+	tools/e2e-v1/run.sh --golden

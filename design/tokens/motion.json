@@ -1,0 +1,88 @@
+{
+  "motion": {
+    "easing": {
+      "standard": {
+        "$type": "cubicBezier",
+        "$value": [
+          0.22,
+          0.9,
+          0.3,
+          1
+        ],
+        "$description": "used 94× in styles.css + main.jsx"
+      },
+      "spring": {
+        "$type": "cubicBezier",
+        "$value": [
+          0.34,
+          1.56,
+          0.64,
+          1
+        ],
+        "$description": "used 12× in styles.css + main.jsx"
+      },
+      "swift": {
+        "$type": "cubicBezier",
+        "$value": [
+          0.16,
+          1,
+          0.3,
+          1
+        ],
+        "$description": "used 9× in styles.css + main.jsx"
+      },
+      "emphasized": {
+        "$type": "cubicBezier",
+        "$value": [
+          0.2,
+          0.8,
+          0.2,
+          1
+        ],
+        "$description": "used 9× in styles.css + main.jsx"
+      },
+      "symmetric": {
+        "$type": "cubicBezier",
+        "$value": [
+          0.4,
+          0,
+          0.6,
+          1
+        ],
+        "$description": "used 5× in styles.css + main.jsx"
+      }
+    },
+    "duration": {
+      "d240": {
+        "$type": "duration",
+        "$value": "240ms",
+        "$description": "used 6×"
+      },
+      "d200": {
+        "$type": "duration",
+        "$value": "200ms",
+        "$description": "used 4×"
+      },
+      "d220": {
+        "$type": "duration",
+        "$value": "220ms",
+        "$description": "used 3×"
+      },
+      "d280": {
+        "$type": "duration",
+        "$value": "280ms",
+        "$description": "used 3×"
+      },
+      "d320": {
+        "$type": "duration",
+        "$value": "320ms",
+        "$description": "used 3×"
+      },
+      "d600": {
+        "$type": "duration",
+        "$value": "600ms",
+        "$description": "used 3×"
+      }
+    }
+  }
+}

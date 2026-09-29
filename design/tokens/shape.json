@@ -1,0 +1,71 @@
+{
+  "radius": {
+    "r6": {
+      "$type": "dimension",
+      "$value": "6px",
+      "$description": "used 8×"
+    },
+    "r7": {
+      "$type": "dimension",
+      "$value": "7px",
+      "$description": "used 7×"
+    },
+    "r8": {
+      "$type": "dimension",
+      "$value": "8px",
+      "$description": "used 14×"
+    },
+    "r10": {
+      "$type": "dimension",
+      "$value": "10px",
+      "$description": "used 56×"
+    },
+    "r12": {
+      "$type": "dimension",
+      "$value": "12px",
+      "$description": "used 37×"
+    },
+    "r14": {
+      "$type": "dimension",
+      "$value": "14px",
+      "$description": "used 19×"
+    },
+    "r16": {
+      "$type": "dimension",
+      "$value": "16px",
+      "$description": "used 19×"
+    },
+    "r18": {
+      "$type": "dimension",
+      "$value": "18px",
+      "$description": "used 12×"
+    }
+  },
+  "blur": {
+    "b10": {
+      "$type": "dimension",
+      "$value": "10px",
+      "$description": "backdrop/filter blur, used 14×"
+    },
+    "b12": {
+      "$type": "dimension",
+      "$value": "12px",
+      "$description": "backdrop/filter blur, used 18×"
+    },
+    "b14": {
+      "$type": "dimension",
+      "$value": "14px",
+      "$description": "backdrop/filter blur, used 11×"
+    },
+    "b18": {
+      "$type": "dimension",
+      "$value": "18px",
+      "$description": "backdrop/filter blur, used 15×"
+    },
+    "b22": {
+      "$type": "dimension",
+      "$value": "22px",
+      "$description": "backdrop/filter blur, used 14×"
+    }
+  }
+}

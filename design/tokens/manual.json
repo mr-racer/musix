@@ -1,0 +1,22 @@
+{
+  "font": {
+    "sans":    {"$type": "fontFamily", "$value": ["Geist", "Inter", "system-ui", "sans-serif"], "$description": "body and UI (styles.css :root)"},
+    "text":    {"$type": "fontFamily", "$value": ["Noto Sans", "Times New Roman", "serif"], "$description": ".serif"},
+    "display": {"$type": "fontFamily", "$value": ["Playfair Display", "Georgia", "serif"], "$description": ".vibe-serif, island titles"},
+    "serifDisplay": {"$type": "fontFamily", "$value": ["Noto Serif Display", "Georgia", "serif"], "$description": "artist atlas italic headings (styles.css:1471)"},
+    "mono":    {"$type": "fontFamily", "$value": ["JetBrains Mono", "monospace"], "$description": "numbers and code"}
+  },
+  "motion": {
+    "vinylIn":  {"$type": "duration", "$value": "320ms", "$description": "player vinyl swipe, first leg (phase 0 spec §6)"},
+    "vinylOut": {"$type": "duration", "$value": "600ms", "$description": "player vinyl swipe, second leg"},
+    "toast":    {"$type": "duration", "$value": "220ms", "$description": "toast in/out"}
+  },
+  "color": {
+    "tabBarBg": {"$type": "gradient", "$value": {
+      "dark":  "linear-gradient(180deg, rgba(22,22,28,0.97), rgba(14,14,19,0.98))",
+      "light": "linear-gradient(180deg, rgba(255,255,255,0.97), rgba(244,243,249,0.98))"},
+      "$description": "main.jsx BottomTabBar (inline style)"},
+    "tabBarInactive": {"$type": "color", "$value": {"dark": "rgba(238,238,243,0.52)", "light": "rgba(22,22,32,0.5)"},
+      "$description": "main.jsx BottomTabBar (inline style)"}
+  }
+}

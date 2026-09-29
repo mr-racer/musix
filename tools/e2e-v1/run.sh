@@ -20,7 +20,16 @@ done
 docker run -d --rm --name musix-e2e-qdrant -p 127.0.0.1:6399:6333 qdrant/qdrant:v1.18.2 >/dev/null
 until curl -sf http://127.0.0.1:6399/ >/dev/null; do sleep 1; done
 
-"$V1PY" seed.py
+"$V1PY" seed.py | tee "$RUN/seed.txt"
 "$V1PY" serve.py > "$RUN/serve.log" 2>&1 & SERVE_PID=$!
 until curl -sf http://127.0.0.1:8011/api/v1/instance/config >/dev/null; do sleep 1; done
+if [ "${1:-}" = "--golden" ]; then  # the committed fixture set of design/golden
+  UID_=$(awk '/^owner/ {print $2}' "$RUN/seed.txt")
+  TOKEN=$(curl -s -X POST http://127.0.0.1:8011/api/v1/auth/login -H 'Content-Type: application/json' \
+          -d '{"email":"e2e@example.com","password":"e2e-password-123"}' | "$PY" -c 'import json,sys; print(json.load(sys.stdin)["token"])')
+  "$PY" ../../design/golden/capture.py --base http://127.0.0.1:8011 --token "$TOKEN" --user-id "$UID_" \
+        --out ../../design/golden/fixture
+  "$V1PY" ../../design/golden/to_webp.py ../../design/golden/fixture
+  exit 0
+fi
 "$PY" -m pytest -q -p no:cacheprovider test_playback_e2e.py "$@"

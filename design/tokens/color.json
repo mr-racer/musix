@@ -1,0 +1,178 @@
+{
+  "color": {
+    "bg": {
+      "$type": "color",
+      "$value": {
+        "dark": "#0d0d10",
+        "light": "#f2f1f6"
+      },
+      "$description": "musix-ui useColors()"
+    },
+    "bgDeep": {
+      "$type": "color",
+      "$value": {
+        "dark": "#08080b",
+        "light": "#e8e7ed"
+      },
+      "$description": "musix-ui useColors()"
+    },
+    "surface": {
+      "$type": "color",
+      "$value": {
+        "dark": "#17171b",
+        "light": "#ffffff"
+      },
+      "$description": "musix-ui useColors()"
+    },
+    "surface2": {
+      "$type": "color",
+      "$value": {
+        "dark": "#1e1e24",
+        "light": "#ebebf0"
+      },
+      "$description": "musix-ui useColors()"
+    },
+    "surface3": {
+      "$type": "color",
+      "$value": {
+        "dark": "#26262d",
+        "light": "#e4e3e9"
+      },
+      "$description": "musix-ui useColors()"
+    },
+    "border": {
+      "$type": "color",
+      "$value": {
+        "dark": "rgba(255,255,255,0.07)",
+        "light": "rgba(0,0,0,0.11)"
+      },
+      "$description": "musix-ui useColors()"
+    },
+    "borderStrong": {
+      "$type": "color",
+      "$value": {
+        "dark": "rgba(255,255,255,0.13)",
+        "light": "rgba(0,0,0,0.20)"
+      },
+      "$description": "musix-ui useColors()"
+    },
+    "text": {
+      "$type": "color",
+      "$value": {
+        "dark": "#eeeef3",
+        "light": "#161620"
+      },
+      "$description": "musix-ui useColors()"
+    },
+    "textMuted": {
+      "$type": "color",
+      "$value": {
+        "dark": "rgba(255,255,255,0.5)",
+        "light": "rgba(10,10,18,0.60)"
+      },
+      "$description": "musix-ui useColors()"
+    },
+    "textSubtle": {
+      "$type": "color",
+      "$value": {
+        "dark": "rgba(255,255,255,0.28)",
+        "light": "rgba(10,10,18,0.46)"
+      },
+      "$description": "musix-ui useColors()"
+    },
+    "accent": {
+      "$type": "color",
+      "$value": "oklch(60% 0.18 270)",
+      "$description": "musix-ui useColors()"
+    },
+    "accentBg": {
+      "$type": "color",
+      "$value": {
+        "dark": "oklch(60% 0.18 270 / 0.15)",
+        "light": "oklch(60% 0.18 270 / 0.10)"
+      },
+      "$description": "musix-ui useColors()"
+    },
+    "accentLight": {
+      "$type": "color",
+      "$value": "oklch(70% 0.16 270)",
+      "$description": "musix-ui useColors()"
+    },
+    "amber": {
+      "$type": "color",
+      "$value": {
+        "dark": "oklch(72% 0.13 75)",
+        "light": "oklch(58% 0.15 60)"
+      },
+      "$description": "musix-ui useColors()"
+    },
+    "amberGlow": {
+      "$type": "color",
+      "$value": "rgba(212,165,90,0.35)",
+      "$description": "musix-ui useColors()"
+    },
+    "inputBg": {
+      "$type": "color",
+      "$value": {
+        "dark": "#10101a",
+        "light": "#ffffff"
+      },
+      "$description": "musix-ui useColors()"
+    },
+    "sidebarBg": {
+      "$type": "gradient",
+      "$value": {
+        "dark": "linear-gradient(180deg,#131318 0%,#0c0c10 100%)",
+        "light": "linear-gradient(180deg,#f0eff5 0%,#e7e6ec 100%)"
+      },
+      "$description": "musix-ui useColors()"
+    },
+    "chatPanelBg": {
+      "$type": "color",
+      "$value": {
+        "dark": "#0f0f13",
+        "light": "#f8f8fc"
+      },
+      "$description": "musix-ui useColors()"
+    },
+    "userBubble": {
+      "$type": "gradient",
+      "$value": "linear-gradient(135deg, oklch(60% 0.18 270), oklch(58% 0.18 305))",
+      "$description": "musix-ui useColors()"
+    },
+    "aiBubble": {
+      "$type": "color",
+      "$value": {
+        "dark": "#1e1e26",
+        "light": "#ebebf2"
+      },
+      "$description": "musix-ui useColors()"
+    },
+    "green": {
+      "$type": "color",
+      "$value": "oklch(63% 0.17 142)",
+      "$description": "musix-ui useColors()"
+    },
+    "greenBg": {
+      "$type": "color",
+      "$value": {
+        "dark": "oklch(63% 0.17 142 / 0.13)",
+        "light": "oklch(63% 0.17 142 / 0.10)"
+      },
+      "$description": "musix-ui useColors()"
+    },
+    "red": {
+      "$type": "color",
+      "$value": "oklch(58% 0.21 25)",
+      "$description": "musix-ui useColors()"
+    },
+    "redBg": {
+      "$type": "color",
+      "$value": {
+        "dark": "oklch(58% 0.21 25 / 0.14)",
+        "light": "oklch(58% 0.21 25 / 0.09)"
+      },
+      "$description": "musix-ui useColors()"
+    }
+  }
+}
