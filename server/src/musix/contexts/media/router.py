@@ -1,3 +1,4 @@
+import asyncio
 import json
 from pathlib import Path
 from typing import Literal
@@ -29,7 +30,7 @@ async def latest(platform: Literal["android", "windows"], request: Request) -> S
     """Read from downloads/manifest.json; publishing a release = copying files + manifest."""
     f = Path(request.app.state.settings.media_dir) / "downloads" / "manifest.json"
     try:
-        data = json.loads(f.read_text())[platform]
+        data = json.loads(await asyncio.to_thread(f.read_text))[platform]
     except (FileNotFoundError, KeyError) as e:
         raise NotFound(f"no {platform} release") from e
     return S.AppRelease.model_validate(data)

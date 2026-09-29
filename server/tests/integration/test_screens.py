@@ -65,3 +65,25 @@ def test_idempotency_key_replays_the_first_response(client: TestClient, listener
     names = [p["name"] for p in client.get("/api/v2/playlists", headers=bearer(tok)).json()]
     assert names.count("once") == 1
     assert client.post("/api/v2/playlists", json={"name": "other"}, headers=h).status_code == 422
+
+
+async def test_idempotency_never_stores_auth_responses(sm, client: TestClient, listener) -> None:  # type: ignore[no-untyped-def]
+    import sqlalchemy as sa
+
+    from musix.api.idempotency import idempotency_keys
+
+    tok, acct, _ = listener
+    key = str(uuid.uuid4())
+    r = client.post(
+        "/api/v2/auth/refresh",
+        json={"refreshToken": tok["refreshToken"]},
+        headers={**bearer(tok), "Idempotency-Key": key},
+    )
+    assert r.status_code == 200
+    async with sm() as s:  # raw tokens must never sit in the replay store
+        n = await s.scalar(
+            sa.select(sa.func.count()).where(
+                idempotency_keys.c.account_id == acct, idempotency_keys.c.key == key
+            )
+        )
+    assert n == 0

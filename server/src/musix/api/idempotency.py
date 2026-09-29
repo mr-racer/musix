@@ -39,7 +39,13 @@ class IdempotencyMiddleware:
         self.app = app
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
-        if scope["type"] != "http" or scope["method"] != "POST":
+        # /auth answers carry raw tokens: never keep them in the replay store (refresh
+        # tokens exist only as hashes), and token rotation has its own reuse semantics
+        if (
+            scope["type"] != "http"
+            or scope["method"] != "POST"
+            or scope["path"].startswith("/api/v2/auth/")
+        ):
             return await self.app(scope, receive, send)
         headers = dict(scope["headers"])
         key, auth = headers.get(b"idempotency-key"), headers.get(b"authorization", b"")
