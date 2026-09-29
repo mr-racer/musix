@@ -2,6 +2,16 @@
 
 **Date:** 2026-09-29
 **Status:** program approved by the owner. Each phase gets its own spec + plan before any code.
+All phase specs were written 2026-09-29 and await the owner's review:
+[phase 0](2026-09-29-v2-phase0-foundation-design.md) ·
+[1](2026-09-29-v2-phase1-core-design.md) ·
+[2](2026-09-29-v2-phase2-intelligence-design.md) ·
+[3](2026-09-29-v2-phase3-data-migration-design.md) ·
+[4](2026-09-29-v2-phase4-android-design.md) ·
+[5](2026-09-29-v2-phase5-web-design.md) ·
+[6](2026-09-29-v2-phase6-cutover-design.md) ·
+[7](2026-09-29-v2-phase7-windows-design.md) ·
+[8](2026-09-29-v2-phase8-ecosystem-design.md)
 **Branch:** `feature/musix-v2` (from `genius-addition`, the prod branch)
 **Scope:** everything — backend, data stores, media delivery, Android, Windows, web.
 This document fixes the goals, the decisions and the order of work; it does not
@@ -136,6 +146,29 @@ Principles the phase specs must follow:
 7. **Measurable.** Every request carries its timing, the server exposes `/metrics`, and logs
    are structured.
 
+### 4.0 What v1 does that v2 must not (owner, 2026-09-29: "no inefficient solutions carried over — do it the way big-tech production does")
+
+Every phase spec carries its own version of this table and must not reintroduce a row.
+
+| v1 pattern (measured / read in code) | Why it is inefficient | v2 replacement |
+|---|---|---|
+| «Поток» is **stateless**: every `/stream/next` rebuilds the baseline, session profile and pools from all events + Qdrant | The work per request grows with history; latency and load grow with it | Incremental per-listener state: aggregates and baseline updated on each event, session state kept, islands/profile recomputed off the request path. Online = ANN candidates + cheap scoring |
+| **Whole-collection scrolls** (`light_points` 90 s cache, `library_catalog` memo, BM25F built in Python) | O(library) per cache miss, duplicated in every process | Indexed Postgres queries (FTS + trigram) and ANN with filters; no whole-library caches in processes |
+| **Heavy Qdrant payloads**: lyrics, `clap_chunks` (per-chunk vectors), full metadata | Payload transfer dominates reads; metadata duplicated with SQLite | Payload = ids + filter fields. CLAP chunks = a Qdrant **multivector**. Text and metadata live in Postgres only |
+| **Per-account indexing**: the same file in two libraries is embedded twice, in two collections | GPU time and storage scale with accounts, not with content | Content-addressed media (sha256); embeddings and derived audio **once per file**; libraries reference them |
+| **On-the-fly transcoding** in the request (ALAC→FLAC, Dolby→AAC), cached lazily | First play waits; Python holds the connection | Tiers encoded **at ingest** by workers (big-tech pre-encoding); requests only pick a ready file |
+| **Python serves audio bytes** (`FileResponse` via the single worker) | Streaming competes with API work | nginx `sendfile` with **signed media URLs** (expiring HMAC); Python only issues the URL |
+| **Stream tokens in `?st=` + 30-day HS256 login JWT** | Long-lived bearer in URLs and logs | Short access tokens + rotating refresh tokens per device; media URLs signed per file with expiry |
+| **Polling**: LLM status every 60 s per client, job progress every 2–3 s | Load grows with open clients | One WebSocket channel with push events (fanned out via Postgres LISTEN/NOTIFY) |
+| **N requests per screen** (the home screen fans out into many `/library/*`, `/recommend/*` calls) | Latency adds up, especially over LTE | Screen-level BFF endpoints (`/home`, `/player/context/{id}`, `/artists/{id}/page`), batch reads (`?ids=`), ETags |
+| **Cover color via canvas on the client**, thumbnails generated lazily per request | Work repeated on every device and every view | At ingest: WebP variants (96/256/512/1024), dominant palette and a blurhash, all served immutable by nginx |
+| **In-process asyncio "jobs"** (`ai_indexing_service`, `JobTracker`) | Lost on restart, no retries, invisible to other processes | A durable Postgres-backed queue: retries, idempotency keys, priorities, per-source rate limits |
+| **Schema by replaying `ALTER` and swallowing errors**; a 6k-line `MetadataDB` god class | Undetectable drift, untestable coupling | Alembic migrations; one repository per bounded context |
+| **`fact_visibility` table** maintained on every index | Duplicated state that can disagree with the library | Visibility derived by join (the account owns a track of that song/artist) |
+| **Events posted one by one**, lost on failure (`event_fail`) | Chatty and lossy on mobile | Batched idempotent event upload from a durable client outbox |
+| **Web: one 877 KB bundle, every section mounted** | Cold start parses everything; memory stays high | Route-level code splitting, TanStack Query cache, mount on demand |
+| **No loudness information** | Volume jumps between tracks | EBU R128 loudness measured at ingest; track/album gain applied by the players (the norm at Spotify/YouTube) |
+
 ### 4.1 Media delivery and quality
 
 | Tier | Format | Use |
@@ -145,11 +178,14 @@ Principles the phase specs must follow:
 | без потерь | the original (FLAC/ALAC/…) | Wi-Fi, audiophiles |
 
 - AAC plays natively everywhere we ship: ExoPlayer, Windows Media Foundation and browsers.
-- The transcodes are content-addressed on disk with an LRU budget.
-- The worker transcodes the **next** tracks of every active session ahead of time, so
-  there is no wait at the track boundary.
+- **Every tier is encoded at ingest** by workers at idle priority, once per content hash.
+  No request ever waits on an encoder. This is how big streaming services do it.
+- For the current library (7282 files, 465 hours, 237 GB of originals) both AAC tiers
+  take **~94 GB**: 67 GB at 320 plus 27 GB at 128. The phase 1 spec sets a storage budget. If the budget is exceeded, only
+  экономия falls back to an on-demand + LRU policy.
+- Browser-incompatible lossless (ALAC etc.) gets a FLAC rendition at ingest too. The
+  existing 19 GB cache is migrated, not rebuilt.
 - The client picks a tier per network type; the defaults are decided in the phase 1 spec.
-- The existing ALAC → FLAC cache folds into this.
 
 ### 4.2 Clients
 
@@ -250,9 +286,10 @@ No dates are promised here; each phase spec estimates its own.
 
 ## 9. Open questions (for the phase specs)
 
-1. The default quality tier per network (phase 1). Proposal: Wi-Fi = без потерь, mobile = высокое.
-2. Whether the Windows client ships as MSIX or a classic installer, and how it
-   auto-updates (phase 7).
+1. ~~The default quality tier per network.~~ Proposed in the phase 1 spec §5.4: Wi-Fi = без
+   потерь, cellular = высокое, экономия opt-in.
+2. ~~MSIX or a classic installer.~~ Proposed in the phase 7 spec §5: Velopack (unsigned
+   installs, delta updates from the instance), with Authenticode signing optional later.
 3. How far the lean web client goes beyond listening and admin (phase 5).
 4. Whether offline downloads come back as a goal. The media cache and `/sync` make it cheap
    later.
