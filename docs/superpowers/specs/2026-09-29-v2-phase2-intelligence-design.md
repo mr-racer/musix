@@ -11,13 +11,19 @@ infrastructure:
 - the knowledge base (facts, bios, relations, gems, vibes);
 - the assistant, the quiz, the Yandex import.
 
-**Behaviour is ported, not redesigned.** The owner will discuss product and recommendation
-improvements separately. Those land after this phase, on top of it.
+**Behaviour is ported, not redesigned**, with one exception: **«Поток»**.
+- An offline study on the prod snapshot (`2026-09-29-v2-stream-product-design.md` §2) showed
+  that v1's stream score ranks completed against skipped tracks at chance (GAUC 0.49).
+- Porting it would carry an ineffective v1 pattern into v2. Phase 2 builds the engine from
+  that spec instead, on the state below.
+- The v1 baseline is the logged v1 sessions, measured by the same harness.
 
 **Exit criteria.**
 
-- The phase 0 gates: search ≥ v1, «Поток» invariants at zero violations and the comparative
-  metrics within ±5%, facts/bio/routing equal.
+- The phase 0 gates:
+  - search ≥ v1;
+  - «Поток»: the `tools/recsys-eval` gates (stream spec §10), invariants at zero;
+  - facts/bio/routing equal.
 - The budgets in §9.
 
 ---
@@ -143,40 +149,52 @@ not ad-hoc sleeps.
 ## 6. Recommendations — «Поток» on incremental state
 
 v1 rebuilds everything per request: up to 6000 events, all reactions, all signals, a full
-metadata scroll, the calibration and the CLAP vectors (`stream_service.next_chunk`). v2
-splits the same mathematics into **maintained state** and a **cheap online step**. This is
-the standard shape of production recommenders: features maintained off the request path,
-retrieval, then scoring, then assembly.
+metadata scroll, the calibration and the CLAP vectors (`stream_service.next_chunk`). v2 uses
+**maintained state** and a **cheap online step**, the standard shape of production
+recommenders: features maintained off the request path, then retrieval, then a learned
+ranker, then policy/assembly.
+
+The engine itself (candidate sources, ranker, policy, reasons, decision log) is specified in
+`2026-09-29-v2-stream-product-design.md` §3–§9. This section covers the state and the online
+path it runs on.
 
 ### 6.1 State, maintained off the request path
 
 | State | Updated when | Holds |
 |---|---|---|
 | `account_track_stats` | every listen (phase 1, in-transaction) | plays, completes, skips, last played |
-| `listener_baseline` (account) | every listen/signal: an EWMA update, O(1) | skip / completion / reaction rates (v1 `stream.baseline`) |
+| `account_artist_stats` | every listen (in-transaction) | plays, completes, skips, last heard per artist |
+| `account_genre_stats` | every listen (in-transaction) | plays, completes, skips per genre |
 | `signal_state` (account, track) | every signal | fire/water charge and lock |
-| `stream_sessions` (session) | every listen/signal in the session, O(session) | the positive and negative clusters (centroid, weight, members), warmth (signal count), the anti-repeat ring, the slider, carryover (v1 `stream.session`) |
-| `taste_profile` (account) | a debounced job after N new events or daily | long-term islands, axis preferences, favorites, vibes (v1 islands / vibes / favorite_weights) |
-| `library_calibration` (account) | a job after a library change > 2% | the CLAP cosine → percentile table (v1 `stream.calibration`) |
+| `stream_sessions` (session) | every listen/signal in the session, O(session) | the session's positives (for retrieval), the served ring, the pool log, the genre run and `held`, the preset window |
+| `served_today` (account, date) | every issued chunk | the ids issued today (stream spec §6) |
+| `taste_profile` (account) | a debounced job after N new events or daily | the long-term positives, favorites, vibes, the personal genre tolerance |
+| `stream_regions` / `colisten_vectors` (account) | nightly | CLAP k-means regions + genre centroids; PPMI-SVD co-listen vectors |
+| `ranker_models` (instance) | nightly training job, promotion rule | the versioned LightGBM ranker (stream spec §3.2) |
 
 Updates are consumed from the event insert (`NOTIFY`) by a `stream` worker, so the event API
 stays at < 30 ms.
 
 ### 6.2 Online `GET /stream/next` (target p95 < 150 ms)
 
-1. Load `stream_sessions` + `listener_baseline` + `taste_profile` + `library_calibration`:
-   4 indexed rows.
-2. **Candidates:** Qdrant `query_points` batch:
-   - per positive cluster centroid, top-k with the `owners` filter;
-   - plus the band/explore generators (stream-exploration spec §3.3);
-   - negative clusters as negative examples.
-3. Join the candidates with `account_track_stats` and `signal_state`: one query over ≤ 500 ids.
-   Then apply the fresh/familiar split, the anti-repeat floor, the liked cooldown and the
-   locks.
-4. **Scoring and assembly** with the v1 weights and quotas, **code ported with its unit tests**
-   (`stream.signals`, `pools`, the `W_*` constants, the explore quota rules from 2026-09-06).
-5. Record the issued chunk in the session (for the anti-repeat window and exclude-ids),
-   and return the tracks with their `source` pool labels.
+1. Load `stream_sessions` + `taste_profile` + `served_today` + the account settings: a few
+   indexed rows. The ranker model is held in process memory by version.
+2. **Candidates** (stream spec §3.1), ~500 ids:
+   - one Qdrant `query_points` batch (CLAP neighbours of the session and long-term positives,
+     `owners` filter);
+   - SQL for the session artists, artist affinity and the pool samplers;
+   - co-listen neighbours from `colisten_vectors`.
+3. **Features:** one query joins the ids with `account_track_stats`, `account_artist_stats`,
+   `account_genre_stats` and `signal_state`. The feature function is shared with training.
+4. **Rank** with the current `ranker_models` version (~2–5 ms), then **the policy** (stream
+   spec §3.3):
+   - served-today and lock filters, the sound band;
+   - preset windows, artist rules, genre fatigue and cap;
+   - the exploration slot.
+5. **Record and return:**
+   - record the chunk in `stream_sessions` and `served_today`;
+   - write `stream_decisions`;
+   - return the tracks with `source`, `pool` and `reason`.
 
 The same state serves the other surfaces, which now become SQL or single ANN calls:
 
@@ -216,6 +234,7 @@ The same state serves the other surfaces, which now become SQL or single ANN cal
 | v1 | v2 |
 |---|---|
 | «Поток» recomputes everything per request (6000 events, a full scroll) | Maintained state + a cheap online step (§6) |
+| «Поток» scores by hand-tuned CLAP similarity, which ranks at chance | A learned ranker over behaviour features + a policy layer (stream spec §2–§3) |
 | One Qdrant collection per account, re-embedding the same file | One `tracks` collection keyed by content, an `owners` filter (§3) |
 | Lyrics, metadata and CLAP chunks in payloads | Payload = filters; chunks as a multivector (§3) |
 | Catalog search in Python over a full scroll | Postgres FTS + trigram + a translit column (§4) |
@@ -237,8 +256,13 @@ The same state serves the other surfaces, which now become SQL or single ANN cal
 
 ## 10. Testing
 
-- **Ported unit tests** travel with the ported code: stream math, artist split, text
-  normalize, sanitizer, gems, facts_v2, quiz modes, assistant stages.
+- **Ported unit tests** travel with the ported code: artist split, text normalize,
+  sanitizer, gems, facts_v2, quiz modes, assistant stages.
+- «Поток» is new code with its own tests:
+  - the feature-parity test (training and serving produce identical features for the same
+    moment);
+  - policy unit tests (windows, artist rules, fatigue, served-today);
+  - the `tools/recsys-eval` gates.
 - **Gates** (phase 0 §4) on every PR that touches search or «Поток».
 - **Replay property tests** on the incremental state: after any event sequence, the state
   equals the state recomputed from scratch. This is what makes "incremental" safe.
@@ -249,7 +273,9 @@ The same state serves the other surfaces, which now become SQL or single ANN cal
 2. The ingest intelligence tasks and the Qdrant `tracks` collection.
 3. Search: catalog in Postgres, lyrics/sound in Qdrant. Gates 4.1–4.3.
 4. Stream state tables and consumers, with the recompute-equivalence tests.
-5. The online `/stream/next` and the other rec surfaces. Gate 4.4.
+5. The «Поток» engine per the stream spec §12: sources, ranker + training job, policy,
+   reasons, decision log. Then the online `/stream/next` and the other rec surfaces.
+   Gate 4.4 (`tools/recsys-eval`).
 6. Knowledge tables and pipelines (facts, refinements, bios, relations, gems, vibes).
    Gate 4.5.
 7. Assistant, chat, AI playlists (jobs + WS).

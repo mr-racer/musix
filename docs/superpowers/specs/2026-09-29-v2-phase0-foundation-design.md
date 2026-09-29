@@ -142,30 +142,32 @@ Fixture: **300 queries** of the kinds exact, prefix, typo, feat-stripped, Cyrill
 - Gate: v2 ≥ v1. This search moves from a Python BM25F to Postgres FTS + trigram (phase 2),
   so this gate is the one that actually tests a new implementation.
 
-### 4.4 «Поток» — offline session replay
+### 4.4 «Поток» — `tools/recsys-eval`
 
-From the snapshot's `playback_events` + `taste_signals`: every session with ≥ 6 listens
-(174 sessions as of 2026-09-06). For each session, replay it event by event. After each
-event, ask the engine for the next chunk and record it.
+The harness from the stream spec (`2026-09-29-v2-stream-product-design.md` §2 and §10),
+rebuilt properly from the throwaway spike in `/mnt/data/musix-v2-staging/recsys-spike/`.
 
-**Hard invariants**, zero tolerance (from `tests/integration/test_stream_replay_session.py`
-and the session-recsys spec):
-
-1. no track twice inside the session window;
-2. a disliked (вода-locked) track is never served;
-3. the familiar/liked share per chunk = slider quota ± 1 slot while the pool has candidates.
-
-**Comparative metrics** (gate: within ±5% of v1, since phase 2 ports behaviour
-unchanged):
-
-- **next-listen hit rate**, i.e. whether the track the user actually played next appears in
-  the chunk served before it;
-- **intra-chunk CLAP diversity** (mean pairwise distance);
-- **fresh share**;
-- **explore/band slot fill rate** (stream-exploration spec §3.2);
-- latency p50/p95.
-
-The replay uses a frozen clock per event, so v1 and v2 see the same "now".
+- **Input:** the snapshot's `playback_events` + `taste_signals`, replayed in time order with
+  a frozen clock per event. Features see only what was known before each play.
+- **Suites:**
+  - **E1 ranking:** session-grouped AUC of completed vs skipped plays, over rolling time
+    folds, with a session-bootstrap CI;
+  - **E2 retrieval:** recall of the merged candidate set, for self-chosen and never-played
+    targets;
+  - **E3 sound:** the owner's 150 blind labels (`mood_labels`, exported from the labelling
+    page), AUC calm ↔ energetic;
+  - **E4 simulation:** policies serve 30-track sessions from real session starts against a
+    response model; list metrics (top genre, genres and artists per 10, preset share
+    accuracy, same-day repeats).
+- **Hard invariants,** zero tolerance:
+  1. no track issued twice in a day;
+  2. a «вода»-locked track is never served;
+  3. never a track outside the listener's own library;
+  4. the preset share over any 12-track window = target ± 1 track while the pool has
+     candidates.
+- **Baseline:** the logged v1 sessions measured by the same suites. v1's engine is not
+  ported, so the comparison is against what v1 actually served.
+- **Gates:** the table in the stream spec §10.
 
 ### 4.5 Facts, bios, assistant routing
 

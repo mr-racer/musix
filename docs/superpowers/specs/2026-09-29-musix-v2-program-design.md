@@ -11,7 +11,8 @@ All phase specs were written 2026-09-29 and await the owner's review:
 [5](2026-09-29-v2-phase5-web-design.md) ·
 [6](2026-09-29-v2-phase6-cutover-design.md) ·
 [7](2026-09-29-v2-phase7-windows-design.md) ·
-[8](2026-09-29-v2-phase8-ecosystem-design.md)
+[8](2026-09-29-v2-phase8-ecosystem-design.md) ·
+[«Поток» engine and product](2026-09-29-v2-stream-product-design.md)
 **Branch:** `feature/musix-v2` (from `genius-addition`, the prod branch)
 **Scope:** everything — backend, data stores, media delivery, Android, Windows, web.
 This document fixes the goals, the decisions and the order of work; it does not
@@ -152,7 +153,8 @@ Every phase spec carries its own version of this table and must not reintroduce 
 
 | v1 pattern (measured / read in code) | Why it is inefficient | v2 replacement |
 |---|---|---|
-| «Поток» is **stateless**: every `/stream/next` rebuilds the baseline, session profile and pools from all events + Qdrant | The work per request grows with history; latency and load grow with it | Incremental per-listener state: aggregates and baseline updated on each event, session state kept, islands/profile recomputed off the request path. Online = ANN candidates + cheap scoring |
+| «Поток» is **stateless**: every `/stream/next` rebuilds the baseline, session profile and pools from all events + Qdrant | The work per request grows with history; latency and load grow with it | Incremental per-listener state: aggregates updated on each event, session state kept, profile/regions/co-listen recomputed off the request path. Online = candidate sources + ranker + policy |
+| «Поток» **scores by hand-tuned CLAP similarity** to the session | Measured on the prod snapshot: it ranks completed vs skipped tracks at chance (GAUC 0.49); a learned ranker over behaviour features gets 0.74 | Candidate sources → LightGBM ranker (nightly, versioned) → policy (presets, diversity, fatigue, served-today) → reason; decisions logged for training and A/B (stream spec) |
 | **Whole-collection scrolls** (`light_points` 90 s cache, `library_catalog` memo, BM25F built in Python) | O(library) per cache miss, duplicated in every process | Indexed Postgres queries (FTS + trigram) and ANN with filters; no whole-library caches in processes |
 | **Heavy Qdrant payloads**: lyrics, `clap_chunks` (per-chunk vectors), full metadata | Payload transfer dominates reads; metadata duplicated with SQLite | Payload = ids + filter fields. CLAP chunks = a Qdrant **multivector**. Text and metadata live in Postgres only |
 | **Per-account indexing**: the same file in two libraries is embedded twice, in two collections | GPU time and storage scale with accounts, not with content | Content-addressed media (sha256); embeddings and derived audio **once per file**; libraries reference them |
@@ -217,11 +219,12 @@ Built in phase 0, run on every phase after:
   - Lyric-line search and sound search are evaluated on fixed query sets with expected
     hits (start from `tests/data/facts_gold.json` and prod playback).
   - Metrics: recall@10 / MRR. Qdrant stays, so these should hold exactly.
-- **«Поток».** Offline replay of real sessions from the prod snapshot, checking the
-  invariants already written in `tests/integration/test_stream_replay_session.py`:
-  - no repeats in the session window;
-  - disliked tracks never appear;
-  - the favorites share stays at the slider ± 1.
+- **«Поток».** `tools/recsys-eval` on the prod snapshot (stream spec §10):
+  - ranking GAUC, candidate recall, sound AUC against the owner's labels;
+  - a whole-session simulation for variety, presets and repeats;
+  - the hard invariants: no same-day repeat, no locked track, no foreign track.
+
+  The baseline is the logged v1 sessions.
 - **Facts / bio.** The existing eval scripts (`scripts/eval_facts_prompts.py`,
   `eval_bio_prompt.py`).
 - **Performance budgets on the home box.** Proposed here; confirmed in the phase 1 spec.
