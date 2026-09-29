@@ -6,10 +6,7 @@ workers 5 min, spec §3) — the same effect as per-role settings without managi
 
 from __future__ import annotations
 
-from collections.abc import AsyncIterator
-
 import sqlalchemy as sa
-from fastapi import Request
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,
@@ -45,9 +42,3 @@ async def ping(engine: AsyncEngine) -> None:
     """Raise if Postgres is unreachable."""
     async with engine.connect() as conn:
         await conn.execute(sa.text("select 1"))
-
-
-async def session(request: Request) -> AsyncIterator[AsyncSession]:
-    """FastAPI dependency: one session per request, committed by the service layer."""
-    async with request.app.state.sessionmaker() as s:
-        yield s

@@ -40,6 +40,7 @@ services:
   api:
     <<: *server
     ports: ["127.0.0.1:18000:8000"]
+    volumes: ["secrets:/var/lib/musix/secrets"]
     depends_on:
       migrate: {condition: service_completed_successfully}
       qdrant: {condition: service_healthy}
@@ -76,3 +77,4 @@ services:
 volumes:
   pgdata:
   qdrant:
+  secrets:

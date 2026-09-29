@@ -14,7 +14,7 @@ from qdrant_client import AsyncQdrantClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from musix import __version__, errors, observability
-from musix.infra import db
+from musix.infra import db, secrets
 from musix.schemas import Model
 from musix.settings import Settings
 
@@ -79,6 +79,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         app.state.engine = engine
         app.state.sessionmaker = db.make_sessionmaker(engine)
         app.state.settings = settings
+        app.state.secrets = secrets.load_or_create(settings.secrets_dir)
         qdrant = AsyncQdrantClient(url=settings.qdrant_url, timeout=5)
 
         async def postgres() -> None:
@@ -114,4 +115,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
 def context_routers() -> list[APIRouter]:
     """Every bounded context's router. Explicit list (no import side effects)."""
-    return []
+    from musix.contexts.identity.router import router as identity
+
+    return [identity]

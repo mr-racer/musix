@@ -19,7 +19,6 @@ dependencies = [
     "argon2-cffi>=25.1",
     "mutagen>=1.47",
     "pyvips>=3.0",
-    "blurhash-python>=1.2",
     "prometheus-client>=0.23",
     "opentelemetry-instrumentation-fastapi>=0.58b0",
     "opentelemetry-exporter-otlp-proto-http>=1.37",
