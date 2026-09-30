@@ -34,3 +34,13 @@ class SearchOut(Model):
     sound: list[Scored]  # «как звучит» search (CLAP)
     images: dict[str, ImageData]
     degraded: list[str] = Field(default_factory=list)  # sections that could not run now
+
+
+class Facet(Model):
+    value: str
+    count: int
+
+
+class FacetsOut(Model):
+    decades: list[Facet]
+    tags: list[Facet]

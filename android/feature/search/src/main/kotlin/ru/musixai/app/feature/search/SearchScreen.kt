@@ -66,7 +66,11 @@ import javax.inject.Inject
 
 enum class Mode(val label: String, val sections: String) { Auto("AUTO", "catalog,lyrics,sound"), Text("ТЕКСТ", "lyrics"), Sound("ЗВУК", "sound"), Hyb("HYB", "lyrics,sound") }
 
-data class SearchUi(val q: String = "", val mode: Mode = Mode.Auto, val busy: Boolean = false, val result: SearchResult? = null, val error: String? = null)
+data class SearchUi(
+    val q: String = "", val mode: Mode = Mode.Auto, val busy: Boolean = false, val result: SearchResult? = null, val error: String? = null,
+    val decades: List<Pair<String, Int>> = emptyList(), val tags: List<Pair<String, Int>> = emptyList(),
+    val years: Set<String> = emptySet(), val picked: Set<String> = emptySet(),
+)
 
 @HiltViewModel
 class SearchViewModel @Inject constructor(state: SavedStateHandle, private val repo: SearchRepository, private val player: PlayerController) : ViewModel() {
@@ -74,7 +78,14 @@ class SearchViewModel @Inject constructor(state: SavedStateHandle, private val r
     val ui: StateFlow<SearchUi> = _ui
     private var job: Job? = null
 
-    init { if (_ui.value.q.isNotBlank()) submit() }
+    init {
+        if (_ui.value.q.isNotBlank()) submit()
+        viewModelScope.launch { runCatching { repo.facets() }.onSuccess { (d, t) -> _ui.update { it.copy(decades = d, tags = t) } } }
+    }
+
+    /** v1's year and sound chips (kept, program §4.3): they narrow every section. */
+    fun toggleYear(y: String) { _ui.update { it.copy(years = if (y in it.years) it.years - y else it.years + y) }; if (_ui.value.q.isNotBlank()) submit() }
+    fun toggleTag(tg: String) { _ui.update { it.copy(picked = if (tg in it.picked) it.picked - tg else it.picked + tg) }; if (_ui.value.q.isNotBlank()) submit() }
 
     fun edit(q: String) = _ui.update { it.copy(q = q) }
     fun mode(m: Mode) { _ui.update { it.copy(mode = m) }; if (_ui.value.q.isNotBlank()) submit() }
@@ -84,7 +95,8 @@ class SearchViewModel @Inject constructor(state: SavedStateHandle, private val r
         _ui.update { it.copy(q = q, busy = true, error = null) }
         job?.cancel()
         job = viewModelScope.launch {
-            val r = runCatching { repo.search(q.trim(), _ui.value.mode.sections) }
+            val s = _ui.value
+            val r = runCatching { repo.search(q.trim(), s.mode.sections, years = s.years, tags = s.picked) }
             _ui.update { it.copy(busy = false, result = r.getOrNull() ?: it.result, error = r.exceptionOrNull()?.let { "Поиск недоступен — нет связи с сервером" }) }
         }
     }
@@ -110,6 +122,8 @@ fun SearchRoute(onArtist: (String) -> Unit, onAlbum: (String) -> Unit, vm: Searc
             }
         }
         item { Composer(ui, vm) }
+        if (ui.decades.isNotEmpty()) item { Chips("Годы", ui.decades, ui.years, vm::toggleYear) }
+        if (ui.tags.isNotEmpty()) item { Chips("Звук", ui.tags, ui.picked, vm::toggleTag) }
         if (ui.result == null) {
             items(SUGGESTIONS) { s ->
                 Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
@@ -175,6 +189,25 @@ private fun androidx.compose.foundation.lazy.LazyListScope.section(title: String
             Column(Modifier.weight(1f).padding(horizontal = 14.dp)) {
                 Text(t.title, maxLines = 1, overflow = TextOverflow.Ellipsis, style = MusixTheme.type.body.copy(fontSize = 15.sp, fontWeight = FontWeight.Medium, color = c.text))
                 Text(t.artist, maxLines = 1, overflow = TextOverflow.Ellipsis, style = MusixTheme.type.body.copy(fontSize = 12.5.sp, color = c.textMuted))
+            }
+        }
+    }
+}
+
+@Composable
+private fun Chips(label: String, items: List<Pair<String, Int>>, on: Set<String>, toggle: (String) -> Unit) {
+    val c = MusixTheme.colors
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Text(label, Modifier.padding(end = 10.dp), style = MusixTheme.type.mono.copy(fontSize = 11.sp, color = c.textSubtle))
+        LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            items(items) { (v, n) ->
+                val sel = v in on
+                Row(Modifier.clip(RoundedCornerShape(999.dp)).background(if (sel) c.accentBg else Color(0x0AFFFFFF))
+                    .border(1.dp, if (sel) c.accent else Color.Transparent, RoundedCornerShape(999.dp)).pressable { toggle(v) }
+                    .padding(horizontal = 12.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text(v, style = MusixTheme.type.body.copy(fontSize = 12.sp, color = if (sel) c.text else c.textMuted))
+                    Text(" $n", style = MusixTheme.type.body.copy(fontSize = 10.sp, color = c.textSubtle))
+                }
             }
         }
     }

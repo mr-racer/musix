@@ -20,6 +20,7 @@ from typing import Any
 
 import sqlalchemy as sa
 from qdrant_client import AsyncQdrantClient, models
+from sqlalchemy.dialects.postgresql import JSONB
 
 from musix.contexts.library.models import tracks
 from musix.contexts.screens import service as screens
@@ -99,10 +100,27 @@ async def catalog(c: screens.Ctx, q: str, limit: int) -> list[S.TopHit]:
     ]
 
 
+def decades(years: list[int]) -> models.Filter | None:
+    """«1990s,2000s» → a payload filter: any of those decades (v1's year facets)."""
+    if not years:
+        return None
+    return models.Filter(
+        should=[
+            models.FieldCondition(key="year", range=models.Range(gte=d, lte=d + 9)) for d in years
+        ]
+    )
+
+
 async def lyrics(
-    q: AsyncQdrantClient, ml: MlClient, account: uuid.UUID, text: str, limit: int
+    q: AsyncQdrantClient,
+    ml: MlClient,
+    account: uuid.UUID,
+    text: str,
+    limit: int,
+    years: list[int] | None = None,
 ) -> list[tuple[str, float]]:
-    own = owned_by(account)
+    yf = decades(years or [])
+    own = owned_by(account, [yf] if yf else [])
     dense = (await ml.embed_text([text], is_query=True, priority="interactive"))[0]
     legs = [
         models.Prefetch(
@@ -138,16 +156,22 @@ async def lyrics(
 
 
 async def sound(
-    q: AsyncQdrantClient, ml: MlClient, account: uuid.UUID, text: str, limit: int
+    q: AsyncQdrantClient,
+    ml: MlClient,
+    account: uuid.UUID,
+    text: str,
+    limit: int,
+    years: list[int] | None = None,
 ) -> list[tuple[str, float]]:
     vec = (await ml.clap_text([text], priority="interactive"))[0]
+    yf = decades(years or [])
     res = await q.query_points(
         TRACKS,
         query=vec.tolist(),
         using="clap",
         limit=min(limit, SOUND_LIMIT),
         score_threshold=SOUND_MIN,
-        query_filter=owned_by(account),
+        query_filter=owned_by(account, [yf] if yf else []),
     )
     return [(str(p.id), float(p.score)) for p in res.points]
 
@@ -172,6 +196,67 @@ async def _tracks_of(
     return [(by[uuid.UUID(h)], score) for h, score in hits if uuid.UUID(h) in by]
 
 
+async def _filtered(
+    c: screens.Ctx, ids: list[uuid.UUID], years: list[int], tags: list[str]
+) -> set[uuid.UUID]:
+    """The tracks among `ids` in one of `years` (decades) carrying all of `tags`."""
+    if not ids:
+        return set()
+    from musix.contexts.library.models import media_files
+
+    q = (
+        sa.select(tracks.c.id)
+        .join(media_files, media_files.c.id == tracks.c.media_file_id)
+        .where(tracks.c.id.in_(ids))
+    )
+    if years:
+        q = q.where(sa.or_(*(tracks.c.year.between(d, d + 9) for d in years)))
+    if tags:
+        q = q.where(media_files.c.sonic_tags.op("@>")(sa.cast(tags, JSONB)))
+    rows = await c.run(lambda s: s.execute(q))
+    return {r[0] for r in rows}
+
+
+async def facets(c: screens.Ctx) -> S.FacetsOut:
+    """The chips of the search filters: decades and sonic tags with their track counts."""
+    from musix.contexts.library.models import media_files
+
+    async def run(s: Any) -> S.FacetsOut:
+        dec = await s.execute(
+            sa.select((tracks.c.year - tracks.c.year % 10).label("d"), sa.func.count())
+            .where(
+                tracks.c.account_id == c.account_id,
+                tracks.c.deleted_at.is_(None),
+                tracks.c.year > 0,
+            )
+            .group_by("d")
+            .order_by("d")
+        )
+        tag = (
+            sa.func.jsonb_array_elements_text(media_files.c.sonic_tags)
+            .table_valued("value")
+            .alias("t")
+        )
+        tg = await s.execute(
+            sa.select(tag.c.value, sa.func.count())
+            .select_from(
+                tracks.join(media_files, media_files.c.id == tracks.c.media_file_id).join(
+                    tag, sa.true()
+                )
+            )
+            .where(tracks.c.account_id == c.account_id, tracks.c.deleted_at.is_(None))
+            .group_by(tag.c.value)
+            .order_by(sa.func.count().desc())
+            .limit(30)
+        )
+        return S.FacetsOut(
+            decades=[S.Facet(value=f"{int(d)}s", count=n) for d, n in dec],
+            tags=[S.Facet(value=v, count=n) for v, n in tg],
+        )
+
+    return await c.run(run)
+
+
 async def _none() -> list[Any]:
     return []
 
@@ -183,6 +268,8 @@ async def search(
     text: str,
     limit: int,
     sections: set[str] = frozenset({"catalog", "lyrics", "sound"}),  # type: ignore[assignment]
+    years: list[int] | None = None,
+    tags: list[str] | None = None,
 ) -> S.SearchOut:
     degraded: list[str] = []
 
@@ -195,10 +282,12 @@ async def search(
 
     top, lyr, snd = await asyncio.gather(
         catalog(c, text, max(limit, 12)) if "catalog" in sections else _none(),
-        leg("lyrics", lyrics(q, ml, c.account_id, text, limit))
+        leg("lyrics", lyrics(q, ml, c.account_id, text, limit, years))
         if "lyrics" in sections
         else _none(),
-        leg("sound", sound(q, ml, c.account_id, text, limit)) if "sound" in sections else _none(),
+        leg("sound", sound(q, ml, c.account_id, text, limit, years))
+        if "sound" in sections
+        else _none(),
     )
     lyr_t, snd_t = await asyncio.gather(_tracks_of(c, lyr), _tracks_of(c, snd))
     song_ids = [h.id for h in top if h.type == "song"][:limit]
@@ -210,6 +299,9 @@ async def search(
         screens.artists_by_ids(c, artist_ids) if artist_ids else _none(),
     )
     by = {t.id: t for t in all_tracks}
+    if years or tags:  # the sound and year filters (v1's search chips) also narrow the catalog hits
+        keep = await _filtered(c, list(by), years or [], tags or [])
+        by = {i: t for i, t in by.items() if i in keep}
     rank_a = {a: i for i, a in enumerate(album_ids)}
     rank_r = {a: i for i, a in enumerate(artist_ids)}
     albums = sorted(albums, key=lambda a: rank_a[a.id])

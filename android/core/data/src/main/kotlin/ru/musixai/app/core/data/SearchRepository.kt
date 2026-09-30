@@ -11,8 +11,14 @@ import javax.inject.Singleton
 /** `GET /search`: catalog, lyric-line and sound search in one call, by section. */
 @Singleton
 class SearchRepository @Inject constructor(private val api: MusixApi) {
-    suspend fun search(q: String, sections: String, limit: Int = 12): SearchResult {
-        val o = api.call { search.searchApiV2SearchGet(q, limit, sections) }
+    /** The filter chips: decades («1990s») and sonic tags, with counts. */
+    suspend fun facets(): Pair<List<Pair<String, Int>>, List<Pair<String, Int>>> {
+        val f = api.call { search.facetsApiV2LibraryFacetsGet() }
+        return f.decades.map { it.value to it.count } to f.tags.map { it.value to it.count }
+    }
+
+    suspend fun search(q: String, sections: String, limit: Int = 12, years: Set<String> = emptySet(), tags: Set<String> = emptySet()): SearchResult {
+        val o = api.call { search.searchApiV2SearchGet(q, limit, sections, years.takeIf { it.isNotEmpty() }?.sorted()?.joinToString(","), tags.takeIf { it.isNotEmpty() }?.joinToString(",")) }
         return SearchResult(
             query = o.query,
             top = o.top.map { TopItem(it.type.value, it.id.toString(), it.name, it.artist) },

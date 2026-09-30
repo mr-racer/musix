@@ -1190,6 +1190,48 @@
         "title": "Engagement",
         "type": "object"
       },
+      "Facet": {
+        "properties": {
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "value": {
+            "title": "Value",
+            "type": "string"
+          }
+        },
+        "required": [
+          "value",
+          "count"
+        ],
+        "title": "Facet",
+        "type": "object"
+      },
+      "FacetsOut": {
+        "properties": {
+          "decades": {
+            "items": {
+              "$ref": "#/components/schemas/Facet"
+            },
+            "title": "Decades",
+            "type": "array"
+          },
+          "tags": {
+            "items": {
+              "$ref": "#/components/schemas/Facet"
+            },
+            "title": "Tags",
+            "type": "array"
+          }
+        },
+        "required": [
+          "decades",
+          "tags"
+        ],
+        "title": "FacetsOut",
+        "type": "object"
+      },
       "FactOut": {
         "properties": {
           "confirmed": {
@@ -7856,6 +7898,103 @@
         ]
       }
     },
+    "/api/v2/library/facets": {
+      "get": {
+        "description": "The search filters' chips (v1's sonic and year facets).",
+        "operationId": "facets_api_v2_library_facets_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FacetsOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Validation failed"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Rate limited"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Facets",
+        "tags": [
+          "search"
+        ]
+      }
+    },
     "/api/v2/library/scan": {
       "post": {
         "operationId": "scan_api_v2_library_scan_post",
@@ -10123,6 +10262,44 @@
               "pattern": "^(catalog|lyrics|sound)(,(catalog|lyrics|sound))*$",
               "title": "Sections",
               "type": "string"
+            }
+          },
+          {
+            "description": "decades, e.g. `1990s,2000s`",
+            "in": "query",
+            "name": "years",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "pattern": "^\\d{4}s(,\\d{4}s)*$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "decades, e.g. `1990s,2000s`",
+              "title": "Years"
+            }
+          },
+          {
+            "description": "sonic tags, all required",
+            "in": "query",
+            "name": "tags",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 400,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "sonic tags, all required",
+              "title": "Tags"
             }
           }
         ],
