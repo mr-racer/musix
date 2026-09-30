@@ -69,7 +69,28 @@ services:
 
   worker:
     <<: *server
-    command: procrastinate --app=musix.workers.app.app worker --concurrency 3
+    # every queue but `ai`, which has its own single-slot worker below
+    command: procrastinate --app=musix.workers.app.app worker --concurrency 3 --queues default,ingest,media,net,ml
+    depends_on: {migrate: {condition: service_completed_successfully}}
+    healthcheck:
+      test: ["CMD", "procrastinate", "--app=musix.workers.app.app", "healthchecks"]
+      interval: 10s
+      retries: 6
+
+  worker-ai:
+    <<: *server
+    # the one local LLM: concurrency 1; interactive jobs outrank bulk enrichment by priority.
+    # Its own profile: the LLM on this box is prod's, so dev only uses it when asked
+    # (`docker compose --profile ai up -d worker-ai`); until then `ai` jobs wait queued.
+    profiles: [ai]
+    command: procrastinate --app=musix.workers.app.app worker --concurrency 1 --queues ai
+    environment:
+      <<: *server-env
+      MUSIX_LLM_BASE_URL: ${MUSIX_LLM_BASE_URL:-http://192.168.0.168:8082/v1}
+      MUSIX_LLM_MODEL: ${MUSIX_LLM_MODEL:-qwen3.8-27b-ud-iq3_s}
+    volumes:
+      - /mnt/data/musix-v2-media:/mnt/data/musix-v2-media
+      - secrets:/var/lib/musix/secrets:ro  # the Fernet key only: the admin's LLM API key
     depends_on: {migrate: {condition: service_completed_successfully}}
     healthcheck:
       test: ["CMD", "procrastinate", "--app=musix.workers.app.app", "healthchecks"]

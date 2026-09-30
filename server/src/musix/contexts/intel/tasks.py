@@ -51,6 +51,9 @@ async def embed(media_file_id: str) -> None:
     except Exception as e:
         await pipeline.fail(sessionmaker(), mf, f"{type(e).__name__}: {e}")
         raise
+    await _defer(
+        "knowledge:start", media_file_id
+    )  # sonic tags exist now (the vibe line reads them)
 
 
 async def envelope(media_file_id: str) -> None:

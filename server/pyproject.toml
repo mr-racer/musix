@@ -27,6 +27,7 @@ dependencies = [
     "syncedlyrics>=1.0",
     "scipy>=1.16",  # co-listen PPMI-SVD
     "lightgbm>=4.6",  # the «Поток» ranker
+    "beautifulsoup4>=4.12",
 ]
 
 [dependency-groups]
@@ -63,12 +64,18 @@ ignore = ["S101", "RUF001", "RUF002", "RUF003"]  # asserts in tests; −, × and
 "src/musix/contexts/search/normalize.py" = ["E", "W", "B", "UP", "RUF", "SIM", "S", "I"]  # v1 text_normalize, verbatim
 "src/musix/contexts/stream/{candidates,service,state}.py" = ["E501", "S608"]  # SQL reads better unwrapped; constants only
 "src/musix/contexts/screens/stats.py" = ["E501", "S608"]  # SQL fragments are module constants
+"src/musix/knowledge/**" = ["E", "W", "B", "UP", "RUF", "SIM", "S", "I", "F", "PT", "ASYNC"]  # v1 logic, copied
+"src/musix/contexts/knowledge/{jobs,sources,tasks}.py" = ["E501"]
 
 [tool.mypy]
 strict = true
 python_version = "3.13"
 mypy_path = "src"
 packages = ["musix"]
+
+[[tool.mypy.overrides]]
+module = ["musix.knowledge.*"]  # v1 logic, copied verbatim (untyped)
+ignore_errors = true
 
 [[tool.mypy.overrides]]
 module = ["procrastinate.*", "testcontainers.*", "pyvips.*", "asyncpg.*", "syncedlyrics.*", "scipy.*", "lightgbm.*"]

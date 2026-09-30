@@ -104,6 +104,7 @@ async def home(c: Ctx, head: int | None = None, tz: int = 0) -> S.HomeOut:
     from musix.contexts.screens import stats
 
     live = sa.select(T.id).where(T.id == St.track_id, T.deleted_at.is_(None))
+    wave = asyncio.create_task(stats.wave(c))  # gather's typing stops at six
     recent_ids, added_ids, pls, cnt, vibe_rows, pulse = await asyncio.gather(
         _ids(  # walks account_track_stats_recent_idx, probing tracks by key
             c,
@@ -131,6 +132,7 @@ async def home(c: Ctx, head: int | None = None, tz: int = 0) -> S.HomeOut:
         playlists=pls,
         counts=cnt,
         vibes=await stats.vibes(c, vibe_rows, by),
+        wave=await wave,
         pulse=pulse,
         images=imgs,
     )
@@ -288,7 +290,9 @@ async def artist_page(c: Ctx, artist_id: uuid.UUID) -> S.ArtistPageOut:
     )
 
 
-async def player_context(c: Ctx, track_id: uuid.UUID) -> S.PlayerContextOut:
+async def player_context(c: Ctx, track_id: uuid.UUID, lang: str = "ru") -> S.PlayerContextOut:
+    from musix.contexts.knowledge.service import track_knowledge
+
     mf = media_files.c
 
     async def file(s: AsyncSession) -> Any:
@@ -316,7 +320,12 @@ async def player_context(c: Ctx, track_id: uuid.UUID) -> S.PlayerContextOut:
             )
         ).first()
 
-    ts, f, st = await asyncio.gather(c.tracks([track_id]), c.run(file), c.run(stats))
+    ts, f, st, kn = await asyncio.gather(
+        c.tracks([track_id]),
+        c.run(file),
+        c.run(stats),
+        c.run(lambda s: track_knowledge(s, c.account_id, track_id, lang)),
+    )
     if not ts or f is None:
         raise NotFound("track")
     return S.PlayerContextOut(
@@ -332,6 +341,7 @@ async def player_context(c: Ctx, track_id: uuid.UUID) -> S.PlayerContextOut:
             plays=st.plays if st else 0, last_played_at=st.last_played_at if st else None
         ),
         images=await c.images([ts[0].cover_image_id]),
+        knowledge=kn,
     )
 
 

@@ -35,6 +35,10 @@ class Settings(BaseSettings):
     rendition_budget_gb: int = 150
     library_roots: list[str] = ["/mnt/data/music"]  # the only folders /library/scan may walk
     llm_base_url: str | None = None  # OpenAI-compatible; the admin's instance setting wins
+    llm_model: str | None = None
+    llm_api_key: str | None = None  # a local server ignores it
+    knowledge_langs: list[str] = ["ru"]  # the languages facts, vibe lines and bios are written in
+    proxy_url: str | None = None  # outbound knowledge sources only; internal traffic never
 
     @field_validator("database_url")
     @classmethod

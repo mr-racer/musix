@@ -7,7 +7,8 @@ from functools import cache
 from qdrant_client import AsyncQdrantClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from musix.infra import db, vectors
+from musix.infra import db, secrets, vectors
+from musix.infra.llm import Llm
 from musix.infra.ml_client import MlClient
 from musix.settings import Settings
 
@@ -36,3 +37,15 @@ async def qdrant() -> AsyncQdrantClient:
     if _qdrant is None:
         _qdrant = vectors.client(settings().qdrant_url)
     return _qdrant
+
+
+@cache
+def llm() -> Llm:
+    s = settings()
+    return Llm(
+        sessionmaker(),
+        secrets.fernet_only(s.secrets_dir),
+        s.llm_base_url,
+        s.llm_model,
+        s.llm_api_key,
+    )

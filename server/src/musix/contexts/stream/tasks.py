@@ -16,6 +16,19 @@ REFRESH_AFTER = 20  # new listens before the profile is recomputed
 
 async def profile(account_id: str) -> None:
     await jobs.profile(sessionmaker(), uuid.UUID(account_id), q=await qdrant())
+    from musix.workers.app import app
+
+    await app.configure_task(
+        "stream:ai_texts", queueing_lock=f"stream:ai_texts:{account_id}"
+    ).defer_async(account_id=account_id)
+
+
+async def ai_texts(account_id: str) -> dict[str, object]:
+    """«Вайбики» names + the wave phrase; unchanged inputs are llm_cache hits."""
+    from musix.contexts.stream import ai_texts as AT
+    from musix.workers.context import llm, settings
+
+    return await AT.run(sessionmaker(), llm(), uuid.UUID(account_id), settings().knowledge_langs[0])
 
 
 async def taste_map(account_id: str) -> None:
@@ -109,6 +122,7 @@ def register(app: procrastinate.App) -> None:
         ("taste_map", taste_map),
     ):
         app.task(name=f"stream:{name}", queue="default")(fn)
+    app.task(name="stream:ai_texts", queue="ai")(ai_texts)
     r = app.task(name="stream:refresh", queue="default")(refresh)
     app.periodic(cron="*/10 * * * *", periodic_id="stream_refresh")(r)
     app.task(name="stream:train", queue="default")(train)

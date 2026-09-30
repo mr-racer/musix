@@ -60,3 +60,13 @@ def load_or_create(directory: str) -> Secrets:
         hmac_path.read_bytes().strip(),
         Fernet(fernet_path.read_bytes().strip()),
     )
+
+
+def fernet_only(directory: str) -> Fernet | None:
+    """The workers' read-only view: only the Fernet key (for the LLM API key), and none
+    when the api has not created the secrets yet."""
+    p = Path(directory) / "fernet.key"
+    try:
+        return Fernet(p.read_bytes().strip())
+    except OSError:
+        return None

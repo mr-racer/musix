@@ -68,3 +68,17 @@ class InviteOut(Model):
 
 class SettingsIO(Model):
     value: dict[str, Any]
+
+
+class LlmSettingsIn(Model):
+    base_url: str | None = Field(default=None, max_length=512)
+    model: str | None = Field(default=None, max_length=200)
+    api_key: str | None = Field(
+        default=None, max_length=512
+    )  # null keeps the stored one; "" clears it
+
+
+class LlmSettingsOut(Model):
+    base_url: str | None
+    model: str
+    has_key: bool

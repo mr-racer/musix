@@ -53,10 +53,8 @@ async def extract_cover(src: Path) -> bytes | None:
     return None
 
 
-async def _cover(s: AsyncSession, media_dir: Path, mf_id: uuid.UUID, src: Path) -> str | None:
-    data = await extract_cover(src)
-    if not data:
-        return None
+async def store_image(s: AsyncSession, media_dir: Path, data: bytes, kind: str) -> str:
+    """Content-addressed: variants, palette and blurhash once per distinct image."""
     iid = img.image_id(data)
     if not await s.scalar(sa.select(images.c.id).where(images.c.id == iid)):
         out = media_dir / "i" / iid[:2] / iid
@@ -69,7 +67,7 @@ async def _cover(s: AsyncSession, media_dir: Path, mf_id: uuid.UUID, src: Path) 
             pg_insert(images)
             .values(
                 id=iid,
-                kind="cover",
+                kind=kind,
                 width=w,
                 height=h,
                 variants=paths,
@@ -78,6 +76,14 @@ async def _cover(s: AsyncSession, media_dir: Path, mf_id: uuid.UUID, src: Path) 
             )
             .on_conflict_do_nothing()
         )
+    return iid
+
+
+async def _cover(s: AsyncSession, media_dir: Path, mf_id: uuid.UUID, src: Path) -> str | None:
+    data = await extract_cover(src)
+    if not data:
+        return None
+    iid = await store_image(s, media_dir, data, "cover")
     rows = (
         await s.execute(
             sa.update(tracks)

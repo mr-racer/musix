@@ -99,6 +99,23 @@ async def vibe_rows(c: Ctx) -> list[dict[str, Any]]:
     return list(got or [])
 
 
+async def wave(c: Ctx, lang: str = "ru") -> S.WaveOut | None:
+    """The hero's phrase: the AI one when `stream:ai_texts` has written it for this
+    language, else v1's instant deterministic phrase (no LLM on the request path)."""
+    from musix.contexts.stream import ai_texts
+    from musix.knowledge.stream_texts import deterministic_taste_vibe
+
+    got = await c.run(
+        lambda s: s.scalar(
+            sa.select(taste_profile.c.wave).where(taste_profile.c.account_id == c.account_id)
+        )
+    )
+    if not (got and got.get("phrase") and got.get("lang") == lang):
+        islands, recent = await c.run(lambda s: ai_texts.inputs(s, c.account_id))
+        got = deterministic_taste_vibe({"islands": islands}, recent, lang)
+    return S.WaveOut(phrase=got["phrase"], source=got["source"]) if got.get("phrase") else None
+
+
 async def vibes(
     c: Ctx, rows: list[dict[str, Any]], by: dict[uuid.UUID, TrackOut]
 ) -> list[S.VibeOut]:

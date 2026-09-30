@@ -1,10 +1,12 @@
 import uuid
+from typing import Any
 
-from fastapi import APIRouter, Response
+from fastapi import APIRouter, Request, Response
 
 from musix.api.deps import Auth, Keys, Owner, Session
 from musix.contexts.identity import schemas as S
 from musix.contexts.identity import service
+from musix.infra import llm
 
 router = APIRouter(tags=["identity"])
 
@@ -70,3 +72,36 @@ async def get_settings(p: Auth, s: Session) -> S.SettingsIO:
 @router.put("/settings", response_model=S.SettingsIO)
 async def put_settings(body: S.SettingsIO, p: Auth, s: Session) -> S.SettingsIO:
     return S.SettingsIO(value=await service.put_settings(s, p.account_id, body.value))
+
+
+@router.get("/admin/llm", response_model=S.LlmSettingsOut)
+async def get_llm(p: Owner, s: Session, keys: Keys, request: Request) -> S.LlmSettingsOut:
+    """The instance's LLM endpoint (the key only as `hasKey`)."""
+    st = request.app.state.settings
+    cfg = await llm.config(s, keys.fernet, st.llm_base_url, st.llm_model, st.llm_api_key)
+    return S.LlmSettingsOut.model_validate(cfg.public_view())
+
+
+@router.put("/admin/llm", response_model=S.LlmSettingsOut)
+async def put_llm(
+    body: S.LlmSettingsIn, p: Owner, s: Session, keys: Keys, request: Request
+) -> S.LlmSettingsOut:
+    import sqlalchemy as sa
+    from sqlalchemy.dialects.postgresql import insert as pg_insert
+
+    from musix.contexts.identity.models import instance_settings
+
+    IS = instance_settings.c
+    cur: dict[str, Any] = await s.scalar(sa.select(IS.value).where(IS.key == "llm")) or {}
+    new = {**cur, "baseUrl": body.base_url or None, "model": body.model or None}
+    if body.api_key is not None:
+        new["apiKeyEnc"] = llm.encrypt_key(keys.fernet, body.api_key) if body.api_key else None
+    await s.execute(
+        pg_insert(instance_settings)
+        .values(key="llm", value=new)
+        .on_conflict_do_update(
+            index_elements=["key"], set_={"value": new, "updated_at": sa.func.now()}
+        )
+    )
+    await s.commit()
+    return await get_llm(p, s, keys, request)

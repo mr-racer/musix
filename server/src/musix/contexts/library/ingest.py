@@ -36,7 +36,7 @@ from musix.contexts.library.models import (
     uploads,
 )
 from musix.contexts.library.sanitizer import sanitize_lyrics
-from musix.contexts.library.slug import slugify
+from musix.contexts.library.slug import slugify, song_key
 from musix.contexts.library.tags import get_metadata, read_embedded_lyrics
 from musix.infra.changelog import notify, record_change
 
@@ -206,8 +206,7 @@ async def register(
     feat = [n for n in [*parsed.feat_names, *parsed.with_names] if n not in main]
     main_ids = [await upsert_artist(s, n) for n in main]
     feat_ids = [await upsert_artist(s, n) for n in feat]
-    primary = artist_split.primary_artist(tags.artist) or main[0]
-    song_slug = f"{slugify(primary)}-{slugify(tags.title)}"
+    song_slug = song_key(tags.artist, tags.title)  # the knowledge base's key (v1's)
     song_id = await s.scalar(
         pg_insert(songs)
         .values(slug=song_slug, title=tags.title, primary_artist_id=main_ids[0])

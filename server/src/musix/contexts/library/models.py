@@ -79,6 +79,8 @@ artists = sa.Table(
     sa.Column("mbid", sa.Text),
     sa.Column("image_id", sa.Text, sa.ForeignKey("images.id")),
     sa.Column("cutout_id", sa.Text, sa.ForeignKey("images.id")),
+    sa.Column("knowledge_at", TS),
+    sa.Column("profile", JSONB),
 )
 songs = sa.Table(
     "songs",
@@ -88,6 +90,7 @@ songs = sa.Table(
     sa.Column("title", sa.Text, nullable=False),
     sa.Column("primary_artist_id", U, sa.ForeignKey("artists.id")),
     sa.Column("mbid", sa.Text),
+    sa.Column("knowledge_at", TS),
 )
 albums = sa.Table(
     "albums",

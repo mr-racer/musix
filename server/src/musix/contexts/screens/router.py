@@ -1,5 +1,5 @@
 import uuid
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
 
 import sqlalchemy as sa
 from fastapi import APIRouter, Query, Request, Response
@@ -7,6 +7,7 @@ from fastapi import APIRouter, Query, Request, Response
 from musix.api import etag
 from musix.api.deps import Auth
 from musix.contexts.identity.security import Principal
+from musix.contexts.knowledge.service import knowledge_version
 from musix.contexts.screens import schemas as S
 from musix.contexts.screens import service, stats
 from musix.contexts.stream.models import taste_maps, taste_profile
@@ -111,10 +112,22 @@ async def artist_page(artist_id: uuid.UUID, p: Auth, request: Request, response:
 @router.get(
     "/player/context/{track_id}", response_model=S.PlayerContextOut, responses=etag.NOT_MODIFIED
 )
-async def player_context(track_id: uuid.UUID, p: Auth, request: Request, response: Response) -> Any:
-    tag = await _tag(request, p, f"player:{track_id}", with_plays=True)
+async def player_context(
+    track_id: uuid.UUID,
+    p: Auth,
+    request: Request,
+    response: Response,
+    lang: Annotated[Literal["ru", "en"], Query()] = "ru",
+) -> Any:
+    tag, _ = await etag.versioned_tag(
+        request,
+        p.account_id,
+        f"player:{track_id}:{lang}",
+        with_plays=True,
+        also=knowledge_version(p.account_id, track_id),
+    )
     return await etag.conditional(
-        request, response, tag, lambda: service.player_context(_ctx(request, p), track_id)
+        request, response, tag, lambda: service.player_context(_ctx(request, p), track_id, lang)
     )
 
 

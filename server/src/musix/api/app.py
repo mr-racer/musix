@@ -131,6 +131,7 @@ def context_routers() -> list[APIRouter]:
     """Every bounded context's router. Explicit list (no import side effects)."""
     from musix.api.realtime import router as realtime
     from musix.contexts.identity.router import router as identity
+    from musix.contexts.knowledge.router import router as knowledge
     from musix.contexts.library.router import router as library
     from musix.contexts.listening.router import router as listening
     from musix.contexts.media.router import router as media
@@ -148,6 +149,7 @@ def context_routers() -> list[APIRouter]:
         listening,
         playlists,
         screens,
+        knowledge,
         search,
         stream,
         sync,

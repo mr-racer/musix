@@ -15,6 +15,7 @@ taste_profile = sa.Table(
     sa.Column("listens_seen", sa.BigInteger, nullable=False),
     sa.Column("updated_at", TS, nullable=False),
     sa.Column("vibes", JSONB, nullable=False, server_default="[]"),
+    sa.Column("wave", JSONB),
 )
 taste_maps = sa.Table(
     "taste_maps",

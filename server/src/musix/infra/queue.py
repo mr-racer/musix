@@ -14,6 +14,7 @@ from musix.settings import Settings
 
 def make_queue_app(settings: Settings) -> procrastinate.App:
     from musix.contexts.intel import tasks as intel
+    from musix.contexts.knowledge import tasks as knowledge
     from musix.contexts.library import tasks as library
     from musix.contexts.media import tasks as media
     from musix.contexts.stream import tasks as stream
@@ -27,4 +28,5 @@ def make_queue_app(settings: Settings) -> procrastinate.App:
     media.register(app)
     intel.register(app)
     stream.register(app)
+    knowledge.register(app)
     return app

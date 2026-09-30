@@ -581,6 +581,48 @@
         "title": "AutoplayOut",
         "type": "object"
       },
+      "BioOut": {
+        "properties": {
+          "artistId": {
+            "format": "uuid",
+            "title": "Artistid",
+            "type": "string"
+          },
+          "facets": {
+            "additionalProperties": true,
+            "title": "Facets",
+            "type": "object"
+          },
+          "generatedAt": {
+            "format": "date-time",
+            "title": "Generatedat",
+            "type": "string"
+          },
+          "lang": {
+            "title": "Lang",
+            "type": "string"
+          },
+          "sources": {
+            "additionalProperties": true,
+            "title": "Sources",
+            "type": "object"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "artistId",
+          "lang",
+          "text",
+          "facets",
+          "sources",
+          "generatedAt"
+        ],
+        "title": "BioOut",
+        "type": "object"
+      },
       "BusiestDay": {
         "properties": {
           "count": {
@@ -821,6 +863,44 @@
         "title": "Engagement",
         "type": "object"
       },
+      "FactOut": {
+        "properties": {
+          "confirmed": {
+            "title": "Confirmed",
+            "type": "boolean"
+          },
+          "labels": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Labels",
+            "type": "array"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "text",
+          "labels",
+          "confirmed",
+          "source"
+        ],
+        "title": "FactOut",
+        "type": "object"
+      },
       "FeedbackIn": {
         "properties": {
           "kind": {
@@ -959,6 +1039,16 @@
             },
             "title": "Vibes",
             "type": "array"
+          },
+          "wave": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WaveOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [
@@ -967,6 +1057,7 @@
           "playlists",
           "counts",
           "vibes",
+          "wave",
           "pulse",
           "images"
         ],
@@ -1548,6 +1639,78 @@
         "title": "Listening",
         "type": "object"
       },
+      "LlmSettingsIn": {
+        "properties": {
+          "apiKey": {
+            "anyOf": [
+              {
+                "maxLength": 512,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Apikey"
+          },
+          "baseUrl": {
+            "anyOf": [
+              {
+                "maxLength": 512,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Baseurl"
+          },
+          "model": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model"
+          }
+        },
+        "title": "LlmSettingsIn",
+        "type": "object"
+      },
+      "LlmSettingsOut": {
+        "properties": {
+          "baseUrl": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Baseurl"
+          },
+          "hasKey": {
+            "title": "Haskey",
+            "type": "boolean"
+          },
+          "model": {
+            "title": "Model",
+            "type": "string"
+          }
+        },
+        "required": [
+          "baseUrl",
+          "model",
+          "hasKey"
+        ],
+        "title": "LlmSettingsOut",
+        "type": "object"
+      },
       "LoginIn": {
         "properties": {
           "device": {
@@ -1861,6 +2024,16 @@
             "title": "Images",
             "type": "object"
           },
+          "knowledge": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TrackKnowledge"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "lyrics": {
             "anyOf": [
               {
@@ -1884,7 +2057,8 @@
           "credits",
           "audio",
           "stats",
-          "images"
+          "images",
+          "knowledge"
         ],
         "title": "PlayerContextOut",
         "type": "object"
@@ -2317,6 +2491,75 @@
           "inviteCode"
         ],
         "title": "RegisterIn",
+        "type": "object"
+      },
+      "RelationOut": {
+        "properties": {
+          "artistId": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Artistid"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "songId": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Songid"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          },
+          "trackId": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Trackid"
+          },
+          "verified": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Verified"
+          }
+        },
+        "required": [
+          "text",
+          "kind",
+          "songId",
+          "trackId",
+          "artistId",
+          "verified"
+        ],
+        "title": "RelationOut",
         "type": "object"
       },
       "Rhythm": {
@@ -3212,6 +3455,80 @@
         "title": "TrackChange",
         "type": "object"
       },
+      "TrackKnowledge": {
+        "description": "Everything the player shows about a track. Refined facts win per subject; a subject\nfacts_v2 has seen but kept nothing of is [] (a real answer, not «not yet»).",
+        "properties": {
+          "artistFacts": {
+            "items": {
+              "$ref": "#/components/schemas/FactOut"
+            },
+            "title": "Artistfacts",
+            "type": "array"
+          },
+          "labels": {
+            "items": {
+              "$ref": "#/components/schemas/RelationOut"
+            },
+            "title": "Labels",
+            "type": "array"
+          },
+          "producers": {
+            "items": {
+              "$ref": "#/components/schemas/RelationOut"
+            },
+            "title": "Producers",
+            "type": "array"
+          },
+          "refined": {
+            "title": "Refined",
+            "type": "boolean"
+          },
+          "sampledBy": {
+            "items": {
+              "$ref": "#/components/schemas/RelationOut"
+            },
+            "title": "Sampledby",
+            "type": "array"
+          },
+          "samples": {
+            "items": {
+              "$ref": "#/components/schemas/RelationOut"
+            },
+            "title": "Samples",
+            "type": "array"
+          },
+          "songFacts": {
+            "items": {
+              "$ref": "#/components/schemas/FactOut"
+            },
+            "title": "Songfacts",
+            "type": "array"
+          },
+          "vibe": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vibe"
+          }
+        },
+        "required": [
+          "songFacts",
+          "artistFacts",
+          "refined",
+          "producers",
+          "labels",
+          "samples",
+          "sampledBy",
+          "vibe"
+        ],
+        "title": "TrackKnowledge",
+        "type": "object"
+      },
       "TrackOut": {
         "properties": {
           "addedAt": {
@@ -3503,6 +3820,24 @@
         "title": "VibeOut",
         "type": "object"
       },
+      "WaveOut": {
+        "properties": {
+          "phrase": {
+            "title": "Phrase",
+            "type": "string"
+          },
+          "source": {
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "required": [
+          "phrase",
+          "source"
+        ],
+        "title": "WaveOut",
+        "type": "object"
+      },
       "WeeklyPulse": {
         "description": "This local week (Monday..now): time listened, top genre, first-ever listens.",
         "properties": {
@@ -3556,6 +3891,207 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/api/v2/admin/llm": {
+      "get": {
+        "description": "The instance's LLM endpoint (the key only as `hasKey`).",
+        "operationId": "get_llm_api_v2_admin_llm_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LlmSettingsOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Validation failed"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Rate limited"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Llm",
+        "tags": [
+          "identity"
+        ]
+      },
+      "put": {
+        "operationId": "put_llm_api_v2_admin_llm_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LlmSettingsIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LlmSettingsOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Validation failed"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Rate limited"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Put Llm",
+        "tags": [
+          "identity"
+        ]
+      }
+    },
     "/api/v2/albums": {
       "get": {
         "operationId": "albums_api_v2_albums_get",
@@ -4007,6 +4543,131 @@
         "summary": "Artists",
         "tags": [
           "screens"
+        ]
+      }
+    },
+    "/api/v2/artists/{artist_id}/bio": {
+      "get": {
+        "operationId": "artist_bio_api_v2_artists__artist_id__bio_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "artist_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Artist Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "lang",
+            "required": false,
+            "schema": {
+              "default": "ru",
+              "enum": [
+                "ru",
+                "en"
+              ],
+              "title": "Lang",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BioOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "304": {
+            "description": "Not modified"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Validation failed"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Rate limited"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Artist Bio",
+        "tags": [
+          "knowledge"
         ]
       }
     },
@@ -6219,6 +6880,20 @@
             "schema": {
               "format": "uuid",
               "title": "Track Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "lang",
+            "required": false,
+            "schema": {
+              "default": "ru",
+              "enum": [
+                "ru",
+                "en"
+              ],
+              "title": "Lang",
               "type": "string"
             }
           }
@@ -8773,6 +9448,132 @@
         "summary": "Get Tracks",
         "tags": [
           "library"
+        ]
+      }
+    },
+    "/api/v2/tracks/{track_id}/knowledge": {
+      "get": {
+        "description": "Facts (song and artist), producers, labels, samples and the vibe line.",
+        "operationId": "track_knowledge_api_v2_tracks__track_id__knowledge_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "track_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Track Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "lang",
+            "required": false,
+            "schema": {
+              "default": "ru",
+              "enum": [
+                "ru",
+                "en"
+              ],
+              "title": "Lang",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TrackKnowledge"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "304": {
+            "description": "Not modified"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Validation failed"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Rate limited"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Track Knowledge",
+        "tags": [
+          "knowledge"
         ]
       }
     },

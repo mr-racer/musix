@@ -7,6 +7,7 @@ from typing import Any
 
 from pydantic import Field
 
+from musix.contexts.knowledge.schemas import TrackKnowledge
 from musix.contexts.library.schemas import TrackOut
 from musix.contexts.media.schemas import ImageData
 from musix.contexts.playlists.schemas import PlaylistOut
@@ -58,12 +59,18 @@ class WeeklyPulse(Model):
     daily_ms: list[int]  # Monday..Sunday
 
 
+class WaveOut(Model):
+    phrase: str
+    source: str  # ai | fallback
+
+
 class HomeOut(Model):
     recent: list[TrackOut]  # last played first
     recently_added: list[TrackOut]
     playlists: list[PlaylistOut]
     counts: Counts
     vibes: list[VibeOut]
+    wave: WaveOut | None  # the «Поток» hero phrase
     pulse: WeeklyPulse
     images: dict[str, ImageData]
 
@@ -206,4 +213,5 @@ class PlayerContextOut(Model):
     audio: AudioInfo
     stats: TrackStats
     images: dict[str, ImageData]
-    extra: dict[str, Any] = Field(default_factory=dict)  # phase 2: facts and badges
+    knowledge: TrackKnowledge | None
+    extra: dict[str, Any] = Field(default_factory=dict)  # badges

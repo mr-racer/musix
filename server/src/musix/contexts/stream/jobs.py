@@ -149,6 +149,16 @@ async def profile(
             {"track": v.track, "weight": v.weight, "members": v.members}
             for v in vibes_of(recent, sigs, clap, now)
         ]
+    async with sm() as s:  # a vibe whose members did not change keeps its AI name
+        prev = await s.scalar(
+            sa.select(taste_profile.c.vibes).where(taste_profile.c.account_id == account_id)
+        )
+    named = {
+        (p["track"], tuple(sorted(p["members"]))): p["name"] for p in prev or [] if p.get("name")
+    }
+    for v in vibe_rows:
+        if (hit := named.get((v["track"], tuple(sorted(v["members"]))))) is not None:
+            v["name"] = hit
     row = {
         "account_id": account_id,
         "long_positives": [[t, round(v, 5)] for t, v in top],
