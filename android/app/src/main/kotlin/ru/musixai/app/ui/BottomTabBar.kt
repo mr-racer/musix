@@ -33,13 +33,13 @@ private val TABS = listOf(
 
 /** v1 `BottomTabBar`: five tabs on the frosted bar, the active one in the accent. */
 @Composable
-fun BottomTabBar(route: String, onNav: (Any) -> Unit, modifier: Modifier = Modifier) {
+fun BottomTabBar(tab: kotlin.reflect.KClass<*>?, onNav: (Any) -> Unit, modifier: Modifier = Modifier) {
     val c = MusixTheme.colors
     Column(Modifier.fillMaxWidth().background(c.tabBarBg.brush(1080f, 200f))) {
         Box(Modifier.fillMaxWidth().height(1.dp).background(c.border))
         Row(modifier.fillMaxWidth().padding(top = 8.dp, bottom = 6.dp)) {
             for (t in TABS) {
-                val on = route.endsWith(t.route) || (t.route == "HomeDest" && route.isEmpty())
+                val on = t.dest::class == (tab ?: HomeDest::class)
                 Column(Modifier.weight(1f).pressable { onNav(t.dest) }, horizontalAlignment = Alignment.CenterHorizontally) {
                     Icon(t.icon, t.label, Modifier.size(24.dp), tint = if (on) c.accent else c.tabBarInactive)
                     Text(t.label, Modifier.padding(top = 3.dp), maxLines = 1,

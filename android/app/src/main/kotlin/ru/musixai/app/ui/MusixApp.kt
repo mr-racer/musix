@@ -17,6 +17,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -26,6 +27,8 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
+import androidx.navigation.NavDestination.Companion.hasRoute
+import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -92,19 +95,42 @@ fun MusixApp(vm: AppViewModel = hiltViewModel()) {
     }
 }
 
+private val TAB_ROUTES = listOf(HomeDest::class, AssistantDest::class, LibraryDest::class, QuizDest::class)
+
+/** The tab the current screen belongs to: the nearest tab root under it in the back stack
+ *  (an artist opened from the library is still the library tab). */
+internal fun NavHostController.currentTab(): kotlin.reflect.KClass<*>? =
+    currentBackStack.value.lastOrNull { e -> TAB_ROUTES.any { e.destination.hasRoute(it) } }
+        ?.let { e -> TAB_ROUTES.first { e.destination.hasRoute(it) } }
+
+/** A tab press. The same tab again = back to its root: the save/restore pair would pop the
+ *  nested screens and put them straight back, so «Главная» seemed to do nothing. Another
+ *  tab = the usual switch, each tab keeping its own stack. */
+internal fun NavHostController.toTab(dest: Any) {
+    val here = currentBackStack.value.lastOrNull { e -> TAB_ROUTES.any { e.destination.hasRoute(it) } }
+    if (here != null && here.destination.hasRoute(dest::class)) {
+        popBackStack(here.destination.id, inclusive = false)
+        return
+    }
+    navigate(dest) {
+        popUpTo(graph.findStartDestination().id) { saveState = true }
+        launchSingleTop = true
+        restoreState = true
+    }
+}
+
 @Composable
 private fun Shell(vm: AppViewModel) {
     LaunchedEffect(Unit) { vm.player.connect() }
     val nav = rememberNavController()
     var playerOpen by rememberSaveable { mutableStateOf(false) }
     val entry by nav.currentBackStackEntryAsState()
-    val route = entry?.destination?.route.orEmpty()
+    val tab = remember(entry) { nav.currentTab() }
     Box(Modifier.fillMaxSize().background(MusixTheme.colors.bg)) {
         Column(Modifier.fillMaxSize()) {
             Box(Modifier.weight(1f)) { Routes(nav, openPlayer = { playerOpen = true }, install = vm::install) }
             MiniPlayer(onOpen = { playerOpen = true })
-            BottomTabBar(route, onNav = { dest -> nav.navigate(dest) { popUpTo(HomeDest) { saveState = true }; launchSingleTop = true; restoreState = true } },
-                Modifier.navigationBarsPadding())
+            BottomTabBar(tab, onNav = nav::toTab, Modifier.navigationBarsPadding())
         }
         val offer by vm.updates.offer.collectAsStateWithLifecycle()
         val progress by vm.updates.progress.collectAsStateWithLifecycle()
