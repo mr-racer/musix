@@ -130,7 +130,17 @@ async def process_media(
     link = tdir / f"lossless{ext}"
     if not await asyncio.to_thread(os.path.lexists, link):
         await asyncio.to_thread(os.symlink, await asyncio.to_thread(src.resolve), link)
+    codec, sample_rate = mf.codec, mf.sample_rate
     async with sm() as s:
+        if codec is None:
+            # registered without a probe (the v1 migration carried no codec): probe now, so
+            # ALAC/Dolby get their compatible copy and the manifest knows the format
+            from musix.contexts.library.ingest import ffprobe, probe_fields
+
+            f = probe_fields(await ffprobe(src))
+            f.pop("credits", None)
+            await s.execute(sa.update(media_files).where(media_files.c.id == mf_id).values(**f))
+            codec, sample_rate = f["codec"], f["sample_rate"]
         await _cover(s, media_dir, mf_id, src)
         if mf.lufs_integrated is None:
             lo = await audio.loudness(src)
@@ -143,7 +153,7 @@ async def process_media(
     plan: list[tuple[str, str, int | None]] = [
         ("high", "aac", 320)
     ]  # high first: it is always kept
-    compat = audio.compat_kind(mf.codec)
+    compat = audio.compat_kind(codec)
     if compat:
         plan.append(("lossless_compat", compat, 320 if compat == "aac" else None))
     plan.append(("economy", "aac", 128))
@@ -158,7 +168,7 @@ async def process_media(
                 continue
         dst = tdir / (f"{tier}.m4a" if codec == "aac" else f"{tier}.flac")
         if codec == "aac":
-            await audio.encode_aac(src, dst, kbps or 320, mf.sample_rate)
+            await audio.encode_aac(src, dst, kbps or 320, sample_rate)
         else:
             await audio.encode_flac(src, dst)
         size = (await asyncio.to_thread(dst.stat)).st_size

@@ -20,16 +20,28 @@ async def process(media_file_id: str) -> None:
 
 async def backfill() -> int:
     """Enqueue processing for every registered file that has not finished it (after an
-    import, a migration, or a new tier). `procrastinate defer media:backfill {}`."""
+    import, a migration, or a new tier). `procrastinate defer media:backfill {}`. Most
+    played first (the cutover's T−1 d step wants the top 2000's `high` copies soonest)."""
     import sqlalchemy as sa
 
-    from musix.contexts.library.models import media_files
+    from musix.contexts.library.models import media_files, tracks
+    from musix.contexts.listening.models import account_track_stats
 
+    M, T, A = media_files.c, tracks.c, account_track_stats.c
+    plays = (
+        sa.select(T.media_file_id, sa.func.sum(A.plays).label("plays"))
+        .join(account_track_stats, A.track_id == T.id)
+        .group_by(T.media_file_id)
+        .subquery()
+    )
     async with sessionmaker()() as s:
         ids: list[uuid.UUID] = list(
             (
                 await s.scalars(
-                    sa.select(media_files.c.id).where(media_files.c.state == "registered")
+                    sa.select(M.id)
+                    .outerjoin(plays, plays.c.media_file_id == M.id)
+                    .where(M.state == "registered")
+                    .order_by(sa.func.coalesce(plays.c.plays, 0).desc(), M.id)
                 )
             ).all()
         )
