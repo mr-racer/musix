@@ -152,7 +152,12 @@ async def artist_bio(
             )
         )
     ).first()
-    return S.BioOut.model_validate(row._mapping) if row else None
+    if row is None:
+        return None
+    from musix.knowledge.bio_text import clean_bio
+
+    out = S.BioOut.model_validate(row._mapping)
+    return out.model_copy(update={"text": clean_bio(out.text, lang)})  # v1's migrated bios
 
 
 def knowledge_version(account_id: uuid.UUID, track_id: uuid.UUID) -> tuple[Any, Any]:

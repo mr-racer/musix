@@ -268,7 +268,7 @@ async def artist_page(c: Ctx, artist_id: uuid.UUID) -> S.ArtistPageOut:
             .where(c.live(), Ta.artist_id == artist_id, Ta.role == role)
         )
 
-    found, cards, top_ids, feat_ids, n = await asyncio.gather(
+    found, cards, top_ids, feat_ids, n, profile = await asyncio.gather(
         artists_by_ids(c, [artist_id]),
         album_cards(c, Al.album_artist_id == artist_id, [Al.year.desc().nulls_last(), Al.title]),
         _ids(
@@ -284,12 +284,20 @@ async def artist_page(c: Ctx, artist_id: uuid.UUID) -> S.ArtistPageOut:
         c.run(
             lambda s: s.scalar(sa.select(sa.func.count()).select_from(by_role("main").subquery()))
         ),
+        c.run(lambda s: s.scalar(sa.select(Ar.profile).where(Ar.id == artist_id))),
     )
     if not found:
         raise NotFound("artist")
+    profile = profile or {}
     top, feat = await asyncio.gather(c.tracks(top_ids), c.tracks(feat_ids))
     imgs = await c.images(
-        [found[0].image_id, *(a.cover_image_id for a in cards), *_covers(top), *_covers(feat)]
+        [
+            found[0].image_id,
+            found[0].cutout_id,
+            *(a.cover_image_id for a in cards),
+            *_covers(top),
+            *_covers(feat),
+        ]
     )
     return S.ArtistPageOut(
         artist=found[0],
@@ -298,6 +306,8 @@ async def artist_page(c: Ctx, artist_id: uuid.UUID) -> S.ArtistPageOut:
         appears_on=feat,
         track_count=int(n or 0),
         images=imgs,
+        country=profile.get("country"),
+        country_code=profile.get("countryCode"),
     )
 
 

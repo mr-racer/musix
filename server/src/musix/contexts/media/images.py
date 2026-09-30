@@ -20,20 +20,30 @@ def image_id(data: bytes) -> str:
 
 
 def variants(data: bytes, out_dir: Path) -> tuple[int, int, dict[str, str]]:
-    """WebP at 96/256/512/1024 (never upscaled). pyvips is imported here: the api never needs it."""
+    """WebP at 96/256/512/1024, never upscaled. The first step at or above the source holds
+    the source's own resolution: a 500 px cutout is served at 500 px as "512", not capped
+    at 256 (it used to stop below the source, so most 600–1000 px covers topped out at 512
+    and a phone's full-width cover was soft). pyvips is imported here: the api never needs it."""
     import pyvips
 
     src = pyvips.Image.new_from_buffer(data, "")
     out_dir.mkdir(parents=True, exist_ok=True)
     paths: dict[str, str] = {}
     for size in SIZES:
-        if size > max(src.width, src.height) and size != SIZES[0]:
-            break
         thumb = pyvips.Image.thumbnail_buffer(data, size, height=size, size="down")
         p = out_dir / f"{size}.webp"
         thumb.webpsave(str(p), Q=82, strip=True)
         paths[str(size)] = p.name
+        if size >= max(src.width, src.height):
+            break
     return src.width, src.height, paths
+
+
+def complete(have: dict[str, str] | None, width: int | None, height: int | None) -> bool:
+    """Whether stored variants reach the source's resolution (the rule above)."""
+    side = max(width or 0, height or 0)
+    want = next((str(s) for s in SIZES if s >= side), str(SIZES[-1]))
+    return want in (have or {})
 
 
 def pixels(data: bytes, size: int) -> np.ndarray:

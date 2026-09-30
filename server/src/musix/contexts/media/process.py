@@ -56,7 +56,14 @@ async def extract_cover(src: Path) -> bytes | None:
 async def store_image(s: AsyncSession, media_dir: Path, data: bytes, kind: str) -> str:
     """Content-addressed: variants, palette and blurhash once per distinct image."""
     iid = img.image_id(data)
-    if not await s.scalar(sa.select(images.c.id).where(images.c.id == iid)):
+    q = sa.select(images.c.width, images.c.height, images.c.variants)
+    row = (await s.execute(q.where(images.c.id == iid))).first()
+    if row is not None and not img.complete(row.variants, row.width, row.height):
+        # made under the old rule (capped below the source): the same bytes, the full set
+        out = media_dir / "i" / iid[:2] / iid
+        _, _, paths = await asyncio.to_thread(img.variants, data, out)
+        await s.execute(sa.update(images).where(images.c.id == iid).values(variants=paths))
+    if row is None:
         out = media_dir / "i" / iid[:2] / iid
         w, h, paths = await asyncio.to_thread(img.variants, data, out)
         px32, px64 = (

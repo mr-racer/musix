@@ -83,3 +83,23 @@ def test_the_planner_checks_every_field_the_model_returns() -> None:
     big = p.validate({"intent": "playlist", "count": 5000}, "собери плейлист")
     assert big is not None
     assert big.filters.count is None
+
+
+def test_a_bio_loses_the_agents_english_preface_but_keeps_latin_names() -> None:
+    from musix.knowledge.bio_text import clean_bio
+
+    leaked = (
+        "The bio facts are confirmed; no contradictions found. I will now write the final "
+        "Russian paragraph.\n\nKanye West (род. 8 июня 1977) — американский рэпер.\n\n"
+        "Второй абзац."
+    )
+    assert clean_bio(leaked, "ru") == (
+        "Kanye West (род. 8 июня 1977) — американский рэпер.\n\nВторой абзац."
+    )
+    mixed = "Eminem, born Marshall Bruce Mathers III in St. Joseph, начал читать рэп в 14 лет."
+    assert clean_bio(mixed, "ru") == mixed
+    english = "Billie Eilish, born in Los Angeles in 2001, is a singer.\n\nЕё вокал многослоен."
+    assert clean_bio(english, "ru") == english  # biography in English, not notes: kept
+    assert clean_bio(leaked, "en") == leaked
+    ruled = "Here is the refined Russian biography.\n\n---\n\n**P$C** — рэп-группа из Атланты."
+    assert clean_bio(ruled, "ru") == "P$C — рэп-группа из Атланты."

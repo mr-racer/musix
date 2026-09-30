@@ -22,6 +22,7 @@ class ArtistRef(Model):
 class ArtistOut(ArtistRef):
     sort_name: str | None
     image_id: str | None
+    cutout_id: str | None = None  # a transparent PNG of the artist (the hero's figure)
 
 
 class AlbumOut(Model):
@@ -184,6 +185,8 @@ class ArtistPageOut(Model):
     appears_on: list[TrackOut]  # as a featured artist
     track_count: int
     images: dict[str, ImageData]
+    country: str | None = None  # the artist's profile (AudioDB): where they are from
+    country_code: str | None = None  # ISO 3166-1 alpha-2, for the flag
 
 
 class LyricsOut(Model):

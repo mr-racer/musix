@@ -22,12 +22,19 @@ async def test_reverse_export_brings_v2_activity_back_into_v1_once(  # type: ign
     settings: Settings, client: TestClient, owner: dict[str, str], listener, tmp_path: Path
 ) -> None:
     sys.path.insert(0, str(TOOLS))
-    from reverse import Reverse
-
-    tok, acct, tracks = listener
     since = dt.datetime.now(dt.UTC) - dt.timedelta(seconds=1)
     # v1's copy knows the account's tracks (its track_metadata), as a migrated library does
     v1 = sqlite3.connect(tmp_path / "metadata.db")
+    try:
+        _run(settings, client, owner, listener, v1, since)
+    finally:
+        v1.close()
+
+
+def _run(settings, client, owner, listener, v1, since) -> None:  # type: ignore[no-untyped-def]
+    from reverse import Reverse
+
+    tok, acct, tracks = listener
     v1.executescript((FIXTURES / "v1_schema.sql").read_text())
     v1.execute(
         "insert into users (id, email, password_hash, role, created_at)"

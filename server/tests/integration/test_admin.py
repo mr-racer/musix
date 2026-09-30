@@ -4,7 +4,7 @@ import pytest
 import sqlalchemy as sa
 from fastapi.testclient import TestClient
 
-from tests.integration.conftest import bearer, member
+from tests.integration.conftest import bearer
 
 pytestmark = pytest.mark.integration
 
@@ -82,12 +82,14 @@ def test_web_refresh_lives_in_an_httponly_cookie_and_reuse_revokes(client: TestC
         return client.post("/api/v2/auth/refresh", headers={"Cookie": f"mx_rt={token}"})
 
     ok = refresh(first)
-    assert ok.status_code == 200 and ok.json()["accessToken"]
+    assert ok.status_code == 200
+    assert ok.json()["accessToken"]
     second = ok.cookies["mx_rt"]
     assert second != first
     stolen = refresh(first)  # a replayed cookie = theft: the family dies, the cookie is dropped
     assert stolen.status_code == 401
-    assert 'mx_rt=""' in stolen.headers["set-cookie"] or "max-age=0" in stolen.headers[
-        "set-cookie"
-    ].lower()
+    assert (
+        'mx_rt=""' in stolen.headers["set-cookie"]
+        or "max-age=0" in stolen.headers["set-cookie"].lower()
+    )
     assert refresh(second).status_code == 401

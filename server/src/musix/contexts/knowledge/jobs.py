@@ -734,7 +734,9 @@ async def bio(sm: SM, llm: Llm, artist_id: uuid.UUID, lang: str) -> bool:
         proxies=compat.get_proxy(),
         seed_bio=(a.profile or {}).get("bio"),
     )
-    text, facets = result.get("bio") or "", result.get("facets") or {}
+    from musix.knowledge.bio_text import clean_bio
+
+    text, facets = clean_bio(result.get("bio") or "", lang), result.get("facets") or {}
     if not text:
         log.info("[bio] %s: %s", a.name, result.get("error"))
         return False

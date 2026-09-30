@@ -399,6 +399,17 @@
       },
       "ArtistOut": {
         "properties": {
+          "cutoutId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cutoutid"
+          },
           "id": {
             "format": "uuid",
             "title": "Id",
@@ -458,6 +469,28 @@
           },
           "artist": {
             "$ref": "#/components/schemas/ArtistOut"
+          },
+          "country": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Country"
+          },
+          "countryCode": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Countrycode"
           },
           "images": {
             "additionalProperties": {
