@@ -10,13 +10,12 @@ from contextlib import asynccontextmanager
 import sqlalchemy as sa
 from fastapi import APIRouter, FastAPI, Request
 from fastapi.responses import JSONResponse
-from qdrant_client import AsyncQdrantClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from musix import __version__, errors, observability
 from musix.api.idempotency import IdempotencyMiddleware
 from musix.api.realtime import Hub
-from musix.infra import db, secrets
+from musix.infra import db, secrets, vectors
 from musix.infra.ml_client import MlClient
 from musix.infra.queue import make_queue_app
 from musix.schemas import Model
@@ -84,7 +83,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         app.state.sessionmaker = db.make_sessionmaker(engine)
         app.state.settings = settings
         app.state.secrets = secrets.load_or_create(settings.secrets_dir)
-        qdrant = AsyncQdrantClient(url=settings.qdrant_url, timeout=5)
+        qdrant = vectors.client(settings.qdrant_url)
+        app.state.qdrant = qdrant
 
         async def postgres() -> None:
             await db.ping(engine)
@@ -137,6 +137,18 @@ def context_routers() -> list[APIRouter]:
     from musix.contexts.models_public.router import router as models_public
     from musix.contexts.playlists.router import router as playlists
     from musix.contexts.screens.router import router as screens
+    from musix.contexts.search.router import router as search
     from musix.contexts.sync.router import router as sync
 
-    return [identity, library, media, listening, playlists, screens, sync, realtime, models_public]
+    return [
+        identity,
+        library,
+        media,
+        listening,
+        playlists,
+        screens,
+        search,
+        sync,
+        realtime,
+        models_public,
+    ]

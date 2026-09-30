@@ -105,6 +105,16 @@ class Loader:
                     .returning(devices.c.id)
                 )
                 self.acct[u["id"]] = aid
+            # the migrator's id maps (phase 3 keeps them): tools and gates translate through them
+            await s.execute(sa.text(
+                "CREATE TABLE IF NOT EXISTS migr_account_map (v1_user_id text PRIMARY KEY, account_id uuid NOT NULL)"
+            ))
+            await s.execute(sa.text(
+                "CREATE TABLE IF NOT EXISTS migr_track_map ("
+                "v1_collection text NOT NULL, v1_track_id text NOT NULL, track_id uuid PRIMARY KEY)"
+            ))
+            for v1_id, aid in self.acct.items():
+                await s.execute(sa.text("INSERT INTO migr_account_map VALUES (:v, :a)"), {"v": v1_id, "a": aid})
             await s.commit()
 
     async def library(self) -> None:
@@ -145,6 +155,8 @@ class Loader:
                     )
                     self.track[(r["collection_name"], r["track_id"])] = tid
                     self.mf_of_track[tid] = mf
+                    await s.execute(sa.text("INSERT INTO migr_track_map VALUES (:c, :v, :t)"),
+                                    {"c": r["collection_name"], "v": r["track_id"], "t": tid})
                 await s.commit()
             print(f"  tracks {min(i + 500, len(rows))}/{len(rows)}", flush=True)
 
@@ -279,7 +291,10 @@ async def prepare(admin_dsn: str, name: str, reset: bool, qdrant_url: str) -> st
     if exists and reset:
         # the old load's points first: they are owned by accounts about to disappear
         old = await asyncpg.connect(url)
-        ids = [str(r[0]) for r in await old.fetch("select id from accounts")]
+        try:
+            ids = [str(r[0]) for r in await old.fetch("select id from accounts")]
+        except asyncpg.UndefinedTableError:  # a load that died before its schema existed
+            ids = []
         await old.close()
         if ids:
             q = vectors.client(qdrant_url)

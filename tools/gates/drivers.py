@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import json
 import subprocess
+import time
 from typing import Any
 
 import httpx
@@ -54,10 +55,54 @@ class V1Driver:
         return list(r.json())
 
 
+V2_URL = "http://127.0.0.1:18010"  # api-snap: the api on the loaded snapshot (make snap-api)
+
+
 class V2Driver:
-    """Filled in phase 2, when v2 search exists (GET /api/v2/search)."""
+    """GET /api/v2/search on the snapshot database, one section per suite. v2 answers in
+    its own track ids; `migr_track_map` (written by the snapshot loader) turns them back
+    into v1 ids, so both targets are scored against the same fixtures."""
 
     target = "v2"
 
-    def __init__(self) -> None:
-        raise NotImplementedError("v2 search lands in phase 2")
+    def __init__(self, url: str = V2_URL) -> None:
+        self.http = httpx.Client(base_url=url, timeout=300)
+        self._mint()
+        rows = subprocess.run(
+            ["docker", "exec", "musix-v2-dev-postgres-1", "psql", "-U", "musix", "-d", "musix_snap", "-Atc",
+             "select track_id, v1_track_id from migr_track_map"], capture_output=True, text=True, check=True,
+        ).stdout.split()
+        self.v1_of = dict(r.split("|") for r in rows)
+
+    def _mint(self) -> None:
+        with open(__file__.replace("drivers.py", "mint_v2.py"), "rb") as f:
+            out = subprocess.run(["docker", "exec", "-i", "musix-v2-dev-api-snap-1", "python", "-"], stdin=f,
+                                 capture_output=True, check=True).stdout
+        self.tokens: dict[str, str] = json.loads(out)
+        self.minted = time.monotonic()
+
+    def _get(self, coll: str, q: str, section: str) -> dict[str, Any]:
+        if time.monotonic() - self.minted > 600:  # tokens last 15 min
+            self._mint()
+        r = self.http.get("/api/v2/search", params={"q": q, "limit": 10, "sections": section},
+                          headers={"Authorization": f"Bearer {self.tokens[coll.removeprefix('acct_')]}"})
+        r.raise_for_status()
+        return dict(r.json())
+
+    def _scored(self, coll: str, q: str, section: str) -> list[list[Any]]:
+        return [[self.v1_of[h["track"]["id"]], h["score"]] for h in self._get(coll, q, section)[section]]
+
+    def lyrics(self, coll: str, q: str) -> list[list[Any]]:
+        return self._scored(coll, q, "lyrics")
+
+    def sound(self, coll: str, q: str) -> list[list[Any]]:
+        return self._scored(coll, q, "sound")
+
+    def catalog(self, coll: str, q: str) -> list[dict[str, Any]]:
+        out: list[dict[str, Any]] = []
+        for h in self._get(coll, q, "catalog")["top"]:
+            if h["type"] == "song":
+                out.append({"type": "song", "track_id": self.v1_of.get(h["id"])})
+            else:
+                out.append({"type": h["type"], h["type"]: h["name"]})
+        return out

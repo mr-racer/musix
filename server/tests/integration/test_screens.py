@@ -87,3 +87,19 @@ async def test_idempotency_never_stores_auth_responses(sm, client: TestClient, l
             )
         )
     assert n == 0
+
+
+async def test_search_finds_only_the_accounts_own_tracks(
+    sm, tmp_path: Path, client: TestClient, listener, owner
+) -> None:  # type: ignore[no-untyped-def]
+    tok, _, mine = listener
+    (tmp_path / "b").mkdir()
+    b, *_ = await new_listener(sm, tmp_path / "b", client, owner)  # the same titles, other tracks
+    title = client.get(f"/api/v2/tracks?ids={mine[0]}", headers=bearer(tok)).json()[0]["title"]
+    got = client.get(
+        "/api/v2/search", params={"q": title, "sections": "catalog"}, headers=bearer(b)
+    ).json()
+    songs = [h["id"] for h in got["top"] if h["type"] == "song"]
+    assert songs  # B finds its own copy of the song...
+    assert not set(songs) & {str(t) for t in mine}  # ...never A's
+    assert got["degraded"] == []
