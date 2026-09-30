@@ -254,7 +254,7 @@
    [
     "lyrics/exact/recall@1",
     0.494,
-    0.494
+    0.496
    ],
    [
     "lyrics/exact/recall@10",
@@ -264,7 +264,7 @@
    [
     "lyrics/exact/mrr",
     0.656,
-    0.656
+    0.657
    ],
    [
     "lyrics/noisy/recall@1",
@@ -274,27 +274,27 @@
    [
     "lyrics/noisy/recall@10",
     0.809,
-    0.81
+    0.807
    ],
    [
     "lyrics/noisy/mrr",
     0.558,
-    0.558
+    0.557
    ],
    [
     "lyrics/partial/recall@1",
     0.298,
-    0.298
+    0.3
    ],
    [
     "lyrics/partial/recall@10",
     0.63,
-    0.63
+    0.627
    ],
    [
     "lyrics/partial/mrr",
     0.404,
-    0.404
+    0.405
    ],
    [
     "lyrics/translit/recall@1",
@@ -324,7 +324,7 @@
    [
     "catalog/all/recall@1",
     0.873,
-    0.877
+    0.873
    ],
    [
     "catalog/all/recall@5",
@@ -334,7 +334,7 @@
    [
     "catalog/exact/recall@1",
     0.88,
-    0.9
+    0.88
    ],
    [
     "catalog/exact/recall@5",
@@ -399,12 +399,12 @@
  },
  "run seconds": {
   "accounts": 0.0,
-  "files": 299.0,
-  "knowledge": 6.0,
-  "library": 29.0,
-  "listening": 1.0,
+  "files": 113.0,
+  "knowledge": 4.0,
+  "library": 30.0,
+  "listening": 0.0,
   "misc": 0.0,
   "post": 0.0,
-  "vectors": 49.0
+  "vectors": 45.0
  }
 }

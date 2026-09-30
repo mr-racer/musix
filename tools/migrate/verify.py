@@ -345,8 +345,13 @@ async def spots(m: Any, v1: V1, per_account: int = 5, lang: str = "ru") -> dict[
 
 def gates(snap: str, db: str) -> dict[str, Any]:
     """Search 4.1–4.3 on the migrated DB against the accepted v2 run on phase 2's snapshot
-    load (which the phase 1–2 gates held against v1), tolerance max(0.01, run spread);
-    «Поток» 4.4: every gate of the v2 engine's report PASS."""
+    load (which the phase 1–2 gates held against v1); «Поток» 4.4: every gate of the v2
+    engine's report PASS.
+
+    Tolerance max(0.01, run spread, two queries of the suite): the vectors are identical,
+    but every load mints new media file ids — the Qdrant point ids — so the HNSW graph and
+    the order of exact ties differ. Measured over three loads of 2026-09-29: the worst drop
+    was 0.007 (lyrics exact recall@1, n=300); catalog/exact moved by one query of 50."""
     out: dict[str, Any] = {"failures": []}
     base, mig = GATES / f"{snap}-v2.json", GATES / f"{snap}-v2-{db}.json"
     if not mig.exists() or not base.exists():
@@ -358,7 +363,7 @@ def gates(snap: str, db: str) -> dict[str, Any]:
         for suite, metrics_ in (("lyrics", ("recall@1", "recall@10", "mrr")), ("catalog", ("recall@1", "recall@5"))):
             for kind, vals in b[suite].items():
                 for mt in metrics_:
-                    tol = max(0.01, vals.get("spread", {}).get(mt, 0))
+                    tol = max(0.01, vals.get("spread", {}).get(mt, 0), 2 / vals["n"])
                     got = g[suite].get(kind, {}).get(mt, -1)
                     rows.append([f"{suite}/{kind}/{mt}", round(vals[mt], 3), round(got, 3)])
                     if got < vals[mt] - tol:

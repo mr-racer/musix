@@ -33,3 +33,14 @@ It reads the snapshot and v1's media read-only. It writes the target database, t
 - **One Qdrant per migrated database.** The `tracks` points are keyed by media file id and
   filtered by owner. A second database migrated with the same accounts replaces the first
   one's points, so only the most recent migration's database answers vector search.
+
+## Timing (snapshot 2026-09-29: 6 accounts, 7282 tracks, 237 GB)
+
+| | first run, empty media dir | re-run into a fresh database |
+|---|---|---|
+| DB stages (accounts … misc, post) | 86 s | 80 s |
+| `files` (uploads copied with `COPY=1`, transcodes checked, 62 image jobs) | 299 s | 113 s |
+| gates + `verify` | — | ~3 min |
+| **whole `make migrate`** | — | **377–387 s** |
+
+Budget: 45 min (spec). Hardlinks as root are faster than the dev copies.

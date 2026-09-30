@@ -426,16 +426,24 @@ class Migrator:
     async def post(self) -> dict[str, Any]:
         """«Поток» warm after the run: the state jobs per account and one ranker train."""
         from procrastinate import App, PsycopgConnector
+        from procrastinate.exceptions import AlreadyEnqueued
 
         app = App(connector=PsycopgConnector(conninfo=self.url))
-        n = 0
+        n = {"queued": 0, "already_queued": 0}  # a re-run before a worker drained the first is a no-op
+
+        async def defer(name: str, lock: str, **kw: Any) -> None:
+            try:
+                await app.configure_task(name, queue="default", queueing_lock=lock).defer_async(**kw)
+                n["queued"] += 1
+            except AlreadyEnqueued:
+                n["already_queued"] += 1
+
         async with app.open_async():
             for a in self.accounts_v1().values():
                 for name in ("stream:genres", "stream:colisten", "stream:profile", "stream:taste_map"):
-                    await app.configure_task(name, queue="default", queueing_lock=f"{name}:{a}").defer_async(account_id=str(a))
-                    n += 1
-            await app.configure_task("stream:train", queue="default", queueing_lock="stream:train").defer_async()
-        return {"jobs": n + 1}
+                    await defer(name, f"{name}:{a}", account_id=str(a))
+            await defer("stream:train", "stream:train")
+        return n
 
     async def verify(self) -> dict[str, Any]:
         from verify import run_verify
