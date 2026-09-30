@@ -104,7 +104,16 @@ export function refresh(): Promise<boolean> {
   return inflight;
 }
 
+const beforeSignOut = new Set<() => Promise<void> | void>();
+/** Runs while the session is still valid: the player ends its listen, the outbox flushes —
+ *  the wipe that follows would otherwise drop what was not sent yet. */
+export function onBeforeSignOut(fn: () => Promise<void> | void): () => void {
+  beforeSignOut.add(fn);
+  return () => beforeSignOut.delete(fn);
+}
+
 export async function logout(): Promise<void> {
+  for (const fn of beforeSignOut) await Promise.resolve(fn()).catch(() => undefined);
   const access = useAuth.getState().access;
   if (access)
     await fetch("/api/v2/auth/logout", { method: "POST", headers: { authorization: `Bearer ${access}` }, credentials: "same-origin" }).catch(() => undefined);

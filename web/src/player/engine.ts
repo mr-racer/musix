@@ -120,7 +120,7 @@ class Engine {
         if (d.seekTime != null) this.seek(d.seekTime * 1000);
       });
     }
-    onAccountChange(() => this.stop());
+    onAccountChange(() => void this.stop());
   }
 
   private get el(): HTMLAudioElement {
@@ -389,8 +389,8 @@ class Engine {
     this.dropHeld();
   }
 
-  stop(): void {
-    this.endListen(false);
+  stop(): Promise<void> {
+    const pending = this.endListen(false);
     for (const a of this.els) {
       a.pause();
       a.removeAttribute("src");
@@ -400,7 +400,11 @@ class Engine {
     this.manifests.clear();
     this.played = [];
     set(initial);
-    if (navigator.mediaSession) navigator.mediaSession.metadata = null;
+    if (navigator.mediaSession) {
+      navigator.mediaSession.metadata = null;
+      navigator.mediaSession.playbackState = "none";
+    }
+    return pending;
   }
 
   /** огонёк / вода. In «Поток» the tail was planned before the signal: it is dropped
@@ -434,11 +438,12 @@ class Engine {
     idle.load();
   }
 
-  private endListen(skipped: boolean, error = false): void {
-    if (!this.acc.item) return;
+  /** Ends the listen in progress; resolves once it is in the outbox. */
+  private endListen(skipped: boolean, error = false): Promise<void> {
+    if (!this.acc.item) return Promise.resolve();
     this.acc.tick(this.el.currentTime * 1000, !this.el.paused);
     const e = this.acc.finish(skipped, sessionId(), error);
-    if (e) void enqueueListen(e);
+    return e ? enqueueListen(e) : Promise.resolve();
   }
 
   private onTime(): void {

@@ -2,7 +2,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createRouter, RouterProvider } from "@tanstack/react-router";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-import { bootstrap, onAccountChange, useAuth } from "./api/auth";
+import { bootstrap, onAccountChange, onBeforeSignOut, useAuth } from "./api/auth";
 import { guard } from "./api/db";
 import { connect, disconnect, subscribe } from "./api/realtime";
 import { sync } from "./api/sync";
@@ -22,6 +22,12 @@ declare module "@tanstack/react-router" {
   }
 }
 
+// sign-out: the playing track's listen is ended and everything queued is sent first
+onBeforeSignOut(async () => {
+  const [{ player }, { flush }] = await Promise.all([import("./player/engine"), import("./player/outbox")]);
+  await player.stop();
+  await flush();
+});
 // account change = nothing of the previous account survives (mirror, cache, socket)
 onAccountChange(async (id) => {
   disconnect();
