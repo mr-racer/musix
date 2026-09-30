@@ -21,8 +21,9 @@ import ru.musixai.app.feature.auth.LoginRoute
 import javax.inject.Inject
 
 @HiltViewModel
-class AppViewModel @Inject constructor(auth: AuthRepository) : ViewModel() {
+class AppViewModel @Inject constructor(auth: AuthRepository, library: ru.musixai.app.core.database.LibraryDao) : ViewModel() {
     val signedIn = auth.signedIn.stateIn(viewModelScope, SharingStarted.Eagerly, null)
+    val tracks = library.trackCount().stateIn(viewModelScope, SharingStarted.Eagerly, 0)
 }
 
 /** The root: the login flow until a session exists, then the app shell. */
@@ -33,7 +34,8 @@ fun MusixApp(vm: AppViewModel = hiltViewModel()) {
         null -> Box(Modifier.fillMaxSize().background(MusixTheme.colors.bg))
         false -> LoginRoute()
         true -> Box(Modifier.fillMaxSize().background(MusixTheme.colors.bg), contentAlignment = Alignment.Center) {
-            Text("signed in", color = MusixTheme.colors.text)
+            val n by vm.tracks.collectAsStateWithLifecycle()
+            Text("signed in · $n tracks", color = MusixTheme.colors.text)
         }
     }
 }

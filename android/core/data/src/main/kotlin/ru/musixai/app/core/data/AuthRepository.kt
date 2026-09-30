@@ -19,6 +19,7 @@ import javax.inject.Singleton
 class AuthRepository @Inject constructor(
     private val api: MusixApi,
     private val sessions: SessionStore,
+    private val guard: AccountGuard,
     signOut: SignOutSignal,
 ) {
     val signedIn: Flow<Boolean> = sessions.session.map { it.signedIn }.distinctUntilChanged()
@@ -36,11 +37,13 @@ class AuthRepository @Inject constructor(
 
     suspend fun login(email: String, password: String) {
         val t = api.call { identity.loginApiV2AuthLoginPost(LoginIn(email = email.trim(), password = password, device = device())) }
+        guard.claim(t.accountId.toString())  // before the session flips: no frame shows the last account's data
         sessions.update { it.withTokens(t) }
     }
 
     suspend fun register(email: String, password: String, invite: String) {
         val t = api.call { identity.registerApiV2AuthRegisterPost(RegisterIn(email = email.trim(), password = password, device = device(), inviteCode = invite.trim())) }
+        guard.claim(t.accountId.toString())
         sessions.update { it.withTokens(t) }
     }
 
@@ -48,6 +51,7 @@ class AuthRepository @Inject constructor(
     suspend fun logout() {
         runCatching { api.call { identity.logoutApiV2AuthLogoutPost() } }
         sessions.update { it.copy(accessToken = null, refreshToken = null, accountId = null, deviceId = null, role = null) }
+        guard.wipe()
     }
 
     companion object {

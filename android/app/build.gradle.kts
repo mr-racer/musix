@@ -60,4 +60,8 @@ dependencies {
     implementation(libs.navigation.compose)
     implementation(libs.hilt.navigation.compose)
     implementation(libs.profileinstaller)
+    implementation(project(":core:database"))
+    implementation(libs.work.runtime)
+    implementation(libs.hilt.work)
+    implementation(libs.lifecycle.process)
 }

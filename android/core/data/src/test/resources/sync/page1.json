@@ -1,0 +1,179 @@
+{
+ "changes": [
+  {
+   "entity": "settings",
+   "id": "01a0eedb-c1ed-7d84-a35a-98d8c16f3afe",
+   "op": "upsert",
+   "data": {
+    "value": {}
+   }
+  },
+  {
+   "entity": "image",
+   "id": "28415a19adf601c32359ceb5e3432fbd040ff60959a578fb5e8529d648fb65f1",
+   "op": "upsert",
+   "data": {
+    "id": "28415a19adf601c32359ceb5e3432fbd040ff60959a578fb5e8529d648fb65f1",
+    "width": 500,
+    "height": 500,
+    "blurhash": "LEHV6nWB2yk8pyo0adR*.7kCMdnj",
+    "palette": {
+     "dominant": "#31312f",
+     "vibrant": "#936b55",
+     "muted": "#494847",
+     "accent": {
+      "dark": "hsl(21, 45%, 52%)",
+      "light": "hsl(21, 45%, 45%)"
+     }
+    },
+    "urls": {
+     "96": "http://127.0.0.1:18080/i/28415a19adf601c32359ceb5e3432fbd040ff60959a578fb5e8529d648fb65f1/96.webp?e=0&s=0",
+     "256": "http://127.0.0.1:18080/i/28415a19adf601c32359ceb5e3432fbd040ff60959a578fb5e8529d648fb65f1/256.webp?e=0&s=0"
+    }
+   }
+  },
+  {
+   "entity": "image",
+   "id": "3a138d85d1f289360e0fe8be0068be429ad403fcfd0a444c34c67917948a9477",
+   "op": "upsert",
+   "data": {
+    "id": "3a138d85d1f289360e0fe8be0068be429ad403fcfd0a444c34c67917948a9477",
+    "width": 1000,
+    "height": 1000,
+    "blurhash": "LEHV6nWB2yk8pyo0adR*.7kCMdnj",
+    "palette": {
+     "dominant": "#ffffff",
+     "vibrant": "#d0883f",
+     "muted": "#fcfaf8",
+     "accent": {
+      "dark": "hsl(30, 61%, 53%)",
+      "light": "hsl(30, 61%, 52%)"
+     }
+    },
+    "urls": {
+     "96": "http://127.0.0.1:18080/i/3a138d85d1f289360e0fe8be0068be429ad403fcfd0a444c34c67917948a9477/96.webp?e=0&s=0",
+     "256": "http://127.0.0.1:18080/i/3a138d85d1f289360e0fe8be0068be429ad403fcfd0a444c34c67917948a9477/256.webp?e=0&s=0",
+     "512": "http://127.0.0.1:18080/i/3a138d85d1f289360e0fe8be0068be429ad403fcfd0a444c34c67917948a9477/512.webp?e=0&s=0"
+    }
+   }
+  },
+  {
+   "entity": "image",
+   "id": "9b86b2dee05bfc1e58e0c45192db2c40a84f01919471c2b5e683b01ab910e581",
+   "op": "upsert",
+   "data": {
+    "id": "9b86b2dee05bfc1e58e0c45192db2c40a84f01919471c2b5e683b01ab910e581",
+    "width": 1000,
+    "height": 1000,
+    "blurhash": "LEHV6nWB2yk8pyo0adR*.7kCMdnj",
+    "palette": {
+     "dominant": "#e8e9e3",
+     "vibrant": "#aa0c10",
+     "muted": "#adaca1",
+     "accent": {
+      "dark": "hsl(358, 85%, 52%)",
+      "light": "hsl(358, 85%, 38%)"
+     }
+    },
+    "urls": {
+     "96": "http://127.0.0.1:18080/i/9b86b2dee05bfc1e58e0c45192db2c40a84f01919471c2b5e683b01ab910e581/96.webp?e=0&s=0",
+     "256": "http://127.0.0.1:18080/i/9b86b2dee05bfc1e58e0c45192db2c40a84f01919471c2b5e683b01ab910e581/256.webp?e=0&s=0",
+     "512": "http://127.0.0.1:18080/i/9b86b2dee05bfc1e58e0c45192db2c40a84f01919471c2b5e683b01ab910e581/512.webp?e=0&s=0"
+    }
+   }
+  },
+  {
+   "entity": "artist",
+   "id": "01a0eedb-c30a-713b-b05e-c376bdaa37f2",
+   "op": "upsert",
+   "data": {
+    "id": "01a0eedb-c30a-713b-b05e-c376bdaa37f2",
+    "name": "Artist 1",
+    "sortName": "Artist 1",
+    "imageId": null
+   }
+  },
+  {
+   "entity": "artist",
+   "id": "01a0eedb-c39d-72fe-af66-7f527f65aaa9",
+   "op": "upsert",
+   "data": {
+    "id": "01a0eedb-c39d-72fe-af66-7f527f65aaa9",
+    "name": "Artist 2",
+    "sortName": "Artist 2",
+    "imageId": null
+   }
+  },
+  {
+   "entity": "artist",
+   "id": "01a0eedb-c39d-776e-b246-525d4ae86e93",
+   "op": "upsert",
+   "data": {
+    "id": "01a0eedb-c39d-776e-b246-525d4ae86e93",
+    "name": "Artist 3",
+    "sortName": "Artist 3",
+    "imageId": null
+   }
+  },
+  {
+   "entity": "artist",
+   "id": "01a0eedb-c39d-7aee-b928-faea0b428a37",
+   "op": "upsert",
+   "data": {
+    "id": "01a0eedb-c39d-7aee-b928-faea0b428a37",
+    "name": "Artist 4",
+    "sortName": "Artist 4",
+    "imageId": null
+   }
+  },
+  {
+   "entity": "artist",
+   "id": "01a0eedb-c415-74fb-9a30-7a20d7df9bd3",
+   "op": "upsert",
+   "data": {
+    "id": "01a0eedb-c415-74fb-9a30-7a20d7df9bd3",
+    "name": "Artist 5",
+    "sortName": "Artist 5",
+    "imageId": null
+   }
+  },
+  {
+   "entity": "album",
+   "id": "01a0eedb-c30b-7da3-a24b-8c1e189387ac",
+   "op": "upsert",
+   "data": {
+    "id": "01a0eedb-c30b-7da3-a24b-8c1e189387ac",
+    "title": "Album 6",
+    "year": 2008,
+    "albumArtistId": "01a0eedb-c30a-713b-b05e-c376bdaa37f2",
+    "coverImageId": "28415a19adf601c32359ceb5e3432fbd040ff60959a578fb5e8529d648fb65f1"
+   }
+  },
+  {
+   "entity": "album",
+   "id": "01a0eedb-c39e-7636-a302-e74b486a73c2",
+   "op": "upsert",
+   "data": {
+    "id": "01a0eedb-c39e-7636-a302-e74b486a73c2",
+    "title": "Album 7",
+    "year": 2023,
+    "albumArtistId": "01a0eedb-c39d-72fe-af66-7f527f65aaa9",
+    "coverImageId": "9b86b2dee05bfc1e58e0c45192db2c40a84f01919471c2b5e683b01ab910e581"
+   }
+  },
+  {
+   "entity": "album",
+   "id": "01a0eedb-c416-7546-9ce0-eac559365e8c",
+   "op": "upsert",
+   "data": {
+    "id": "01a0eedb-c416-7546-9ce0-eac559365e8c",
+    "title": "Album 8",
+    "year": 1984,
+    "albumArtistId": "01a0eedb-c415-74fb-9a30-7a20d7df9bd3",
+    "coverImageId": "3a138d85d1f289360e0fe8be0068be429ad403fcfd0a444c34c67917948a9477"
+   }
+  }
+ ],
+ "cursor": "snap1",
+ "hasMore": true
+}

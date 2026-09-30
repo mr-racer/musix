@@ -1,0 +1,97 @@
+{
+ "changes": [
+  {
+   "entity": "track",
+   "id": "01a0eedb-c30d-7332-86bc-118ac97c9a4c",
+   "op": "upsert",
+   "data": {
+    "id": "01a0eedb-c30d-7332-86bc-118ac97c9a4c",
+    "title": "Song 9",
+    "titleDisplay": "Song 9",
+    "artistDisplay": "Artist 1",
+    "artists": [
+     {
+      "id": "01a0eedb-c30a-713b-b05e-c376bdaa37f2",
+      "name": "Artist 1",
+      "role": "main"
+     }
+    ],
+    "albumId": "01a0eedb-c30b-7da3-a24b-8c1e189387ac",
+    "album": "Album 6",
+    "year": 2008,
+    "genre": "Pop",
+    "trackNo": 2,
+    "discNo": 1,
+    "durationMs": 211080,
+    "coverImageId": "28415a19adf601c32359ceb5e3432fbd040ff60959a578fb5e8529d648fb65f1",
+    "addedAt": "2026-09-29T20:29:34.856991Z"
+   }
+  },
+  {
+   "entity": "track",
+   "id": "01a0eedb-c39e-7d5a-885b-7616ef90f45c",
+   "op": "upsert",
+   "data": {
+    "id": "01a0eedb-c39e-7d5a-885b-7616ef90f45c",
+    "title": "Song 10",
+    "titleDisplay": "Song 10",
+    "artistDisplay": "Artist 2, Artist 3, Artist 4",
+    "artists": [
+     {
+      "id": "01a0eedb-c39d-72fe-af66-7f527f65aaa9",
+      "name": "Artist 2",
+      "role": "main"
+     },
+     {
+      "id": "01a0eedb-c39d-776e-b246-525d4ae86e93",
+      "name": "Artist 3",
+      "role": "feat"
+     },
+     {
+      "id": "01a0eedb-c39d-7aee-b928-faea0b428a37",
+      "name": "Artist 4",
+      "role": "feat"
+     }
+    ],
+    "albumId": "01a0eedb-c39e-7636-a302-e74b486a73c2",
+    "album": "Album 7",
+    "year": 2023,
+    "genre": "Pop",
+    "trackNo": 6,
+    "discNo": 1,
+    "durationMs": 231915,
+    "coverImageId": "9b86b2dee05bfc1e58e0c45192db2c40a84f01919471c2b5e683b01ab910e581",
+    "addedAt": "2026-09-29T20:29:35.004716Z"
+   }
+  },
+  {
+   "entity": "track",
+   "id": "01a0eedb-c416-7e6c-8c41-398c88802c45",
+   "op": "upsert",
+   "data": {
+    "id": "01a0eedb-c416-7e6c-8c41-398c88802c45",
+    "title": "Song 11",
+    "titleDisplay": "Song 11",
+    "artistDisplay": "Artist 5",
+    "artists": [
+     {
+      "id": "01a0eedb-c415-74fb-9a30-7a20d7df9bd3",
+      "name": "Artist 5",
+      "role": "main"
+     }
+    ],
+    "albumId": "01a0eedb-c416-7546-9ce0-eac559365e8c",
+    "album": "Album 8",
+    "year": 1984,
+    "genre": "Pop",
+    "trackNo": 5,
+    "discNo": 2,
+    "durationMs": 314175,
+    "coverImageId": "3a138d85d1f289360e0fe8be0068be429ad403fcfd0a444c34c67917948a9477",
+    "addedAt": "2026-09-29T20:29:35.124796Z"
+   }
+  }
+ ],
+ "cursor": "delta1",
+ "hasMore": false
+}
