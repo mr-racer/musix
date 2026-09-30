@@ -1600,6 +1600,114 @@
         "title": "HomeOut",
         "type": "object"
       },
+      "Idea": {
+        "description": "One «Интересное в вашей музыке» line: a refined fact about a song or an artist\nin the library, with what pins the assistant to its subject when it is explained.",
+        "properties": {
+          "artist": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Artist"
+          },
+          "artistSlug": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Artistslug"
+          },
+          "fact": {
+            "title": "Fact",
+            "type": "string"
+          },
+          "imageId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Imageid"
+          },
+          "kind": {
+            "enum": [
+              "song",
+              "artist"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "trackId": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Trackid"
+          }
+        },
+        "required": [
+          "fact",
+          "kind",
+          "title",
+          "artist",
+          "trackId",
+          "artistSlug",
+          "imageId"
+        ],
+        "title": "Idea",
+        "type": "object"
+      },
+      "IdeasOut": {
+        "properties": {
+          "ideas": {
+            "items": {
+              "$ref": "#/components/schemas/Idea"
+            },
+            "title": "Ideas",
+            "type": "array"
+          },
+          "images": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/ImageData"
+            },
+            "title": "Images",
+            "type": "object"
+          }
+        },
+        "required": [
+          "ideas",
+          "images"
+        ],
+        "title": "IdeasOut",
+        "type": "object"
+      },
       "ImageChange": {
         "properties": {
           "data": {
@@ -7035,6 +7143,125 @@
           }
         ],
         "summary": "Discoveries",
+        "tags": [
+          "assistant"
+        ]
+      }
+    },
+    "/api/v2/assistant/ideas": {
+      "get": {
+        "description": "v1 `/metadata/random-facts` for the assistant's front page: refined facts in the\nlistener's language about songs and artists they own, one per subject, at most 220\ncharacters (length is held down by selection, never by an ellipsis).",
+        "operationId": "ideas_api_v2_assistant_ideas_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "lang",
+            "required": false,
+            "schema": {
+              "default": "ru",
+              "title": "Lang",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 6,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IdeasOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Validation failed"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Rate limited"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Ideas",
         "tags": [
           "assistant"
         ]

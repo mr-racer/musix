@@ -275,3 +275,87 @@ async def _track_chat(
     sink.on_status({"type": "status", "stage": "thinking"})
     res: Any = await answer_track_chat(treq, on_event=on_event)  # type: ignore[no-untyped-call]
     return dict(res.model_dump(mode="json"))
+
+
+# v1 MetadataDB.HIDDEN_LABELS (+ the gate's rejects): what the strip must not show
+_HIDDEN = ["other", "about_artist", "about_song", "gate:junk", "gate:roster"]
+_IDEAS = sa.text("""
+WITH mine AS (SELECT t.id, t.song_id, t.cover_image_id FROM tracks t
+              WHERE t.account_id = :a AND t.deleted_at IS NULL),
+     artists_mine AS (SELECT DISTINCT ta.artist_id FROM track_artists ta JOIN mine ON mine.id = ta.track_id)
+SELECT f.subject_kind, f.subject_id, r.text
+FROM fact_refinements r JOIN facts f ON f.id = r.fact_id
+WHERE r.lang = :lang AND r.text IS NOT NULL AND length(r.text) <= 220
+  AND NOT (r.labels ?| CAST(:hidden AS text[]))
+  AND ((f.subject_kind = 'song' AND f.subject_id IN (SELECT song_id FROM mine))
+    OR (f.subject_kind = 'artist' AND f.subject_id IN (SELECT artist_id FROM artists_mine)))
+ORDER BY random() LIMIT :n
+""")
+
+
+async def ideas(
+    s: AsyncSession, base: str, secret: bytes, account_id: uuid.UUID, lang: str, limit: int
+) -> S.IdeasOut:
+    from musix.contexts.library.models import artists, songs, tracks
+    from musix.contexts.media.delivery import load_images
+
+    rows = (
+        await s.execute(_IDEAS, {"a": account_id, "lang": lang, "hidden": _HIDDEN, "n": limit * 4})
+    ).all()
+    picked: list[tuple[str, uuid.UUID, str]] = []
+    seen: set[tuple[str, uuid.UUID]] = set()
+    for kind, sid, text in rows:  # one fact per subject, so the picks never share one
+        if (kind, sid) not in seen:
+            seen.add((kind, sid))
+            picked.append((kind, sid, text))
+        if len(picked) >= limit:
+            break
+    song_ids = [sid for k, sid, _ in picked if k == "song"]
+    artist_ids = [sid for k, sid, _ in picked if k == "artist"]
+    by_song: dict[uuid.UUID, Any] = {}
+    if song_ids:
+        T, So, Ar = tracks.c, songs.c, artists.c
+        q = (
+            sa.select(So.id, So.title, Ar.name, T.id.label("track_id"), T.cover_image_id)
+            .join(tracks, T.song_id == So.id)
+            .outerjoin(artists, Ar.id == So.primary_artist_id)
+            .where(So.id.in_(song_ids), T.account_id == account_id, T.deleted_at.is_(None))
+            .order_by(So.id, T.cover_image_id.is_(None), T.added_at)
+            .distinct(So.id)
+        )
+        by_song = {r.id: r for r in (await s.execute(q)).all()}
+    by_artist: dict[uuid.UUID, Any] = {}
+    if artist_ids:
+        Ar = artists.c
+        q2 = sa.select(Ar.id, Ar.name, Ar.slug, Ar.image_id, Ar.cutout_id).where(
+            Ar.id.in_(artist_ids)
+        )
+        by_artist = {r.id: r for r in (await s.execute(q2)).all()}
+    out: list[S.Idea] = []
+    for kind, sid, text in picked:
+        if kind == "song" and (r := by_song.get(sid)) is not None:
+            out.append(
+                S.Idea(
+                    fact=text,
+                    kind="song",
+                    title=r.title,
+                    artist=r.name,
+                    track_id=r.track_id,
+                    artist_slug=None,
+                    image_id=r.cover_image_id,
+                )
+            )
+        elif kind == "artist" and (a := by_artist.get(sid)) is not None:
+            out.append(
+                S.Idea(
+                    fact=text,
+                    kind="artist",
+                    title=None,
+                    artist=a.name,
+                    track_id=None,
+                    artist_slug=a.slug,
+                    image_id=a.image_id or a.cutout_id,
+                )
+            )
+    imgs = await load_images(s, base, secret, [i.image_id for i in out])
+    return S.IdeasOut(ideas=out, images=imgs)

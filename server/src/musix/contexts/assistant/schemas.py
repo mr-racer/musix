@@ -70,3 +70,21 @@ class DiscoveriesOut(Model):
     cards: list[dict[str, Any]]
     tracks: dict[str, TrackOut]
     images: dict[str, ImageData]
+
+
+class Idea(Model):
+    """One «Интересное в вашей музыке» line: a refined fact about a song or an artist
+    in the library, with what pins the assistant to its subject when it is explained."""
+
+    fact: str
+    kind: Literal["song", "artist"]
+    title: str | None  # the song, for song facts
+    artist: str | None
+    track_id: uuid.UUID | None  # one of the listener's tracks of that song
+    artist_slug: str | None  # for artist facts
+    image_id: str | None
+
+
+class IdeasOut(Model):
+    ideas: list[Idea]
+    images: dict[str, ImageData]

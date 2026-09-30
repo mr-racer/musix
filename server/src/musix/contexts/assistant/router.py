@@ -87,3 +87,19 @@ async def discoveries(
     return await service.with_tracks(
         s, st.settings.public_base_url, st.secrets.media_hmac, p.account_id, cards
     )
+
+
+@router.get("/assistant/ideas", response_model=S.IdeasOut)
+async def ideas(p: Auth, s: Session, request: Request, lang: str = "ru", limit: int = 6) -> Any:
+    """v1 `/metadata/random-facts` for the assistant's front page: refined facts in the
+    listener's language about songs and artists they own, one per subject, at most 220
+    characters (length is held down by selection, never by an ellipsis)."""
+    st = request.app.state
+    return await service.ideas(
+        s,
+        st.settings.public_base_url,
+        st.secrets.media_hmac,
+        p.account_id,
+        lang if lang in ("ru", "en") else "ru",
+        max(1, min(limit, 12)),
+    )
