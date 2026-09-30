@@ -21,9 +21,14 @@ class AccountGuard @Inject constructor(private val db: MusixDatabase, @Applicati
         db.mirror().putKv(KvEntity(OWNER, accountId))
     }
 
+    /** Set by the player while its media cache is open: deleting the directory under a live
+     *  SimpleCache would corrupt it, so the cache evicts its own entries instead. */
+    @Volatile var clearMedia: (() -> Unit)? = null
+
     suspend fun wipe() = withContext(Dispatchers.IO) {
         db.clearAllTables()
-        for (dir in listOf("media", "http", "image_cache")) File(ctx.cacheDir, dir).deleteRecursively()
+        clearMedia?.invoke() ?: File(ctx.cacheDir, "media").deleteRecursively()
+        for (dir in listOf("http", "image_cache")) File(ctx.cacheDir, dir).deleteRecursively()
     }
 
     private companion object { const val OWNER = "account" }

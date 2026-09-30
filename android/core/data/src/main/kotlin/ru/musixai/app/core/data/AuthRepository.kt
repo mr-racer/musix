@@ -20,6 +20,7 @@ class AuthRepository @Inject constructor(
     private val api: MusixApi,
     private val sessions: SessionStore,
     private val guard: AccountGuard,
+    private val outbox: Outbox,
     signOut: SignOutSignal,
 ) {
     val signedIn: Flow<Boolean> = sessions.session.map { it.signedIn }.distinctUntilChanged()
@@ -48,8 +49,10 @@ class AuthRepository @Inject constructor(
         sessions.update { it.withTokens(t) }
     }
 
-    /** Local sign-out always succeeds; the server call is best effort. */
+    /** Local sign-out always succeeds; the server calls are best effort. Unsent listens and
+     *  edits get one flush first — the wipe that follows would otherwise drop them. */
     suspend fun logout() {
+        runCatching { outbox.flush() }
         runCatching { api.call { identity.logoutApiV2AuthLogoutPost() } }
         sessions.update { it.copy(accessToken = null, refreshToken = null, accountId = null, deviceId = null, role = null) }
         guard.wipe()

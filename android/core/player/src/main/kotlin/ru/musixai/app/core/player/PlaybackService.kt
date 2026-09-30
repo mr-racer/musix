@@ -86,6 +86,7 @@ class PlaybackService : MediaLibraryService() {
     @Inject lateinit var library: LibraryRepository
     @Inject lateinit var outbox: Outbox
     @Inject lateinit var settings: SettingsRepository
+    @Inject lateinit var guard: ru.musixai.app.core.data.AccountGuard
 
     private lateinit var exo: ExoPlayer
     private lateinit var resolver: ManifestResolver
@@ -121,6 +122,9 @@ class PlaybackService : MediaLibraryService() {
     override fun onCreate() {
         super.onCreate()
         resolver = ManifestResolver(fetch = ::fetchManifest, network = ::network, lookahead = ::lookahead)
+        // the cache is a process singleton that outlives this service: the hook stays for the process
+        val app = applicationContext
+        guard.clearMedia = { mediaCache(app).let { c -> c.keys.toList().forEach(c::removeResource) } }
         val cached = CacheDataSource.Factory()
             .setCache(mediaCache(this))
             .setUpstreamDataSourceFactory(OkHttpDataSource.Factory(http))
