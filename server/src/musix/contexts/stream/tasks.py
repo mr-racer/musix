@@ -15,7 +15,11 @@ REFRESH_AFTER = 20  # new listens before the profile is recomputed
 
 
 async def profile(account_id: str) -> None:
-    await jobs.profile(sessionmaker(), uuid.UUID(account_id))
+    await jobs.profile(sessionmaker(), uuid.UUID(account_id), q=await qdrant())
+
+
+async def taste_map(account_id: str) -> None:
+    await jobs.taste_map(sessionmaker(), await qdrant(), uuid.UUID(account_id))
 
 
 async def genres(account_id: str) -> None:
@@ -89,7 +93,7 @@ async def nightly(timestamp: int) -> int:
     async with sessionmaker()() as s:
         accounts = list(await s.scalars(sa.text("SELECT DISTINCT account_id FROM tracks")))
     for a in accounts:
-        for name in ("stream:genres", "stream:colisten", "stream:profile"):
+        for name in ("stream:genres", "stream:colisten", "stream:profile", "stream:taste_map"):
             await _defer(name, a)
     from musix.workers.app import app
 
@@ -98,7 +102,12 @@ async def nightly(timestamp: int) -> int:
 
 
 def register(app: procrastinate.App) -> None:
-    for name, fn in (("profile", profile), ("genres", genres), ("colisten", colisten)):
+    for name, fn in (
+        ("profile", profile),
+        ("genres", genres),
+        ("colisten", colisten),
+        ("taste_map", taste_map),
+    ):
         app.task(name=f"stream:{name}", queue="default")(fn)
     r = app.task(name="stream:refresh", queue="default")(refresh)
     app.periodic(cron="*/10 * * * *", periodic_id="stream_refresh")(r)

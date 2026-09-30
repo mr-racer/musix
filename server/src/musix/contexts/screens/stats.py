@@ -1,0 +1,245 @@
+"""The stats tab and the home page's «вайбики» / weekly pulse — v1's definitions, kept:
+a listen «counts» for top lists unless it was an early skip; completion is
+min(played / duration, 1); a finish is ≥ 90 % of the duration. Days and hours are the
+listener's local ones, from the client's UTC offset (minutes, UTC+3 → 180)."""
+
+from __future__ import annotations
+
+import asyncio
+import datetime as dt
+import uuid
+from typing import TYPE_CHECKING, Any
+
+import sqlalchemy as sa
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from musix.contexts.library.schemas import TrackOut
+from musix.contexts.screens import schemas as S
+from musix.contexts.stream.models import taste_maps, taste_profile
+
+if TYPE_CHECKING:
+    from musix.contexts.screens.service import Ctx
+
+LOCAL = "((l.started_at AT TIME ZONE 'UTC') + make_interval(mins => :tz))"
+WEEK_START = (
+    "((date_trunc('week', (now() AT TIME ZONE 'UTC') + make_interval(mins => :tz))"
+    " - make_interval(mins => :tz)) AT TIME ZONE 'UTC')"
+)
+LOVED_MIN_FINISHES, GUILTY_MIN_SKIPS, GUILTY_MAX_SECONDS, TOP_N = 2, 3, 10.0, 5
+
+_PULSE = sa.text(f"""
+WITH ev AS (
+    SELECT l.track_id, l.played_ms, l.skipped_early, extract(isodow FROM {LOCAL})::int AS dow
+    FROM listen_events l WHERE l.account_id = :a AND l.started_at >= {WEEK_START}
+)
+SELECT
+    (SELECT coalesce(sum(played_ms), 0) FROM ev),
+    (SELECT t.genre FROM ev JOIN tracks t ON t.id = ev.track_id
+     WHERE NOT ev.skipped_early AND t.genre <> '' GROUP BY t.genre ORDER BY count(*) DESC, t.genre
+     LIMIT 1),
+    (SELECT count(*) FROM account_track_stats
+     WHERE account_id = :a AND first_played_at >= {WEEK_START}),
+    (SELECT array_agg(coalesce(d.ms, 0) ORDER BY g) FROM generate_series(1, 7) g
+     LEFT JOIN (SELECT dow, sum(played_ms) AS ms FROM ev GROUP BY dow) d ON d.dow = g)
+""")
+_TOTALS = sa.text("""
+SELECT coalesce(sum(played_ms), 0), min(started_at),
+       avg(least(played_ms::float8 / duration_ms, 1)) FILTER (WHERE duration_ms > 0)
+FROM listen_events WHERE account_id = :a
+""")
+_PER_TRACK = sa.text("""
+SELECT track_id, count(*) AS plays,
+       count(*) FILTER (WHERE NOT skipped_early) AS kept,
+       avg(least(played_ms::float8 / duration_ms, 1)) FILTER (WHERE duration_ms > 0) AS comp,
+       count(*) FILTER (WHERE duration_ms > 0 AND played_ms >= 0.9 * duration_ms) AS finishes,
+       count(*) FILTER (WHERE skipped_early) AS skips,
+       avg(played_ms / 1000.0) FILTER (WHERE skipped_early) AS skip_sec
+FROM listen_events WHERE account_id = :a GROUP BY track_id
+""")
+_TOP_ARTIST = sa.text("""
+SELECT t.primary_artist_id, count(*) AS n FROM listen_events l JOIN tracks t ON t.id = l.track_id
+WHERE l.account_id = :a AND NOT l.skipped_early AND t.primary_artist_id IS NOT NULL
+GROUP BY 1 ORDER BY n DESC LIMIT 1
+""")
+_DAYS = sa.text(f"""
+SELECT {LOCAL}::date AS d, count(*) FROM listen_events l WHERE l.account_id = :a
+GROUP BY 1 ORDER BY 1
+""")
+_HOURS = sa.text(f"""
+SELECT extract(hour FROM {LOCAL})::int AS h, count(*), count(*) FILTER (WHERE NOT l.skipped_early)
+FROM listen_events l WHERE l.account_id = :a GROUP BY 1
+""")
+_DAY_TOP = sa.text(f"""
+SELECT l.track_id, count(*) AS n FROM listen_events l
+WHERE l.account_id = :a AND NOT l.skipped_early AND {LOCAL}::date = :d
+GROUP BY 1 ORDER BY n DESC, l.track_id LIMIT 1
+""")
+
+
+def local_today(tz: int) -> dt.date:
+    return (dt.datetime.now(dt.UTC) + dt.timedelta(minutes=tz)).date()
+
+
+async def pulse(c: Ctx, tz: int) -> S.WeeklyPulse:
+    row = (await c.run(lambda s: s.execute(_PULSE, {"a": c.account_id, "tz": tz}))).one()
+    return S.WeeklyPulse(
+        played_ms=int(row[0]),
+        top_genre=row[1],
+        discoveries=int(row[2]),
+        daily_ms=[int(x) for x in row[3]],
+    )
+
+
+async def vibe_rows(c: Ctx) -> list[dict[str, Any]]:
+    got = await c.run(
+        lambda s: s.scalar(
+            sa.select(taste_profile.c.vibes).where(taste_profile.c.account_id == c.account_id)
+        )
+    )
+    return list(got or [])
+
+
+async def vibes(
+    c: Ctx, rows: list[dict[str, Any]], by: dict[uuid.UUID, TrackOut]
+) -> list[S.VibeOut]:
+    out = []
+    for v in rows:
+        ts = [by[m] for m in map(uuid.UUID, v["members"]) if m in by]
+        if ts:
+            out.append(S.VibeOut(id=v["track"], weight=v["weight"], name=v.get("name"), tracks=ts))
+    return out
+
+
+def streaks(days: list[dt.date], today: dt.date) -> tuple[int, int]:
+    """(current, best): the current run ends today, or yesterday if nothing played yet."""
+    have = set(days)
+    best = run = 0
+    prev: dt.date | None = None
+    for d in sorted(have):
+        run = run + 1 if prev is not None and (d - prev).days == 1 else 1
+        best, prev = max(best, run), d
+    probe = today if today in have else today - dt.timedelta(days=1)
+    current = 0
+    while probe in have:
+        current, probe = current + 1, probe - dt.timedelta(days=1)
+    return current, best
+
+
+async def stats(c: Ctx, tz: int) -> S.StatsOut:
+    p = {"a": c.account_id, "tz": tz}
+
+    async def rows(q: sa.TextClause, s: AsyncSession) -> list[Any]:
+        return list((await s.execute(q, p)).all())
+
+    tot, per, art, days, hours = await asyncio.gather(
+        c.run(lambda s: rows(_TOTALS, s)),
+        c.run(lambda s: rows(_PER_TRACK, s)),
+        c.run(lambda s: rows(_TOP_ARTIST, s)),
+        c.run(lambda s: rows(_DAYS, s)),
+        c.run(lambda s: rows(_HOURS, s)),
+    )
+    played_ms, since, overall = tot[0]
+    top = max(per, key=lambda r: (r.kept, r.plays), default=None)
+    loved = sorted(
+        (r for r in per if r.finishes >= LOVED_MIN_FINISHES),
+        key=lambda r: (r.finishes, r.comp or 0.0),
+        reverse=True,
+    )[:TOP_N]
+    guilty = sorted(
+        (
+            r
+            for r in per
+            if r.skips >= GUILTY_MIN_SKIPS
+            and r.skip_sec is not None
+            and r.skip_sec < GUILTY_MAX_SECONDS
+        ),
+        key=lambda r: (r.skip_sec, -r.skips),
+    )[:TOP_N]
+    busiest = max(days, key=lambda r: r[1], default=None)
+    day_top = None
+    if busiest is not None:
+        day = busiest[0]
+        day_top = (await c.run(lambda s: s.execute(_DAY_TOP, {**p, "d": day}))).first()
+    want = [r.track_id for r in [*([top] if top and top.kept else []), *loved, *guilty]]
+    if day_top is not None:
+        want.append(day_top[0])
+    by = {t.id: t for t in await c.tracks(list(dict.fromkeys(want)))}
+
+    def plays(tid: uuid.UUID, n: int) -> S.TrackPlays | None:
+        return S.TrackPlays(track=by[tid], plays=n) if tid in by else None
+
+    def engaged(r: Any) -> S.EngagedTrack | None:
+        if r.track_id not in by:
+            return None
+        return S.EngagedTrack(
+            track=by[r.track_id],
+            plays=r.plays,
+            completion=round(float(r.comp or 0.0), 3),
+            finishes=r.finishes,
+            skips=r.skips,
+            skip_seconds=None if r.skip_sec is None else round(float(r.skip_sec), 1),
+        )
+
+    top_artist = None
+    if art:
+        from musix.contexts.screens.service import artists_by_ids
+
+        found = await artists_by_ids(c, [art[0][0]])
+        if found:
+            top_artist = S.ArtistPlays(artist=found[0], plays=art[0][1])
+    by_hour, kept_hour = [0] * 24, [0] * 24
+    for h, n, k in hours:
+        by_hour[h], kept_hour[h] = n, k
+    current, best = streaks([d for d, _ in days], local_today(tz))
+    loved_out = [e for e in map(engaged, loved) if e]
+    guilty_out = [e for e in map(engaged, guilty) if e]
+    top_track = plays(top.track_id, top.kept) if top is not None and top.kept else None
+    images = await c.images(
+        [
+            *(t.cover_image_id for t in by.values()),
+            top_artist.artist.image_id if top_artist else None,
+        ]
+    )
+    return S.StatsOut(
+        listening=S.Listening(
+            played_ms=int(played_ms),
+            since=since,
+            top_track=top_track,
+            top_artist=top_artist,
+            peak_hour=max(range(24), key=lambda h: kept_hour[h]) if any(kept_hour) else None,
+        ),
+        rhythm=S.Rhythm(
+            days=[S.DayCount(date=d, count=n) for d, n in days],
+            by_hour=by_hour,
+            streak_current=current,
+            streak_best=best,
+            busiest_day=S.BusiestDay(
+                date=busiest[0],
+                count=busiest[1],
+                top_track=plays(day_top[0], day_top[1]) if day_top is not None else None,
+            )
+            if busiest is not None
+            else None,
+        ),
+        engagement=S.Engagement(
+            overall_completion=round(float(overall or 0.0), 3),
+            loved=loved_out,
+            guilty=guilty_out,
+        ),
+        images=images,
+    )
+
+
+async def taste_map(c: Ctx) -> S.TasteMapOut:
+    row = (
+        await c.run(
+            lambda s: s.execute(
+                sa.select(taste_maps.c.data, taste_maps.c.updated_at).where(
+                    taste_maps.c.account_id == c.account_id
+                )
+            )
+        )
+    ).first()
+    if row is None:
+        return S.TasteMapOut(track_ids=[], x=[], y=[], cluster=[], clusters=[], updated_at=None)
+    return S.TasteMapOut.model_validate({**row.data, "updatedAt": row.updated_at})

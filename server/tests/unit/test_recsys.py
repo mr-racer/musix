@@ -91,3 +91,24 @@ def test_autoplay_order_keeps_v1_rules() -> None:
     assert got[-1] == "t3"  # ...to the tail; a track under 60 s never plays
     assert "short" not in got
     assert len(autoplay.order(c, skip=set(), limit=2)) == 2
+
+
+def test_vibes_form_from_similar_full_listens_and_dissolve_under_water() -> None:
+    import datetime as dt
+
+    from musix.recsys.replay import Signal
+    from musix.recsys.session import Listen
+    from musix.recsys.vibes import vibes
+
+    now = dt.datetime(2026, 9, 30, 12, tzinfo=dt.UTC)
+    base, other = np.eye(4)[0], np.eye(4)[1]
+    clap = {"a": base, "b": base + 0.05 * other, "c": other, "w": base + 0.01 * other}
+    ls = [
+        Listen(t, now - dt.timedelta(hours=h), 200_000, 200_000, None, None, "Rock")
+        for t, h in (("a", 1), ("b", 2), ("a", 3), ("c", 4))
+    ]
+    got = vibes(ls, [], clap, now)
+    assert [(v.track, sorted(v.members)) for v in got] == [("a", ["a", "b"])]  # «c» stands alone
+    one = [Signal("w", now, "water")]
+    assert [v.track for v in vibes(ls, one, clap, now)] == ["a"]  # 1.16 − 0.6 still ≥ 0.3
+    assert vibes(ls, [*one, Signal("w", now - dt.timedelta(hours=1), "water")], clap, now) == []

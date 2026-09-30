@@ -1,13 +1,15 @@
 import uuid
 from typing import Annotated, Any
 
+import sqlalchemy as sa
 from fastapi import APIRouter, Query, Request, Response
 
 from musix.api import etag
 from musix.api.deps import Auth
 from musix.contexts.identity.security import Principal
 from musix.contexts.screens import schemas as S
-from musix.contexts.screens import service
+from musix.contexts.screens import service, stats
+from musix.contexts.stream.models import taste_maps, taste_profile
 from musix.errors import Invalid
 from musix.schemas import ID_LIST
 
@@ -32,11 +34,51 @@ def _uuids(raw: str) -> list[uuid.UUID]:
         raise Invalid("ids must be uuids") from e
 
 
+TzOffset = Annotated[
+    int, Query(alias="tzOffsetMinutes", ge=-840, le=840, description="UTC+3 → 180")
+]
+
+
+def _profile_version(account_id: uuid.UUID) -> Any:
+    return (
+        sa.select(taste_profile.c.updated_at)
+        .where(taste_profile.c.account_id == account_id)
+        .scalar_subquery()
+    )
+
+
 @router.get("/home", response_model=S.HomeOut, responses=etag.NOT_MODIFIED)
-async def home(p: Auth, request: Request, response: Response) -> Any:
-    tag, head = await etag.versioned_tag(request, p.account_id, "home", with_plays=True)
+async def home(p: Auth, request: Request, response: Response, tz: TzOffset = 0) -> Any:
+    # the pulse resets on the local Monday; «вайбики» change when the profile job runs
+    shape = f"home:{tz}:{stats.local_today(tz).isocalendar()[:2]}"
+    tag, head = await etag.versioned_tag(
+        request, p.account_id, shape, with_plays=True, also=(_profile_version(p.account_id),)
+    )
     return await etag.conditional(
-        request, response, tag, lambda: service.home(_ctx(request, p), head)
+        request, response, tag, lambda: service.home(_ctx(request, p), head, tz)
+    )
+
+
+@router.get("/stats", response_model=S.StatsOut, responses=etag.NOT_MODIFIED)
+async def stats_tab(p: Auth, request: Request, response: Response, tz: TzOffset = 0) -> Any:
+    """Listening summary, rhythm and engagement (the current streak moves with the day)."""
+    tag = await _tag(request, p, f"stats:{tz}:{stats.local_today(tz)}", with_plays=True)
+    return await etag.conditional(request, response, tag, lambda: stats.stats(_ctx(request, p), tz))
+
+
+@router.get("/stats/map", response_model=S.TasteMapOut, responses=etag.NOT_MODIFIED)
+async def taste_map(p: Auth, request: Request, response: Response) -> Any:
+    """«Сонар вкуса»: a separate shape — ~300 KB for a big library, rebuilt nightly."""
+    at = _map_version(p.account_id)
+    tag, _ = await etag.versioned_tag(request, p.account_id, "map", also=(at,))
+    return await etag.conditional(request, response, tag, lambda: stats.taste_map(_ctx(request, p)))
+
+
+def _map_version(account_id: uuid.UUID) -> Any:
+    return (
+        sa.select(taste_maps.c.updated_at)
+        .where(taste_maps.c.account_id == account_id)
+        .scalar_subquery()
     )
 
 

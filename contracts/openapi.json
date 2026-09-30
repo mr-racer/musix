@@ -411,6 +411,23 @@
         "title": "ArtistPageOut",
         "type": "object"
       },
+      "ArtistPlays": {
+        "properties": {
+          "artist": {
+            "$ref": "#/components/schemas/ArtistOut"
+          },
+          "plays": {
+            "title": "Plays",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "artist",
+          "plays"
+        ],
+        "title": "ArtistPlays",
+        "type": "object"
+      },
       "ArtistRef": {
         "properties": {
           "id": {
@@ -564,6 +581,36 @@
         "title": "AutoplayOut",
         "type": "object"
       },
+      "BusiestDay": {
+        "properties": {
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "date": {
+            "format": "date",
+            "title": "Date",
+            "type": "string"
+          },
+          "topTrack": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TrackPlays"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "date",
+          "count",
+          "topTrack"
+        ],
+        "title": "BusiestDay",
+        "type": "object"
+      },
       "Counts": {
         "properties": {
           "albums": {
@@ -590,6 +637,25 @@
           "playlists"
         ],
         "title": "Counts",
+        "type": "object"
+      },
+      "DayCount": {
+        "properties": {
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "date": {
+            "format": "date",
+            "title": "Date",
+            "type": "string"
+          }
+        },
+        "required": [
+          "date",
+          "count"
+        ],
+        "title": "DayCount",
         "type": "object"
       },
       "DeviceIn": {
@@ -680,6 +746,79 @@
           "lastSeenAt"
         ],
         "title": "DeviceOut",
+        "type": "object"
+      },
+      "EngagedTrack": {
+        "properties": {
+          "completion": {
+            "title": "Completion",
+            "type": "number"
+          },
+          "finishes": {
+            "title": "Finishes",
+            "type": "integer"
+          },
+          "plays": {
+            "title": "Plays",
+            "type": "integer"
+          },
+          "skipSeconds": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Skipseconds"
+          },
+          "skips": {
+            "title": "Skips",
+            "type": "integer"
+          },
+          "track": {
+            "$ref": "#/components/schemas/TrackOut"
+          }
+        },
+        "required": [
+          "track",
+          "plays",
+          "completion",
+          "finishes",
+          "skips",
+          "skipSeconds"
+        ],
+        "title": "EngagedTrack",
+        "type": "object"
+      },
+      "Engagement": {
+        "properties": {
+          "guilty": {
+            "items": {
+              "$ref": "#/components/schemas/EngagedTrack"
+            },
+            "title": "Guilty",
+            "type": "array"
+          },
+          "loved": {
+            "items": {
+              "$ref": "#/components/schemas/EngagedTrack"
+            },
+            "title": "Loved",
+            "type": "array"
+          },
+          "overallCompletion": {
+            "title": "Overallcompletion",
+            "type": "number"
+          }
+        },
+        "required": [
+          "overallCompletion",
+          "loved",
+          "guilty"
+        ],
+        "title": "Engagement",
         "type": "object"
       },
       "FeedbackIn": {
@@ -797,6 +936,9 @@
             "title": "Playlists",
             "type": "array"
           },
+          "pulse": {
+            "$ref": "#/components/schemas/WeeklyPulse"
+          },
           "recent": {
             "items": {
               "$ref": "#/components/schemas/TrackOut"
@@ -810,6 +952,13 @@
             },
             "title": "Recentlyadded",
             "type": "array"
+          },
+          "vibes": {
+            "items": {
+              "$ref": "#/components/schemas/VibeOut"
+            },
+            "title": "Vibes",
+            "type": "array"
           }
         },
         "required": [
@@ -817,6 +966,8 @@
           "recentlyAdded",
           "playlists",
           "counts",
+          "vibes",
+          "pulse",
           "images"
         ],
         "title": "HomeOut",
@@ -1337,6 +1488,66 @@
         "title": "ListenIn",
         "type": "object"
       },
+      "Listening": {
+        "properties": {
+          "peakHour": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Peakhour"
+          },
+          "playedMs": {
+            "title": "Playedms",
+            "type": "integer"
+          },
+          "since": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Since"
+          },
+          "topArtist": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ArtistPlays"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "topTrack": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TrackPlays"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "playedMs",
+          "since",
+          "topTrack",
+          "topArtist",
+          "peakHour"
+        ],
+        "title": "Listening",
+        "type": "object"
+      },
       "LoginIn": {
         "properties": {
           "device": {
@@ -1542,6 +1753,58 @@
           "items"
         ],
         "title": "ManifestOut",
+        "type": "object"
+      },
+      "MapCluster": {
+        "properties": {
+          "cx": {
+            "title": "Cx",
+            "type": "number"
+          },
+          "cy": {
+            "title": "Cy",
+            "type": "number"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "nameEn": {
+            "title": "Nameen",
+            "type": "string"
+          },
+          "nameRu": {
+            "title": "Nameru",
+            "type": "string"
+          },
+          "sampleTrackIds": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "title": "Sampletrackids",
+            "type": "array"
+          },
+          "size": {
+            "title": "Size",
+            "type": "integer"
+          },
+          "spread": {
+            "title": "Spread",
+            "type": "number"
+          }
+        },
+        "required": [
+          "id",
+          "nameRu",
+          "nameEn",
+          "size",
+          "cx",
+          "cy",
+          "spread",
+          "sampleTrackIds"
+        ],
+        "title": "MapCluster",
         "type": "object"
       },
       "Palette": {
@@ -2056,6 +2319,51 @@
         "title": "RegisterIn",
         "type": "object"
       },
+      "Rhythm": {
+        "properties": {
+          "busiestDay": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BusiestDay"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "byHour": {
+            "items": {
+              "type": "integer"
+            },
+            "title": "Byhour",
+            "type": "array"
+          },
+          "days": {
+            "items": {
+              "$ref": "#/components/schemas/DayCount"
+            },
+            "title": "Days",
+            "type": "array"
+          },
+          "streakBest": {
+            "title": "Streakbest",
+            "type": "integer"
+          },
+          "streakCurrent": {
+            "title": "Streakcurrent",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "days",
+          "byHour",
+          "streakCurrent",
+          "streakBest",
+          "busiestDay"
+        ],
+        "title": "Rhythm",
+        "type": "object"
+      },
       "ScanIn": {
         "properties": {
           "accountId": {
@@ -2486,6 +2794,34 @@
         "title": "Source",
         "type": "object"
       },
+      "StatsOut": {
+        "properties": {
+          "engagement": {
+            "$ref": "#/components/schemas/Engagement"
+          },
+          "images": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/ImageData"
+            },
+            "title": "Images",
+            "type": "object"
+          },
+          "listening": {
+            "$ref": "#/components/schemas/Listening"
+          },
+          "rhythm": {
+            "$ref": "#/components/schemas/Rhythm"
+          }
+        },
+        "required": [
+          "listening",
+          "rhythm",
+          "engagement",
+          "images"
+        ],
+        "title": "StatsOut",
+        "type": "object"
+      },
       "StreamItem": {
         "properties": {
           "pool": {
@@ -2662,6 +2998,69 @@
           "hasMore"
         ],
         "title": "SyncPage",
+        "type": "object"
+      },
+      "TasteMapOut": {
+        "description": "«Сонар вкуса», computed nightly; empty until the first run or under 8 tracks.\nPoints are parallel lists (x, y in ~[-1, 1]; cluster indexes `clusters`).",
+        "properties": {
+          "cluster": {
+            "items": {
+              "type": "integer"
+            },
+            "title": "Cluster",
+            "type": "array"
+          },
+          "clusters": {
+            "items": {
+              "$ref": "#/components/schemas/MapCluster"
+            },
+            "title": "Clusters",
+            "type": "array"
+          },
+          "trackIds": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "title": "Trackids",
+            "type": "array"
+          },
+          "updatedAt": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updatedat"
+          },
+          "x": {
+            "items": {
+              "type": "number"
+            },
+            "title": "X",
+            "type": "array"
+          },
+          "y": {
+            "items": {
+              "type": "number"
+            },
+            "title": "Y",
+            "type": "array"
+          }
+        },
+        "required": [
+          "trackIds",
+          "x",
+          "y",
+          "cluster",
+          "clusters",
+          "updatedAt"
+        ],
+        "title": "TasteMapOut",
         "type": "object"
       },
       "Tokens": {
@@ -2960,6 +3359,23 @@
         "title": "TrackOut",
         "type": "object"
       },
+      "TrackPlays": {
+        "properties": {
+          "plays": {
+            "title": "Plays",
+            "type": "integer"
+          },
+          "track": {
+            "$ref": "#/components/schemas/TrackOut"
+          }
+        },
+        "required": [
+          "track",
+          "plays"
+        ],
+        "title": "TrackPlays",
+        "type": "object"
+      },
       "TrackStats": {
         "properties": {
           "lastPlayedAt": {
@@ -3045,6 +3461,85 @@
           }
         },
         "title": "UploadOut",
+        "type": "object"
+      },
+      "VibeOut": {
+        "description": "A «вайбик»: tapping it plays /stream/autoplay seeded by the first track.",
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "tracks": {
+            "items": {
+              "$ref": "#/components/schemas/TrackOut"
+            },
+            "title": "Tracks",
+            "type": "array"
+          },
+          "weight": {
+            "title": "Weight",
+            "type": "number"
+          }
+        },
+        "required": [
+          "id",
+          "weight",
+          "name",
+          "tracks"
+        ],
+        "title": "VibeOut",
+        "type": "object"
+      },
+      "WeeklyPulse": {
+        "description": "This local week (Monday..now): time listened, top genre, first-ever listens.",
+        "properties": {
+          "dailyMs": {
+            "items": {
+              "type": "integer"
+            },
+            "title": "Dailyms",
+            "type": "array"
+          },
+          "discoveries": {
+            "title": "Discoveries",
+            "type": "integer"
+          },
+          "playedMs": {
+            "title": "Playedms",
+            "type": "integer"
+          },
+          "topGenre": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Topgenre"
+          }
+        },
+        "required": [
+          "playedMs",
+          "topGenre",
+          "discoveries",
+          "dailyMs"
+        ],
+        "title": "WeeklyPulse",
         "type": "object"
       }
     },
@@ -4521,6 +5016,22 @@
     "/api/v2/home": {
       "get": {
         "operationId": "home_api_v2_home_get",
+        "parameters": [
+          {
+            "description": "UTC+3 → 180",
+            "in": "query",
+            "name": "tzOffsetMinutes",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "description": "UTC+3 → 180",
+              "maximum": 840,
+              "minimum": -840,
+              "title": "Tzoffsetminutes",
+              "type": "integer"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "content": {
@@ -7242,6 +7753,222 @@
         "summary": "Signal State",
         "tags": [
           "listening"
+        ]
+      }
+    },
+    "/api/v2/stats": {
+      "get": {
+        "description": "Listening summary, rhythm and engagement (the current streak moves with the day).",
+        "operationId": "stats_tab_api_v2_stats_get",
+        "parameters": [
+          {
+            "description": "UTC+3 → 180",
+            "in": "query",
+            "name": "tzOffsetMinutes",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "description": "UTC+3 → 180",
+              "maximum": 840,
+              "minimum": -840,
+              "title": "Tzoffsetminutes",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatsOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "304": {
+            "description": "Not modified"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Validation failed"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Rate limited"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Stats Tab",
+        "tags": [
+          "screens"
+        ]
+      }
+    },
+    "/api/v2/stats/map": {
+      "get": {
+        "description": "«Сонар вкуса»: a separate shape — ~300 KB for a big library, rebuilt nightly.",
+        "operationId": "taste_map_api_v2_stats_map_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TasteMapOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "304": {
+            "description": "Not modified"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Validation failed"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Rate limited"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Taste Map",
+        "tags": [
+          "screens"
         ]
       }
     },

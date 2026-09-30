@@ -103,3 +103,43 @@ async def test_search_finds_only_the_accounts_own_tracks(
     assert songs  # B finds its own copy of the song...
     assert not set(songs) & {str(t) for t in mine}  # ...never A's
     assert got["degraded"] == []
+
+
+def test_stats_and_the_weekly_pulse_count_local_days(client: TestClient, listener) -> None:  # type: ignore[no-untyped-def]
+    import datetime as dt
+
+    tok, _, (a, *_) = listener
+    h = bearer(tok)
+    dur = next(
+        t
+        for t in client.get("/api/v2/home", headers=h).json()["recentlyAdded"]
+        if t["id"] == str(a)
+    )["durationMs"]
+    now = dt.datetime.now(dt.UTC)
+    evs = [
+        {
+            "clientEventId": str(uuid.uuid4()),
+            "sessionId": "s",
+            "trackId": str(a),
+            "startedAt": (now - dt.timedelta(minutes=m)).isoformat(),
+            "playedMs": dur,
+            "durationMs": dur,
+            "endReason": "completed",
+        }
+        for m in (2, 1)
+    ]
+    assert (
+        client.post("/api/v2/events/listens:batch", json={"events": evs}, headers=h).status_code
+        < 300
+    )
+    q = {"tzOffsetMinutes": 180}
+    st = client.get("/api/v2/stats", params=q, headers=h).json()
+    assert st["listening"]["topTrack"]["track"]["id"] == str(a)
+    assert st["listening"]["topTrack"]["plays"] == 2
+    assert [d["count"] for d in st["rhythm"]["days"]] == [2]
+    assert st["rhythm"]["streakCurrent"] == st["rhythm"]["streakBest"] == 1
+    assert [t["track"]["id"] for t in st["engagement"]["loved"]] == [str(a)]
+    pulse = client.get("/api/v2/home", params=q, headers=h).json()["pulse"]
+    assert pulse["playedMs"] == sum(pulse["dailyMs"]) == 2 * dur
+    assert pulse["discoveries"] == 1
+    assert client.get("/api/v2/stats/map", headers=h).json()["trackIds"] == []

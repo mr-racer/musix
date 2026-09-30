@@ -40,12 +40,112 @@ class Counts(Model):
     playlists: int
 
 
+class VibeOut(Model):
+    """A «вайбик»: tapping it plays /stream/autoplay seeded by the first track."""
+
+    id: uuid.UUID  # the representative track
+    weight: float
+    name: str | None  # the AI name, once the knowledge base has one
+    tracks: list[TrackOut]  # representative first
+
+
+class WeeklyPulse(Model):
+    """This local week (Monday..now): time listened, top genre, first-ever listens."""
+
+    played_ms: int
+    top_genre: str | None
+    discoveries: int
+    daily_ms: list[int]  # Monday..Sunday
+
+
 class HomeOut(Model):
     recent: list[TrackOut]  # last played first
     recently_added: list[TrackOut]
     playlists: list[PlaylistOut]
     counts: Counts
+    vibes: list[VibeOut]
+    pulse: WeeklyPulse
     images: dict[str, ImageData]
+
+
+class TrackPlays(Model):
+    track: TrackOut
+    plays: int
+
+
+class ArtistPlays(Model):
+    artist: ArtistOut
+    plays: int
+
+
+class Listening(Model):
+    played_ms: int
+    since: dt.datetime | None
+    top_track: TrackPlays | None  # most non-skipped listens
+    top_artist: ArtistPlays | None
+    peak_hour: int | None  # local hour with most non-skipped listens
+
+
+class DayCount(Model):
+    date: dt.date  # local
+    count: int
+
+
+class BusiestDay(DayCount):
+    top_track: TrackPlays | None
+
+
+class Rhythm(Model):
+    days: list[DayCount]
+    by_hour: list[int]  # 24, local
+    streak_current: int  # consecutive days to local today (yesterday counts as grace)
+    streak_best: int
+    busiest_day: BusiestDay | None
+
+
+class EngagedTrack(Model):
+    track: TrackOut
+    plays: int
+    completion: float  # mean of min(played / duration, 1)
+    finishes: int  # ≥ 90 % of the duration
+    skips: int
+    skip_seconds: float | None  # mean seconds heard before a skip
+
+
+class Engagement(Model):
+    overall_completion: float
+    loved: list[EngagedTrack]  # finished most (≥ 2)
+    guilty: list[EngagedTrack]  # dropped fastest (≥ 3 skips, typically < 10 s)
+
+
+class StatsOut(Model):
+    listening: Listening
+    rhythm: Rhythm
+    engagement: Engagement
+    images: dict[str, ImageData]
+
+
+class MapCluster(Model):
+    id: int
+    name_ru: str
+    name_en: str
+    size: int
+    cx: float
+    cy: float
+    spread: float
+    sample_track_ids: list[uuid.UUID]
+
+
+class TasteMapOut(Model):
+    """«Сонар вкуса», computed nightly; empty until the first run or under 8 tracks.
+    Points are parallel lists (x, y in ~[-1, 1]; cluster indexes `clusters`)."""
+
+    track_ids: list[uuid.UUID]
+    x: list[float]
+    y: list[float]
+    cluster: list[int]
+    clusters: list[MapCluster]
+    updated_at: dt.datetime | None
 
 
 class GenreCount(Model):

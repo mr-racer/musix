@@ -24,7 +24,11 @@ async def tag_for(
 
 
 async def versioned_tag(
-    request: Request, account_id: uuid.UUID, shape: str, with_plays: bool = False
+    request: Request,
+    account_id: uuid.UUID,
+    shape: str,
+    with_plays: bool = False,
+    also: tuple[Any, ...] = (),
 ) -> tuple[str, int]:
     """(ETag, change_log head). The tag hashes the head plus, for shapes that rank by
     listening (not change-logged), the latest play; the head doubles as a cache key."""
@@ -40,6 +44,7 @@ async def versioned_tag(
             .where(st.account_id == account_id)
             .scalar_subquery()
         )
+    cols.extend(also)  # further versions a shape depends on (scalar subqueries)
     async with request.app.state.sessionmaker() as s:
         version = tuple((await s.execute(sa.select(*cols))).one())
     return make(shape, account_id, version), int(version[0] or 0)

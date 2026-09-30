@@ -100,9 +100,11 @@ async def counts(c: Ctx, head: int | None = None) -> S.Counts:
     return out
 
 
-async def home(c: Ctx, head: int | None = None) -> S.HomeOut:
+async def home(c: Ctx, head: int | None = None, tz: int = 0) -> S.HomeOut:
+    from musix.contexts.screens import stats
+
     live = sa.select(T.id).where(T.id == St.track_id, T.deleted_at.is_(None))
-    recent_ids, added_ids, pls, cnt = await asyncio.gather(
+    recent_ids, added_ids, pls, cnt, vibe_rows, pulse = await asyncio.gather(
         _ids(  # walks account_track_stats_recent_idx, probing tracks by key
             c,
             sa.select(St.track_id)
@@ -113,14 +115,25 @@ async def home(c: Ctx, head: int | None = None) -> S.HomeOut:
         _ids(c, sa.select(T.id).where(c.live()).order_by(T.added_at.desc()).limit(20)),
         c.run(lambda s: list_playlists(s, c.account_id)),
         counts(c, head),
+        stats.vibe_rows(c),
+        stats.pulse(c, tz),
     )
-    both = await c.tracks(list(dict.fromkeys([*recent_ids, *added_ids])))
+    members = [uuid.UUID(m) for v in vibe_rows for m in v["members"]]
+    both = await c.tracks(list(dict.fromkeys([*recent_ids, *added_ids, *members])))
     by = {t.id: t for t in both}
     recent = [by[i] for i in recent_ids if i in by]
     added = [by[i] for i in added_ids if i in by]
     pls = pls[:12]
     imgs = await c.images([*_covers(both), *(p.cover_image_id for p in pls)])
-    return S.HomeOut(recent=recent, recently_added=added, playlists=pls, counts=cnt, images=imgs)
+    return S.HomeOut(
+        recent=recent,
+        recently_added=added,
+        playlists=pls,
+        counts=cnt,
+        vibes=await stats.vibes(c, vibe_rows, by),
+        pulse=pulse,
+        images=imgs,
+    )
 
 
 async def library_summary(c: Ctx, head: int | None = None) -> S.LibrarySummaryOut:

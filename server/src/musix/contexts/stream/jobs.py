@@ -24,10 +24,13 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from musix.contexts.library.models import media_files, tracks
 from musix.contexts.listening.models import listen_events, taste_signals
-from musix.contexts.stream.models import colisten_vectors, stream_genres, taste_profile
+from musix.contexts.stream.models import colisten_vectors, stream_genres, taste_maps, taste_profile
 from musix.infra.vectors import TRACKS, owned_by
+from musix.recsys import tastemap
 from musix.recsys.outcome import outcome
+from musix.recsys.replay import Signal
 from musix.recsys.session import Listen, sessions
+from musix.recsys.vibes import vibes as vibes_of
 
 SM = async_sessionmaker[AsyncSession]
 T = tracks.c
@@ -100,7 +103,12 @@ def genre_tolerance(ls: list[Listen]) -> int:
     return TOLERANCE_DEFAULT  # no personal signal within 10: the study's default
 
 
-async def profile(sm: SM, account_id: uuid.UUID, now: dt.datetime | None = None) -> None:
+async def profile(
+    sm: SM,
+    account_id: uuid.UUID,
+    now: dt.datetime | None = None,
+    q: AsyncQdrantClient | None = None,
+) -> None:
     now = now or dt.datetime.now(dt.UTC)
     async with sm() as s:
         ls = await listens(s, account_id)
@@ -108,6 +116,13 @@ async def profile(sm: SM, account_id: uuid.UUID, now: dt.datetime | None = None)
             await s.execute(
                 sa.select(taste_signals.c.track_id, taste_signals.c.created_at).where(
                     taste_signals.c.account_id == account_id, taste_signals.c.kind == "fire"
+                )
+            )
+        ).all()
+        waters = (
+            await s.execute(
+                sa.select(taste_signals.c.track_id, taste_signals.c.created_at).where(
+                    taste_signals.c.account_id == account_id, taste_signals.c.kind == "water"
                 )
             )
         ).all()
@@ -122,10 +137,23 @@ async def profile(sm: SM, account_id: uuid.UUID, now: dt.datetime | None = None)
     for tid, at in fires:
         w[str(tid)] += W_FIRE * decay(at)
     top = sorted(w.items(), key=lambda kv: -kv[1])[:LONG_TOP]
+    vibe_rows: list[dict[str, Any]] = []
+    if q is not None:  # «вайбики»: the last 10 days' listens and every signal
+        recent = [x for x in ls if (now - x.at).days <= 10]
+        sigs = [Signal(str(t), at, "fire") for t, at in fires] + [
+            Signal(str(t), at, "water") for t, at in waters
+        ]
+        involved = {x.track_id for x in recent} | {g.track_id for g in sigs}
+        clap = await _clap_for_tracks(sm, q, account_id, involved)
+        vibe_rows = [
+            {"track": v.track, "weight": v.weight, "members": v.members}
+            for v in vibes_of(recent, sigs, clap, now)
+        ]
     row = {
         "account_id": account_id,
         "long_positives": [[t, round(v, 5)] for t, v in top],
         "genre_tolerance": genre_tolerance(ls),
+        "vibes": vibe_rows,
         "listens_seen": len(ls),
         "updated_at": now,
     }
@@ -261,6 +289,55 @@ async def colisten(sm: SM, account_id: uuid.UUID) -> None:
     async with sm() as s:
         await s.execute(
             pg_insert(colisten_vectors)
+            .values(**row)
+            .on_conflict_do_update(index_elements=["account_id"], set_=row)
+        )
+        await s.commit()
+
+
+async def _clap_for_tracks(
+    sm: SM, q: AsyncQdrantClient, account_id: uuid.UUID, track_ids: set[str]
+) -> dict[str, np.ndarray]:
+    if not track_ids:
+        return {}
+    async with sm() as s:
+        rows = (
+            await s.execute(
+                sa.select(T.id, T.media_file_id).where(
+                    T.account_id == account_id, T.id.in_([uuid.UUID(t) for t in track_ids])
+                )
+            )
+        ).all()
+    by_mf = {str(mf): str(t) for t, mf in rows}
+    pts = await q.retrieve(TRACKS, list(by_mf), with_vectors=["clap"], with_payload=False)
+    return {
+        by_mf[str(p.id)]: np.asarray(p.vector["clap"], np.float32)
+        for p in pts
+        if isinstance(p.vector, dict) and p.vector.get("clap")
+    }
+
+
+async def taste_map(sm: SM, q: AsyncQdrantClient, account_id: uuid.UUID) -> None:
+    clap = await clap_of(q, account_id)
+    async with sm() as s:
+        rows = (
+            await s.execute(
+                sa.select(T.id, T.media_file_id, media_files.c.axes)
+                .join(media_files, media_files.c.id == T.media_file_id)
+                .where(T.account_id == account_id, T.deleted_at.is_(None))
+                .order_by(T.id)
+            )
+        ).all()
+    rows = [r for r in rows if str(r.media_file_id) in clap]
+    data = tastemap.build(
+        [str(r.id) for r in rows],
+        np.stack([clap[str(r.media_file_id)] for r in rows]) if rows else np.zeros((0, 512)),
+        [r.axes for r in rows],
+    )
+    row = {"account_id": account_id, "data": data, "updated_at": dt.datetime.now(dt.UTC)}
+    async with sm() as s:
+        await s.execute(
+            pg_insert(taste_maps)
             .values(**row)
             .on_conflict_do_update(index_elements=["account_id"], set_=row)
         )

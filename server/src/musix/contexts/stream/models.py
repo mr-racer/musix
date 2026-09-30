@@ -14,6 +14,14 @@ taste_profile = sa.Table(
     sa.Column("genre_tolerance", sa.Integer, nullable=False),
     sa.Column("listens_seen", sa.BigInteger, nullable=False),
     sa.Column("updated_at", TS, nullable=False),
+    sa.Column("vibes", JSONB, nullable=False, server_default="[]"),
+)
+taste_maps = sa.Table(
+    "taste_maps",
+    metadata,
+    sa.Column("account_id", U, primary_key=True),
+    sa.Column("data", JSONB, nullable=False),
+    sa.Column("updated_at", TS, nullable=False),
 )
 stream_genres = sa.Table(
     "stream_genres",

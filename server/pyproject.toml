@@ -62,6 +62,7 @@ ignore = ["S101", "RUF001", "RUF002", "RUF003"]  # asserts in tests; −, × and
 "src/musix/contexts/library/{tags,sanitizer,artist_split,slug}.py" = ["E", "W", "B", "UP", "RUF", "SIM", "S", "I"]
 "src/musix/contexts/search/normalize.py" = ["E", "W", "B", "UP", "RUF", "SIM", "S", "I"]  # v1 text_normalize, verbatim
 "src/musix/contexts/stream/{candidates,service,state}.py" = ["E501", "S608"]  # SQL reads better unwrapped; constants only
+"src/musix/contexts/screens/stats.py" = ["E501", "S608"]  # SQL fragments are module constants
 
 [tool.mypy]
 strict = true
