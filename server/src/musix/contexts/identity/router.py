@@ -1,40 +1,81 @@
 import uuid
-from typing import Any
+from typing import Annotated, Any
 
-from fastapi import APIRouter, Request, Response
+from fastapi import APIRouter, Cookie, Request, Response
 
 from musix.api.deps import Auth, Keys, Owner, Session
 from musix.contexts.identity import schemas as S
+from musix.contexts.identity import security as sec
 from musix.contexts.identity import service
+from musix.errors import Unauthorized, problem
 from musix.infra import llm
 
 router = APIRouter(tags=["identity"])
 
+# The web keeps its refresh token where script cannot read it: an HttpOnly cookie scoped
+# to the auth routes. The access token stays in the page's memory; a reload refreshes once.
+COOKIE = "mx_rt"
+COOKIE_PATH = "/api/v2/auth"
+WebCookie = Annotated[str | None, Cookie(alias=COOKIE, include_in_schema=False)]
+
+
+def _for(platform: str, tokens: S.Tokens, response: Response) -> S.Tokens:
+    if platform != "web":
+        return tokens
+    response.set_cookie(
+        COOKIE,
+        tokens.refresh_token or "",
+        max_age=int(sec.REFRESH_TTL.total_seconds()),
+        path=COOKIE_PATH,
+        secure=True,
+        httponly=True,
+        samesite="strict",
+    )
+    return tokens.model_copy(update={"refresh_token": None})
+
 
 @router.post("/auth/setup", response_model=S.Tokens, status_code=201)
-async def setup(body: S.SetupIn, s: Session, k: Keys) -> S.Tokens:
-    return await service.setup(s, k, body)
+async def setup(body: S.SetupIn, s: Session, k: Keys, response: Response) -> S.Tokens:
+    return _for(body.device.platform, await service.setup(s, k, body), response)
 
 
 @router.post("/auth/login", response_model=S.Tokens)
-async def login(body: S.LoginIn, s: Session, k: Keys) -> S.Tokens:
-    return await service.login(s, k, body)
+async def login(body: S.LoginIn, s: Session, k: Keys, response: Response) -> S.Tokens:
+    return _for(body.device.platform, await service.login(s, k, body), response)
 
 
 @router.post("/auth/register", response_model=S.Tokens, status_code=201)
-async def register(body: S.RegisterIn, s: Session, k: Keys) -> S.Tokens:
-    return await service.register(s, k, body)
+async def register(body: S.RegisterIn, s: Session, k: Keys, response: Response) -> S.Tokens:
+    return _for(body.device.platform, await service.register(s, k, body), response)
 
 
-@router.post("/auth/refresh", response_model=S.Tokens)
-async def refresh(body: S.RefreshIn, s: Session, k: Keys) -> S.Tokens:
-    return await service.refresh(s, k, body.refresh_token)
+@router.post("/auth/refresh", response_model=S.Tokens, responses={401: {}})
+async def refresh(
+    s: Session,
+    k: Keys,
+    response: Response,
+    cookie: WebCookie = None,
+    body: S.RefreshIn | None = None,
+) -> Any:
+    """Native clients send `refreshToken`; the web sends no body and its cookie is read."""
+    if body is not None and body.refresh_token:
+        return await service.refresh(s, k, body.refresh_token)
+    if not cookie:
+        raise Unauthorized("no refresh token")
+    try:
+        return _for("web", await service.refresh(s, k, cookie), response)
+    except Unauthorized as e:  # a dead cookie is dropped, so the page stops presenting it
+        out = problem(e.status, e.title, e.detail)
+        out.delete_cookie(COOKIE, path=COOKIE_PATH, secure=True, httponly=True, samesite="strict")
+        return out
 
 
 @router.post("/auth/logout", status_code=204)
 async def logout(p: Auth, s: Session) -> Response:
     await service.revoke_device(s, p.account_id, p.device_id)
-    return Response(status_code=204)
+    out = Response(status_code=204)
+    out.delete_cookie(COOKIE, path=COOKIE_PATH, secure=True, httponly=True, samesite="strict")
+    return out
 
 
 @router.get("/devices", response_model=list[S.DeviceOut])

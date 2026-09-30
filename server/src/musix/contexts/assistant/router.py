@@ -10,9 +10,13 @@ from musix.contexts.assistant import service
 router = APIRouter(tags=["assistant"])
 
 
-async def _queue(
-    request: Request, s: Any, account_id: uuid.UUID, kind: str, body: Any
-) -> S.TurnAccepted:
+async def _queue(request: Request, s: Any, p: Any, kind: str, body: Any) -> S.TurnAccepted:
+    from musix.contexts.admin.service import ai_allowed
+    from musix.errors import Forbidden
+
+    if not await ai_allowed(s, p.role):
+        raise Forbidden("the owner has turned AI off for members")
+    account_id = p.account_id
     turn_id = await service.create(s, account_id, kind, body.model_dump(mode="json"))
     await s.commit()
     await request.app.state.queue.configure_task("assistant:turn", priority=10).defer_async(
@@ -27,7 +31,7 @@ async def assistant_turn(
 ) -> S.TurnAccepted:
     """One message to the assistant. Progress: `assistant.stage` over the WebSocket;
     then `assistant.done`, and the result is `GET /assistant/turns/{turnId}`."""
-    return await _queue(request, s, p.account_id, "assistant", body)
+    return await _queue(request, s, p, "assistant", body)
 
 
 @router.post("/track-chat/turns", response_model=S.TurnAccepted, status_code=202)
@@ -39,7 +43,7 @@ async def track_chat_turn(
         from musix.errors import Invalid
 
         raise Invalid("selected_line is required for mode=lyric_explain")
-    return await _queue(request, s, p.account_id, "track_chat", body)
+    return await _queue(request, s, p, "track_chat", body)
 
 
 @router.get("/assistant/turns/{turn_id}", response_model=S.TurnOut)

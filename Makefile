@@ -61,6 +61,18 @@ android-check:
 android-emu:
 	tools/android/emu.sh up
 
+# ── web client (web/, phase 5): caches on /mnt/data (the system disk is small) ───
+.PHONY: web web-dev web-check web-e2e
+WEB_ENV = export npm_config_cache=/mnt/data/.cache/npm PLAYWRIGHT_BROWSERS_PATH=/mnt/data/.cache/ms-playwright && cd web
+web:
+	$(WEB_ENV) && npm ci --silent && npm run -s build
+web-dev:  # Vite on :5173 → api-snap (the migrated data) and the dev nginx media
+	$(WEB_ENV) && npm run dev
+web-check:
+	$(WEB_ENV) && npm run -s typecheck && npm test
+web-e2e:
+	$(WEB_ENV) && npm run -s e2e
+
 # ── prod snapshot (tools/snapshot) ──────────────────────────────────────────
 .PHONY: snapshot snapshot-restore
 snapshot:

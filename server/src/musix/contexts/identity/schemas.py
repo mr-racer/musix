@@ -37,12 +37,13 @@ class RegisterIn(Model):
 
 
 class RefreshIn(Model):
-    refresh_token: str = Field(min_length=1, max_length=256)
+    # native clients send it; the web sends none and its HttpOnly cookie carries it
+    refresh_token: str | None = Field(default=None, min_length=1, max_length=256)
 
 
 class Tokens(Model):
     access_token: str
-    refresh_token: str
+    refresh_token: str | None  # null for the web: it went into the HttpOnly cookie
     expires_in: int
     account_id: uuid.UUID
     device_id: uuid.UUID

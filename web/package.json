@@ -1,0 +1,43 @@
+{
+  "name": "@musix/web",
+  "private": true,
+  "type": "module",
+  "description": "MusiX v2 web client: listening + the owner's admin (phase 5)",
+  "scripts": {
+    "gen": "openapi-typescript ../contracts/openapi.json -o src/api/schema.gen.d.ts --default-non-nullable false",
+    "dev": "npm run -s gen && vite",
+    "build": "npm run -s gen && tsc -b && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc -b",
+    "test": "vitest run",
+    "e2e": "playwright test"
+  },
+  "dependencies": {
+    "@fontsource/geist": "5.3.0",
+    "@fontsource/jetbrains-mono": "5.3.0",
+    "@fontsource/noto-sans": "5.3.0",
+    "@fontsource/noto-serif-display": "5.3.0",
+    "@fontsource/playfair-display": "5.3.0",
+    "@tanstack/react-query": "5.104.0",
+    "@tanstack/react-router": "1.170.40",
+    "@tanstack/react-virtual": "3.14.13",
+    "dexie": "4.4.6",
+    "openapi-fetch": "0.17.0",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "zustand": "5.0.15"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.63.0",
+    "@tanstack/router-plugin": "1.168.41",
+    "@types/node": "22.20.4",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "@vitejs/plugin-react": "6.1.1",
+    "fake-indexeddb": "6.2.5",
+    "openapi-typescript": "7.13.0",
+    "typescript": "5.9.3",
+    "vite": "8.3.1",
+    "vitest": "5.0.3"
+  }
+}

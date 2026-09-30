@@ -1,0 +1,30 @@
+/* v1 `.cta-v3`: the one primary action on a surface. */
+.cta {
+  background: linear-gradient(180deg, oklch(72% 0.2 275) 0%, oklch(52% 0.24 282) 100%);
+  color: #fff; border-radius: 12px; padding: 12px 22px; font-size: 14px; font-weight: 600; letter-spacing: 0.01em;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.42), inset 0 -1px 0 rgba(0,0,0,0.4), 0 8px 22px oklch(60% 0.18 270 / 0.5);
+  transition: transform 0.08s ease, box-shadow 0.15s ease;
+}
+.cta:hover { transform: translateY(-1px); }
+.cta:active { transform: translateY(1px); box-shadow: inset 0 2px 5px rgba(0,0,0,0.4), 0 3px 8px oklch(60% 0.18 270 / 0.3); }
+.cta:disabled { opacity: 0.6; cursor: wait; transform: none; }
+.ghost {
+  composes: btn from "./relief.module.css";
+  border-radius: 10px; padding: 8px 14px; font-size: 13px; font-weight: 500; color: var(--mx-text);
+}
+.danger { color: var(--mx-red); }
+.field {
+  width: 100%; padding: 11px 14px; border-radius: 12px; font-size: 14px; outline: none;
+  background: var(--mx-input-bg); border: 1px solid var(--mx-border-strong); color: var(--mx-text);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.field:focus { border-color: rgba(124,91,255,0.55); box-shadow: 0 0 0 3px oklch(60% 0.18 270 / 0.15); }
+.eyebrow { font-size: 11px; font-weight: 500; letter-spacing: 0.22em; text-transform: uppercase; color: var(--mx-text-subtle); display: flex; align-items: center; gap: 8px; }
+.eyebrow::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--mx-accent-light); box-shadow: 0 0 8px var(--mx-accent-light); }
+.error { padding: 9px 13px; border-radius: 11px; background: var(--mx-red-bg); border: 1px solid color-mix(in oklch, var(--mx-red) 30%, transparent); color: var(--mx-red); font-size: 13px; }
+.muted { color: var(--mx-text-muted); }
+.segmented { composes: inset from "./relief.module.css"; display: inline-flex; gap: 2px; padding: 3px; border-radius: 12px; }
+.segment { padding: 7px 14px; border-radius: 9px; font-size: 13px; font-weight: 500; color: var(--mx-text-subtle); white-space: nowrap; }
+.segmentOn { composes: btn from "./relief.module.css"; color: var(--mx-text); }
+.round { composes: btn from "./relief.module.css"; width: 38px; height: 38px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; color: var(--mx-text-muted); }
+.round:hover { color: var(--mx-text); }

@@ -62,7 +62,7 @@ def client(settings: Settings) -> Iterator[TestClient]:
         yield c
 
 
-DEVICE = {"name": "pytest", "platform": "web"}
+DEVICE = {"name": "pytest", "platform": "android"}  # native: the web keeps its refresh in a cookie
 
 
 @pytest.fixture(scope="session")

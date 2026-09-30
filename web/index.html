@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, interactive-widget=resizes-content" />
+    <meta name="theme-color" content="#0d0d10" />
+    <link rel="icon" href="/pwa-192x192.png" type="image/png" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <title>MusiX</title>
+    <meta name="description" content="MusiX — твоя музыка у тебя дома." />
+    <script>
+      // the theme before the first paint (a per-browser preference, not a secret)
+      try {
+        var t = localStorage.getItem("musix.theme") || "system";
+        if (t === "system") t = matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
+        document.documentElement.dataset.theme = t;
+      } catch (e) {}
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

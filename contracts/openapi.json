@@ -851,6 +851,19 @@
         "title": "AutoplayOut",
         "type": "object"
       },
+      "BackfillOut": {
+        "properties": {
+          "job": {
+            "title": "Job",
+            "type": "string"
+          }
+        },
+        "required": [
+          "job"
+        ],
+        "title": "BackfillOut",
+        "type": "object"
+      },
       "BioOut": {
         "properties": {
           "artistId": {
@@ -991,6 +1004,21 @@
           "count"
         ],
         "title": "DayCount",
+        "type": "object"
+      },
+      "DeleteIn": {
+        "properties": {
+          "confirmEmail": {
+            "maxLength": 254,
+            "minLength": 3,
+            "title": "Confirmemail",
+            "type": "string"
+          }
+        },
+        "required": [
+          "confirmEmail"
+        ],
+        "title": "DeleteIn",
         "type": "object"
       },
       "DeviceIn": {
@@ -1566,6 +1594,78 @@
           "sources"
         ],
         "title": "ImportIn",
+        "type": "object"
+      },
+      "InstanceOut": {
+        "description": "Open: what a client needs before sign-in.",
+        "properties": {
+          "aiForMembers": {
+            "title": "Aiformembers",
+            "type": "boolean"
+          },
+          "llm": {
+            "title": "Llm",
+            "type": "string"
+          },
+          "mode": {
+            "anyOf": [
+              {
+                "enum": [
+                  "personal",
+                  "shared"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mode"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "setupRequired": {
+            "title": "Setuprequired",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "setupRequired",
+          "mode",
+          "name",
+          "llm",
+          "aiForMembers"
+        ],
+        "title": "InstanceOut",
+        "type": "object"
+      },
+      "InstanceSettings": {
+        "properties": {
+          "aiForMembers": {
+            "default": true,
+            "title": "Aiformembers",
+            "type": "boolean"
+          },
+          "name": {
+            "default": "MusiX",
+            "maxLength": 60,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "registration": {
+            "default": "invite",
+            "enum": [
+              "invite",
+              "closed"
+            ],
+            "title": "Registration",
+            "type": "string"
+          }
+        },
+        "title": "InstanceSettings",
         "type": "object"
       },
       "InviteOut": {
@@ -2413,6 +2513,204 @@
         "title": "MapCluster",
         "type": "object"
       },
+      "MemberOut": {
+        "description": "One account as the owner sees it: counts only, never another account's titles.",
+        "properties": {
+          "createdAt": {
+            "format": "date-time",
+            "title": "Createdat",
+            "type": "string"
+          },
+          "devices": {
+            "title": "Devices",
+            "type": "integer"
+          },
+          "displayName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Displayname"
+          },
+          "email": {
+            "title": "Email",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "indexRoot": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Indexroot"
+          },
+          "inviteCode": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Invitecode"
+          },
+          "lastLoginAt": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lastloginat"
+          },
+          "likes": {
+            "title": "Likes",
+            "type": "integer"
+          },
+          "listens": {
+            "title": "Listens",
+            "type": "integer"
+          },
+          "premium": {
+            "title": "Premium",
+            "type": "boolean"
+          },
+          "role": {
+            "title": "Role",
+            "type": "string"
+          },
+          "tracks": {
+            "title": "Tracks",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "email",
+          "role",
+          "displayName",
+          "indexRoot",
+          "premium",
+          "inviteCode",
+          "createdAt",
+          "lastLoginAt",
+          "tracks",
+          "listens",
+          "likes",
+          "devices"
+        ],
+        "title": "MemberOut",
+        "type": "object"
+      },
+      "MemberPatch": {
+        "properties": {
+          "indexRoot": {
+            "anyOf": [
+              {
+                "maxLength": 4096,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Indexroot"
+          },
+          "premium": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Premium"
+          }
+        },
+        "title": "MemberPatch",
+        "type": "object"
+      },
+      "OpsOut": {
+        "properties": {
+          "accounts": {
+            "title": "Accounts",
+            "type": "integer"
+          },
+          "listens24H": {
+            "title": "Listens24H",
+            "type": "integer"
+          },
+          "mediaBytes": {
+            "title": "Mediabytes",
+            "type": "integer"
+          },
+          "mediaFiles": {
+            "title": "Mediafiles",
+            "type": "integer"
+          },
+          "queues": {
+            "items": {
+              "$ref": "#/components/schemas/QueueDepth"
+            },
+            "title": "Queues",
+            "type": "array"
+          },
+          "renditionBudgetBytes": {
+            "title": "Renditionbudgetbytes",
+            "type": "integer"
+          },
+          "renditionBytes": {
+            "title": "Renditionbytes",
+            "type": "integer"
+          },
+          "renditions": {
+            "items": {
+              "$ref": "#/components/schemas/TierCoverage"
+            },
+            "title": "Renditions",
+            "type": "array"
+          },
+          "tracks": {
+            "title": "Tracks",
+            "type": "integer"
+          },
+          "unprocessed": {
+            "title": "Unprocessed",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "queues",
+          "mediaBytes",
+          "renditionBytes",
+          "renditionBudgetBytes",
+          "mediaFiles",
+          "unprocessed",
+          "renditions",
+          "accounts",
+          "tracks",
+          "listens24H"
+        ],
+        "title": "OpsOut",
+        "type": "object"
+      },
       "Palette": {
         "properties": {
           "accent": {
@@ -2836,6 +3134,29 @@
         ],
         "type": "object"
       },
+      "QueueDepth": {
+        "properties": {
+          "jobs": {
+            "title": "Jobs",
+            "type": "integer"
+          },
+          "queue": {
+            "title": "Queue",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "queue",
+          "status",
+          "jobs"
+        ],
+        "title": "QueueDepth",
+        "type": "object"
+      },
       "QuizMode": {
         "properties": {
           "available": {
@@ -2929,15 +3250,19 @@
       "RefreshIn": {
         "properties": {
           "refreshToken": {
-            "maxLength": 256,
-            "minLength": 1,
-            "title": "Refreshtoken",
-            "type": "string"
+            "anyOf": [
+              {
+                "maxLength": 256,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Refreshtoken"
           }
         },
-        "required": [
-          "refreshToken"
-        ],
         "title": "RefreshIn",
         "type": "object"
       },
@@ -3918,6 +4243,29 @@
         "title": "TasteMapOut",
         "type": "object"
       },
+      "TierCoverage": {
+        "properties": {
+          "bytes": {
+            "title": "Bytes",
+            "type": "integer"
+          },
+          "files": {
+            "title": "Files",
+            "type": "integer"
+          },
+          "tier": {
+            "title": "Tier",
+            "type": "string"
+          }
+        },
+        "required": [
+          "tier",
+          "files",
+          "bytes"
+        ],
+        "title": "TierCoverage",
+        "type": "object"
+      },
       "Tokens": {
         "properties": {
           "accessToken": {
@@ -3939,8 +4287,15 @@
             "type": "integer"
           },
           "refreshToken": {
-            "title": "Refreshtoken",
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Refreshtoken"
           },
           "role": {
             "title": "Role",
@@ -4674,6 +5029,206 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/api/v2/admin/instance": {
+      "get": {
+        "operationId": "get_instance_api_v2_admin_instance_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InstanceSettings"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Validation failed"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Rate limited"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Instance",
+        "tags": [
+          "admin"
+        ]
+      },
+      "put": {
+        "operationId": "put_instance_api_v2_admin_instance_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InstanceSettings"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InstanceSettings"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Validation failed"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Rate limited"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Put Instance",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
     "/api/v2/admin/llm": {
       "get": {
         "description": "The instance's LLM endpoint (the key only as `hasKey`).",
@@ -4872,6 +5427,527 @@
         "summary": "Put Llm",
         "tags": [
           "identity"
+        ]
+      }
+    },
+    "/api/v2/admin/members": {
+      "get": {
+        "operationId": "members_api_v2_admin_members_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/MemberOut"
+                  },
+                  "title": "Response Members Api V2 Admin Members Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Validation failed"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Rate limited"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Members",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/v2/admin/members/{member_id}": {
+      "delete": {
+        "operationId": "delete_member_api_v2_admin_members__member_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "member_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Member Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeleteIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Validation failed"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Rate limited"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Delete Member",
+        "tags": [
+          "admin"
+        ]
+      },
+      "patch": {
+        "description": "Grant or revoke a server folder (`indexRoot`, under the library roots); `premium`\nis display-only (v1).",
+        "operationId": "patch_member_api_v2_admin_members__member_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "member_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Member Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MemberPatch"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MemberOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Validation failed"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Rate limited"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Patch Member",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/v2/admin/ops": {
+      "get": {
+        "operationId": "ops_api_v2_admin_ops_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpsOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Validation failed"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Rate limited"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Ops",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/v2/admin/renditions/backfill": {
+      "post": {
+        "description": "Queue processing (probe, loudness, renditions) for every file that has not had it.",
+        "operationId": "backfill_api_v2_admin_renditions_backfill_post",
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BackfillOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Validation failed"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Rate limited"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Backfill",
+        "tags": [
+          "admin"
         ]
       }
     },
@@ -6192,16 +7268,24 @@
     },
     "/api/v2/auth/refresh": {
       "post": {
+        "description": "Native clients send `refreshToken`; the web sends no body and its cookie is read.",
         "operationId": "refresh_api_v2_auth_refresh_post",
         "requestBody": {
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/RefreshIn"
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/RefreshIn"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Body"
               }
             }
-          },
-          "required": true
+          }
         },
         "responses": {
           "200": {
@@ -7601,6 +8685,98 @@
         "summary": "Sources",
         "tags": [
           "imports"
+        ]
+      }
+    },
+    "/api/v2/instance": {
+      "get": {
+        "description": "Open: whether first-run setup is due, the mode, the name, the LLM status.",
+        "operationId": "instance_api_v2_instance_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InstanceOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Validation failed"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Rate limited"
+          }
+        },
+        "summary": "Instance",
+        "tags": [
+          "admin"
         ]
       }
     },

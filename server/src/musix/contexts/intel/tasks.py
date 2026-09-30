@@ -7,6 +7,7 @@ import uuid
 
 import procrastinate
 import sqlalchemy as sa
+from qdrant_client.http.exceptions import UnexpectedResponse
 
 from musix.contexts.intel import pipeline
 from musix.contexts.library.models import media_files
@@ -92,8 +93,25 @@ async def envelope_backfill() -> int:
     return len(ids)
 
 
+async def reown(media_file_ids: list[str]) -> int:
+    """Re-derive the vector `owners` of files whose tracks changed hands in bulk (an
+    account delete): membership is a payload write, never a re-index."""
+    q = await qdrant()
+    for m in media_file_ids:
+        mf = uuid.UUID(m)
+        async with sessionmaker()() as s:
+            own = await pipeline.owners(s, mf)
+        try:
+            await pipeline.set_owners(q, mf, own)
+        except UnexpectedResponse as e:  # a file never embedded has no point to update
+            if e.status_code != 404:
+                raise
+    return len(media_file_ids)
+
+
 def register(app: procrastinate.App) -> None:
     app.task(name="intel:start", queue="default")(start)
+    app.task(name="intel:reown", queue="default")(reown)
     app.task(name="intel:lyrics", queue="net", retry=RETRY)(lyrics)
     app.task(name="intel:embed", queue="ml", retry=RETRY)(embed)
     app.task(name="intel:envelope", queue="media", retry=2)(envelope)

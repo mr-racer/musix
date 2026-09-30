@@ -1,0 +1,31 @@
+@import "../../../design/gen/web/tokens.css";
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body, #root { height: 100%; width: 100%; }
+html { -webkit-tap-highlight-color: transparent; color-scheme: dark; }
+:root[data-theme="light"] { color-scheme: light; }
+body {
+  font-family: var(--mx-font-sans);
+  background: var(--mx-bg);
+  color: var(--mx-text);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  overscroll-behavior-y: none;
+  font-size: 14px;
+  line-height: 1.45;
+}
+input, textarea, select, button { font: inherit; color: inherit; }
+button { background: none; border: none; cursor: pointer; }
+a { color: inherit; text-decoration: none; }
+img { display: block; max-width: 100%; }
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(128, 128, 128, 0.22); border-radius: 10px; }
+:where(a, button, select, summary, [role="button"], [tabindex]):focus-visible {
+  outline: 2px solid oklch(68% 0.17 275 / 0.9);
+  outline-offset: 2px;
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}
+.not-found { padding: 40px; color: var(--mx-text-muted); }

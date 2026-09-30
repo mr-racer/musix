@@ -1,0 +1,32 @@
+.shell { min-height: 100dvh; position: relative; }
+.main { min-height: 100dvh; padding-left: 92px; padding-bottom: calc(var(--player-h, 0px) + 12px); }
+.brand { position: fixed; top: 18px; left: 22px; z-index: 30; }
+.rail {
+  position: fixed; left: 12px; top: 50%; transform: translateY(-50%); z-index: 30;
+  display: flex; flex-direction: column; gap: 4px; padding: 8px 6px; border-radius: 26px;
+  background: var(--mx-sidebar-bg); border: 1px solid var(--mx-border);
+  box-shadow: 0 18px 40px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.06);
+}
+.railItem, .railOn {
+  width: 56px; padding: 9px 0 7px; border-radius: 18px; display: flex; flex-direction: column; align-items: center; gap: 4px;
+  font-size: 9.5px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--mx-text-subtle);
+  transition: color 0.15s ease, background 0.15s ease;
+}
+.railItem:hover { color: var(--mx-text); }
+.railOn { composes: btn from "./relief.module.css"; color: var(--mx-text); }
+.settings {
+  composes: btn from "./relief.module.css";
+  position: fixed; left: 22px; bottom: calc(var(--player-h, 0px) + 22px); z-index: 30;
+  width: 44px; height: 44px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: var(--mx-text-muted);
+}
+.tabbar { display: none; }
+@media (max-width: 760px) {
+  .main { padding-left: 0; padding-bottom: calc(var(--player-h, 0px) + 72px + env(safe-area-inset-bottom, 0px)); }
+  .rail, .settings, .brand { display: none; }
+  .tabbar {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 40; display: flex; justify-content: space-around;
+    padding: 8px 4px calc(8px + env(safe-area-inset-bottom, 0px)); background: var(--mx-tab-bar-bg); border-top: 1px solid var(--mx-border);
+  }
+  .tab, .tabOn { display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: 11px; color: var(--mx-tab-bar-inactive); min-width: 64px; }
+  .tabOn { color: var(--mx-accent-light); }
+}

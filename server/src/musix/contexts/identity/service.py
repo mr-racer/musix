@@ -131,6 +131,10 @@ async def login(s: AsyncSession, k: Secrets, body: S.LoginIn) -> S.Tokens:
 
 
 async def register(s: AsyncSession, k: Secrets, body: S.RegisterIn) -> S.Tokens:
+    from musix.contexts.admin.service import registration_open
+
+    if not await registration_open(s):
+        raise Forbidden("registration is closed on this server")
     inv = (
         await s.execute(
             sa.select(invites).where(invites.c.code == body.invite_code).with_for_update()
