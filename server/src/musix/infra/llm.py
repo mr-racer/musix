@@ -143,13 +143,30 @@ class Llm:
         extra_body: dict[str, Any] | None = None,
         cache: bool = True,
     ) -> str:
-        cfg = await self.config()
-        if cfg.base_url is None:
-            raise Unavailable("LLM is not configured")
         messages = ([{"role": "system", "content": system}] if system else []) + [
             {"role": "user", "content": prompt}
         ]
-        key = cache_key(cfg.model, messages, temperature, extra_body)
+        return await self.chat(
+            messages, kind=kind, temperature=temperature, extra_body=extra_body, cache=cache
+        )
+
+    async def chat(
+        self,
+        messages: list[dict[str, str]],
+        *,
+        kind: str,
+        temperature: float = 0.3,
+        max_tokens: int | None = None,
+        request_timeout: float | None = None,
+        extra_body: dict[str, Any] | None = None,
+        cache: bool = True,
+    ) -> str:
+        """A message list (the assistant's repair rounds need one). Raises Unavailable."""
+        cfg = await self.config()
+        if cfg.base_url is None:
+            raise Unavailable("LLM is not configured")
+        extra = {**(extra_body or {}), **({"max_tokens": max_tokens} if max_tokens else {})}
+        key = cache_key(cfg.model, messages, temperature, extra or None)
         if cache:
             async with self.sm() as s:
                 hit = await s.scalar(sa.select(llm_cache.c.response).where(llm_cache.c.key == key))
@@ -160,12 +177,13 @@ class Llm:
             "messages": messages,
             "temperature": temperature,
         }
-        body.update(extra_body or {})
+        body.update(extra)
         try:
             r = await self.http.post(
                 cfg.base_url + "/chat/completions",
                 json=body,
                 headers={"Authorization": f"Bearer {cfg.api_key}"},
+                timeout=request_timeout or httpx.USE_CLIENT_DEFAULT,
             )
             r.raise_for_status()
         except httpx.HTTPError as e:

@@ -59,8 +59,11 @@ async def song(song_id: str) -> None:
 
 
 async def artist(artist_id: str) -> None:
-    if await jobs.artist(sessionmaker(), http(), Path(settings().media_dir), uuid.UUID(artist_id)):
-        for lang in settings().knowledge_langs:
+    has_facts = await jobs.artist(
+        sessionmaker(), http(), Path(settings().media_dir), uuid.UUID(artist_id)
+    )
+    for lang in settings().knowledge_langs:
+        if has_facts:
             await _defer(
                 "knowledge:refine",
                 f"artist:{artist_id}:{lang}",
@@ -68,6 +71,11 @@ async def artist(artist_id: str) -> None:
                 subject_id=artist_id,
                 lang=lang,
             )
+        await _defer("knowledge:bio", f"{artist_id}:{lang}", artist_id=artist_id, lang=lang)
+
+
+async def bio(artist_id: str, lang: str) -> bool:
+    return await jobs.bio(sessionmaker(), llm(), uuid.UUID(artist_id), lang)
 
 
 async def refine(kind: str, subject_id: str, lang: str) -> dict[str, int]:
@@ -135,4 +143,5 @@ def register(app: procrastinate.App) -> None:
     app.task(name="knowledge:refine", queue="ai", retry=RETRY)(refine)
     app.task(name="knowledge:relations", queue="ai", retry=RETRY)(relations)
     app.task(name="knowledge:vibe", queue="ai", retry=RETRY)(vibe)
+    app.task(name="knowledge:bio", queue="ai", retry=RETRY)(bio)
     app.task(name="knowledge:backfill", queue="default")(backfill)

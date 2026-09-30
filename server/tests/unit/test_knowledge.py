@@ -55,3 +55,31 @@ def test_facts_v2_classifier_parses_routes_and_gates_as_v1() -> None:
     ):
         assert '{"items":[{"id":"M1","labels":["..."]}]}' in text
         assert "{{" not in text
+
+
+def test_the_planner_checks_every_field_the_model_returns() -> None:
+    """v1 tests/unit/test_assistant_planner.py::TestValidate, the routing cases."""
+    from musix.assistant.planner import Planner
+
+    p = Planner(object())
+    assert p.validate({"intent": "vibes"}, "что-нибудь") is None  # unknown intent: ask, don't guess
+    plan = p.validate({"intent": "general", "web_queries": []}, "почему Eminem так зовут")
+    assert plan is not None
+    assert plan.intent == "general"
+    assert plan.web_queries == ["почему Eminem так зовут"]  # falls back to the user's sentence
+    assert plan.ce_query == "почему Eminem так зовут"
+    dup = p.validate(
+        {"intent": "playlist", "web_queries": ["kanye hits", "Kanye  Hits", "kanye best songs"]},
+        "хиты канье",
+    )
+    assert dup is not None
+    assert len(dup.web_queries) == 2
+    work = p.validate(
+        {"intent": "playlist", "work": "Grand Theft Auto V", "web_queries": ["soundtrack list"]},
+        "музыка из гта 5",
+    )
+    assert work is not None
+    assert all('"Grand Theft Auto V"' in q for q in work.web_queries)
+    big = p.validate({"intent": "playlist", "count": 5000}, "собери плейлист")
+    assert big is not None
+    assert big.filters.count is None

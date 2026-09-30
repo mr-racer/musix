@@ -130,6 +130,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 def context_routers() -> list[APIRouter]:
     """Every bounded context's router. Explicit list (no import side effects)."""
     from musix.api.realtime import router as realtime
+    from musix.contexts.assistant.router import router as assistant
     from musix.contexts.identity.router import router as identity
     from musix.contexts.knowledge.router import router as knowledge
     from musix.contexts.library.router import router as library
@@ -150,6 +151,7 @@ def context_routers() -> list[APIRouter]:
         playlists,
         screens,
         knowledge,
+        assistant,
         search,
         stream,
         sync,

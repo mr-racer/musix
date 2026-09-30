@@ -18,7 +18,7 @@ from pathlib import Path
 
 from musix.infra import db
 from musix.infra.llm import Llm
-from musix.knowledge import bio_prompts as BP
+from musix.assistant.bio_v2 import prompts as BP
 from musix.knowledge import text_quality as tq
 from musix.knowledge.facts_v2 import pipeline as fv2
 from musix.settings import Settings

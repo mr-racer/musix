@@ -1,0 +1,204 @@
+{
+ "model": "qwen3.8-27b-ud-iq3_s",
+ "n": 27,
+ "accuracy": 0.8888888888888888,
+ "no_plan": 0,
+ "confident_wrong": 3,
+ "playlist_facts_confused": 0,
+ "misses": [
+  "'сделай подборку под пробежку': expected playlist, got audio_search",
+  "'плейлист для вечерней работы': expected playlist, got audio_search",
+  "'накидай что-нибудь энергичное на утро': expected playlist, got audio_search"
+ ],
+ "rows": [
+  {
+   "message": "найди песню где поётся про дождь и одиночество",
+   "expected": "search",
+   "intent": "lyrics_search",
+   "got": "search",
+   "ok": true
+  },
+  {
+   "message": "что за трек со строчкой about a broken heart",
+   "expected": "search",
+   "intent": "lyrics_search",
+   "got": "search",
+   "ok": true
+  },
+  {
+   "message": "помоги вспомнить песню про город и неоновые огни",
+   "expected": "search",
+   "intent": "lyrics_search",
+   "got": "search",
+   "ok": true
+  },
+  {
+   "message": "find the song with the line i woke up this morning",
+   "expected": "search",
+   "intent": "lyrics_search",
+   "got": "search",
+   "ok": true
+  },
+  {
+   "message": "что за песня такая грустная с женским вокалом и пианино",
+   "expected": "search",
+   "intent": "audio_search",
+   "got": "search",
+   "ok": true
+  },
+  {
+   "message": "какой трек начинается со слов hello darkness",
+   "expected": "search",
+   "intent": "lyrics_search",
+   "got": "search",
+   "ok": true
+  },
+  {
+   "message": "song about driving at night alone",
+   "expected": "search",
+   "intent": "audio_search",
+   "got": "search",
+   "ok": true
+  },
+  {
+   "message": "ищу трек где припев про свободу",
+   "expected": "search",
+   "intent": "lyrics_search",
+   "got": "search",
+   "ok": true
+  },
+  {
+   "message": "собери хиты Канье",
+   "expected": "playlist",
+   "intent": "playlist",
+   "got": "playlist",
+   "ok": true
+  },
+  {
+   "message": "сделай подборку под пробежку",
+   "expected": "playlist",
+   "intent": "audio_search",
+   "got": "search",
+   "ok": false
+  },
+  {
+   "message": "плейлист для вечерней работы",
+   "expected": "playlist",
+   "intent": "audio_search",
+   "got": "search",
+   "ok": false
+  },
+  {
+   "message": "build me a playlist of 90s eurodance",
+   "expected": "playlist",
+   "intent": "playlist",
+   "got": "playlist",
+   "ok": true
+  },
+  {
+   "message": "саундтрек к Интерстеллару",
+   "expected": "playlist",
+   "intent": "playlist",
+   "got": "playlist",
+   "ok": true
+  },
+  {
+   "message": "лучшее у Queen",
+   "expected": "playlist",
+   "intent": "playlist",
+   "got": "playlist",
+   "ok": true
+  },
+  {
+   "message": "накидай что-нибудь энергичное на утро",
+   "expected": "playlist",
+   "intent": "audio_search",
+   "got": "search",
+   "ok": false
+  },
+  {
+   "message": "best of Radiohead",
+   "expected": "playlist",
+   "intent": "playlist",
+   "got": "playlist",
+   "ok": true
+  },
+  {
+   "message": "песни из GTA Vice City",
+   "expected": "playlist",
+   "intent": "playlist",
+   "got": "playlist",
+   "ok": true
+  },
+  {
+   "message": "подборка спокойного джаза на вечер",
+   "expected": "playlist",
+   "intent": "playlist",
+   "got": "playlist",
+   "ok": true
+  },
+  {
+   "message": "расскажи про Kanye West",
+   "expected": "facts",
+   "intent": "general",
+   "got": "facts",
+   "ok": true
+  },
+  {
+   "message": "кто продюсировал этот трек",
+   "expected": "facts",
+   "intent": "general",
+   "got": "facts",
+   "ok": true
+  },
+  {
+   "message": "о чём эта песня",
+   "expected": "facts",
+   "intent": "general",
+   "got": "facts",
+   "ok": true
+  },
+  {
+   "message": "tell me about Björk",
+   "expected": "facts",
+   "intent": "general",
+   "got": "facts",
+   "ok": true
+  },
+  {
+   "message": "какая история у этой песни",
+   "expected": "facts",
+   "intent": "general",
+   "got": "facts",
+   "ok": true
+  },
+  {
+   "message": "биография Radiohead",
+   "expected": "facts",
+   "intent": "general",
+   "got": "facts",
+   "ok": true
+  },
+  {
+   "message": "что известно про альбом OK Computer",
+   "expected": "facts",
+   "intent": "general",
+   "got": "facts",
+   "ok": true
+  },
+  {
+   "message": "who wrote this song",
+   "expected": "facts",
+   "intent": "general",
+   "got": "facts",
+   "ok": true
+  },
+  {
+   "message": "расскажи историю создания Bohemian Rhapsody",
+   "expected": "facts",
+   "intent": "general",
+   "got": "facts",
+   "ok": true
+  }
+ ]
+}

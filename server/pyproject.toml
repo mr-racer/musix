@@ -28,6 +28,12 @@ dependencies = [
     "scipy>=1.16",  # co-listen PPMI-SVD
     "lightgbm>=4.6",  # the «Поток» ranker
     "beautifulsoup4>=4.12",
+    "curl-cffi>=0.7",
+    "trafilatura>=2.0",
+    "lxml-html-clean>=0.4.5",
+    "readability-lxml>=0.9",
+    "ddgs>=9.16.0",
+    "pydantic-ai-slim[openai]>=1.0,<2.0",
 ]
 
 [dependency-groups]
@@ -66,6 +72,8 @@ ignore = ["S101", "RUF001", "RUF002", "RUF003"]  # asserts in tests; −, × and
 "src/musix/contexts/screens/stats.py" = ["E501", "S608"]  # SQL fragments are module constants
 "src/musix/knowledge/**" = ["E", "W", "B", "UP", "RUF", "SIM", "S", "I", "F", "PT", "ASYNC"]  # v1 logic, copied
 "src/musix/contexts/knowledge/{jobs,sources,tasks}.py" = ["E501"]
+"src/musix/assistant/**" = ["E", "W", "B", "UP", "RUF", "SIM", "S", "I", "F", "PT", "ASYNC"]  # v1's assistant, copied
+"src/musix/contexts/assistant/*.py" = ["E501"]
 
 [tool.mypy]
 strict = true
@@ -74,11 +82,11 @@ mypy_path = "src"
 packages = ["musix"]
 
 [[tool.mypy.overrides]]
-module = ["musix.knowledge.*"]  # v1 logic, copied verbatim (untyped)
+module = ["musix.knowledge.*", "musix.assistant.*"]  # v1 logic, copied verbatim (untyped)
 ignore_errors = true
 
 [[tool.mypy.overrides]]
-module = ["procrastinate.*", "testcontainers.*", "pyvips.*", "asyncpg.*", "syncedlyrics.*", "scipy.*", "lightgbm.*"]
+module = ["curl_cffi.*", "trafilatura.*", "readability.*", "ddgs.*", "duckduckgo_search.*", "procrastinate.*", "testcontainers.*", "pyvips.*", "asyncpg.*", "syncedlyrics.*", "scipy.*", "lightgbm.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]

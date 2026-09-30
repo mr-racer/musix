@@ -732,3 +732,71 @@ async def import_artist_images(sm: SM, media_dir: Path, manifest: Path) -> dict[
                 )
                 await s.commit()
     return n
+
+
+# ── the biography (ai queue) ─────────────────────────────────────────────────
+
+SOURCE_KEYS = ("source_url", "source_kind")
+
+
+async def bio(sm: SM, llm: Llm, artist_id: uuid.UUID, lang: str) -> bool:
+    """v1 `ai_tasks/artist_bio._process`: Wikipedia first, one open-web search only
+    when Wikipedia gave nothing; nothing to write from → no bio (not a paragraph
+    about the gap). The AudioDB text seeds the web leg, as in v1."""
+    from musix.assistant import compat
+    from musix.assistant.bio_v2 import pipeline as bio2
+    from musix.contexts.assistant.service import bind
+    from musix.contexts.knowledge.models import artist_bios
+
+    async with sm() as s:
+        if await s.scalar(
+            sa.select(sa.literal(True)).where(
+                artist_bios.c.artist_id == artist_id, artist_bios.c.lang == lang
+            )
+        ):
+            return False
+        a = (
+            await s.execute(
+                sa.select(artists.c.name, artists.c.profile).where(artists.c.id == artist_id)
+            )
+        ).first()
+    if a is None:
+        return False
+    from musix.workers.context import settings
+
+    bind(sm, llm, settings().procrastinate_conninfo, asyncio.get_running_loop())
+    result = await bio2.build(
+        asker(llm, "bio"),
+        a.name,
+        lang_name=LANG_NAME.get(lang, "Russian"),
+        lang_code=lang,
+        proxies=compat.get_proxy(),
+        seed_bio=(a.profile or {}).get("bio"),
+    )
+    text, facets = result.get("bio") or "", result.get("facets") or {}
+    if not text:
+        log.info("[bio] %s: %s", a.name, result.get("error"))
+        return False
+    sources = {
+        k: v
+        for k, v in facets.items()
+        if (k in SOURCE_KEYS or k.endswith("_source")) and v is not None
+    }
+    facets = {k: v for k, v in facets.items() if k not in sources and v is not None}
+    async with sm() as s:
+        row = {
+            "artist_id": artist_id,
+            "lang": lang,
+            "text": text,
+            "facets": facets,
+            "sources": sources,
+            "generated_at": dt.datetime.now(dt.UTC),
+        }
+        await s.execute(
+            pg_insert(artist_bios)
+            .values(**row)
+            .on_conflict_do_update(index_elements=["artist_id", "lang"], set_=row)
+        )
+        await _touch(s, artists, artist_id)
+        await s.commit()
+    return True

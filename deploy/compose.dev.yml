@@ -12,6 +12,7 @@ x-server: &server
     MUSIX_MEDIA_DIR: /mnt/data/musix-v2-media
     MUSIX_LIBRARY_ROOTS: '["/mnt/data/music", "/mnt/data/musix-v2-media/dev-subset"]'
     MUSIX_ML_URL: http://ml:8002
+    SEARXNG_URL: http://searxng:8080
   # Same paths inside and out: media_files.path is a host path, and nginx serves the same.
   volumes:
     - /mnt/data/musix-v2-media:/mnt/data/musix-v2-media
@@ -96,6 +97,18 @@ services:
       test: ["CMD", "procrastinate", "--app=musix.workers.app.app", "healthchecks"]
       interval: 10s
       retries: 6
+
+  searxng:
+    image: searxng/searxng:latest  # = prod
+    ports: ["127.0.0.1:18088:8080"]
+    volumes: [./searxng/settings.yml:/etc/searxng/settings.yml:ro]
+    environment:
+      SEARXNG_BASE_URL: http://localhost:18088/
+      SEARXNG_SECRET: ${SEARXNG_SECRET:-dev-only-searxng-secret}
+      UWSGI_WORKERS: 2
+      UWSGI_THREADS: 4
+    cap_drop: [ALL]
+    cap_add: [CHOWN, SETGID, SETUID]
 
   ml:
     build: ../ml

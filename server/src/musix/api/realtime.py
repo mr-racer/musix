@@ -62,6 +62,10 @@ def route(payload: dict[str, Any]) -> dict[str, Any] | None:
         return {"type": t, **{k: payload[k] for k in ("job", "done", "total") if k in payload}}
     if kind == "instance":
         return {"type": "instance.status", "status": payload.get("status")}
+    if kind == "assistant.stage":  # one progress frame of a turn (v1's NDJSON status lines)
+        return {"type": "assistant.stage", "turnId": payload["turn"], "frame": payload["frame"]}
+    if kind == "assistant.done":
+        return {"type": "assistant.done", "turnId": payload["turn"], "status": payload["status"]}
     if kind == "presence":
         return {
             "type": "device.presence",

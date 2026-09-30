@@ -331,3 +331,27 @@ def gliner_relations(texts: list[str]) -> list[dict[str, Any]]:
         "extract",
         lambda: [model.extract(t, schema, include_confidence=True) for t in texts],
     )
+
+
+_TRACK_SCHEMA: Any = None
+
+
+def gliner_tracks(texts: list[str]) -> list[dict[str, Any]]:
+    """Song titles and artist names in tracklist text — v1 llm_web_search's schema,
+    verbatim; the assistant's structure-free fallback for playlists."""
+    global _TRACK_SCHEMA
+    model, _ = _gliner()
+    if _TRACK_SCHEMA is None:
+        s = model.create_schema()
+        s.entities(
+            {
+                "song_title": "title of a song in a tracklist or soundtrack",
+                "artist_name": "name of the artist or band performing a song",
+            }
+        )
+        _TRACK_SCHEMA = s
+    return _guard(  # type: ignore[no-any-return]
+        "gliner",
+        "extract",
+        lambda: [model.extract(t, _TRACK_SCHEMA, include_confidence=True) for t in texts],
+    )
