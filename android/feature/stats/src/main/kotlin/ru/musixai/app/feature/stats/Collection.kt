@@ -185,9 +185,14 @@ internal fun CollectionPanel(col: Collection, img: (String?) -> Image?) {
 
 private val LOSSLESS = setOf("FLAC", "WAV", "AIFF", "ALAC", "APE")
 
-/** v1 `fmtRange`: "180-240" seconds → «3–4 мин». */
-private fun minutes(range: String): String =
-    Regex("""(\d+)\s*-\s*(\d+)""").find(range)?.destructured?.let { (a, b) -> "${Math.round(a.toInt() / 60.0)}–${Math.round(b.toInt() / 60.0)} мин" } ?: range
+/** v1 `fmtRange`: "180-240" seconds → «3–4 мин»; a bucket narrower than the rounding
+ *  («3–3 мин» in v1) says its seconds instead: «2:40–3:20». */
+private fun minutes(range: String): String {
+    val (a, b) = Regex("""(\d+)\s*-\s*(\d+)""").find(range)?.destructured?.let { (x, y) -> x.toInt() to y.toInt() } ?: return range
+    val ma = Math.round(a / 60.0); val mb = Math.round(b / 60.0)
+    fun ms(t: Int) = "%d:%02d".format(t / 60, t % 60)
+    return if (ma != mb) "$ma–$mb мин" else "${ms(a)}–${ms(b)}"
+}
 
 /** v1 `EraBars`: a column per decade growing up over 700 ms (50 ms apart), the peak in amber. */
 @Composable
