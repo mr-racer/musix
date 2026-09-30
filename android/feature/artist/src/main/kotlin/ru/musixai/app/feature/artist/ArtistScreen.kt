@@ -1,5 +1,8 @@
 package ru.musixai.app.feature.artist
 
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.combine
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -72,6 +75,10 @@ class ArtistViewModel @Inject constructor(state: SavedStateHandle, private val r
     private val _page = MutableStateFlow<ArtistPage?>(null)
     val page: StateFlow<ArtistPage?> = _page
     val error = MutableStateFlow(false)
+    /** The artist is on right now (v1 `playingHere`: the crumb's equalizer, «Сейчас играет»). */
+    val playingHere: StateFlow<Boolean> = combine(player.state, _page) { s, p ->
+        s.isPlaying && p != null && s.artist.contains(p.artist.name, ignoreCase = true)
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
 
     init { viewModelScope.launch { runCatching { repo.page(id) }.onSuccess { _page.value = it }.onFailure { error.value = true } } }
 
@@ -88,33 +95,20 @@ private val DOSSIER = listOf("name_origin" to "Откуда название", "
 @Composable
 fun ArtistRoute(onBack: () -> Unit, onAlbum: (String) -> Unit, vm: ArtistViewModel = hiltViewModel()) {
     val p by vm.page.collectAsStateWithLifecycle()
+    val playingHere by vm.playingHere.collectAsStateWithLifecycle()
     val c = MusixTheme.colors
     Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(if (MusixTheme.isDark) Color(0xFF0B0B10) else c.surface, c.bg)))) {
         Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).statusBarsPadding()) {
-            Row(Modifier.padding(horizontal = 16.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                RoundGlassButton(onBack, size = 38.dp) { Icon(MusixIcons.ChevronLeft, "Назад", Modifier.size(18.dp), tint = c.text) }
-                Text("БИБЛИОТЕКА / ${p?.artist?.name?.uppercase().orEmpty()}", Modifier.padding(start = 12.dp), maxLines = 1, overflow = TextOverflow.Ellipsis,
-                    style = MusixTheme.type.mono.copy(fontSize = 11.sp, letterSpacing = 0.16.em, color = c.textMuted))
-            }
             val page = p
-            if (page == null) { Skel(Modifier.padding(20.dp).fillMaxWidth().height(320.dp), 18.dp); return@Column }
-            Box(Modifier.fillMaxWidth().aspectRatio(1.3f)) {
-                val img = page.artist.imageId?.let { page.images[it] }
-                AsyncImage(img?.url(1024), null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
-                Canvas(Modifier.fillMaxSize()) { drawRect(Brush.verticalGradient(0.55f to Color.Transparent, 1f to c.bg)) }
-            }
-            Column(Modifier.padding(horizontal = 20.dp)) {
-                Text(page.artist.name, style = MusixTheme.type.serif.copy(fontSize = 52.sp, fontWeight = FontWeight.Light, lineHeight = 1.05.em, color = c.text))
-                val genre = page.topTracks.mapNotNull { it.genre }.groupingBy { it }.eachCount().maxByOrNull { it.value }?.key
-                val place = page.facets["formed_place"]
-                listOfNotNull(genre, place).takeIf { it.isNotEmpty() }?.let {
-                    Text(it.joinToString(" · ").uppercase(), Modifier.padding(top = 10.dp), style = MusixTheme.type.mono.copy(fontSize = 13.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 0.16.em, color = Color(0xFFD9D2FF)))
+            if (page == null) {
+                Row(Modifier.padding(horizontal = 10.dp, vertical = 8.dp)) {
+                    RoundGlassButton(onBack, size = 34.dp) { Icon(MusixIcons.ChevronLeft, "Назад", Modifier.size(16.dp), tint = c.text) }
                 }
-                val years = (page.topTracks + page.appearsOn).mapNotNull { it.year }.filter { it > 0 }
-                if (years.isNotEmpty()) Text("Десятилетия в твоей библиотеке · ${years.min() / 10 * 10}S–${years.max() / 10 * 10}S", Modifier.padding(top = 12.dp),
-                    style = MusixTheme.type.mono.copy(fontSize = 12.sp, letterSpacing = 0.08.em, color = c.textMuted))
-                Text("${page.albums.size} АЛЬБОМОВ · ${page.trackCount} ТРЕКОВ", Modifier.padding(top = 6.dp), style = MusixTheme.type.mono.copy(fontSize = 12.sp, letterSpacing = 0.1.em, color = c.textMuted))
-                PlayPill(vm::playArtist)
+                Skel(Modifier.padding(16.dp).fillMaxWidth().height(320.dp), 18.dp)
+                return@Column
+            }
+            ArtistHero(page, playingHere, onBack, vm::playArtist)
+            Column(Modifier.padding(horizontal = 16.dp)) {
                 // v1's section cascade (lib-rise): bio .08 s → dossier .16 s → albums .24 s
                 page.bio?.let { Column(Modifier.rise(80, blur = 5.dp)) { Bio(it) } }
                 Box(Modifier.rise(160, blur = 5.dp)) { Dossier(page) }
@@ -140,20 +134,6 @@ fun ArtistRoute(onBack: () -> Unit, onAlbum: (String) -> Unit, vm: ArtistViewMod
                 Spacer(Modifier.height(32.dp))
             }
         }
-    }
-}
-
-@Composable
-private fun PlayPill(onClick: () -> Unit) {
-    val c = MusixTheme.colors
-    Row(Modifier.padding(top = 22.dp).fillMaxWidth().clip(RoundedCornerShape(999.dp))
-        .background(Brush.horizontalGradient(if (MusixTheme.isDark) listOf(Color(0xFF14141E), Color(0xFF1A1830)) else listOf(Color.White, Color(0xFFF3F2F8))))
-        .border(1.dp, if (MusixTheme.isDark) Color(0x2EFFFFFF) else Color(0x14000000), RoundedCornerShape(999.dp)).pressable(onClick = onClick).padding(vertical = 12.dp),
-        horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
-        Box(Modifier.size(42.dp).clip(CircleShape).background(Brush.radialGradient(listOf(Color(0xFF8A96FF), Color(0xFF4F46E0)))), contentAlignment = Alignment.Center) {
-            Icon(MusixIcons.Play, null, Modifier.size(16.dp), tint = Color.White)
-        }
-        Text("ВКЛЮЧИТЬ АРТИСТА", Modifier.padding(start = 16.dp), style = MusixTheme.type.mono.copy(fontSize = 14.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 0.18.em, color = c.text))
     }
 }
 

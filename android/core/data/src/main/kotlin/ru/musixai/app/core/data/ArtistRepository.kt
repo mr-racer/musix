@@ -26,6 +26,9 @@ class ArtistRepository @Inject constructor(private val api: MusixApi) {
             images = images,
             bio = bio?.text?.takeIf { it.isNotBlank() },
             facets = bio?.facets.orEmpty().mapNotNull { (k, v) -> (v as? JsonPrimitive)?.content?.let { k to it } }.toMap(),
+            cutout = p.artist.cutoutId?.let { images[it] },
+            country = p.country,
+            countryCode = p.countryCode,
         )
     }
 }

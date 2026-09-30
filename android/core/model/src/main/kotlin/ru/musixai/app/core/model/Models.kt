@@ -122,4 +122,7 @@ data class ArtistPage(
     val images: Map<String, Image>,
     val bio: String?,
     val facets: Map<String, String>,
+    val cutout: Image? = null,  // the transparent figure for the hero (v1 «cutout» mode)
+    val country: String? = null,
+    val countryCode: String? = null,
 )
