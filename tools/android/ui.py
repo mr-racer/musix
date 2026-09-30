@@ -1,13 +1,14 @@
 """Drive the emulator by what is on screen: `ui.py tap <text> [index, -1 = last]`, `ui.py type <text>`,
 `ui.py has <text>`, `ui.py dump`. Nodes are found in a uiautomator dump by text or
 content-desc (Compose exposes both)."""
+import os
 import re
 import subprocess
 import sys
 import time
 import xml.etree.ElementTree as ET
 
-ADB = ["adb", "-s", "emulator-5554"]
+ADB = [os.path.join(os.environ.get("ANDROID_HOME", "/mnt/data/android/sdk"), "platform-tools", "adb"), "-s", "emulator-5554"]
 
 
 def dump() -> ET.Element:
