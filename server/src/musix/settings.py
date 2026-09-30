@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import re
 
-from pydantic import field_validator
+from pydantic import SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 _SCHEME = re.compile(r"^postgres(?:ql)?(?:\+[a-z0-9_]+)?://")
@@ -36,7 +36,7 @@ class Settings(BaseSettings):
     library_roots: list[str] = ["/mnt/data/music"]  # the only folders /library/scan may walk
     llm_base_url: str | None = None  # OpenAI-compatible; the admin's instance setting wins
     llm_model: str | None = None
-    llm_api_key: str | None = None  # a local server ignores it
+    llm_api_key: SecretStr | None = None  # a local server ignores it; SecretStr: never in a repr
     knowledge_langs: list[str] = ["ru"]  # the languages facts, vibe lines and bios are written in
     proxy_url: str | None = None  # outbound knowledge sources only; internal traffic never
 

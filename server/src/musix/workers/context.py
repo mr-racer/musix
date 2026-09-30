@@ -47,5 +47,5 @@ def llm() -> Llm:
         secrets.fernet_only(s.secrets_dir),
         s.llm_base_url,
         s.llm_model,
-        s.llm_api_key,
+        s.llm_api_key.get_secret_value() if s.llm_api_key else None,
     )

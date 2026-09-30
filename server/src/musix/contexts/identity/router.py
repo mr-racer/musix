@@ -78,7 +78,8 @@ async def put_settings(body: S.SettingsIO, p: Auth, s: Session) -> S.SettingsIO:
 async def get_llm(p: Owner, s: Session, keys: Keys, request: Request) -> S.LlmSettingsOut:
     """The instance's LLM endpoint (the key only as `hasKey`)."""
     st = request.app.state.settings
-    cfg = await llm.config(s, keys.fernet, st.llm_base_url, st.llm_model, st.llm_api_key)
+    env_key = st.llm_api_key.get_secret_value() if st.llm_api_key else None
+    cfg = await llm.config(s, keys.fernet, st.llm_base_url, st.llm_model, env_key)
     return S.LlmSettingsOut.model_validate(cfg.public_view())
 
 

@@ -18,7 +18,7 @@ from __future__ import annotations
 import hashlib
 import json
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 import httpx
@@ -40,7 +40,7 @@ TIMEOUT = httpx.Timeout(600.0, connect=5.0)  # a 27b model writes a bio in minut
 class LlmConfig:
     base_url: str | None
     model: str
-    api_key: str
+    api_key: str = field(repr=False)  # never in a repr, a log line or a response
 
     def public_view(self) -> dict[str, Any]:
         return {

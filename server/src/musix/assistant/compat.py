@@ -234,3 +234,44 @@ def set_sessionmaker(sm: Any) -> None:
 
 def sessionmaker() -> Any:
     return _sm
+
+
+# ── outbound sources (phase 2 review focus 3: every one through a bucket + breaker) ──
+
+SOURCES: dict[str, tuple[float, float, bool]] = {
+    # name: (tokens/s, burst, breaker) — one budget for the whole instance
+    "wikipedia": (5.0, 5.0, True),
+    "duckduckgo": (1.0, 2.0, True),
+    "reddit": (0.5, 1.0, True),
+    "web-pages": (8.0, 8.0, False),  # arbitrary hosts: paced as one, no shared breaker
+    "searxng": (1.0 / 1.5, 1.0, False),  # = searxng_client's pacing (a local instance)
+}
+
+
+def outbound(name: str) -> Any:
+    """Wrap one outbound call of v1's assistant code (sync, on a worker thread): take a
+    token from the shared bucket, refuse while the source's breaker is open, record the
+    outcome. Outside a turn (tests, scripts: no loop bound) it is a no-op."""
+    from contextlib import contextmanager
+
+    @contextmanager
+    def gate() -> Any:
+        if _loop is None or _sm is None:
+            yield
+            return
+        from musix.infra import ratelimit
+
+        rate, burst, breaker = SOURCES[name]
+        if breaker and run_async(ratelimit.is_open(_sm, name)):
+            raise ModelError(f"{name} is failing; skipped")
+        run_async(ratelimit.acquire(_sm, ratelimit.Source(name, rate, burst)))
+        try:
+            yield
+        except Exception as e:
+            if breaker:
+                run_async(ratelimit.record(_sm, name, ok=False, error=f"{type(e).__name__}: {e}"))
+            raise
+        if breaker:
+            run_async(ratelimit.record(_sm, name, ok=True))
+
+    return gate()

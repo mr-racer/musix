@@ -453,25 +453,28 @@ def search_searxng(query: str, max_results: int = 5, engines: str | None = None)
     eng = engines if engines is not None else SEARXNG_ENGINES
     if eng:
         params["engines"] = eng
+    from musix.assistant.compat import outbound
+
     try:
-        resp = httpx.get(
-            f"{SEARXNG_URL}/search",
-            params=params,
-            headers={
-                "Accept": "application/json, text/javascript, */*",
-                "Accept-Language": "en-US,en;q=0.9",
-                "Referer": f"{SEARXNG_URL}/",
-                "X-Forwarded-For": "127.0.0.1",
-                "X-Real-IP": "127.0.0.1",
-                "User-Agent": (
-                    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-                    "AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36"
-                ),
-            },
-            timeout=10,
-            # SearXNG is a local service (localhost:8088 / the `searxng` compose
-            # service) — never route it through the external proxy.
-        )
+        with outbound("searxng"):
+            resp = httpx.get(
+                f"{SEARXNG_URL}/search",
+                params=params,
+                headers={
+                    "Accept": "application/json, text/javascript, */*",
+                    "Accept-Language": "en-US,en;q=0.9",
+                    "Referer": f"{SEARXNG_URL}/",
+                    "X-Forwarded-For": "127.0.0.1",
+                    "X-Real-IP": "127.0.0.1",
+                    "User-Agent": (
+                        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                        "AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36"
+                    ),
+                },
+                timeout=10,
+                # SearXNG is a local service (localhost:8088 / the `searxng` compose
+                # service) — never route it through the external proxy.
+            )
         resp.raise_for_status()
         data = resp.json()
         results = data.get("results", [])[:max_results]
@@ -511,7 +514,9 @@ def search_ddg(query: str, max_results: int = 5) -> list[dict]:
             ddgs_cm = DDGS(proxy=get_proxy_url())
         except TypeError:
             ddgs_cm = DDGS()
-        with ddgs_cm as ddgs:
+        from musix.assistant.compat import outbound
+
+        with outbound("duckduckgo"), ddgs_cm as ddgs:
             results = list(ddgs.text(query, max_results=max_results))
         if not results:
             logger.warning("[ddg] 0 results for query=%r", query)
@@ -531,6 +536,14 @@ def search_ddg(query: str, max_results: int = 5) -> list[dict]:
 
 
 def _http_get_text(url: str, timeout: float = 12.0) -> str:
+    """v2: through the shared `web-pages` bucket (review focus 3)."""
+    from musix.assistant.compat import outbound
+
+    with outbound("web-pages"):
+        return _http_get_text_raw(url, timeout)
+
+
+def _http_get_text_raw(url: str, timeout: float = 12.0) -> str:
     """GET страницы: curl_cffi первым с impersonate="chrome124" (полный
     браузерный TLS+заголовки), httpx — фоллбэк, если curl_cffi недоступен.
 

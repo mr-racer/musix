@@ -69,6 +69,13 @@ def looks_like_a_bot_wall(title: str) -> bool:
 
 
 def _fetch_curl_plain(url: str, timeout: float, proxies: Optional[dict]) -> str:
+    from musix.assistant.compat import outbound
+
+    with outbound("web-pages"):
+        return __fetch_curl_plain_raw(url, timeout, proxies)
+
+
+def __fetch_curl_plain_raw(url: str, timeout: float, proxies: Optional[dict]) -> str:
     """Bare curl_cffi, no impersonation — the way ``genius_service`` fetches."""
     from curl_cffi import requests as curl_requests
 
@@ -78,6 +85,13 @@ def _fetch_curl_plain(url: str, timeout: float, proxies: Optional[dict]) -> str:
 
 
 def _fetch_curl_chrome124(url: str, timeout: float, proxies: Optional[dict]) -> str:
+    from musix.assistant.compat import outbound
+
+    with outbound("web-pages"):
+        return __fetch_curl_chrome124_raw(url, timeout, proxies)
+
+
+def __fetch_curl_chrome124_raw(url: str, timeout: float, proxies: Optional[dict]) -> str:
     """A full browser fingerprint — the only thing Fandom and some CDNs answer."""
     from curl_cffi import requests as curl_requests
 
@@ -89,6 +103,13 @@ def _fetch_curl_chrome124(url: str, timeout: float, proxies: Optional[dict]) -> 
 
 
 def _fetch_httpx(url: str, timeout: float, proxies: Optional[dict]) -> str:
+    from musix.assistant.compat import outbound
+
+    with outbound("web-pages"):
+        return __fetch_httpx_raw(url, timeout, proxies)
+
+
+def __fetch_httpx_raw(url: str, timeout: float, proxies: Optional[dict]) -> str:
     import httpx
 
     # httpx wants one URL string where requests wants a dict; prefer the https

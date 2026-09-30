@@ -160,8 +160,10 @@ def fetch_thread(
 
     opener = urllib.request.build_opener(urllib.request.ProxyHandler(proxies or {}))
     request = urllib.request.Request(target, headers=_HEADERS)
+    from musix.assistant.compat import outbound
+
     try:
-        with opener.open(request, timeout=timeout) as response:
+        with outbound("reddit"), opener.open(request, timeout=timeout) as response:
             raw = response.read()
             if response.headers.get("Content-Encoding") == "gzip":
                 raw = gzip.decompress(raw)

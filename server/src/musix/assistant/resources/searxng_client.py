@@ -145,8 +145,10 @@ def search_ddg(q: str, limit: int = 10) -> list[dict]:
         except ImportError:
             logger.info("[searxng] no DDG fallback installed")
             return []
+    from musix.assistant.compat import outbound
+
     try:
-        with DDGS() as ddgs:
+        with outbound("duckduckgo"), DDGS() as ddgs:
             rows = list(ddgs.text(q, max_results=limit))
     except Exception as exc:  # noqa: BLE001
         logger.warning("[searxng] DDG fallback failed: %s: %s", type(exc).__name__, exc)

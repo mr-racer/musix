@@ -96,22 +96,25 @@ def search(
     import httpx
 
     try:
-        resp = httpx.get(
-            f"https://{lang}.wikipedia.org/w/api.php",
-            params={
-                "action": "query",
-                "list": "search",
-                "srsearch": term,
-                "srlimit": limit,
-                "srnamespace": 0,
-                "format": "json",
-                "formatversion": "2",
-            },
-            timeout=timeout,
-            headers={"User-Agent": _UA},
-            proxy=(proxies or {}).get("https") or (proxies or {}).get("http"),
-        )
-        resp.raise_for_status()
+        from musix.assistant.compat import outbound
+
+        with outbound("wikipedia"):
+            resp = httpx.get(
+                f"https://{lang}.wikipedia.org/w/api.php",
+                params={
+                    "action": "query",
+                    "list": "search",
+                    "srsearch": term,
+                    "srlimit": limit,
+                    "srnamespace": 0,
+                    "format": "json",
+                    "formatversion": "2",
+                },
+                timeout=timeout,
+                headers={"User-Agent": _UA},
+                proxy=(proxies or {}).get("https") or (proxies or {}).get("http"),
+            )
+            resp.raise_for_status()
         hits = resp.json().get("query", {}).get("search", []) or []
     except Exception as exc:  # noqa: BLE001 — the caller falls back to the web
         logger.info("[mediawiki] search %s %r failed: %s: %s", lang, term, type(exc).__name__, exc)
@@ -210,24 +213,27 @@ def probe_titles_batch(
     suffixes = DISAMBIGUATORS_RU + DISAMBIGUATORS if lang == "ru" else DISAMBIGUATORS
     titles = [f"{name} {suffix}" for suffix in suffixes]
     try:
-        resp = httpx.get(
-            f"https://{lang}.wikipedia.org/w/api.php",
-            params={
-                "action": "query",
-                "titles": "|".join(titles),
-                "prop": "extracts|pageprops",
-                "exintro": 1,
-                "explaintext": 1,
-                "exlimit": _EXLIMIT,
-                "redirects": 1,
-                "format": "json",
-                "formatversion": "2",
-            },
-            timeout=timeout,
-            proxy=(proxies or {}).get("https") or (proxies or {}).get("http"),
-            headers={"User-Agent": _UA},
-        )
-        resp.raise_for_status()
+        from musix.assistant.compat import outbound
+
+        with outbound("wikipedia"):
+            resp = httpx.get(
+                f"https://{lang}.wikipedia.org/w/api.php",
+                params={
+                    "action": "query",
+                    "titles": "|".join(titles),
+                    "prop": "extracts|pageprops",
+                    "exintro": 1,
+                    "explaintext": 1,
+                    "exlimit": _EXLIMIT,
+                    "redirects": 1,
+                    "format": "json",
+                    "formatversion": "2",
+                },
+                timeout=timeout,
+                proxy=(proxies or {}).get("https") or (proxies or {}).get("http"),
+                headers={"User-Agent": _UA},
+            )
+            resp.raise_for_status()
         query = resp.json().get("query", {}) or {}
     except Exception as exc:  # noqa: BLE001 — a probe that fails is just a miss
         logger.info("[mediawiki] probe %s %r failed: %s: %s", lang, name, type(exc).__name__, exc)
@@ -286,14 +292,17 @@ def fetch_html(
             "redirects": "1",
         }
         try:
-            resp = httpx.get(
-                f"{origin}{api_path}",
-                params=params,
-                timeout=timeout,
-                follow_redirects=True,
-                proxy=proxy,
-                headers={"User-Agent": _UA, "Accept": "application/json"},
-            )
+            from musix.assistant.compat import outbound
+
+            with outbound("wikipedia"):
+                resp = httpx.get(
+                    f"{origin}{api_path}",
+                    params=params,
+                    timeout=timeout,
+                    follow_redirects=True,
+                    proxy=proxy,
+                    headers={"User-Agent": _UA, "Accept": "application/json"},
+                )
         except Exception as exc:  # noqa: BLE001
             logger.info(
                 "[mediawiki] %s%s failed: %s: %s", origin, api_path, type(exc).__name__, exc
