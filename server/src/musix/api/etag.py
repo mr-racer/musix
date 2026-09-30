@@ -50,8 +50,14 @@ async def versioned_tag(
     return make(shape, account_id, version), int(version[0] or 0)
 
 
+# Bumped when a response's shape changes while its data does not (a new field, a text now
+# cleaned on the way out): every tag moves once, so no client keeps revalidating an old
+# body into 304s. 2: artist cutout/country, bios without the agent's notes (2026-10-01).
+REV = 2
+
+
 def make(*parts: object) -> str:
-    return 'W/"' + hashlib.sha256(repr(parts).encode()).hexdigest()[:24] + '"'
+    return 'W/"' + hashlib.sha256(repr((REV, *parts)).encode()).hexdigest()[:24] + '"'
 
 
 def matches(request: Request, tag: str) -> bool:
