@@ -27,6 +27,7 @@ from musix.contexts.library import artist_split
 from musix.contexts.library.models import (
     artists,
     jobs,
+    library_files,
     lyrics,
     media_files,
     songs,
@@ -346,6 +347,14 @@ async def ingest_file(
             .where(media_files.c.id == mf_id, media_files.c.state == "probed")
             .values(state="registered")
         )
+        lf = {"size_bytes": st.st_size, "mtime": st.st_mtime, "media_file_id": mf_id}
+        await s.execute(
+            pg_insert(library_files)
+            .values(account_id=account_id, path=str(path), **lf)
+            .on_conflict_do_update(
+                index_elements=["account_id", "path"], set_={**lf, "seen_at": sa.func.now()}
+            )
+        )
         await s.commit()
     if on_registered is not None:
         await on_registered(mf_id)
@@ -369,16 +378,21 @@ async def scan_folder(
     stats = await asyncio.to_thread(walk)
     files = [p for p, _, _ in stats]
     async with sm() as s:
+        # the ACCOUNT's own file index: a file whose bytes another account registered
+        # under another path is still "unchanged" here (migration 0010)
         known = (
             {
-                r.path: (r.size_bytes, r.mtime, r.id)
+                r.path: (r.size_bytes, r.mtime, r.media_file_id)
                 for r in await s.execute(
                     sa.select(
-                        media_files.c.path,
-                        media_files.c.size_bytes,
-                        media_files.c.mtime,
-                        media_files.c.id,
-                    ).where(media_files.c.path.in_([str(f) for f in files]))
+                        library_files.c.path,
+                        library_files.c.size_bytes,
+                        library_files.c.mtime,
+                        library_files.c.media_file_id,
+                    ).where(
+                        library_files.c.account_id == account_id,
+                        library_files.c.path.in_([str(f) for f in files]),
+                    )
                 )
             }
             if files

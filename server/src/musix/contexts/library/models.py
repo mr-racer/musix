@@ -154,3 +154,13 @@ jobs = sa.Table(
     sa.Column("created_at", TS, server_default=sa.func.now()),
     sa.Column("updated_at", TS, server_default=sa.func.now()),
 )
+library_files = sa.Table(
+    "library_files",
+    metadata,
+    sa.Column("account_id", U, sa.ForeignKey("accounts.id"), primary_key=True),
+    sa.Column("path", sa.Text, primary_key=True),
+    sa.Column("size_bytes", sa.BigInteger, nullable=False),
+    sa.Column("mtime", sa.Float),
+    sa.Column("media_file_id", U, sa.ForeignKey("media_files.id"), nullable=False),
+    sa.Column("seen_at", TS, server_default=sa.func.now()),
+)
