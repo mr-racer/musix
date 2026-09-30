@@ -373,8 +373,8 @@ fun LyricsAura(on: Boolean, accent: Color, modifier: Modifier = Modifier) {
     if (a <= 0f) return
     val dark = MusixTheme.isDark
     Canvas(modifier) {
-        // v1: accent 30% → 10% at 55% → clear at 98%. Evenly spaced stops say the same; uneven
-        // ones take Skia's textured-gradient path, which crashed the emulator's renderer
+        // v1: accent 30% → 10% at 55% → clear at 98%. Evenly spaced stops look the same; those
+        // exact stops, re-shaded every frame of the fade, crashed the emulator's renderer
         drawRect(Brush.radialGradient(
             listOf(accent.copy(alpha = (if (dark) 0.30f else 0.19f) * a), accent.copy(alpha = (if (dark) 0.10f else 0.07f) * a), Color.Transparent),
             center = Offset(size.width / 2, size.height * 0.52f), radius = size.maxDimension * 0.54f))

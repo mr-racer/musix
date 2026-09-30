@@ -35,6 +35,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -77,6 +78,7 @@ import ru.musixai.app.core.designsystem.oklch
 import ru.musixai.app.core.model.Home
 import ru.musixai.app.core.model.Vibe
 import ru.musixai.app.core.player.QueueMode
+import kotlinx.coroutines.delay
 import java.text.NumberFormat
 import java.util.Locale
 
@@ -111,7 +113,16 @@ fun HomeScreen(ui: HomeUi, orb: () -> Unit, playVibe: (Vibe) -> Unit, onSearch: 
         Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).statusBarsPadding()) {
             Header(onSearch = { onSearch(null) }, onSettings = onSettings)
             Column(Modifier.padding(horizontal = 16.dp).padding(top = 2.dp, bottom = 18.dp), verticalArrangement = Arrangement.spacedBy(22.dp)) {
-                Hero(home, ui.player.mode == QueueMode.STREAM && ui.player.trackId != null, ui.player.isPlaying, blobs, orb, playVibe)
+                val live = ui.player.mode == QueueMode.STREAM && ui.player.trackId != null
+                // v1 `fy-loading`: the tap landed, the wave is still being built (until it plays, 12 s at most)
+                var launching by remember { mutableStateOf(false) }
+                LaunchedEffect(launching, live && ui.player.isPlaying) {
+                    if (launching) { if (live && ui.player.isPlaying) launching = false else { delay(12_000); launching = false } }
+                }
+                val p = ui.player
+                Hero(home, live, p.isPlaying, launching || (live && p.buffering && !p.isPlaying),
+                    if (p.durationMs > 0) p.positionMs.toFloat() / p.durationMs else 0f, blobs,
+                    { if (!live) launching = true; orb() }, playVibe)
                 LyricsSearch(onSubmit = { onSearch(it) })
                 LibraryCard(home, ui.tracks, onLibrary)
             }
@@ -160,7 +171,7 @@ private fun Header(onSearch: () -> Unit, onSettings: () -> Unit) {
 }
 
 @Composable
-private fun Hero(home: Home?, streamLive: Boolean, playing: Boolean, blobs: List<Color>, orb: () -> Unit, playVibe: (Vibe) -> Unit) {
+private fun Hero(home: Home?, streamLive: Boolean, playing: Boolean, loading: Boolean, progress: Float, blobs: List<Color>, orb: () -> Unit, playVibe: (Vibe) -> Unit) {
     val c = MusixTheme.colors
     val dark = MusixTheme.isDark
     val kicker = if (dark) Color(0xFFC9B8FF) else oklch(46f, 0.19f, 280f)
@@ -183,7 +194,7 @@ private fun Hero(home: Home?, streamLive: Boolean, playing: Boolean, blobs: List
             }
         }
         Row(Modifier.padding(top = 18.dp), verticalAlignment = Alignment.Top) {
-            Box(Modifier.size(84.dp), contentAlignment = Alignment.Center) { WaveOrb(blobs, playing && streamLive, orb) }
+            Box(Modifier.size(84.dp), contentAlignment = Alignment.Center) { WaveOrb(blobs, playing && streamLive, loading, progress, orb) }
             Spacer(Modifier.width(18.dp))
             Column(Modifier.weight(1f)) {
                 Text(when { streamLive && playing -> "ВОЛНА ИГРАЕТ"; streamLive -> "ВОЛНА НА ПАУЗЕ"; else -> "ВКЛЮЧИТЬ ПОТОК" },
@@ -220,26 +231,6 @@ private fun HeroEq() {
         colors.forEachIndexed { i, col ->
             val h = size.height * (0.35f + 0.65f * (0.5f + 0.5f * kotlin.math.sin(phase + i * 1.1f)))
             drawRoundRect(col, Offset(i * bw * 1.6f, size.height - h), androidx.compose.ui.geometry.Size(bw, h), androidx.compose.ui.geometry.CornerRadius(bw / 2))
-        }
-    }
-}
-
-/** v1 `.fy-hybrid tint-irid`: an iridescent glass orb over the palette blobs, a halo, ▶/⏸. */
-@Composable
-private fun WaveOrb(blobs: List<Color>, playing: Boolean, onClick: () -> Unit) {
-    val t = rememberInfiniteTransition(label = "orb")
-    val spin by t.animateFloat(0f, 360f, infiniteRepeatable(tween(if (playing) 9_000 else 22_000)), label = "spin")
-    val breathe by t.animateFloat(0.96f, 1.04f, infiniteRepeatable(tween(3_200), RepeatMode.Reverse), label = "breathe")
-    Box(Modifier.size(84.dp).graphicsLayer { scaleX = if (playing) 1f else breathe; scaleY = if (playing) 1f else breathe }.pressable(onClick = onClick), contentAlignment = Alignment.Center) {
-        Box(Modifier.size(84.dp).dropShadow(CircleShape, Shadow(radius = 28.dp, color = blobs[1].copy(alpha = 0.55f))))
-        Box(Modifier.size(84.dp).clip(CircleShape).rotate(spin).background(Brush.sweepGradient(blobs + blobs.first())))
-        Box(Modifier.size(84.dp).clip(CircleShape).background(Brush.radialGradient(listOf(Color(0x33FFFFFF), Color(0x00FFFFFF), Color(0x40000000)))))
-        Box(Modifier.size(60.dp).clip(CircleShape)
-            .background(Brush.radialGradient(listOf(blobs[0].copy(alpha = 0.9f), blobs[3].copy(alpha = 0.85f))))
-            .innerShadow(CircleShape, Shadow(radius = 6.dp, color = Color(0x66FFFFFF), offset = DpOffset(0.dp, 2.dp)))
-            .border(1.dp, Color(0x40FFFFFF), CircleShape),
-            contentAlignment = Alignment.Center) {
-            Icon(if (playing) MusixIcons.Pause else MusixIcons.Play, null, Modifier.size(22.dp).offset(x = if (playing) 0.dp else 2.dp), tint = Color.White)
         }
     }
 }
