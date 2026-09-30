@@ -121,7 +121,11 @@ fun StatsRoute(vm: StatsViewModel = hiltViewModel()) {
         Divider("таймлайн прослушиваний", 150f)
         Rhythm(s)
         Divider("что ты дослушиваешь", 275f)
-        Engagement(s)
+        EngagementPanel(s, img)
+        s.collection?.let { col ->
+            Divider("карта коллекции", 75f)
+            CollectionPanel(col, img)
+        }
     }
 }
 
@@ -131,7 +135,7 @@ internal fun plural(n: Int, one: String, few: String, many: String): String {
 }
 
 @Composable
-private fun StatCard(content: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit) {
+internal fun StatCard(content: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit) {
     val c = MusixTheme.colors
     Column(Modifier.fillMaxWidth().skeDisplay(RoundedCornerShape(22.dp))
         .border(1.dp, c.border, RoundedCornerShape(22.dp)).padding(horizontal = 22.dp, vertical = 24.dp), content = content)
@@ -210,32 +214,5 @@ private fun Readout(value: String, label: String, hue: Float) {
     Column {
         Text(value, style = MusixTheme.type.body.copy(fontSize = 26.sp, fontWeight = FontWeight.Bold, color = oklch(75f, 0.15f, hue)))
         Text(label, style = MusixTheme.type.body.copy(fontSize = 12.sp, color = MusixTheme.colors.textMuted))
-    }
-}
-
-@Composable
-private fun Engagement(s: StatsOut) {
-    val c = MusixTheme.colors
-    val e = s.engagement
-    val pct = (e.overallCompletion.toFloat() * 100).coerceIn(0f, 100f)
-    StatCard {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Canvas(Modifier.size(64.dp)) {
-                drawArc(c.textSubtle.copy(alpha = 0.3f), -90f, 360f, false, style = Stroke(9f))
-                drawArc(oklch(70f, 0.17f, 145f), -90f, 360f * pct / 100, false, style = Stroke(9f, cap = StrokeCap.Round))
-            }
-            Column(Modifier.padding(start = 16.dp)) {
-                Text("${pct.toInt()}%", style = MusixTheme.type.body.copy(fontSize = 24.sp, fontWeight = FontWeight.Bold, color = c.text))
-                Text("треков ты дослушиваешь до конца", style = MusixTheme.type.body.copy(fontSize = 13.sp, color = c.textMuted))
-            }
-        }
-        if (e.loved.isNotEmpty()) {
-            Eyebrow("Не отпускают", Modifier.padding(top = 20.dp, bottom = 8.dp))
-            for (t in e.loved.take(5)) Row(Modifier.padding(vertical = 5.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text(t.track.titleDisplay ?: t.track.title, Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis, style = MusixTheme.type.body.copy(fontSize = 14.sp, color = c.text))
-                Spacer(Modifier.width(8.dp))
-                Text("${(t.completion.toFloat() * 100).toInt()}%", style = MusixTheme.type.code.copy(fontSize = 12.sp, color = oklch(70f, 0.17f, 145f)))
-            }
-        }
     }
 }

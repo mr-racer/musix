@@ -565,6 +565,28 @@
         "title": "ArtistRef",
         "type": "object"
       },
+      "ArtistShare": {
+        "properties": {
+          "artist": {
+            "$ref": "#/components/schemas/ArtistOut"
+          },
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "pct": {
+            "title": "Pct",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "artist",
+          "count",
+          "pct"
+        ],
+        "title": "ArtistShare",
+        "type": "object"
+      },
       "AssistantTurnIn": {
         "description": "v1 `AssistantRequest`, minus the per-request LLM overrides (the instance's LLM\nis the admin's setting).",
         "properties": {
@@ -999,6 +1021,60 @@
         "title": "ChatTurn",
         "type": "object"
       },
+      "Collection": {
+        "description": "«Карта коллекции» (v1 `DistributionsPanel`): what the library is made of — not what\nis played. v1's definitions: top 5 genres, its six IQR duration buckets (commonest\nfirst), top 5 artists by tracks, formats by file extension with the lossless share.",
+        "properties": {
+          "artists": {
+            "items": {
+              "$ref": "#/components/schemas/ArtistShare"
+            },
+            "title": "Artists",
+            "type": "array"
+          },
+          "decades": {
+            "items": {
+              "$ref": "#/components/schemas/DecadeShare"
+            },
+            "title": "Decades",
+            "type": "array"
+          },
+          "durations": {
+            "items": {
+              "$ref": "#/components/schemas/Share"
+            },
+            "title": "Durations",
+            "type": "array"
+          },
+          "formats": {
+            "items": {
+              "$ref": "#/components/schemas/Share"
+            },
+            "title": "Formats",
+            "type": "array"
+          },
+          "genres": {
+            "items": {
+              "$ref": "#/components/schemas/Share"
+            },
+            "title": "Genres",
+            "type": "array"
+          },
+          "losslessPct": {
+            "title": "Losslesspct",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "decades",
+          "genres",
+          "durations",
+          "artists",
+          "formats",
+          "losslessPct"
+        ],
+        "title": "Collection",
+        "type": "object"
+      },
       "Counts": {
         "properties": {
           "albums": {
@@ -1044,6 +1120,29 @@
           "count"
         ],
         "title": "DayCount",
+        "type": "object"
+      },
+      "DecadeShare": {
+        "properties": {
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "decade": {
+            "title": "Decade",
+            "type": "integer"
+          },
+          "pct": {
+            "title": "Pct",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "decade",
+          "count",
+          "pct"
+        ],
+        "title": "DecadeShare",
         "type": "object"
       },
       "DeleteIn": {
@@ -3778,6 +3877,29 @@
         "title": "SetupIn",
         "type": "object"
       },
+      "Share": {
+        "properties": {
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "pct": {
+            "title": "Pct",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "key",
+          "count",
+          "pct"
+        ],
+        "title": "Share",
+        "type": "object"
+      },
       "SignalData": {
         "description": "Clients compute the «заряд» locally: 0.5 ** (age_days / 1), locked above 0.5.",
         "properties": {
@@ -4023,6 +4145,16 @@
       },
       "StatsOut": {
         "properties": {
+          "collection": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Collection"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "engagement": {
             "$ref": "#/components/schemas/Engagement"
           },

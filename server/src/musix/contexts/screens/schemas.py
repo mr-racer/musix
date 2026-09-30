@@ -126,11 +126,43 @@ class Engagement(Model):
     guilty: list[EngagedTrack]  # dropped fastest (≥ 3 skips, typically < 10 s)
 
 
+class Share(Model):
+    key: str  # a genre, a format label, or a duration range in seconds ("180-240")
+    count: int
+    pct: int
+
+
+class DecadeShare(Model):
+    decade: int
+    count: int
+    pct: int
+
+
+class ArtistShare(Model):
+    artist: ArtistOut
+    count: int
+    pct: int
+
+
+class Collection(Model):
+    """«Карта коллекции» (v1 `DistributionsPanel`): what the library is made of — not what
+    is played. v1's definitions: top 5 genres, its six IQR duration buckets (commonest
+    first), top 5 artists by tracks, formats by file extension with the lossless share."""
+
+    decades: list[DecadeShare]
+    genres: list[Share]
+    durations: list[Share]
+    artists: list[ArtistShare]
+    formats: list[Share]
+    lossless_pct: int
+
+
 class StatsOut(Model):
     listening: Listening
     rhythm: Rhythm
     engagement: Engagement
     images: dict[str, ImageData]
+    collection: Collection | None = None
 
 
 class MapCluster(Model):

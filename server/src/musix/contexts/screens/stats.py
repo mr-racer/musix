@@ -8,6 +8,7 @@ from __future__ import annotations
 import asyncio
 import datetime as dt
 import uuid
+from collections import Counter
 from typing import TYPE_CHECKING, Any
 
 import sqlalchemy as sa
@@ -74,6 +75,100 @@ SELECT l.track_id, count(*) AS n FROM listen_events l
 WHERE l.account_id = :a AND NOT l.skipped_early AND {LOCAL}::date = :d
 GROUP BY 1 ORDER BY n DESC, l.track_id LIMIT 1
 """)
+
+_LIBRARY = sa.text("""
+SELECT t.genre, t.duration_ms, t.year, t.primary_artist_id, m.path
+FROM tracks t LEFT JOIN media_files m ON m.id = t.media_file_id
+WHERE t.account_id = :a AND t.deleted_at IS NULL
+""")
+FORMATS = {
+    "flac": "FLAC", "mp3": "MP3", "m4a": "M4A", "aac": "AAC", "alac": "ALAC", "wav": "WAV",
+    "aiff": "AIFF", "aif": "AIFF", "ogg": "OGG", "oga": "OGG", "opus": "OPUS", "wma": "WMA",
+    "ape": "APE",
+}  # fmt: skip
+LOSSLESS = {"FLAC", "WAV", "AIFF", "ALAC", "APE"}
+
+
+def duration_buckets(seconds: list[float]) -> list[str]:
+    """v1 `_duration_range_buckets`: six IQR buckets over the library's own durations,
+    labelled "lo-hi" in seconds (the client prints minutes)."""
+    import numpy as np
+
+    if not seconds:
+        return []
+    arr = np.array(seconds, dtype=float)
+    p25, p50, p75 = (float(np.percentile(arr, q)) for q in (25, 50, 75))
+    iqr = p50 - p25
+    lower, upper = p25 - 1.5 * iqr, p75 + 1.5 * iqr
+
+    def r(x: float) -> int:
+        return round(x)
+
+    labels = [
+        f"0-{r(lower)}", f"{r(lower)}-{r(p25)}", f"{r(p25)}-{r(p50)}",
+        f"{r(p50)}-{r(p75)}", f"{r(p75)}-{r(upper)}", f"{r(upper)}-{int(arr.max())}",
+    ]  # fmt: skip
+
+    def label(d: float) -> str:
+        if d < lower:
+            return labels[0]
+        if d < p25:
+            return labels[1]
+        if d < p50:
+            return labels[2]
+        if d <= p75:
+            return labels[3]
+        if d <= upper:
+            return labels[4]
+        return labels[5]
+
+    return [label(d) for d in seconds]
+
+
+def _shares(counter: Counter[str], n: int) -> list[S.Share]:
+    total = sum(counter.values()) or 1
+    return [S.Share(key=k, count=v, pct=round(v / total * 100)) for k, v in counter.most_common(n)]
+
+
+async def collection(c: Ctx) -> tuple[S.Collection, list[str | None]]:
+    """«Карта коллекции» over the account's live tracks, and the artist photos it shows."""
+    from musix.contexts.screens.service import artists_by_ids
+
+    rows = list((await c.run(lambda s: s.execute(_LIBRARY, {"a": c.account_id}))).all())
+    genres = Counter(str(g).strip() for g, *_ in rows if g and str(g).strip())
+    durs = [ms / 1000 for _, ms, *_ in rows if ms]
+    lengths = Counter(duration_buckets(durs))
+    artists = Counter(a for *_, a, _ in rows if a)
+    exts = (str(p or "").rsplit("/", 1)[-1] for *_, p in rows)
+    formats = Counter(
+        f for f in (FORMATS.get(e.rsplit(".", 1)[-1].lower()) for e in exts if "." in e) if f
+    )
+    decades: Counter[int] = Counter(
+        (y // 10) * 10 for _, _, y, *_ in rows if y and 1900 <= y <= 2100
+    )
+    top = artists.most_common(5)
+    found = {a.id: a for a in await artists_by_ids(c, [a for a, _ in top])}
+    total_a = sum(artists.values()) or 1
+    total_d = sum(decades.values()) or 1
+    total_f = sum(formats.values())
+    out = S.Collection(
+        decades=[
+            S.DecadeShare(decade=d, count=n, pct=round(n / total_d * 100))
+            for d, n in sorted(decades.items())
+        ],
+        genres=_shares(genres, 5),
+        durations=_shares(lengths, 6),
+        artists=[
+            S.ArtistShare(artist=found[a], count=n, pct=round(n / total_a * 100))
+            for a, n in top
+            if a in found
+        ],
+        formats=_shares(formats, 6),
+        lossless_pct=round(sum(n for f, n in formats.items() if f in LOSSLESS) / total_f * 100)
+        if total_f
+        else 0,
+    )
+    return out, [a.artist.image_id for a in out.artists]
 
 
 def local_today(tz: int) -> dt.date:
@@ -148,12 +243,13 @@ async def stats(c: Ctx, tz: int) -> S.StatsOut:
     async def rows(q: sa.TextClause, s: AsyncSession) -> list[Any]:
         return list((await s.execute(q, p)).all())
 
-    tot, per, art, days, hours = await asyncio.gather(
+    tot, per, art, days, hours, (library, faces) = await asyncio.gather(
         c.run(lambda s: rows(_TOTALS, s)),
         c.run(lambda s: rows(_PER_TRACK, s)),
         c.run(lambda s: rows(_TOP_ARTIST, s)),
         c.run(lambda s: rows(_DAYS, s)),
         c.run(lambda s: rows(_HOURS, s)),
+        collection(c),
     )
     played_ms, since, overall = tot[0]
     top = max(per, key=lambda r: (r.kept, r.plays), default=None)
@@ -215,6 +311,7 @@ async def stats(c: Ctx, tz: int) -> S.StatsOut:
         [
             *(t.cover_image_id for t in by.values()),
             top_artist.artist.image_id if top_artist else None,
+            *faces,
         ]
     )
     return S.StatsOut(
@@ -244,6 +341,7 @@ async def stats(c: Ctx, tz: int) -> S.StatsOut:
             guilty=guilty_out,
         ),
         images=images,
+        collection=library,
     )
 
 
