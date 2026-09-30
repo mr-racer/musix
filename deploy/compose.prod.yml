@@ -100,12 +100,22 @@ services:
 
   worker:
     <<: *server
-    command: procrastinate --app=musix.workers.app.app worker --concurrency 3 --queues default,ingest,media,net,ml
+    command: procrastinate --app=musix.workers.app.app worker --concurrency 3 --queues default,ingest,net,ml
+    stop_grace_period: 60s
     depends_on: {migrate: {condition: service_completed_successfully}}
     healthcheck:
       test: ["CMD", "procrastinate", "--app=musix.workers.app.app", "healthchecks"]
       interval: 10s
       retries: 10
+
+  # ffmpeg: probes, loudness, renditions — 8 at once on the 12 threads, at a quarter of the
+  # default CPU weight so v1 prod (and later the api) wins any contention
+  worker-media:
+    <<: *server
+    command: procrastinate --app=musix.workers.app.app worker --concurrency ${MUSIX_MEDIA_CONCURRENCY:-8} --queues media
+    cpu_shares: 256
+    stop_grace_period: 60s
+    depends_on: {migrate: {condition: service_completed_successfully}}
 
   # the one LLM is prod's llama-server: off until the switch (`--profile ai`), so staging
   # adds no load next to v1's own AI jobs

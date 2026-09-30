@@ -167,10 +167,14 @@ async def process_media(
                 )  # economy becomes on-demand
                 continue
         dst = tdir / (f"{tier}.m4a" if codec == "aac" else f"{tier}.flac")
-        if codec == "aac":
-            await audio.encode_aac(src, dst, kbps or 320, sample_rate)
-        else:
-            await audio.encode_flac(src, dst)
+        # the tier dir is content-addressed and encodes land by rename, so a file already
+        # there is complete: a database rebuilt over the same media dir (the cutover's
+        # final migration after the T−1 d prebuild) registers it instead of re-encoding
+        if not await asyncio.to_thread(dst.exists):
+            if codec == "aac":
+                await audio.encode_aac(src, dst, kbps or 320, sample_rate)
+            else:
+                await audio.encode_flac(src, dst)
         size = (await asyncio.to_thread(dst.stat)).st_size
         async with sm() as s:
             await s.execute(
