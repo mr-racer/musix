@@ -34,6 +34,8 @@ dependencies = [
     "readability-lxml>=0.9",
     "ddgs>=9.16.0",
     "pydantic-ai-slim[openai]>=1.0,<2.0",
+    "yandex-music>=3.0,<4",
+    "aiohttp>=3.9",
 ]
 
 [dependency-groups]
@@ -74,6 +76,8 @@ ignore = ["S101", "RUF001", "RUF002", "RUF003"]  # asserts in tests; −, × and
 "src/musix/contexts/knowledge/{jobs,sources,tasks}.py" = ["E501"]
 "src/musix/assistant/**" = ["E", "W", "B", "UP", "RUF", "SIM", "S", "I", "F", "PT", "ASYNC"]  # v1's assistant, copied
 "src/musix/contexts/assistant/*.py" = ["E501"]
+"src/musix/{quiz,yandex}/**" = ["E", "W", "B", "UP", "RUF", "SIM", "S", "I", "F", "PT", "ASYNC"]  # v1 logic, copied
+"src/musix/contexts/{quiz,imports}/*.py" = ["E501"]
 
 [tool.mypy]
 strict = true
@@ -82,11 +86,11 @@ mypy_path = "src"
 packages = ["musix"]
 
 [[tool.mypy.overrides]]
-module = ["musix.knowledge.*", "musix.assistant.*"]  # v1 logic, copied verbatim (untyped)
+module = ["musix.knowledge.*", "musix.assistant.*", "musix.quiz.*", "musix.yandex.*"]  # v1 logic, copied verbatim (untyped)
 ignore_errors = true
 
 [[tool.mypy.overrides]]
-module = ["curl_cffi.*", "trafilatura.*", "readability.*", "ddgs.*", "duckduckgo_search.*", "procrastinate.*", "testcontainers.*", "pyvips.*", "asyncpg.*", "syncedlyrics.*", "scipy.*", "lightgbm.*"]
+module = ["yandex_music.*", "mutagen.*", "curl_cffi.*", "trafilatura.*", "readability.*", "ddgs.*", "duckduckgo_search.*", "procrastinate.*", "testcontainers.*", "pyvips.*", "asyncpg.*", "syncedlyrics.*", "scipy.*", "lightgbm.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]

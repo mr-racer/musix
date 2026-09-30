@@ -132,12 +132,15 @@ def context_routers() -> list[APIRouter]:
     from musix.api.realtime import router as realtime
     from musix.contexts.assistant.router import router as assistant
     from musix.contexts.identity.router import router as identity
+    from musix.contexts.imports.router import router as imports
     from musix.contexts.knowledge.router import router as knowledge
     from musix.contexts.library.router import router as library
     from musix.contexts.listening.router import router as listening
     from musix.contexts.media.router import router as media
     from musix.contexts.models_public.router import router as models_public
     from musix.contexts.playlists.router import router as playlists
+    from musix.contexts.quiz.router import public as quiz_public
+    from musix.contexts.quiz.router import router as quiz
     from musix.contexts.screens.router import router as screens
     from musix.contexts.search.router import router as search
     from musix.contexts.stream.router import router as stream
@@ -152,6 +155,9 @@ def context_routers() -> list[APIRouter]:
         screens,
         knowledge,
         assistant,
+        quiz,
+        quiz_public,
+        imports,
         search,
         stream,
         sync,

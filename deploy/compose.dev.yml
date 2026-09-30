@@ -72,6 +72,10 @@ services:
     <<: *server
     # every queue but `ai`, which has its own single-slot worker below
     command: procrastinate --app=musix.workers.app.app worker --concurrency 3 --queues default,ingest,media,net,ml
+    volumes:
+      - /mnt/data/musix-v2-media:/mnt/data/musix-v2-media
+      - /mnt/data/music:/mnt/data/music:ro
+      - secrets:/var/lib/musix/secrets:ro  # the Fernet key only: Yandex tokens
     depends_on: {migrate: {condition: service_completed_successfully}}
     healthcheck:
       test: ["CMD", "procrastinate", "--app=musix.workers.app.app", "healthchecks"]

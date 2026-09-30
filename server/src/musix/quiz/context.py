@@ -1,0 +1,86 @@
+"""The data a mode needs to build one round, and the round it produces.
+
+A mode receives a ``RoundContext`` and never reaches for Qdrant, SQLite or the
+clock itself. That is what lets the whole difficulty and slate design be tested
+as plain functions over plain dicts, instead of only being judged by playing
+the game and squinting.
+
+Spec: docs/superpowers/specs/2026-08-21-music-quiz-design.md §4.
+"""
+
+from __future__ import annotations
+
+import random as _random
+from dataclasses import dataclass, field
+
+
+@dataclass
+class RoundContext:
+    """Everything one round may look at, gathered once by the facade."""
+
+    collection_name: str
+    tracks: list[dict]  # light payloads, no lyrics
+    plays: dict[str, int]  # non-skipped play counts
+    last_played: dict[str, float | None]  # epoch seconds, None if never
+    percentiles: dict[str, float]  # familiarity, 0..100
+    skill: dict  # MetadataDB.get_quiz_skill row
+    exclude: set[str] = field(default_factory=set)  # anti-repeat
+    axis_stats: dict | None = None
+    # {producer_key: {"name": display, "tracks": [track_id, ...]}} over every
+    # effectively-credited track. Built once per snapshot; M2 reads it.
+    producers: dict[str, dict] = field(default_factory=dict)
+    # "This track took its sound from that one" claims, with the source track
+    # already resolved to a ``track_id`` so the mode never touches slugs.
+    # [{"src_track_id", "dst_title", "dst_artist", "dst_slug", "relation"}]
+    sample_links: list[dict] = field(default_factory=list)
+    rng: object = _random
+    now: float = 0.0
+
+    def __post_init__(self) -> None:
+        self._index = {t.get("track_id"): t for t in self.tracks}
+
+    def by_id(self, track_id: str) -> dict | None:
+        return self._index.get(track_id)
+
+
+def public_options(options: list[dict]) -> list[dict]:
+    """The option list as the CLIENT may see it.
+
+    Options carry a ``track_id`` server-side because per-option audio has to
+    resolve to a file, but that id must never travel with the question: it
+    would let anyone look the answer up before answering. Stripping happens
+    here, in one place, rather than being remembered at each call site.
+    """
+    return [{k: v for k, v in option.items() if k != "track_id"} for option in options]
+
+
+@dataclass
+class RoundSpec:
+    """A built round. ``correct_option_id`` never leaves the server."""
+
+    mode: str
+    track_id: str
+    options: list[dict]  # {option_id, title, artist, cover_art_path}
+    correct_option_id: str
+    start_sec: float = 0.0
+    length_sec: float = 0.0
+    # Facts the round can only show AFTER it is answered — the producer whose
+    # three tracks those were, the year that was being guessed. Kept out of the
+    # question payload entirely: anything here would give the answer away.
+    reveal: dict = field(default_factory=dict)
+    # Question-side extras that are safe to send with the round: the scale
+    # bounds a year picker needs, for instance. The split from `reveal` is the
+    # whole point — one travels with the question, the other cannot.
+    meta: dict = field(default_factory=dict)
+
+    def to_stored(self) -> dict:
+        """The shape persisted in ``quiz_rounds.spec_json``."""
+        return {
+            "mode": self.mode,
+            "options": self.options,
+            "correct_option_id": self.correct_option_id,
+            "start_sec": self.start_sec,
+            "length_sec": self.length_sec,
+            "reveal": self.reveal,
+            "meta": self.meta,
+        }
