@@ -36,6 +36,8 @@ data class PlayerUi(
     val chatOpen: Boolean = false,
     val chat: List<Pair<Boolean, String>> = emptyList(),  // (mine, text)
     val chatStage: String? = null,
+    val explain: Map<Int, Explain> = emptyMap(),  // lyric line → the guru's answer (v1 InlineLyricExplain)
+    val explainFor: String? = null,               // … for this track only
 )
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -66,7 +68,8 @@ class PlayerViewModel @Inject constructor(
     }
 
     val ui: StateFlow<PlayerUi> = combine(player.state, context, envelope, local) { p, ctx, env, l ->
-        l.copy(player = p, context = ctx?.takeIf { it.track.id == p.trackId }, envelope = env)
+        l.copy(player = p, context = ctx?.takeIf { it.track.id == p.trackId }, envelope = env,
+            explain = if (l.explainFor == p.trackId) l.explain else emptyMap())
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), PlayerUi())
 
     fun toggle() = player.toggle()
@@ -93,6 +96,19 @@ class PlayerViewModel @Inject constructor(
         viewModelScope.launch {
             val r = runCatching { assistant.trackChat(id, message, line, history) { s -> local.update { it.copy(chatStage = s) } } }
             local.update { u -> u.copy(chatStage = null, chat = u.chat + (false to (r.getOrNull()?.text ?: "Не получилось ответить"))) }
+        }
+    }
+
+    /** A tap on a lyric line: open (asking the guru once) or close its explanation. */
+    fun explainLine(i: Int, line: String) {
+        val id = player.state.value.trackId ?: return
+        val now = local.value.takeIf { it.explainFor == id }?.explain.orEmpty()
+        if (i in now) { local.update { it.copy(explain = now - i, explainFor = id) }; return }
+        local.update { it.copy(explain = now + (i to Explain.Loading), explainFor = id) }
+        viewModelScope.launch {
+            val r = runCatching { assistant.trackChat(id, "Объясни строчку", line, emptyList()) { } }
+            val text = r.getOrNull()?.text ?: "Гуру сейчас не ответил — попробуй ещё раз"
+            local.update { u -> if (u.explainFor != id) u else u.copy(explain = u.explain + (i to Explain.Done(text))) }
         }
     }
 

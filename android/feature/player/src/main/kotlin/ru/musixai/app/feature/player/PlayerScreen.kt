@@ -6,6 +6,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -74,7 +75,14 @@ fun PlayerScreen(ui: PlayerUi, vm: PlayerViewModel, onClose: () -> Unit, onArtis
                 Text("ЖМИ НА ОБЛОЖКУ, ЧТОБЫ ПОСТАВИТЬ НА ПАУЗУ", Modifier.align(Alignment.Center).padding(start = 48.dp), maxLines = 1, overflow = TextOverflow.Ellipsis,
                     style = MusixTheme.type.mono.copy(fontSize = 10.sp, letterSpacing = 0.16.em, color = c.textMuted))
             }
-            CoverStage(ui, onToggle = vm::toggle, onNext = vm::next, onPrev = vm::previous, modifier = Modifier.padding(horizontal = 10.dp))
+            val accent = hexColor(palette?.vibrant) ?: Color(0xFF7C5BFF)
+            Box(Modifier.fillMaxWidth()) {
+                // the lyrics aura and the spectrum wave sit behind the cover row (v1 order)
+                LyricsAura(ui.lyricsOpen, accent, Modifier.matchParentSize().padding(vertical = 0.dp))
+                Spectrum(ui.envelope, p.positionMs, p.isPlaying && !ui.lyricsOpen, accent, Modifier.matchParentSize().padding(vertical = 40.dp))
+                CoverStage(ui, flipped = ui.lyricsOpen, onToggle = vm::toggle, onNext = vm::next, onPrev = vm::previous,
+                    explain = ui.explain, onExplain = vm::explainLine, modifier = Modifier.padding(horizontal = 24.dp))
+            }
             Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 14.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(p.title.ifEmpty { ctx?.track?.title.orEmpty() }, maxLines = 2, overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center,
                     style = MusixTheme.type.body.copy(fontSize = 25.sp, lineHeight = 1.15.em, fontWeight = FontWeight.Bold, letterSpacing = (-0.01).em, color = c.text))
@@ -87,10 +95,23 @@ fun PlayerScreen(ui: PlayerUi, vm: PlayerViewModel, onClose: () -> Unit, onArtis
                 val meta = listOfNotNull(ctx?.track?.album?.takeIf { it.isNotBlank() }, ctx?.track?.year?.toString()).joinToString(" · ")
                 if (meta.isNotEmpty()) Text(meta, Modifier.padding(top = 4.dp), maxLines = 1, overflow = TextOverflow.Ellipsis,
                     style = MusixTheme.type.body.copy(fontSize = 13.sp, color = c.textSubtle))
-                ctx?.vibe?.let {
-                    Text(it, Modifier.padding(top = 12.dp), textAlign = TextAlign.Center,
-                        style = MusixTheme.type.body.copy(fontFamily = MusixFontFamilies.Playfair, fontStyle = FontStyle.Italic, fontSize = 16.sp,
-                            lineHeight = 1.35.em, color = if (dark) Color(0xFFBDB0E6) else Color(0xFF5B4A91)))
+                ctx?.vibe?.let { raw ->
+                    // v1 VibeLine: an italic serif line between two hairline wings (the wings
+                    // give way before the phrase wraps), sliding in on each new track
+                    val phrase = raw.trim().trim('"', '«', '»', '“', '”', '\'')
+                    val tint = if (dark) Color(0xD1D8CCFF) else Color(0xFF4F3F7F)
+                    androidx.compose.animation.AnimatedContent(phrase, transitionSpec = {
+                        (androidx.compose.animation.fadeIn(tween(240)) + androidx.compose.animation.slideInVertically(tween(240, easing = androidx.compose.animation.core.CubicBezierEasing(0.22f, 0.9f, 0.3f, 1f))) { it / 3 })
+                            .togetherWith(androidx.compose.animation.fadeOut(tween(120)))
+                    }, label = "vibe") { text ->
+                        Row(Modifier.padding(top = 10.dp).fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
+                            Box(Modifier.weight(0.12f, fill = true).height(1.dp).background(Brush.horizontalGradient(listOf(Color.Transparent, tint.copy(alpha = 0.55f)))))
+                            Text(text, Modifier.padding(horizontal = 10.dp).weight(1f, fill = false), textAlign = TextAlign.Center,
+                                style = MusixTheme.type.body.copy(fontFamily = MusixFontFamilies.SerifDisplay, fontStyle = FontStyle.Italic, fontWeight = FontWeight.Light,
+                                    fontSize = 14.5.sp, lineHeight = 1.45.em, color = tint))
+                            Box(Modifier.weight(0.12f, fill = true).height(1.dp).background(Brush.horizontalGradient(listOf(tint.copy(alpha = 0.55f), Color.Transparent))))
+                        }
+                    }
                 }
             }
             Scrubber(p.positionMs, p.durationMs, ui.envelope, vm::seek, Modifier.padding(horizontal = 36.dp))
@@ -98,12 +119,11 @@ fun PlayerScreen(ui: PlayerUi, vm: PlayerViewModel, onClose: () -> Unit, onArtis
             if (ctx?.lossless == true) LosslessMark(Modifier.align(Alignment.CenterHorizontally).padding(top = 10.dp))
             Spacer(Modifier.height(18.dp))
             if (ui.chatOpen) TrackChat(ui, vm, Modifier.padding(horizontal = 16.dp).padding(bottom = 12.dp))
-            if (ui.lyricsOpen) LyricsPanel(ctx, p.positionMs, vm::seek, Modifier.padding(horizontal = 16.dp), onExplain = { line -> vm.ask("Объясни строчку", line) })
-            else FactsRail(ctx, Modifier.padding(horizontal = 12.dp))
+            FactsRail(ctx, Modifier.padding(horizontal = 12.dp))
             Credits(ctx, Modifier.padding(horizontal = 16.dp, vertical = 12.dp))
             if (ui.addOpen) AddToPlaylist(vm)
-            QueueList(p, onJump = vm::jump, onMove = vm::move, onRemove = vm::remove, streaming = p.mode == QueueMode.STREAM,
-                modifier = Modifier.padding(horizontal = 12.dp).padding(bottom = 24.dp))
+            QueueButton(p.queue.size, vm::toggleQueue, Modifier.padding(horizontal = 14.dp).padding(bottom = 24.dp))
         }
+        QueueDrawer(ui.queueOpen, p, onClose = vm::toggleQueue, onJump = vm::jump, onMove = vm::move, onRemove = vm::remove)
     }
 }

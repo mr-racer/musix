@@ -19,7 +19,7 @@ case "${1:-up}" in
         -e HOME=/tmp -e ANDROID_HOME -e ANDROID_SDK_ROOT -e ANDROID_AVD_HOME \
         -v /mnt/data/android:/mnt/data/android \
         $IMAGE "$ANDROID_HOME/emulator/emulator" -avd musix_phone -no-window -no-audio -no-boot-anim \
-          -gpu swiftshader_indirect -no-snapshot -port 5554 -memory 4096 >/dev/null
+          -gpu ${MUSIX_EMU_GPU:-swiftshader_indirect} -no-snapshot -port 5554 -memory 4096 >/dev/null
     fi
     adb start-server >/dev/null
     for _ in $(seq 1 90); do

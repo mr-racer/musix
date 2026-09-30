@@ -29,6 +29,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.dropShadow
 import androidx.compose.ui.graphics.Brush
@@ -163,8 +165,9 @@ private fun LazyGridScope.albums(ui: LibraryUi, vm: LibraryViewModel, onAlbum: (
 @Composable
 private fun AlbumTile(a: AlbumCard, onClick: () -> Unit) {
     val c = MusixTheme.colors
-    Column(Modifier.pressable(onClick = onClick)) {
-        Box {
+    var bounds by remember { mutableStateOf<androidx.compose.ui.geometry.Rect?>(null) }
+    Column(Modifier.pressable { AlbumOrigin.rect = bounds; AlbumOrigin.image = a.image; onClick() }) {
+        Box(Modifier.onGloballyPositioned { bounds = it.boundsInRoot() }) {
             Cover(a.image, a.title, a.artist.orEmpty(), Modifier.fillMaxWidth(), size = null, radius = 18.dp)
             Text("${a.tracks} тр", Modifier.align(Alignment.TopEnd).padding(10.dp).clip(RoundedCornerShape(999.dp)).background(Color(0xB30D0D12))
                 .padding(horizontal = 10.dp, vertical = 5.dp), style = MusixTheme.type.body.copy(fontSize = 12.sp, color = Color(0xFFEEEEF3)))

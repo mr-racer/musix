@@ -55,46 +55,26 @@ import ru.musixai.app.core.model.Track
 import ru.musixai.app.core.player.PlayerController
 import javax.inject.Inject
 
-data class AlbumUi(val title: String = "", val artist: String? = null, val year: Int? = null, val image: Image? = null, val tracks: List<Track> = emptyList())
+data class AlbumUi(val title: String = "", val artist: String? = null, val year: Int? = null, val image: Image? = null, val tracks: List<Track> = emptyList(), val artistId: String? = null)
 
 @HiltViewModel
 class AlbumViewModel @Inject constructor(state: SavedStateHandle, catalog: CatalogRepository, library: LibraryRepository, private val player: PlayerController) : ViewModel() {
     private val id: String = checkNotNull(state["id"])
     val ui: StateFlow<AlbumUi> = combine(flow { emit(catalog.album(id)) }, catalog.albumTracks(id)) { a, tracks ->
         val img = (a?.coverImageId ?: tracks.firstOrNull()?.coverImageId)?.let { library.images(listOf(it))[it] }
-        AlbumUi(a?.title ?: tracks.firstOrNull()?.album.orEmpty(), tracks.firstOrNull()?.artist, a?.year ?: tracks.firstOrNull()?.year, img, tracks)
+        AlbumUi(a?.title ?: tracks.firstOrNull()?.album.orEmpty(), tracks.firstOrNull()?.artists?.firstOrNull()?.name ?: tracks.firstOrNull()?.artist,
+            a?.year ?: tracks.firstOrNull()?.year, img, tracks, tracks.firstOrNull()?.artists?.firstOrNull()?.id)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AlbumUi())
 
     fun play(index: Int) = player.playTracks(ui.value.tracks.map { it.id }, index, "album")
 }
 
+/** An album is v1's gatefold (Gatefold.kt), shown as a full-screen dialog destination so the
+ *  screen it was opened from stays underneath, dimmed, as in v1. */
 @Composable
-fun AlbumRoute(onBack: () -> Unit, vm: AlbumViewModel = hiltViewModel()) {
+fun AlbumRoute(onBack: () -> Unit, onArtist: (String) -> Unit = {}, vm: AlbumViewModel = hiltViewModel()) {
     val ui by vm.ui.collectAsStateWithLifecycle()
-    val c = MusixTheme.colors
-    LazyColumn(Modifier.fillMaxSize().background(c.bg).statusBarsPadding(), contentPadding = androidx.compose.foundation.layout.PaddingValues(20.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        item { RoundGlassButton(onBack, size = 40.dp) { Icon(MusixIcons.ChevronLeft, "Назад", Modifier.size(18.dp), tint = c.text) } }
-        item {
-            Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-                Cover(ui.image, ui.title, ui.artist.orEmpty(), Modifier.fillMaxWidth(0.72f), size = null, radius = 18.dp)
-                Text(ui.title, Modifier.padding(top = 16.dp), textAlign = TextAlign.Center, style = MusixTheme.type.body.copy(fontSize = 22.sp, fontWeight = FontWeight.Bold, color = c.text))
-                Text(listOfNotNull(ui.artist, ui.year?.toString(), "${ui.tracks.size} треков").joinToString(" · "), Modifier.padding(top = 4.dp),
-                    style = MusixTheme.type.body.copy(fontSize = 14.sp, color = c.textMuted))
-                CtaButton("Слушать", { vm.play(0) }, Modifier.padding(top = 16.dp).fillMaxWidth(0.6f))
-            }
-        }
-        itemsIndexed(ui.tracks) { i, t ->
-            Row(Modifier.fillMaxWidth().pressable { vm.play(i) }.padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text("${t.trackNo ?: i + 1}", Modifier.size(width = 32.dp, height = 20.dp), style = MusixTheme.type.code.copy(fontSize = 13.sp, color = c.textSubtle))
-                Column(Modifier.weight(1f)) {
-                    Text(t.title, style = MusixTheme.type.body.copy(fontSize = 15.sp, color = c.text))
-                    Text(t.artist, style = MusixTheme.type.body.copy(fontSize = 12.5.sp, color = c.textMuted))
-                }
-                Text(fmtDur(t.durationMs), style = MusixTheme.type.code.copy(fontSize = 12.sp, color = c.textSubtle))
-            }
-        }
-    }
+    Gatefold(ui, onPlay = vm::play, onArtist = ui.artistId?.let { id -> { onArtist(id) } }, onClosed = onBack)
 }
 
 internal fun fmtDur(ms: Long) = (ms / 1000).let { "%d:%02d".format(it / 60, it % 60) }

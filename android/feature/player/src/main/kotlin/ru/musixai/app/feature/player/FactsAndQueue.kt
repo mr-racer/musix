@@ -1,6 +1,21 @@
 package ru.musixai.app.feature.player
 
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.CubicBezierEasing
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.keyframes
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -161,47 +176,110 @@ fun Credits(ctx: PlayerContext?, modifier: Modifier = Modifier) {
     }
 }
 
-/** The queue: tap = jump, long-press + drag = reorder, × = remove. History above the current
- *  item is dimmed; «Поток» shows its own upcoming tracks. */
+/** v1's phone queue entry under the facts: «ОЧЕРЕДЬ · N ›» opens the full-screen drawer. */
 @Composable
-fun QueueList(p: PlayerState, onJump: (Int) -> Unit, onMove: (Int, Int) -> Unit, onRemove: (Int) -> Unit, streaming: Boolean, modifier: Modifier = Modifier) {
+fun QueueButton(count: Int, onOpen: () -> Unit, modifier: Modifier = Modifier) {
     val c = MusixTheme.colors
-    if (p.queue.isEmpty()) return
-    Column(modifier.fillMaxWidth()) {
-        Eyebrow(if (streaming) "Дальше в потоке" else "Очередь", Modifier.padding(start = 4.dp, bottom = 8.dp, top = 8.dp))
+    val dark = MusixTheme.isDark
+    Row(
+        modifier.fillMaxWidth().height(48.dp).clip(RoundedCornerShape(14.dp))
+            .background(if (dark) Color(0x0DFFFFFF) else Color(0x0A161620))
+            .border(1.dp, if (dark) Color(0x14FFFFFF) else Color(0x1A161620), RoundedCornerShape(14.dp))
+            .pressable(onClick = onOpen).padding(horizontal = 16.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text("ОЧЕРЕДЬ · $count", Modifier.weight(1f), style = MusixTheme.type.body.copy(fontSize = 11.sp, letterSpacing = 0.16.em, color = c.text))
+        Icon(MusixIcons.ChevronRight, null, Modifier.size(18.dp), tint = c.text)
+    }
+}
+
+/**
+ * v1's queue drawer on a phone: full screen, sliding up over 300 ms, a × to close; the
+ * header «ОЧЕРЕДЬ · N ТРЕКОВ»; the playing row lit with the equalizer; tap = jump,
+ * long-press + drag (or the ⋮⋮ grip) = reorder, × = remove.
+ */
+@Composable
+fun QueueDrawer(open: Boolean, p: PlayerState, onClose: () -> Unit, onJump: (Int) -> Unit, onMove: (Int, Int) -> Unit, onRemove: (Int) -> Unit) {
+    val c = MusixTheme.colors
+    val dark = MusixTheme.isDark
+    val k by animateFloatAsState(if (open) 1f else 0f, tween(300, easing = CubicBezierEasing(0.22f, 0.9f, 0.3f, 1f)), label = "queue")
+    if (k <= 0f) return
+    androidx.activity.compose.BackHandler(open, onClose)
+    Column(
+        Modifier.fillMaxSize().graphicsLayer { translationY = size.height * (1f - k) }
+            .background(if (dark) Color(0xFA0E0E14) else Color(0xFAF8F7FC))
+            .pointerInput(Unit) { detectTapGestures { } }  // the player underneath takes no taps
+            .statusBarsPadding().navigationBarsPadding().padding(horizontal = 14.dp, vertical = 10.dp),
+    ) {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+            Icon(MusixIcons.Close, "Закрыть", Modifier.size(44.dp).clip(CircleShape).pressable(onClick = onClose).padding(13.dp), tint = c.text)
+        }
+        Text("ОЧЕРЕДЬ · ${p.queue.size} ТРЕКОВ", Modifier.padding(start = 4.dp, bottom = 10.dp),
+            style = MusixTheme.type.body.copy(fontSize = 10.sp, letterSpacing = 0.2.em, color = if (dark) Color(0xFF888888) else Color(0xFF5A5A66)))
+        if (p.queue.isEmpty()) {
+            Text("Очередь пуста", Modifier.fillMaxWidth().padding(30.dp), textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                style = MusixTheme.type.body.copy(fontSize = 13.sp, color = if (dark) Color(0xFF888888) else Color(0xFF5A5A66)))
+            return@Column
+        }
         var dragging by remember { mutableIntStateOf(-1) }
         var dy by remember { mutableFloatStateOf(0f) }
-        val rowPx = with(androidx.compose.ui.platform.LocalDensity.current) { 58.dp.toPx() }
-        for (e in p.queue.drop((p.index - 1).coerceAtLeast(0)).take(30)) {
-            val here = e.index == p.index
-            val past = e.index < p.index
-            Row(
-                Modifier.fillMaxWidth().height(58.dp)
-                    .graphicsLayer { if (dragging == e.index) { translationY = dy; shadowElevation = 12f }; alpha = if (past) 0.45f else 1f }
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(if (here) c.accentBg else Color.Transparent)
-                    .pointerInput(e.index) {
-                        detectDragGesturesAfterLongPress(
-                            onDragStart = { dragging = e.index; dy = 0f },
-                            onDragEnd = {
-                                val to = (e.index + (dy / rowPx).roundToInt()).coerceIn(0, p.queue.lastIndex)
-                                if (to != e.index) onMove(e.index, to)
-                                dragging = -1; dy = 0f
-                            },
-                            onDragCancel = { dragging = -1; dy = 0f },
-                        ) { _, d -> dy += d.y }
+        val rowPx = with(androidx.compose.ui.platform.LocalDensity.current) { 60.dp.toPx() }
+        val list = rememberLazyListState(initialFirstVisibleItemIndex = (p.index - 1).coerceAtLeast(0))
+        LazyColumn(Modifier.fillMaxWidth().weight(1f), state = list) {
+            items(p.queue, key = { it.index }) { e ->
+                val here = e.index == p.index
+                val past = e.index < p.index
+                Row(
+                    Modifier.fillMaxWidth().height(60.dp).animateItem()
+                        .graphicsLayer { if (dragging == e.index) { translationY = dy; shadowElevation = 14f }; alpha = if (past) 0.5f else 1f }
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(if (here) Brush.horizontalGradient(listOf(c.amber.copy(alpha = 0.16f), c.amber.copy(alpha = 0.05f))) else Brush.horizontalGradient(listOf(Color.Transparent, Color.Transparent)))
+                        .border(1.dp, if (here) c.amber.copy(alpha = 0.22f) else Color.Transparent, RoundedCornerShape(12.dp))
+                        .pointerInput(e.index) {
+                            detectDragGesturesAfterLongPress(
+                                onDragStart = { dragging = e.index; dy = 0f },
+                                onDragEnd = {
+                                    val to = (e.index + (dy / rowPx).roundToInt()).coerceIn(0, p.queue.lastIndex)
+                                    if (to != e.index) onMove(e.index, to)
+                                    dragging = -1; dy = 0f
+                                },
+                                onDragCancel = { dragging = -1; dy = 0f },
+                            ) { _, d -> dy += d.y }
+                        }
+                        .pressable { onJump(e.index) }
+                        .padding(horizontal = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Box(Modifier.size(26.dp), contentAlignment = Alignment.Center) {
+                        if (here) EqBars(c.accent) else Text(if (e.index > p.index) "${e.index - p.index}" else "",
+                            style = MusixTheme.type.body.copy(fontSize = 12.sp, color = c.textSubtle))
                     }
-                    .pressable { onJump(e.index) }
-                    .padding(horizontal = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                AsyncImage(e.artUri, null, Modifier.size(42.dp).clip(RoundedCornerShape(8.dp)).background(c.surface2))
-                Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
-                    Text(e.title, maxLines = 1, overflow = TextOverflow.Ellipsis, style = MusixTheme.type.body.copy(fontSize = 14.sp, fontWeight = if (here) FontWeight.SemiBold else FontWeight.Medium, color = if (here) c.accentLight else c.text))
-                    Text(e.artist, maxLines = 1, overflow = TextOverflow.Ellipsis, style = MusixTheme.type.body.copy(fontSize = 12.5.sp, color = c.textMuted))
+                    AsyncImage(e.artUri, null, Modifier.padding(start = 6.dp).size(42.dp).clip(RoundedCornerShape(8.dp)).background(c.surface2))
+                    Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
+                        Text(e.title, maxLines = 1, overflow = TextOverflow.Ellipsis, style = MusixTheme.type.body.copy(fontSize = 14.sp, fontWeight = if (here) FontWeight.SemiBold else FontWeight.Medium, color = c.text))
+                        Text(e.artist, maxLines = 1, overflow = TextOverflow.Ellipsis, style = MusixTheme.type.body.copy(fontSize = 12.5.sp, color = c.textMuted))
+                    }
+                    if (!here && !past) {
+                        Icon(MusixIcons.Close, "Убрать", Modifier.size(36.dp).pressable { onRemove(e.index) }.padding(10.dp), tint = c.textSubtle)
+                        Icon(MusixIcons.Drag, "Перетащить", Modifier.size(36.dp).padding(8.dp), tint = c.textSubtle)
+                    }
                 }
-                if (!here) Icon(MusixIcons.Close, "Убрать", Modifier.size(36.dp).pressable { onRemove(e.index) }.padding(10.dp), tint = c.textSubtle)
             }
+        }
+    }
+}
+
+/** v1 `.player-eq-bar`: three accent bars bouncing out of phase (0.8 / 0.6 / 0.7 s). */
+@Composable
+fun EqBars(accent: Color, modifier: Modifier = Modifier) {
+    val t = rememberInfiniteTransition(label = "eq")
+    val h = listOf(800 to (4f to 14f), 600 to (8f to 16f), 700 to (6f to 12f)).map { (ms, r) ->
+        t.animateFloat(r.first, r.first, infiniteRepeatable(keyframes { durationMillis = ms; r.first at 0; r.second at ms / 2; r.first at ms }), label = "bar")
+    }
+    Row(modifier.height(16.dp), horizontalArrangement = Arrangement.spacedBy(1.dp), verticalAlignment = Alignment.Bottom) {
+        for (b in h) {
+            Box(Modifier.size(3.dp, b.value.dp).clip(RoundedCornerShape(2.dp))
+                .background(Brush.verticalGradient(listOf(accent, accent.copy(alpha = 0.25f), accent))))
         }
     }
 }

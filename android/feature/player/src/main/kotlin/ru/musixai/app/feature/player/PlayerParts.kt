@@ -55,47 +55,6 @@ import kotlin.random.Random
 
 /** The cover: tap = play/pause, a horizontal swipe = next/previous with v1's vinyl motion
  *  (320 ms in / 600 ms out), flank arrows, and the огонёк/вода combustion around it. */
-@Composable
-fun CoverStage(ui: PlayerUi, onToggle: () -> Unit, onNext: () -> Unit, onPrev: () -> Unit, modifier: Modifier = Modifier) {
-    val c = MusixTheme.colors
-    val p = ui.player
-    var drag by remember { mutableFloatStateOf(0f) }
-    var forward by remember { mutableStateOf(true) }
-    Box(modifier.fillMaxWidth().aspectRatio(1f)) {
-        ui.burst?.let { (kind, nonce) -> Combustion(kind, nonce, Modifier.fillMaxSize()) }
-        AnimatedContent(
-            targetState = p.trackId,
-            transitionSpec = {
-                val dir = if (forward) 1 else -1
-                (slideInHorizontally(tween(MusixMotion.VinylInMs, easing = MusixMotion.Standard)) { it * dir } + fadeIn(tween(MusixMotion.VinylInMs)) + scaleIn(initialScale = 0.92f))
-                    .togetherWith(slideOutHorizontally(tween(MusixMotion.VinylOutMs, easing = MusixMotion.Standard)) { -it * dir } + fadeOut(tween(MusixMotion.VinylOutMs)))
-            },
-            label = "vinyl",
-            modifier = Modifier.fillMaxSize(),
-        ) { id ->
-            val image: Image? = ui.context?.takeIf { it.track.id == id }?.image
-            Box(
-                Modifier.fillMaxSize()
-                    .graphicsLayer { translationX = drag; rotationZ = drag / 40f }
-                    .pointerInput(Unit) { detectTapGestures(onTap = { onToggle() }) }
-                    .pointerInput(Unit) {
-                        detectHorizontalDragGestures(
-                            onDragEnd = {
-                                if (abs(drag) > size.width * 0.22f) { forward = drag < 0; if (drag < 0) onNext() else onPrev() }
-                                drag = 0f
-                            },
-                            onDragCancel = { drag = 0f },
-                        ) { _, dx -> drag += dx }
-                    },
-            ) {
-                Cover(image ?: p.artUri?.let { Image(it, null, null, null, null, mapOf(256 to it)) }, p.title, p.artist, Modifier.fillMaxSize(), size = null, radius = 20.dp)
-            }
-        }
-        Icon(MusixIcons.ChevronLeft, null, Modifier.align(Alignment.CenterStart).padding(start = 12.dp).size(26.dp).pressable { forward = false; onPrev() }, tint = c.text.copy(alpha = 0.5f))
-        Icon(MusixIcons.ChevronRight, null, Modifier.align(Alignment.CenterEnd).padding(end = 12.dp).size(26.dp).pressable { forward = true; onNext() }, tint = c.text.copy(alpha = 0.85f))
-    }
-}
-
 /** v1 `CoverCombustion` + `.cover-fx__aura`: fire licks up from the bottom rim in amber, water
  *  pours from the top in blue — an aura that swells and fades over 2.2 s, with particles. */
 @Composable

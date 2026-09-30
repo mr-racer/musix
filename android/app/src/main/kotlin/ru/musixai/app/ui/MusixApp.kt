@@ -1,6 +1,16 @@
 package ru.musixai.app.ui
 
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.PredictiveBackHandler
+import androidx.compose.animation.core.CubicBezierEasing
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.slideInVertically
@@ -32,6 +42,7 @@ import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.compose.dialog
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -143,8 +154,18 @@ private fun Shell(vm: AppViewModel) {
                 dismissButton = { androidx.compose.material3.TextButton(vm.updates::dismiss) { Text("Позже") } },
             )
         }
-        AnimatedVisibility(playerOpen, enter = slideInVertically(tween(320)) { it }, exit = slideOutVertically(tween(260)) { it }) {
-            BackHandler { playerOpen = false }
+        // the player sheet: up over 320 ms; the back gesture pulls it down with the finger
+        var backPull by remember { mutableFloatStateOf(0f) }
+        AnimatedVisibility(playerOpen, Modifier.graphicsLayer { translationY = size.height * 0.5f * backPull; alpha = 1f - 0.2f * backPull },
+            enter = slideInVertically(tween(320, easing = CubicBezierEasing(0.22f, 0.9f, 0.3f, 1f))) { it }, exit = slideOutVertically(tween(260)) { it }) {
+            PredictiveBackHandler { progress ->
+                try {
+                    progress.collect { backPull = it.progress }
+                    playerOpen = false
+                } finally {
+                    backPull = 0f
+                }
+            }
             PlayerRoute(onClose = { playerOpen = false }, onArtist = { playerOpen = false; nav.navigate(ArtistDest(it)) })
         }
     }
@@ -153,7 +174,24 @@ private fun Shell(vm: AppViewModel) {
 @Composable
 private fun Routes(nav: NavHostController, openPlayer: () -> Unit, install: (ru.musixai.app.core.data.Release) -> Unit) {
     val back: () -> Unit = { nav.popBackStack() }
-    NavHost(nav, startDestination = HomeDest) {
+    // A pushed screen slides in from the right over the one below, which drifts a third of
+    // the way left (a light parallax); back — and the predictive back gesture, which scrubs
+    // these same transitions — is the mirror: the screen follows the finger to the right.
+    // Between tabs: v1's tabFadeIn, a quick cross-fade.
+    val tabs: (androidx.navigation.NavBackStackEntry) -> Boolean = { e -> TAB_ROUTES.any { e.destination.hasRoute(it) } }
+    val slide = tween<IntOffset>(360, easing = CubicBezierEasing(0.22f, 0.9f, 0.3f, 1f))
+    val scrub = tween<IntOffset>(360, easing = LinearEasing)  // a gesture drives it: the screen stays under the finger
+    NavHost(
+        nav, startDestination = HomeDest,
+        enterTransition = { if (tabs(initialState) && tabs(targetState)) fadeIn(tween(220)) else slideInHorizontally(slide) { it } },
+        exitTransition = { if (tabs(initialState) && tabs(targetState)) fadeOut(tween(160)) else slideOutHorizontally(slide) { -it / 3 } + fadeOut(tween(360), 0.6f) },
+        popEnterTransition = { if (tabs(initialState) && tabs(targetState)) fadeIn(tween(220)) else slideInHorizontally(slide) { -it / 3 } + fadeIn(tween(360), 0.6f) },
+        popExitTransition = { if (tabs(initialState) && tabs(targetState)) fadeOut(tween(160)) else slideOutHorizontally(slide) { it } },
+        // the back gesture scrubs these; Navigation's default shrinks the screen "into the
+        // distance", the owner wants it to leave to the right over a light parallax (from either edge)
+        predictivePopEnterTransition = { _ -> if (tabs(initialState) && tabs(targetState)) fadeIn(tween(220)) else slideInHorizontally(scrub) { -it / 3 } + fadeIn(tween(360, easing = LinearEasing), 0.6f) },
+        predictivePopExitTransition = { _ -> if (tabs(initialState) && tabs(targetState)) fadeOut(tween(160)) else slideOutHorizontally(scrub) { it } },
+    ) {
         composable<HomeDest> {
             HomeRoute(onSearch = { q -> nav.navigate(SearchDest(q)) }, onSettings = { nav.navigate(SettingsDest) }, onLibrary = { nav.navigate(LibraryDest) })
         }
@@ -164,7 +202,10 @@ private fun Routes(nav: NavHostController, openPlayer: () -> Unit, install: (ru.
         composable<QuizDest> { QuizRoute() }
         composable<SearchDest> { SearchRoute(onArtist = { nav.navigate(ArtistDest(it)) }, onAlbum = { nav.navigate(AlbumDest(it)) }) }
         composable<ArtistDest> { ArtistRoute(onBack = back, onAlbum = { nav.navigate(AlbumDest(it)) }) }
-        composable<AlbumDest> { AlbumRoute(onBack = back) }
+        // the gatefold draws its own flight and flip over the screen it came from
+        dialog<AlbumDest>(dialogProperties = androidx.compose.ui.window.DialogProperties(
+            usePlatformDefaultWidth = false, decorFitsSystemWindows = false, dismissOnBackPress = false, dismissOnClickOutside = false,
+        )) { AlbumRoute(onBack = back, onArtist = { id -> nav.popBackStack(); nav.navigate(ArtistDest(id)) }) }
         composable<PlaylistDest> { PlaylistRoute(onBack = back) }
         composable<SettingsDest> {
             SettingsRoute(onBack = back, onImport = { nav.navigate(ImportDest) }, onUpload = { nav.navigate(UploadDest) }, onUpdate = { install(it) })
