@@ -52,8 +52,9 @@ async def versioned_tag(
 
 # Bumped when a response's shape changes while its data does not (a new field, a text now
 # cleaned on the way out): every tag moves once, so no client keeps revalidating an old
-# body into 304s. 2: artist cutout/country, bios without the agent's notes (2026-10-01).
-REV = 2
+# body into 304s. 2: artist cutout/country, bios without the agent's notes; 3: the stats'
+# collection map, the quiz images (2026-10-01).
+REV = 3
 
 
 def make(*parts: object) -> str:
