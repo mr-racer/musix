@@ -5,28 +5,29 @@ use go to v2: `/api/v2/`, `/m/`, `/i/` → a second tunnel (VPS `127.0.0.1:8001`
 `localhost:18090`, the v2 prod stack's edge). The v2 Android app needs nothing else. At the
 switch (T+29) this goes away: v1 stops, v2 takes home :8000, the old tunnel carries v2.
 
-Two edits on the VPS, as an admin user. Each one is reversible.
+Two edits on the VPS, as an admin user. Each one is reversible, and neither restarts anything v1 uses.
 
-## 1. Let the tunnel user open port 8001 (sshd)
+## 1. Let the tunnel key open port 8001 too
 
-In `/etc/ssh/sshd_config` (or its `sshd_config.d/` drop-in), in the `Match User tunnel` block,
-add the second port to `PermitListen`:
+The key's restriction lives in `/home/tunnel/.ssh/authorized_keys` (deploy/ssh-tunnel/
+authorized_keys.example). Add a second `permitlisten` to the one line, keeping the rest:
 
 ```
-Match User tunnel
-    PermitListen 127.0.0.1:8000 127.0.0.1:8001
+restrict,port-forwarding,permitlisten="127.0.0.1:8000",permitlisten="127.0.0.1:8001",command="/usr/sbin/nologin" ssh-ed25519 AAAA… musix-home-tunnel
 ```
 
 ```bash
-sudo sshd -t && sudo systemctl reload ssh   # reload, not restart: live sessions stay up
+sudo nano /home/tunnel/.ssh/authorized_keys
 ```
 
-The home side then starts `docker compose ... --profile staging up -d tunnel` (see
-`deploy/compose.prod.yml`).
+sshd reads the file on every new connection, so nothing restarts: v1's live tunnel stays
+up. The home side then runs
+`docker compose --env-file /mnt/data/musix-v2-prod/prod.env -f deploy/compose.prod.yml --profile staging up -d tunnel`.
 
 ## 2. nginx: route the v2 paths
 
-In the `musixai.ru` server block, **above** `location / {`:
+In `/etc/nginx/sites-available/musix.conf`, in the `musixai.ru` server block, **above**
+`location / {`:
 
 ```nginx
     # ── MusiX v2 staging: only the v2 app's paths (v1 has /api/v1 + its SPA) ──
@@ -63,5 +64,5 @@ curl -sI https://musixai.ru/ | head -1             # 200 ← v1's SPA
 
 ## Rollback
 
-Delete the block from step 2, then `sudo nginx -t && sudo systemctl reload nginx`. The
-PermitListen line can stay; nothing listens on 8001 once the tunnel container stops.
+Delete the block from step 2, then `sudo nginx -t && sudo systemctl reload nginx`. The second
+`permitlisten` can stay: nothing listens on 8001 once the tunnel container stops.
