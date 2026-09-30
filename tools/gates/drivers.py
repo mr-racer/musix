@@ -57,7 +57,9 @@ class V1Driver:
 
 
 SNAP_DB = os.environ.get("MUSIX_SNAP_DB", "musix_mig")  # api-snap's database (compose reads the same var)
-V2_URL = "http://127.0.0.1:18010"  # api-snap: the api on the loaded snapshot (make snap-api)
+V2_URL = os.environ.get("MUSIX_GATES_V2_URL", "http://127.0.0.1:18010")  # api-snap (make snap-api); the prod stack: its edge
+PG_CONTAINER = os.environ.get("MUSIX_GATES_PG", "musix-v2-dev-postgres-1")
+API_CONTAINER = os.environ.get("MUSIX_GATES_API", "musix-v2-dev-api-snap-1")  # mints test tokens with its keys
 
 
 class V2Driver:
@@ -71,14 +73,14 @@ class V2Driver:
         self.http = httpx.Client(base_url=url, timeout=300)
         self._mint()
         rows = subprocess.run(
-            ["docker", "exec", "musix-v2-dev-postgres-1", "psql", "-U", "musix", "-d", SNAP_DB, "-Atc",
+            ["docker", "exec", PG_CONTAINER, "psql", "-U", "musix", "-d", SNAP_DB, "-Atc",
              "select track_id, v1_track_id from migr_track_map"], capture_output=True, text=True, check=True,
         ).stdout.split()
         self.v1_of = dict(r.split("|") for r in rows)
 
     def _mint(self) -> None:
         with open(__file__.replace("drivers.py", "mint_v2.py"), "rb") as f:
-            out = subprocess.run(["docker", "exec", "-i", "musix-v2-dev-api-snap-1", "python", "-"], stdin=f,
+            out = subprocess.run(["docker", "exec", "-i", API_CONTAINER, "python", "-"], stdin=f,
                                  capture_output=True, check=True).stdout
         self.tokens: dict[str, str] = json.loads(out)
         self.minted = time.monotonic()

@@ -35,7 +35,7 @@ from . import data as D
 from . import e4 as H
 
 SNAP_DB = os.environ.get("MUSIX_SNAP_DB", "musix_mig")
-DB = f"postgresql://musix:musix@127.0.0.1:18432/{SNAP_DB}"
+DB = os.environ.get("MUSIX_SNAP_DSN", f"postgresql://musix:musix@127.0.0.1:18432/{SNAP_DB}")  # the prod stack: its own
 FOLDS = [dt.datetime(2026, m, d, tzinfo=dt.UTC) for m, d in [(7, 28), (8, 12), (8, 27), (9, 10), (10, 1)]]
 SPLIT = dt.datetime(2026, 9, 10, tzinfo=dt.UTC)
 MIX = {"familiar": 0.5, "unplayed": 0.3, "rediscover": 0.2}

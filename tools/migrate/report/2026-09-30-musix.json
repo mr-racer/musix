@@ -1,0 +1,411 @@
+{
+ "ok": true,
+ "failures": [],
+ "counts": [
+  {
+   "entity": "accounts",
+   "v1": 6,
+   "v2": 6,
+   "collapses": {},
+   "ok": true
+  },
+  {
+   "entity": "invites",
+   "v1": 41,
+   "v2": 41,
+   "collapses": {},
+   "ok": true
+  },
+  {
+   "entity": "tracks",
+   "v1": 7282,
+   "v2": 7282,
+   "collapses": {},
+   "ok": true
+  },
+  {
+   "entity": "media_files",
+   "v1": 7273,
+   "v2": 7273,
+   "collapses": {},
+   "ok": true
+  },
+  {
+   "entity": "vector points",
+   "v1": 7273,
+   "v2": 7273,
+   "collapses": {},
+   "ok": true
+  },
+  {
+   "entity": "listens",
+   "v1": 5799,
+   "v2": 5794,
+   "collapses": {
+    "orphan (account or track gone)": 5
+   },
+   "ok": true
+  },
+  {
+   "entity": "taste signals",
+   "v1": 233,
+   "v2": 219,
+   "collapses": {
+    "orphan": 14
+   },
+   "ok": true
+  },
+  {
+   "entity": "playlists",
+   "v1": 7,
+   "v2": 7,
+   "collapses": {},
+   "ok": true
+  },
+  {
+   "entity": "playlist items",
+   "v1": 98,
+   "v2": 98,
+   "collapses": {},
+   "ok": true
+  },
+  {
+   "entity": "facts",
+   "v1": 67179,
+   "v2": 67179,
+   "collapses": {},
+   "ok": true
+  },
+  {
+   "entity": "refined fact sets",
+   "v1": 537,
+   "v2": 537,
+   "collapses": {},
+   "ok": true
+  },
+  {
+   "entity": "artist bios",
+   "v1": 1332,
+   "v2": 1101,
+   "collapses": {
+    "per-account copies (v2 keeps one)": 231
+   },
+   "ok": true
+  },
+  {
+   "entity": "song vibes",
+   "v1": 4090,
+   "v2": 3678,
+   "collapses": {
+    "same song twice (newest kept)": 412
+   },
+   "ok": true
+  },
+  {
+   "entity": "quiz rounds",
+   "v1": 71,
+   "v2": 65,
+   "collapses": {
+    "unanswered (not carried)": 6
+   },
+   "ok": true
+  },
+  {
+   "entity": "yandex imports",
+   "v1": 1801,
+   "v2": 1801,
+   "collapses": {},
+   "ok": true
+  },
+  {
+   "entity": "track_gems",
+   "v1": 6811,
+   "v2": 0,
+   "collapses": {
+    "removed feature": 6811
+   },
+   "ok": true
+  },
+  {
+   "entity": "track_reactions",
+   "v1": 0,
+   "v2": 0,
+   "collapses": {},
+   "ok": true
+  },
+  {
+   "entity": "recsys_llm_texts",
+   "v1": 13,
+   "v2": 0,
+   "collapses": {
+    "recomputed by stream:ai_texts": 13
+   },
+   "ok": true
+  }
+ ],
+ "checksums": {
+  "owner": {
+   "track ids": "ok",
+   "stats (listens, played ms, plays, completes, skips)": "ok",
+   "fire/water per track": "ok",
+   "playlist sequences": "ok",
+   "facts per visible subject": "ok",
+   "facts of library subjects only v1 shows": "ok",
+   "_facts visibility (v1, both, stale: track gone, no facts)": [
+    0,
+    0,
+    0,
+    0
+   ],
+   "bio presence": "ok"
+  },
+  "member 2": {
+   "track ids": "ok",
+   "stats (listens, played ms, plays, completes, skips)": "ok",
+   "fire/water per track": "ok",
+   "playlist sequences": "ok",
+   "facts per visible subject": "ok",
+   "facts of library subjects only v1 shows": "ok",
+   "_facts visibility (v1, both, stale: track gone, no facts)": [
+    1228,
+    1156,
+    72,
+    0
+   ],
+   "bio presence": "ok"
+  },
+  "member 4": {
+   "track ids": "ok",
+   "stats (listens, played ms, plays, completes, skips)": "ok",
+   "fire/water per track": "ok",
+   "playlist sequences": "ok",
+   "facts per visible subject": "ok",
+   "facts of library subjects only v1 shows": "ok",
+   "_facts visibility (v1, both, stale: track gone, no facts)": [
+    254,
+    253,
+    1,
+    0
+   ],
+   "bio presence": "ok"
+  },
+  "member 5": {
+   "track ids": "ok",
+   "stats (listens, played ms, plays, completes, skips)": "ok",
+   "fire/water per track": "ok",
+   "playlist sequences": "ok",
+   "facts per visible subject": "ok",
+   "facts of library subjects only v1 shows": "ok",
+   "_facts visibility (v1, both, stale: track gone, no facts)": [
+    571,
+    569,
+    2,
+    0
+   ],
+   "bio presence": "ok"
+  },
+  "member 1": {
+   "track ids": "ok",
+   "stats (listens, played ms, plays, completes, skips)": "ok",
+   "fire/water per track": "ok",
+   "playlist sequences": "ok",
+   "facts per visible subject": "ok",
+   "facts of library subjects only v1 shows": "ok",
+   "_facts visibility (v1, both, stale: track gone, no facts)": [
+    8045,
+    6133,
+    1912,
+    0
+   ],
+   "bio presence": "ok"
+  },
+  "member 3": {
+   "track ids": "ok",
+   "stats (listens, played ms, plays, completes, skips)": "ok",
+   "fire/water per track": "ok",
+   "playlist sequences": "ok",
+   "facts per visible subject": "ok",
+   "facts of library subjects only v1 shows": "ok",
+   "_facts visibility (v1, both, stale: track gone, no facts)": [
+    104,
+    103,
+    1,
+    0
+   ],
+   "bio presence": "ok"
+  }
+ },
+ "spots": {
+  "counts": {
+   "tracks": 25,
+   "lyrics": 21,
+   "song facts: v1 shows": 17,
+   "song facts: v2 shows": 17,
+   "artist facts: v1 shows": 17,
+   "artist facts: v2 shows": 17,
+   "with producers": 18,
+   "with samples": 3,
+   "with vibe": 17
+  },
+  "failures": []
+ },
+ "gates": {
+  "baseline": "2026-09-29-v2.json",
+  "search": [
+   [
+    "lyrics/exact/recall@1",
+    0.494,
+    0.494
+   ],
+   [
+    "lyrics/exact/recall@10",
+    0.903,
+    0.903
+   ],
+   [
+    "lyrics/exact/mrr",
+    0.656,
+    0.656
+   ],
+   [
+    "lyrics/noisy/recall@1",
+    0.421,
+    0.421
+   ],
+   [
+    "lyrics/noisy/recall@10",
+    0.809,
+    0.81
+   ],
+   [
+    "lyrics/noisy/mrr",
+    0.558,
+    0.558
+   ],
+   [
+    "lyrics/partial/recall@1",
+    0.298,
+    0.298
+   ],
+   [
+    "lyrics/partial/recall@10",
+    0.63,
+    0.627
+   ],
+   [
+    "lyrics/partial/mrr",
+    0.404,
+    0.404
+   ],
+   [
+    "lyrics/translit/recall@1",
+    0.411,
+    0.411
+   ],
+   [
+    "lyrics/translit/recall@10",
+    0.842,
+    0.842
+   ],
+   [
+    "lyrics/translit/mrr",
+    0.6,
+    0.6
+   ],
+   [
+    "catalog/album/recall@1",
+    0.94,
+    0.94
+   ],
+   [
+    "catalog/album/recall@5",
+    1.0,
+    1.0
+   ],
+   [
+    "catalog/all/recall@1",
+    0.873,
+    0.877
+   ],
+   [
+    "catalog/all/recall@5",
+    0.967,
+    0.967
+   ],
+   [
+    "catalog/exact/recall@1",
+    0.88,
+    0.9
+   ],
+   [
+    "catalog/exact/recall@5",
+    1.0,
+    1.0
+   ],
+   [
+    "catalog/feat/recall@1",
+    0.94,
+    0.94
+   ],
+   [
+    "catalog/feat/recall@5",
+    1.0,
+    1.0
+   ],
+   [
+    "catalog/prefix/recall@1",
+    0.78,
+    0.78
+   ],
+   [
+    "catalog/prefix/recall@5",
+    0.98,
+    0.98
+   ],
+   [
+    "catalog/translit/recall@1",
+    0.84,
+    0.84
+   ],
+   [
+    "catalog/translit/recall@5",
+    0.84,
+    0.84
+   ],
+   [
+    "catalog/typo/recall@1",
+    0.86,
+    0.86
+   ],
+   [
+    "catalog/typo/recall@5",
+    0.98,
+    0.98
+   ],
+   [
+    "sound/precision@10",
+    0.49,
+    0.49
+   ]
+  ],
+  "stream": {
+   "E1 v2 ranker GAUC ≥ 0.70 (owner)": true,
+   "E2 merged set ≥ 21 % chosen (owner)": true,
+   "E2 merged set ≥ 14.5 % never played (owner)": true,
+   "E4 top genre / 10 ≤ 0.50": 1.0,
+   "E4 genres / 10 ≥ 3.0": 1.0,
+   "E4 artists / 10 ≥ 8.0": 1.0,
+   "invariants: 0 violations": true
+  }
+ },
+ "run seconds": {
+  "accounts": 0.0,
+  "files": 702.0,
+  "knowledge": 11.0,
+  "library": 30.0,
+  "listening": 12.0,
+  "misc": 0.0,
+  "post": 0.0,
+  "vectors": 112.0
+ }
+}

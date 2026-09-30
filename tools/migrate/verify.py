@@ -354,6 +354,16 @@ def gates(snap: str, db: str) -> dict[str, Any]:
     was 0.007 (lyrics exact recall@1, n=300); catalog/exact moved by one query of 50."""
     out: dict[str, Any] = {"failures": []}
     base, mig = GATES / f"{snap}-v2.json", GATES / f"{snap}-v2-{db}.json"
+    if not base.exists():
+        # a newer snapshot than phase 2's load: compare on the latest accepted baseline's
+        # OWN fixtures (they are seeded by the snapshot date — another snapshot asks another
+        # sample of questions, which is noise, not a regression); `make prod-gates` runs
+        # those fixtures on this DB too. The report names the baseline.
+        earlier = sorted(p for p in GATES.glob("????-??-??-v2.json") if p.name[:10] < snap)
+        if earlier:
+            base = earlier[-1]
+            mig = GATES / f"{base.name[:10]}-v2-{db}.json"
+            out["baseline"] = base.name
     if not mig.exists() or not base.exists():
         out["search"] = "not run"
         out["failures"].append("search gates not run on this DB")

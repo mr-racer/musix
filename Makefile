@@ -62,7 +62,7 @@ android-emu:
 	tools/android/emu.sh up
 
 # ── v2 prod stack (deploy/compose.prod.yml, phase 6). State in /mnt/data/musix-v2-prod.
-.PHONY: prod-env prod-up prod-down prod-migrate prod-logs
+.PHONY: prod-env prod-up prod-down prod-migrate prod-logs prod-gates
 PROD_DIR = /mnt/data/musix-v2-prod
 PROD = docker compose --env-file $(PROD_DIR)/prod.env -f deploy/compose.prod.yml $(if $(GPU),-f deploy/compose.prod.gpu.yml)
 prod-env:  # once: the stack's interpolation secrets, never printed
@@ -84,6 +84,18 @@ prod-migrate:
 	MUSIX_MIGRATE_MEDIA=$(PROD_DIR)/media MUSIX_MIGRATE_COMPOSE=$(CURDIR)/deploy/compose.prod.yml \
 	../../server/.venv/bin/python migrate.py run /mnt/data/musix-snapshots/$(SNAP) --db $(or $(DB),musix) --reset \
 	  --admin-dsn "postgresql://musix:$$MUSIX_PG_PASSWORD@127.0.0.1:18532/postgres" --qdrant http://127.0.0.1:18533 $(if $(COPY),--copy-foreign)
+
+# the gates and the verify report on the prod stack (after prod-migrate; the api must be up).
+# Search runs the accepted baseline's fixtures (BASELINE, phase 2's snapshot): fixtures are
+# seeded per snapshot, so only the same questions compare.
+prod-gates:
+	set -a && . $(PROD_DIR)/prod.env && set +a && export MUSIX_SNAP_DB=$(or $(DB),musix) && \
+	(cd tools/gates && MUSIX_GATES_V2_URL=http://127.0.0.1:18090 MUSIX_GATES_PG=musix-v2-postgres-1 MUSIX_GATES_API=musix-v2-api-1 \
+	  uv run --project ../../server python run.py --target v2 --snap $(or $(BASELINE),2026-09-29) --no-cache --runs 1) && \
+	(cd tools/recsys-eval && MUSIX_SNAP_DSN="postgresql://musix:$$MUSIX_PG_PASSWORD@127.0.0.1:18532/$$MUSIX_SNAP_DB" \
+	  uv run python -m recsys_eval.v2 /mnt/data/musix-snapshots/$(SNAP)) && \
+	(cd tools/migrate && MUSIX_MIGRATE_MEDIA=$(PROD_DIR)/media ../../server/.venv/bin/python migrate.py run /mnt/data/musix-snapshots/$(SNAP) \
+	  --db $$MUSIX_SNAP_DB --stages verify --admin-dsn "postgresql://musix:$$MUSIX_PG_PASSWORD@127.0.0.1:18532/postgres" --qdrant http://127.0.0.1:18533)
 
 # ── web client (web/, phase 5): caches on /mnt/data (the system disk is small) ───
 .PHONY: web web-dev web-check web-e2e
