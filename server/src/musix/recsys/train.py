@@ -90,13 +90,18 @@ class Model:
     def __init__(self, booster: Any) -> None:
         self.booster = booster
 
+    # Serving: ONE thread. The api runs 4 workers on the box's cores, and OpenMP's idle
+    # threads fall asleep while a request awaits the database — measured on the snapshot,
+    # the default pool cost 0.8–13 ms a call against a steady 2.7 ms on one thread.
+    SERVE_THREADS = 1
+
     def predict(self, X: np.ndarray) -> np.ndarray:
-        out: np.ndarray = self.booster.predict(X)
+        out: np.ndarray = self.booster.predict(X, num_threads=self.SERVE_THREADS)
         return out
 
     def contrib(self, X: np.ndarray) -> np.ndarray:
         """(n, len(FEATURES) + 1): SHAP-style contributions, the last column the bias."""
-        out: np.ndarray = self.booster.predict(X, pred_contrib=True)
+        out: np.ndarray = self.booster.predict(X, pred_contrib=True, num_threads=self.SERVE_THREADS)
         return out
 
     def dump(self) -> str:

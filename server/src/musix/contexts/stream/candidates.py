@@ -20,7 +20,7 @@ from typing import Any
 import numpy as np
 import sqlalchemy as sa
 from qdrant_client import AsyncQdrantClient, models
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from musix.contexts.stream.models import colisten_vectors
 from musix.contexts.stream.state import Snapshot
@@ -65,7 +65,7 @@ async def colisten(s: AsyncSession, account: uuid.UUID, positives: list[str], k:
 
 
 async def collect(
-    s: AsyncSession, q: AsyncQdrantClient, account: uuid.UUID, snap: Snapshot
+    sm: async_sessionmaker[AsyncSession], q: AsyncQdrantClient, account: uuid.UUID, snap: Snapshot
 ) -> dict[str, set[str]]:
     """track id → the sources that proposed it."""
     out: dict[str, set[str]] = defaultdict(set)
@@ -74,8 +74,10 @@ async def collect(
     neg = [x.track for x in snap.sess if x.w < 0]
     liked_artists = list({x.artist for x in snap.sess if x.w > 0 and x.artist})
 
-    if liked_artists:
-        for t in await _ids(
+    async def session_artist(s: AsyncSession) -> list[str]:
+        if not liked_artists:
+            return []
+        return await _ids(
             s,
             """
                 SELECT t.id FROM tracks t
@@ -85,23 +87,25 @@ async def collect(
             ar=[uuid.UUID(x) for x in liked_artists],
             n=B_SESSION,
             **a,
-        ):
-            out[t].add("session_artist")
-    for t in await _ids(
-        s,
-        """
+        )
+
+    async def affinity(s: AsyncSession) -> list[str]:
+        return await _ids(
+            s,
+            """
             SELECT t.id FROM tracks t
             JOIN (SELECT artist_id FROM account_artist_stats WHERE account_id = :a
                   ORDER BY ln(1 + listens) * (fulls + 1) / (listens + 3) DESC LIMIT 30) top
               ON top.artist_id = t.primary_artist_id
             WHERE t.account_id = :a AND t.deleted_at IS NULL ORDER BY random() LIMIT :n""",
-        n=B_AFFINITY,
-        **a,
-    ):
-        out[t].add("artist_affinity")
+            n=B_AFFINITY,
+            **a,
+        )
 
-    anchors = list(dict.fromkeys(pos + snap.long_positives))[:40]
-    if anchors:
+    async def clap(s: AsyncSession) -> list[str]:
+        anchors = list(dict.fromkeys(pos + snap.long_positives))[:40]
+        if not anchors:
+            return []
         mf = dict(
             (str(t), str(m))
             for t, m in (
@@ -115,35 +119,51 @@ async def collect(
         )
         positive: list[Any] = [mf[t] for t in anchors if t in mf]
         negative: list[Any] = [mf[t] for t in neg if t in mf]
-        if positive:
-            res = await q.query_points(
-                TRACKS,
-                query=models.RecommendQuery(
-                    recommend=models.RecommendInput(
-                        positive=positive,
-                        negative=negative or None,
-                        strategy=models.RecommendStrategy.BEST_SCORE,
-                    )
-                ),
-                using="clap",
-                limit=B_CLAP,
-                query_filter=owned_by(account),
-            )
-            hits = [str(p.id) for p in res.points]
-            if hits:
-                for t in await _ids(
-                    s,
-                    """
-                        SELECT id FROM tracks WHERE account_id = :a AND deleted_at IS NULL
-                        AND media_file_id = ANY(:m)""",
-                    m=[uuid.UUID(h) for h in hits],
-                    **a,
-                ):
-                    out[t].add("clap")
-    for t in await colisten(s, account, pos or snap.long_positives, B_COLISTEN):
-        out[t].add("colisten")
+        if not positive:
+            return []
+        res = await q.query_points(
+            TRACKS,
+            query=models.RecommendQuery(
+                recommend=models.RecommendInput(
+                    positive=positive,
+                    negative=negative or None,
+                    strategy=models.RecommendStrategy.BEST_SCORE,
+                )
+            ),
+            using="clap",
+            limit=B_CLAP,
+            query_filter=owned_by(account),
+        )
+        hits = [str(p.id) for p in res.points]
+        if not hits:
+            return []
+        return await _ids(
+            s,
+            """
+                SELECT id FROM tracks WHERE account_id = :a AND deleted_at IS NULL
+                AND media_file_id = ANY(:m)""",
+            m=[uuid.UUID(h) for h in hits],
+            **a,
+        )
 
-    for name, where in (
+    def pool(where: str) -> Any:
+        async def sample(s: AsyncSession) -> list[str]:
+            return await _ids(
+                s,
+                f"""
+                    SELECT t.id FROM tracks t
+                    LEFT JOIN account_track_stats st ON st.account_id = t.account_id AND st.track_id = t.id
+                    LEFT JOIN (SELECT track_id, count(*) AS n FROM taste_signals
+                               WHERE account_id = :a AND kind = 'fire' GROUP BY track_id) sg ON sg.track_id = t.id
+                    WHERE t.account_id = :a AND t.deleted_at IS NULL AND {where}
+                    ORDER BY random() LIMIT :n""",
+                n=B_POOL,
+                **a,
+            )
+
+        return sample
+
+    pools = (
         (
             "familiar",
             "(st.fulls > 0 OR sg.n > 0) AND st.last_played_at > now() - interval '60 days'",
@@ -153,18 +173,24 @@ async def collect(
             "(st.fulls > 0 OR sg.n > 0) AND st.last_played_at <= now() - interval '60 days'",
         ),
         ("unplayed", "coalesce(st.listens, 0) = 0"),
-    ):
-        for t in await _ids(
-            s,
-            f"""
-                SELECT t.id FROM tracks t
-                LEFT JOIN account_track_stats st ON st.account_id = t.account_id AND st.track_id = t.id
-                LEFT JOIN (SELECT track_id, count(*) AS n FROM taste_signals
-                           WHERE account_id = :a AND kind = 'fire' GROUP BY track_id) sg ON sg.track_id = t.id
-                WHERE t.account_id = :a AND t.deleted_at IS NULL AND {where}
-                ORDER BY random() LIMIT :n""",
-            n=B_POOL,
-            **a,
+    )
+    # One session, in sequence: measured on the snapshot, seven concurrent sessions cost
+    # more (a checkout ping, BEGIN and ROLLBACK each) than the reads they overlap.
+    got = []
+    async with sm() as s:
+        for fn in (
+            session_artist,
+            affinity,
+            clap,
+            lambda s: colisten(s, account, pos or snap.long_positives, B_COLISTEN),
+            *(pool(where) for _, where in pools),
         ):
-            out[t].add(f"pool:{name}")
+            got.append(await fn(s))
+    for label, ids in zip(
+        ("session_artist", "artist_affinity", "clap", "colisten", *(f"pool:{n}" for n, _ in pools)),
+        got,
+        strict=True,
+    ):
+        for t in ids:
+            out[t].add(label)
     return out

@@ -1,0 +1,131 @@
+{
+ "date": "2026-09-30",
+ "api": {
+  "date": "2026-09-30",
+  "accounts": 5,
+  "clients": 20,
+  "seconds": 20.0,
+  "stream_next_paced": {
+   "n": 377,
+   "errors": 0,
+   "rps": 18.9,
+   "p50": 59.2,
+   "p95": 135.0,
+   "p99": 184.8,
+   "max": 310.5
+  },
+  "stream_next": {
+   "n": 1637,
+   "errors": 0,
+   "rps": 81.8,
+   "p50": 214.2,
+   "p95": 495.0,
+   "p99": 613.2,
+   "max": 952.0
+  },
+  "search_paced": {
+   "n": 40,
+   "errors": 0,
+   "rps": 2.0,
+   "p50": 133.2,
+   "p95": 152.3,
+   "p99": 253.2,
+   "max": 253.2
+  },
+  "autoplay": {
+   "n": 13306,
+   "errors": 0,
+   "rps": 665.3,
+   "p50": 26.6,
+   "p95": 48.1,
+   "p99": 62.1,
+   "max": 153.0
+  },
+  "search_catalog": {
+   "n": 14354,
+   "errors": 0,
+   "rps": 717.7,
+   "p50": 18.2,
+   "p95": 77.3,
+   "p99": 113.8,
+   "max": 209.2
+  },
+  "listen_to_chunk": {
+   "runs": 40,
+   "reflected": 40,
+   "p50": 33.0,
+   "p95": 68.8,
+   "max": 72.7
+  },
+  "api_rss_mb": 186.7,
+  "pg_top10": [
+   {
+    "total_ms": "53514",
+    "calls": "14394",
+    "mean_ms": "3.72",
+    "query": "WITH q AS (SELECT musix_key($1) AS k), hist AS (SELECT coalesce(max(plays), $4) AS mx FROM account_track_stats"
+   },
+   {
+    "total_ms": "4767",
+    "calls": "2094",
+    "mean_ms": "2.28",
+    "query": "SELECT t.id, t.primary_artist_id, t.album_id, coalesce(nullif(t.genre, ''), 'Other') AS genre, t.duration_ms, "
+   },
+   {
+    "total_ms": "1698",
+    "calls": "1619",
+    "mean_ms": "1.05",
+    "query": "SELECT artists.id, artists.slug, artists.name, artists.sort_name, artists.mbid, artists.image_id, artists.cuto"
+   },
+   {
+    "total_ms": "1487",
+    "calls": "16843",
+    "mean_ms": "0.09",
+    "query": "SELECT track_artists.track_id, artists.id, artists.name, track_artists.role FROM track_artists JOIN artists ON"
+   },
+   {
+    "total_ms": "1397",
+    "calls": "16843",
+    "mean_ms": "0.08",
+    "query": "SELECT tracks.id, tracks.account_id, tracks.media_file_id, tracks.song_id, tracks.album_id, tracks.title, trac"
+   },
+   {
+    "total_ms": "1346",
+    "calls": "13306",
+    "mean_ms": "0.10",
+    "query": "SELECT tracks.id, tracks.media_file_id, tracks.primary_artist_id, tracks.duration_ms FROM tracks WHERE tracks."
+   },
+   {
+    "total_ms": "1205",
+    "calls": "2094",
+    "mean_ms": "0.58",
+    "query": "SELECT t.id FROM tracks t LEFT JOIN account_track_stats st ON st.account_id = t.account_id AND st.track_id = t"
+   },
+   {
+    "total_ms": "914",
+    "calls": "2094",
+    "mean_ms": "0.44",
+    "query": "SELECT t.id FROM tracks t LEFT JOIN account_track_stats st ON st.account_id = t.account_id AND st.track_id = t"
+   },
+   {
+    "total_ms": "871",
+    "calls": "2094",
+    "mean_ms": "0.42",
+    "query": "SELECT t.id FROM tracks t JOIN (SELECT artist_id FROM account_artist_stats WHERE account_id = $1 ORDER BY ln($"
+   },
+   {
+    "total_ms": "566",
+    "calls": "2094",
+    "mean_ms": "0.27",
+    "query": "SELECT t.id FROM tracks t LEFT JOIN account_track_stats st ON st.account_id = t.account_id AND st.track_id = t"
+   }
+  ]
+ },
+ "ingest": {
+  "folder_files": 39,
+  "failed": 0,
+  "wall_s": 279,
+  "per_file_s": 7.15,
+  "extrapolated_6k_h": 11.9
+ }
+}

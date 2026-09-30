@@ -12,6 +12,7 @@ from typing import Any
 import numpy as np
 import sqlalchemy as sa
 from qdrant_client import AsyncQdrantClient
+from qdrant_client.http.exceptions import UnexpectedResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from musix.contexts.library.models import tracks
@@ -84,7 +85,7 @@ async def next_chunk(
     now = dt.datetime.now(dt.UTC)
     async with c.sm() as s:
         snap = await state.load(s, c.account_id, session_id, now, tz_offset_min)
-        props = await sources.collect(s, q, c.account_id, snap)
+        props = await sources.collect(c.sm, q, c.account_id, snap)
         rows = await state.candidates(s, c.account_id, list(props), now)
         version, model = await ranker(s)
         cat = await presets(s)
@@ -328,13 +329,18 @@ async def autoplay(c: screens.Ctx, q: AsyncQdrantClient, body: S.AutoplayIn) -> 
                 {"a": c.account_id},
             )
         }
-    res = await q.query_points(
-        TRACKS,
-        query=str(seed),
-        using="clap",
-        limit=max(30, body.limit * 3),
-        query_filter=owned_by(c.account_id),
-    )
+    try:
+        res = await q.query_points(
+            TRACKS,
+            query=str(seed),
+            using="clap",
+            limit=max(30, body.limit * 3),
+            query_filter=owned_by(c.account_id),
+        )
+    except UnexpectedResponse as e:
+        if e.status_code == 404:  # a seed with no CLAP vector yet: an empty queue, as v1
+            return []
+        raise
     mfs = [uuid.UUID(str(p.id)) for p in res.points if str(p.id) != str(seed)]
     async with c.sm() as s:
         rows = {

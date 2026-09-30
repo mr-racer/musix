@@ -137,8 +137,12 @@ services:
   api-snap:
     <<: *server
     profiles: [snap]
+    command: >-
+      sh -c "rm -rf /tmp/prom && mkdir -p /tmp/prom &&
+      exec uvicorn musix.api.app:create_app --factory --host 0.0.0.0 --port 8000 --workers 4"
     environment:
       <<: *server-env
+      PROMETHEUS_MULTIPROC_DIR: /tmp/prom
       MUSIX_DATABASE_URL: postgresql://musix:musix@postgres:5432/musix_snap
     volumes:
       - secrets:/var/lib/musix/secrets
