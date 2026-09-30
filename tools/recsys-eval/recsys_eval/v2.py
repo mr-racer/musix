@@ -1,6 +1,6 @@
 """E1 / E2 / E4 with the v2 engine itself (phase 2 §10): `musix.recsys` — the features,
 the replay, the ranker, the policy — on the snapshot as v2 stores it (the database
-`musix_snap`, loaded by tools/migrate/migrate.py).
+`MUSIX_SNAP_DB`, default `musix_mig`, loaded by tools/migrate/migrate.py).
 
 - E1: session GAUC of the v2 ranker, rolling-origin folds (the same folds as the study).
 - E2: recall of the v2 merged candidate set (the online sources, their budgets).
@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import asyncio
 import datetime as dt
+import os
 from collections import defaultdict
 from dataclasses import dataclass
 
@@ -33,7 +34,8 @@ from musix.settings import Settings
 from . import data as D
 from . import e4 as H
 
-DB = "postgresql://musix:musix@127.0.0.1:18432/musix_snap"
+SNAP_DB = os.environ.get("MUSIX_SNAP_DB", "musix_mig")
+DB = f"postgresql://musix:musix@127.0.0.1:18432/{SNAP_DB}"
 FOLDS = [dt.datetime(2026, m, d, tzinfo=dt.UTC) for m, d in [(7, 28), (8, 12), (8, 27), (9, 10), (10, 1)]]
 SPLIT = dt.datetime(2026, 9, 10, tzinfo=dt.UTC)
 MIX = {"familiar": 0.5, "unplayed": 0.3, "rediscover": 0.2}
@@ -311,7 +313,8 @@ def main() -> None:
     for acct, role in ((D.OWNER[:9], "owner"), (D.FRIEND[:9], "friend")):
         text = text.replace(acct, role)  # the report is committed: roles, never ids
     r = json.loads(text)
-    out = Path(__file__).resolve().parents[1] / "report" / f"{snap.name}-v2.json"
+    name = f"{snap.name}-v2.json" if SNAP_DB == "musix_snap" else f"{snap.name}-v2-{SNAP_DB}.json"
+    out = Path(__file__).resolve().parents[1] / "report" / name
     out.write_text(text)
     md = [f"# «Поток» gates — the v2 engine, snapshot {snap.name}", "", "## Gates (stream spec §10)", ""]
     md += [f"- {'PASS' if ok else 'FAIL'} — {name}" for name, ok in r["gates"].items()]

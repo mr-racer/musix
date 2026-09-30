@@ -5,6 +5,7 @@ through the same path users take. v1 = the throwaway copy on the snapshot
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import time
 from typing import Any
@@ -55,6 +56,7 @@ class V1Driver:
         return list(r.json())
 
 
+SNAP_DB = os.environ.get("MUSIX_SNAP_DB", "musix_mig")  # api-snap's database (compose reads the same var)
 V2_URL = "http://127.0.0.1:18010"  # api-snap: the api on the loaded snapshot (make snap-api)
 
 
@@ -69,7 +71,7 @@ class V2Driver:
         self.http = httpx.Client(base_url=url, timeout=300)
         self._mint()
         rows = subprocess.run(
-            ["docker", "exec", "musix-v2-dev-postgres-1", "psql", "-U", "musix", "-d", "musix_snap", "-Atc",
+            ["docker", "exec", "musix-v2-dev-postgres-1", "psql", "-U", "musix", "-d", SNAP_DB, "-Atc",
              "select track_id, v1_track_id from migr_track_map"], capture_output=True, text=True, check=True,
         ).stdout.split()
         self.v1_of = dict(r.split("|") for r in rows)

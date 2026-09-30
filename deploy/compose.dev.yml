@@ -133,7 +133,7 @@ services:
       retries: 20
 
   # `docker compose --profile snap up -d api-snap`: the api on the loaded prod snapshot
-  # (tools/migrate/load_snapshot.py → database musix_snap), for the gates and benches
+  # (`make migrate` → musix_mig; MUSIX_SNAP_DB picks another), for the gates and benches
   api-snap:
     <<: *server
     profiles: [snap]
@@ -143,7 +143,7 @@ services:
     environment:
       <<: *server-env
       PROMETHEUS_MULTIPROC_DIR: /tmp/prom
-      MUSIX_DATABASE_URL: postgresql://musix:musix@postgres:5432/musix_snap
+      MUSIX_DATABASE_URL: postgresql://musix:musix@postgres:5432/${MUSIX_SNAP_DB:-musix_mig}
     volumes:
       - secrets:/var/lib/musix/secrets
       - /mnt/data/musix-v2-media:/mnt/data/musix-v2-media

@@ -147,3 +147,52 @@ async def test_the_migrator_keeps_v1_ids_maps_listens_and_reruns_to_the_same_sta
     assert stream == "favorites"  # the liked-share slider at 0.9 (stream spec §4)
     assert device == "legacy-v1"
     assert states[0] == states[1] == (3, 3, 1, 3, 2)  # plays: the early skip is not one
+
+
+async def _migrated(settings, tmp_path):  # type: ignore[no-untyped-def]
+    sys.path.insert(0, str(TOOLS))
+    import migrate as M
+    import verify as V
+
+    snap, user, tids = snapshot(tmp_path)
+    # a database of its own: verify counts the whole target, as the cutover's is
+    admin = settings.database_url.rsplit("/", 1)[0] + "/postgres"
+    url = await M.prepare(admin, f"mig_{uuid.uuid4().hex[:8]}", True, settings.qdrant_url)
+    m = M.Migrator(snap, url, settings.qdrant_url)
+    for stage in ("accounts", "library", "listening"):
+        await getattr(m, stage)()
+    clean = await V.run_verify(m, with_gates=False, write=False)
+    return m, V, clean, uuid.UUID(hex=user), tids
+
+
+async def test_verify_flags_a_listen_the_migration_lost(settings, tmp_path) -> None:  # type: ignore[no-untyped-def]
+    m, V, clean, acct, tids = await _migrated(settings, tmp_path)
+    async with m.sm() as s:
+        await s.execute(
+            sa.text("DELETE FROM listen_events WHERE account_id = :a AND track_id = :t"),
+            {"a": acct, "t": uuid.UUID(tids[2])},
+        )
+        await s.commit()
+    got = await V.run_verify(m, with_gates=False, write=False)
+    await m.close()
+    assert clean["ok"], clean["first"]
+    assert not got["ok"]
+    assert any(f.startswith("count listens: v1 3 − 0 ≠ v2 2") for f in got["first"])
+
+
+async def test_verify_flags_a_changed_playlist_order(settings, tmp_path) -> None:  # type: ignore[no-untyped-def]
+    m, V, clean, _acct, tids = await _migrated(settings, tmp_path)
+    async with m.sm() as s:  # the first and the last item swap places
+        await s.execute(
+            sa.text("""
+            UPDATE playlist_items i SET position = CASE WHEN i.track_id = :a THEN (SELECT position FROM playlist_items WHERE track_id = :b)
+                                                        ELSE (SELECT position FROM playlist_items WHERE track_id = :a) END
+            WHERE i.track_id IN (:a, :b)"""),
+            {"a": uuid.UUID(tids[2]), "b": uuid.UUID(tids[1])},
+        )
+        await s.commit()
+    got = await V.run_verify(m, with_gates=False, write=False)
+    await m.close()
+    assert clean["ok"], clean["first"]
+    assert got["failures"] == 1
+    assert "playlist sequences" in got["first"][0]

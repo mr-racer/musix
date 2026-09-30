@@ -34,7 +34,7 @@ async def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--base-url", required=True)
     ap.add_argument("--model", required=True)
-    ap.add_argument("--db", default="postgresql://musix:musix@127.0.0.1:18432/musix_snap")
+    ap.add_argument("--db", default="postgresql://musix:musix@127.0.0.1:18432/musix_mig")
     ap.add_argument("--out", type=Path)
     a = ap.parse_args()
     sm = db.make_sessionmaker(db.make_engine(Settings(database_url=a.db)))

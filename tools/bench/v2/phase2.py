@@ -18,6 +18,7 @@ import argparse
 import asyncio
 import datetime as dt
 import json
+import os
 import random
 import statistics
 import subprocess
@@ -32,9 +33,11 @@ API = "http://127.0.0.1:18010/api/v2"
 CLIENTS = 20
 HERE = Path(__file__).resolve().parent
 
+SNAP_DB = os.environ.get("MUSIX_SNAP_DB", "musix_mig")  # the database api-snap serves
+
 
 def psql(q: str) -> list[str]:
-    out = subprocess.check_output(["docker", "exec", "musix-v2-dev-postgres-1", "psql", "-U", "musix", "-d", "musix_snap", "-Atc", q])
+    out = subprocess.check_output(["docker", "exec", "musix-v2-dev-postgres-1", "psql", "-U", "musix", "-d", SNAP_DB, "-Atc", q])
     return [x for x in out.decode().split("\n") if x]
 
 
@@ -163,7 +166,7 @@ async def main() -> None:
     res["api_rss_mb"] = api_rss_mb()
     top = psql("select round(total_exec_time)::int || '|' || calls || '|' || round(mean_exec_time::numeric, 2) || '|' || "
                "left(regexp_replace(query, '\\s+', ' ', 'g'), 110) from pg_stat_statements where dbid = (select oid from pg_database "
-               "where datname = 'musix_snap') order by total_exec_time desc limit 10")
+               f"where datname = '{SNAP_DB}') order by total_exec_time desc limit 10")
     res["pg_top10"] = [dict(zip(("total_ms", "calls", "mean_ms", "query"), r.split("|", 3), strict=True)) for r in top]
     fresh_day()
     if a.out:

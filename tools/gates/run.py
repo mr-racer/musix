@@ -16,7 +16,7 @@ from typing import Any
 
 import fixtures
 import metrics
-from drivers import V1Driver, V2Driver
+from drivers import SNAP_DB, V1Driver, V2Driver
 
 ROOT = Path("/mnt/data/musix-snapshots")
 REPORT = Path(__file__).parent / "report"
@@ -140,11 +140,12 @@ def main() -> None:
     fx = fixtures.build(snap)
     MEMBERS[:] = sorted(json.loads((snap / "qdrant" / "collections.json").read_text()))
     drv = V1Driver() if a.target == "v1" else V2Driver()
+    label = a.target if a.target == "v1" or SNAP_DB == "musix_snap" else f"v2-{SNAP_DB}"  # e.g. the migrated DB
     # v1's sound lists as they stood BEFORE this run: with --no-cache the overlap is a
     # real determinism check instead of comparing a run with itself.
     base_path = snap / "gates" / "results-v1.json"
     base = json.loads(base_path.read_text()) if base_path.exists() else None
-    cache = Cache(snap / "gates" / f"results-{a.target}.json", enabled=not a.no_cache)
+    cache = Cache(snap / "gates" / f"results-{label}.json", enabled=not a.no_cache)
     # v1 lyric search is not deterministic run to run (RRF + prefetch cut-offs over tied
     # scores), so the lyric suite runs RUNS times and reports the mean and the spread.
     lyr_runs = [ask(cache, f"lyrics-scored#{k}", fx["lyrics"], drv.lyrics) for k in range(a.runs)]
@@ -159,7 +160,7 @@ def main() -> None:
                            "migration": migration_scaffold(snap)}
     if not a.skip_evals and a.target == "v1":
         res["evals"] = prompt_evals()
-    print(write_report(snap, a.target, res))
+    print(write_report(snap, label, res))
 
 
 WORK = Path()
