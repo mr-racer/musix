@@ -139,8 +139,8 @@ class PlayerController @Inject constructor(@ApplicationContext private val ctx: 
 
     fun startStream() = send(PlayerProtocol.CMD_START_STREAM)
     fun playNext(trackId: String) = send(PlayerProtocol.CMD_PLAY_NEXT, Bundle().apply { putString(PlayerProtocol.ARG_TRACK_ID, trackId) })
-    fun snippet(trackId: String, startMs: Long, durationMs: Long) = send(PlayerProtocol.CMD_PLAY_SNIPPET, Bundle().apply {
-        putString(PlayerProtocol.ARG_TRACK_ID, trackId); putLong(PlayerProtocol.ARG_POSITION_MS, startMs); putLong(PlayerProtocol.ARG_DURATION_MS, durationMs)
+    fun snippet(url: String, durationMs: Long) = send(PlayerProtocol.CMD_PLAY_SNIPPET, Bundle().apply {
+        putString(PlayerProtocol.ARG_URL, url); putLong(PlayerProtocol.ARG_DURATION_MS, durationMs)
     })
     fun react(kind: String) = send(if (kind == "fire") PlayerProtocol.CMD_FIRE else PlayerProtocol.CMD_WATER)
 

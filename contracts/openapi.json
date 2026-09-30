@@ -1705,6 +1705,13 @@
       },
       "LibrarySummaryOut": {
         "properties": {
+          "albumPlays": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Albumplays",
+            "type": "object"
+          },
           "counts": {
             "$ref": "#/components/schemas/Counts"
           },
@@ -11645,6 +11652,114 @@
           }
         ],
         "summary": "Get Tracks",
+        "tags": [
+          "library"
+        ]
+      }
+    },
+    "/api/v2/tracks/{track_id}/envelope": {
+      "get": {
+        "description": "The energy envelope the players draw the spectrum wave from (phase 4 spec §4):\nzlib of uint8 frames × 4 bands, 10 frames/s (contexts/intel/envelope). Immutable per\nmedia file, so it is cached for a year under the file's sha.",
+        "operationId": "get_envelope_api_v2_tracks__track_id__envelope_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "track_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Track Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/octet-stream": {}
+            },
+            "description": "zlib(uint8 frames × 4 bands), 10 fps"
+          },
+          "304": {
+            "description": "Not modified"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Validation failed"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Rate limited"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Envelope",
         "tags": [
           "library"
         ]

@@ -94,7 +94,7 @@ class FeatureConvention : Plugin<Project> {
         pluginManager.apply("musix.hilt")
         pluginManager.apply("io.github.takahirom.roborazzi")
         for (p in listOf(":core:common", ":core:model", ":core:data", ":core:designsystem")) dep("implementation", project(p))
-        for (a in listOf("lifecycle-runtime-compose", "lifecycle-viewmodel-compose", "hilt-navigation-compose", "navigation-compose")) {
+        for (a in listOf("lifecycle-runtime-compose", "lifecycle-viewmodel-compose", "hilt-navigation-compose", "navigation-compose", "serialization-json")) {
             dep("implementation", lib(a))
         }
         dep("testImplementation", project(":core:testing"))

@@ -26,6 +26,17 @@ class PlaylistRepository @Inject constructor(private val db: MusixDatabase, priv
 
     fun items(playlistId: String): Flow<List<PlaylistItemEntity>> = dao.items(playlistId)
 
+    /** playlist id → its tracks' cover ids, in order (the mosaics take the first four). */
+    val covers: Flow<Map<String, List<String>>> = dao.coverRows().map { rows -> rows.groupBy({ it.playlistId }, { it.coverImageId }) }
+
+    /** The playlist's entries with their tracks (a track gone from the library drops out). */
+    fun entries(playlistId: String): Flow<List<ru.musixai.app.core.model.PlaylistEntry>> = dao.items(playlistId).map { items ->
+        val tracks = db.library().tracks(items.map { it.trackId }).associateBy { it.id }
+        items.mapNotNull { i -> tracks[i.trackId]?.let { ru.musixai.app.core.model.PlaylistEntry(i.itemId, i.playlistId, i.position, it.model()) } }
+    }
+
+    suspend fun playlist(id: String): Playlist? = dao.playlist(id)?.model()
+
     suspend fun create(name: String, description: String? = null): String {
         val id = UUID.randomUUID().toString()
         val now = System.currentTimeMillis()

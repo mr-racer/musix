@@ -4,4 +4,5 @@
     <string name="player_water">Вода</string>
     <string name="queue_stream">Поток</string>
     <string name="queue_list">Очередь</string>
+    <string name="quiz_title">Угадай трек</string>
 </resources>

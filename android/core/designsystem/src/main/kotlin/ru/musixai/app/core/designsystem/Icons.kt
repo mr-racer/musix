@@ -1,0 +1,56 @@
+package ru.musixai.app.core.designsystem
+
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.vector.PathParser
+import androidx.compose.ui.unit.dp
+
+/** v1's inline SVG icons (main.jsx), as vectors: 24×24 stroke paths, circles as arcs. */
+object MusixIcons {
+    private fun circle(cx: Float, cy: Float, r: Float) = "M${cx - r},${cy}a$r,$r 0 1,0 ${2 * r},0a$r,$r 0 1,0 -${2 * r},0"
+    private fun ellipse(cx: Float, cy: Float, rx: Float, ry: Float) = "M${cx - rx},${cy}a$rx,$ry 0 1,0 ${2 * rx},0a$rx,$ry 0 1,0 -${2 * rx},0"
+
+    private fun stroke(name: String, vararg paths: String, width: Float = 1.8f, viewport: Float = 24f, filled: Set<Int> = emptySet()): ImageVector =
+        ImageVector.Builder(name, 24.dp, 24.dp, viewport, viewport).apply {
+            paths.forEachIndexed { i, d ->
+                val nodes = PathParser().parsePathString(d).toNodes()
+                if (i in filled) addPath(nodes, fill = SolidColor(Color.Black))
+                else addPath(nodes, stroke = SolidColor(Color.Black), strokeLineWidth = width, strokeLineCap = StrokeCap.Round, strokeLineJoin = StrokeJoin.Round)
+            }
+        }.build()
+
+    val Grid = stroke("grid", "M4 4h6v6H4z", "M14 4h6v6h-6z", "M4 14h6v6H4z", "M14 14h6v6h-6z", width = 1.8f)
+    val Clock = stroke("clock", circle(12f, 12f, 9f), "M12 7v5l3 2", width = 1.8f)
+    val List = stroke("list", "M8 6h13", "M8 12h13", "M8 18h13", "M3.5 6h.01", "M3.5 12h.01", "M3.5 18h.01", width = 1.9f)
+    val Bars = stroke("bars", "M6 20v-7", "M12 20V5", "M18 20v-10", width = 2f)
+    val Home = stroke("home", "M3 11.5 12 4l9 7.5", "M5 10v10h14V10")
+    val Assistant = stroke("assistant", circle(12f, 12f, 7f), "M8.6 13.4c1.6 1.1 3.4-.7 4.8.4", "M9.2 9.6c1.3.9 2.6-.4 3.9.2", "M19.6 5.2 20 4l.4 1.2 1.2.4-1.2.4-.4 1.2-.4-1.2-1.2-.4z")
+    val Library = stroke("library", ellipse(12f, 5f, 9f, 3f), "M3 5v14c0 1.66 4.03 3 9 3s9-1.34 9-3V5", "M3 12c0 1.66 4.03 3 9 3s9-1.34 9-3")
+    val Star = stroke("star", "M12 2 15 8l6 1-4.5 4.5L18 20l-6-3-6 3 1.5-6.5L3 9l6-1z")
+    val Quiz = stroke("quiz", "M21 12a8 8 0 1 1-3.1-6.3", "M9.6 9.4a2.6 2.6 0 1 1 3.3 3.1c-.7.3-1.1.9-1.1 1.7", circle(11.8f, 17.4f, 1f), filled = setOf(2))
+    val Search = stroke("search", circle(11f, 11f, 8f), "m21 21-4.35-4.35", width = 2f)
+    val Settings = stroke("settings", circle(12f, 12f, 3f),
+        "M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z")
+    val ChevronDown = stroke("down", "m6 9 6 6 6-6", width = 2f)
+    val ChevronLeft = stroke("left", "m15 18-6-6 6-6", width = 2f)
+    val ChevronRight = stroke("right", "m9 18 6-6-6-6", width = 2f)
+    val Plus = stroke("plus", "M12 5v14", "M5 12h14", width = 2f)
+    val Lyrics = stroke("lyrics", "M4 7h16", "M4 12h16", "M4 17h10", width = 2f)
+    val Shuffle = stroke("shuffle", "M16 3h5v5", "M4 20 21 3", "M21 16v5h-5", "m15 15 6 6", "m4 4 5 5", width = 2f)
+    val Fire = stroke("fire", "M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z", width = 2f)
+    val Water = stroke("water", "M12 22a7 7 0 0 0 7-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5c-.5 2.5-2 4.9-4 6.5C6 11.1 5 13 5 15a7 7 0 0 0 7 7z", width = 2f)
+    val Sparkles = stroke("sparkles", "M12 2.5l1.6 4.4L18 8.5l-4.4 1.6L12 14.5l-1.6-4.4L6 8.5l4.4-1.6L12 2.5zM18.5 13l.95 2.6L22 16.5l-2.55.9L18.5 20l-.95-2.6L15 16.5l2.55-.9L18.5 13zM5.5 13l.95 2.6L9 16.5l-2.55.9L5.5 20l-.95-2.6L2 16.5l2.55-.9L5.5 13z", filled = setOf(0))
+    val QueueNext = stroke("queueNext", "M3 6h12", "M3 12h12", "M3 18h8", "M18 15v6", "M15 18h6", width = 2f)
+    val Play = stroke("play", "M7 4.5v15l12.5-7.5z", filled = setOf(0))
+    val Pause = stroke("pause", "M6 4h4v16H6z", "M14 4h4v16h-4z", filled = setOf(0, 1))
+    val Next = stroke("next", "M5 4.5v15l11-7.5z", "M18 4.5v15", filled = setOf(0), width = 2.2f)
+    val Prev = stroke("prev", "M19 4.5v15L8 12z", "M6 4.5v15", filled = setOf(0), width = 2.2f)
+    val Close = stroke("close", "M18 6 6 18", "M6 6l12 12", width = 2f)
+    val Drag = stroke("drag", "M9 6h.01", "M15 6h.01", "M9 12h.01", "M15 12h.01", "M9 18h.01", "M15 18h.01", width = 3f)
+    /** The waveform mark of v1's Lossless badge (viewBox 15×9). */
+    val LosslessMark: ImageVector = ImageVector.Builder("lossless", 30.dp, 18.dp, 15f, 9f)
+        .addPath(PathParser().parsePathString("M8.184,0.35C9.944,0.35 10.703,3.296 11.338,5.238C11.673,3.842 11.497,3.542 11.857,3.542C11.99,3.542 12.126,3.633 12.126,3.798C12.126,3.809 12.123,3.839 12.117,3.883L12.091,4.058C12.02,4.522 11.845,5.494 11.654,6.144C13.198,10.191 14.345,4.861 14.474,3.772C14.493,3.615 14.612,3.542 14.731,3.542C14.891,3.542 15.022,3.662 14.997,3.843C14.72,5.605 14.295,8.35 12.547,8.35C11.582,8.35 11.04,7.595 10.611,6.73C9.54,4.626 9.047,1.093 7.997,1.093C7.66,1.093 7.411,1.444 7.394,1.444C7.362,1.444 7.337,1.301 7.023,0.909C7.322,0.567 7.734,0.35 8.184,0.35ZM2.458,0.354C5.211,0.354 5.456,7.618 7.014,7.618C7.197,7.618 7.394,7.507 7.61,7.256C7.729,7.458 7.851,7.638 7.978,7.796C7.667,8.151 7.28,8.35 6.795,8.35C5.054,8.349 4.306,5.434 3.663,3.466C3.511,4.097 3.432,4.669 3.402,4.925C3.382,5.088 3.263,5.163 3.143,5.163C3.009,5.163 2.874,5.071 2.874,4.908L2.874,4.908L2.877,4.87C2.966,4.223 3.146,3.243 3.347,2.56C3.079,1.858 2.745,1.091 2.252,1.091C1.257,1.091 0.687,3.591 0.527,4.925C0.508,5.088 0.388,5.163 0.268,5.163C0.135,5.163 0,5.071 0,4.908C0,4.896 0.001,4.883 0.002,4.87C0.283,2.836 0.808,0.354 2.458,0.354ZM5.315,0.35C5.809,0.35 6.339,0.608 6.797,1.211C6.822,1.241 7.078,1.639 7.159,1.777C8.277,3.802 8.818,7.627 9.881,7.627C10.065,7.627 10.264,7.513 10.484,7.256C10.604,7.458 10.726,7.638 10.852,7.796C10.542,8.15 10.155,8.35 9.67,8.35C6.933,8.349 6.636,1.09 5.128,1.09C4.788,1.09 4.536,1.444 4.519,1.444C4.487,1.444 4.462,1.301 4.148,0.909C4.455,0.558 4.87,0.35 5.315,0.35Z").toNodes(), fill = SolidColor(Color.Black)).build()
+}

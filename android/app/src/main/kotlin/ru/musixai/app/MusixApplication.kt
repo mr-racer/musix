@@ -36,6 +36,7 @@ class MusixApplication : Application(), Configuration.Provider {
     override fun onCreate() {
         super.onCreate()
         AuthRepository.APP_VERSION = BuildConfig.VERSION_NAME
+        ru.musixai.app.feature.settings.APP_VERSION_CODE = BuildConfig.VERSION_CODE
         outbox.onEnqueue = { OutboxWorker.schedule(this) }
         scope.launch { auth.refused.collect { guard.wipe() } }  // a revoked session leaves nothing behind
         scope.launch {

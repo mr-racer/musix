@@ -170,8 +170,18 @@ async def library_summary(c: Ctx, head: int | None = None) -> S.LibrarySummaryOu
             )
         ).one()
 
-    cnt, tot, gen, pl = await asyncio.gather(
-        counts(c, head), c.run(totals), c.run(genres), c.run(plays)
+    async def album_plays(s: AsyncSession) -> dict[str, int]:
+        # «слушаю чаще» on the album grid: the clients sort their offline mirror by it
+        rows = await s.execute(
+            sa.select(T.album_id, sa.func.sum(St.plays).label("n"))
+            .join(account_track_stats, (St.track_id == T.id) & (St.account_id == c.account_id))
+            .where(c.live(), T.album_id.is_not(None))
+            .group_by(T.album_id)
+        )
+        return {str(a): int(n) for a, n in rows if n}
+
+    cnt, tot, gen, pl, ap = await asyncio.gather(
+        counts(c, head), c.run(totals), c.run(genres), c.run(plays), c.run(album_plays)
     )
     return S.LibrarySummaryOut(
         counts=cnt,
@@ -179,6 +189,7 @@ async def library_summary(c: Ctx, head: int | None = None) -> S.LibrarySummaryOu
         first_added_at=tot[1],
         last_added_at=tot[2],
         genres=gen,
+        album_plays=ap,
         plays=int(pl[0]),
         played_ms=int(pl[1]),
     )

@@ -168,6 +168,7 @@ class LibrarySummaryOut(Model):
     genres: list[GenreCount]
     plays: int
     played_ms: int
+    album_plays: dict[str, int] = Field(default_factory=dict)  # album id → plays («слушаю чаще»)
 
 
 class AlbumPageOut(Model):

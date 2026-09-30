@@ -15,6 +15,7 @@ object PlayerProtocol {
     const val ARG_CONTEXT = "context"
     const val ARG_TRACK_ID = "trackId"
     const val ARG_DURATION_MS = "durationMs"
+    const val ARG_URL = "url"
 
     const val EVT_TASTE = "musix.taste"
     const val EVT_ERROR = "musix.error"

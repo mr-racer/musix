@@ -82,6 +82,20 @@ services:
       interval: 10s
       retries: 6
 
+  # the media queue of the snapshot database (envelopes asked for by the app, image
+  # imports): one slot — the box also runs prod
+  worker-snap:
+    <<: *server
+    profiles: [snap]
+    command: procrastinate --app=musix.workers.app.app worker --concurrency 1 --queues media
+    environment:
+      <<: *server-env
+      MUSIX_DATABASE_URL: postgresql://musix:musix@postgres:5432/${MUSIX_SNAP_DB:-musix_mig}
+    volumes:
+      - /mnt/data/musix-v2-media:/mnt/data/musix-v2-media
+      - /mnt/data/music:/mnt/data/music:ro
+    depends_on: {migrate: {condition: service_completed_successfully}}
+
   worker-ai:
     <<: *server
     # the one local LLM: concurrency 1; interactive jobs outrank bulk enrichment by priority.

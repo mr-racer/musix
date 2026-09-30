@@ -47,3 +47,32 @@ suspend fun MusixApi.delete(path: String) = call {
         if (!r.isSuccessful && r.code != 404) throw ApiError(r.code, "DELETE $path: HTTP ${r.code}")
     }
 }
+
+/** GET raw bytes (the envelope); null on 404. */
+suspend fun MusixApi.getBytes(path: String): ByteArray? = call {
+    client.newCall(Request.Builder().url("$base$path").build()).execute().use { r ->
+        when {
+            r.code == 404 -> null
+            !r.isSuccessful -> throw ApiError(r.code, "GET $path: HTTP ${r.code}")
+            else -> r.body.bytes()
+        }
+    }
+}
+
+/** GET a JSON document as a tree (payloads the generated client types poorly: oneOf, free dicts). */
+suspend fun MusixApi.getJson(path: String): kotlinx.serialization.json.JsonElement = call {
+    client.newCall(Request.Builder().url("$base$path").build()).execute().use { r ->
+        if (!r.isSuccessful) throw ApiError(r.code, "GET $path: HTTP ${r.code}")
+        ApiJson.parseToJsonElement(r.body.string())
+    }
+}
+
+/** PATCH raw bytes (tus-style resumable upload chunks). */
+suspend fun MusixApi.patchBytes(path: String, offset: Long, bytes: ByteArray, len: Int): String = call {
+    val body = bytes.toRequestBody("application/offset+octet-stream".toMediaType(), 0, len)
+    val req = Request.Builder().url("$base$path").header("Upload-Offset", offset.toString()).patch(body).build()
+    client.newCall(req).execute().use { r ->
+        if (!r.isSuccessful) throw ApiError(r.code, "PATCH $path: HTTP ${r.code}")
+        r.body.string()
+    }
+}

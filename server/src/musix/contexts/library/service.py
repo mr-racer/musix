@@ -165,3 +165,35 @@ async def own_track_ids(
         sa.select(tracks.c.id).where(tracks.c.account_id == account_id, tracks.c.id.in_(set(ids)))
     )
     return set(rows)
+
+
+async def envelope(
+    s: AsyncSession, account_id: uuid.UUID, track_id: uuid.UUID
+) -> tuple[str, bytes] | None:
+    """(media sha, packed envelope) of a live track of this account, or None."""
+    row = (
+        await s.execute(
+            sa.select(media_files.c.sha256, media_files.c.envelope)
+            .join(tracks, tracks.c.media_file_id == media_files.c.id)
+            .where(
+                tracks.c.id == track_id,
+                tracks.c.account_id == account_id,
+                tracks.c.deleted_at.is_(None),
+            )
+        )
+    ).first()
+    if row is None or row.envelope is None:
+        return None
+    return row.sha256, bytes(row.envelope)
+
+
+async def media_file_of(
+    s: AsyncSession, account_id: uuid.UUID, track_id: uuid.UUID
+) -> uuid.UUID | None:
+    return await s.scalar(
+        sa.select(tracks.c.media_file_id).where(
+            tracks.c.id == track_id,
+            tracks.c.account_id == account_id,
+            tracks.c.deleted_at.is_(None),
+        )
+    )

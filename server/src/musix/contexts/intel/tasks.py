@@ -76,9 +76,26 @@ async def backfill(account_id: str | None = None) -> int:
     return len(ids)
 
 
+async def envelope_backfill() -> int:
+    """Envelopes for files that have none (the migration copies v1's vectors, not its
+    audio analysis): one low-priority job each, so live ingest always goes first."""
+    from musix.workers.app import app
+
+    q = sa.select(media_files.c.id).where(media_files.c.envelope.is_(None))
+    async with sessionmaker()() as s:
+        ids: list[uuid.UUID] = list(await s.scalars(q))
+    for mf in ids:
+        task = app.configure_task(
+            "intel:envelope", queueing_lock=f"intel:envelope:{mf}", priority=-10
+        )
+        await task.defer_async(media_file_id=str(mf))
+    return len(ids)
+
+
 def register(app: procrastinate.App) -> None:
     app.task(name="intel:start", queue="default")(start)
     app.task(name="intel:lyrics", queue="net", retry=RETRY)(lyrics)
     app.task(name="intel:embed", queue="ml", retry=RETRY)(embed)
     app.task(name="intel:envelope", queue="media", retry=2)(envelope)
     app.task(name="intel:backfill", queue="default")(backfill)
+    app.task(name="intel:envelope_backfill", queue="default")(envelope_backfill)

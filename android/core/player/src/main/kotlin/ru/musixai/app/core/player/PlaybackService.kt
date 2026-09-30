@@ -306,14 +306,19 @@ class PlaybackService : MediaLibraryService() {
         if (exo.mediaItemCount == 1) { exo.prepare(); exo.play() }
     }
 
-    /** Quiz snippets (quiz invariant I-2): played through the same player, never a listen. */
-    private fun playSnippet(trackId: String, startMs: Long, durationMs: Long) = scope.launch {
-        val item = items(listOf(trackId)).firstOrNull()?.withExtra(PlayerProtocol.EXTRA_NO_LISTEN, "1") ?: return@launch
-        exo.setMediaItem(item, startMs)
+    /** Quiz snippets (quiz invariant I-2): a signed URL of a server-cut snippet, played through
+     *  the same player but never a listen, and with neutral metadata — the notification and
+     *  the watch must not show the answer. */
+    private fun playSnippet(url: String, durationMs: Long) {
+        val md = MediaMetadata.Builder().setTitle(getString(R.string.quiz_title)).setArtist("MusiX").setIsPlayable(true)
+            .setExtras(Bundle().apply { putString(PlayerProtocol.EXTRA_NO_LISTEN, "1") }).build()
+        val item = MediaItem.Builder().setMediaId("quiz:${url.hashCode()}").setUri(url).setMediaMetadata(md).build()
+        mode = QueueMode.LIST
+        exo.setMediaItem(item)
         exo.prepare()
         exo.play()
         snippetStop?.cancel()
-        snippetStop = scope.launch { delay(durationMs); if (exo.currentMediaItem?.mediaId == trackId) exo.pause() }
+        snippetStop = scope.launch { delay(durationMs + 400); if (exo.currentMediaItem?.mediaId == item.mediaId) exo.pause() }
     }
 
     // ─── Queue upkeep ───────────────────────────────────────────────────────
@@ -450,6 +455,7 @@ class PlaybackService : MediaLibraryService() {
             errorRetries = 0
             queueSnapshot = queueIds()
             if (item == null) return
+            if (item.noListen()) { exo.volume = 1f; gain.gainDb = 0f; return }  // a quiz snippet: no taste, no refill
             applyGain(item.mediaId)
             beginListen(item)
             refreshTaste(item.mediaId)
@@ -530,8 +536,8 @@ class PlaybackService : MediaLibraryService() {
                 PlayerProtocol.CMD_WATER -> react("water", args.getString(PlayerProtocol.ARG_TRACK_ID))
                 PlayerProtocol.CMD_START_STREAM -> startStream()
                 PlayerProtocol.CMD_PLAY_NEXT -> args.getString(PlayerProtocol.ARG_TRACK_ID)?.let(::playNext)
-                PlayerProtocol.CMD_PLAY_SNIPPET -> playSnippet(args.getString(PlayerProtocol.ARG_TRACK_ID) ?: return err(),
-                    args.getLong(PlayerProtocol.ARG_POSITION_MS), args.getLong(PlayerProtocol.ARG_DURATION_MS, 15_000))
+                PlayerProtocol.CMD_PLAY_SNIPPET -> playSnippet(args.getString(PlayerProtocol.ARG_URL) ?: return err(),
+                    args.getLong(PlayerProtocol.ARG_DURATION_MS, 15_000))
                 PlayerProtocol.CMD_PLAY_TRACKS -> {
                     val ids = args.getStringArrayList(PlayerProtocol.ARG_TRACK_IDS).orEmpty()
                     if (ids.isEmpty()) return err()

@@ -8,7 +8,7 @@ from musix.api import etag
 from musix.api.deps import Auth, Owner, Session
 from musix.contexts.library import schemas as S
 from musix.contexts.library import service
-from musix.errors import Invalid
+from musix.errors import Invalid, NotFound
 from musix.schemas import ID_LIST
 
 router = APIRouter(tags=["library"])
@@ -105,3 +105,37 @@ async def get_tracks(
     return await etag.conditional(
         request, response, tag, lambda: service.get_tracks(s, p.account_id, parsed)
     )
+
+
+@router.get(
+    "/tracks/{track_id}/envelope",
+    response_class=Response,
+    responses={
+        200: {
+            "content": {"application/octet-stream": {}},
+            "description": "zlib(uint8 frames × 4 bands), 10 fps",
+        },
+        **etag.NOT_MODIFIED,
+    },
+)
+async def get_envelope(track_id: uuid.UUID, p: Auth, s: Session, request: Request) -> Response:
+    """The energy envelope the players draw the spectrum wave from (phase 4 spec §4):
+    zlib of uint8 frames × 4 bands, 10 frames/s (contexts/intel/envelope). Immutable per
+    media file, so it is cached for a year under the file's sha."""
+    row = await service.envelope(s, p.account_id, track_id)
+    if row is None:
+        # computed on first ask (migrated files have none yet), at the backfill's low priority
+        mf = await service.media_file_of(s, p.account_id, track_id)
+        if mf is not None:
+            await (
+                _queue(request)
+                .configure_task("intel:envelope", queueing_lock=f"intel:envelope:{mf}", priority=-5)
+                .defer_async(media_file_id=str(mf))
+            )
+        raise NotFound("no envelope for this track yet")
+    sha, blob = row
+    tag = f'"{sha}"'
+    headers = {"ETag": tag, "Cache-Control": "private, max-age=31536000, immutable"}
+    if request.headers.get("if-none-match") == tag:
+        return Response(status_code=304, headers=headers)
+    return Response(blob, media_type="application/octet-stream", headers=headers)

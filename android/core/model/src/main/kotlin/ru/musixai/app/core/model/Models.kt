@@ -53,3 +53,73 @@ data class Playlist(
 data class PlaylistEntry(val itemId: String, val playlistId: String, val position: String, val track: Track)
 
 enum class SignalKind(val wire: String) { Fire("fire"), Water("water") }
+
+/** A «вайбик»: the days-scale mood the stream spec §4 derives; a tap plays its queue. */
+data class Vibe(val id: String, val name: String?, val tracks: List<Track>, val weight: Double)
+
+data class Counts(val tracks: Int, val albums: Int, val artists: Int, val playlists: Int)
+
+data class WeeklyPulse(val playedMs: Long, val dailyMs: List<Long>, val discoveries: Int, val topGenre: String?)
+
+data class Home(
+    val vibes: List<Vibe>,
+    val wavePhrase: String?,
+    val counts: Counts,
+    val pulse: WeeklyPulse?,
+    val recent: List<Track>,
+    val recentlyAdded: List<Track>,
+    val playlists: List<Playlist>,
+    val images: Map<String, Image>,
+)
+
+data class LyricLine(val atMs: Long, val text: String)
+
+data class Fact(val text: String, val labels: List<String>, val confirmed: Boolean)
+
+data class Relation(val text: String, val kind: String, val trackId: String?, val artistId: String?)
+
+/** What the player shows about the current track (`GET /player/context`). */
+data class PlayerContext(
+    val track: Track,
+    val image: Image?,
+    val lyrics: String?,
+    val synced: List<LyricLine>,
+    val songFacts: List<Fact>,
+    val artistFacts: List<Fact>,
+    val producers: List<Relation>,
+    val samples: List<Relation>,
+    val sampledBy: List<Relation>,
+    val vibe: String?,
+    val codec: String?,
+    val lossless: Boolean,
+    val plays: Int,
+)
+
+data class AlbumCard(val id: String, val title: String, val artist: String?, val year: Int?, val tracks: Int, val addedAt: Long, val image: Image?, val plays: Int)
+
+data class LibrarySummary(val counts: Counts, val genres: Int, val plays: Int, val playedMs: Long, val firstAddedAt: Long?, val albumPlays: Map<String, Int>)
+
+data class TopItem(val type: String, val id: String, val name: String, val artist: String?)
+
+data class SearchResult(
+    val query: String,
+    val top: List<TopItem>,
+    val tracks: List<Track>,
+    val albums: List<Album>,
+    val artists: List<Artist>,
+    val lyrics: List<Track>,
+    val sound: List<Track>,
+    val images: Map<String, Image>,
+    val degraded: List<String>,
+)
+
+data class ArtistPage(
+    val artist: Artist,
+    val trackCount: Int,
+    val topTracks: List<Track>,
+    val albums: List<AlbumCard>,
+    val appearsOn: List<Track>,
+    val images: Map<String, Image>,
+    val bio: String?,
+    val facets: Map<String, String>,
+)

@@ -56,7 +56,21 @@ interface LibraryDao {
     @Query("SELECT * FROM images WHERE id IN (:ids)") suspend fun images(ids: List<String>): List<ImageEntity>
     @Query("SELECT * FROM images WHERE id = :id") fun image(id: String): Flow<ImageEntity?>
     @Query("SELECT * FROM signals WHERE trackId = :trackId") fun signal(trackId: String): Flow<SignalEntity?>
+    @Query("SELECT * FROM images WHERE id = :id") suspend fun imageNow(id: String): ImageEntity?
+
+    /** Albums with this account's track count; the album artist, else the first track's artist line. */
+    @Query("""SELECT a.id, a.title, a.year, a.coverImageId,
+              COALESCE((SELECT name FROM artists WHERE id = a.albumArtistId), (SELECT t2.artist FROM tracks t2 WHERE t2.albumId = a.id LIMIT 1)) AS artist,
+              COUNT(t.id) AS tracks, MAX(t.addedAt) AS addedAt
+              FROM albums a JOIN tracks t ON t.albumId = a.id GROUP BY a.id""")
+    fun albumRows(): Flow<List<AlbumRow>>
+
+    @Query("SELECT MIN(year) AS lo, MAX(year) AS hi FROM tracks WHERE year > 0") fun years(): Flow<YearRange?>
+    @Query("SELECT * FROM albums WHERE id = :id") suspend fun album(id: String): AlbumEntity?
 }
+
+data class AlbumRow(val id: String, val title: String, val year: Int?, val coverImageId: String?, val artist: String?, val tracks: Int, val addedAt: Long)
+data class YearRange(val lo: Int?, val hi: Int?)
 
 @Dao
 interface PlaylistDao {
@@ -64,6 +78,10 @@ interface PlaylistDao {
     @Query("SELECT * FROM playlists WHERE id = :id") suspend fun playlist(id: String): PlaylistEntity?
     @Query("SELECT * FROM playlist_items WHERE playlistId = :id ORDER BY position COLLATE BINARY") fun items(id: String): Flow<List<PlaylistItemEntity>>
     @Query("SELECT * FROM playlist_items WHERE playlistId = :id ORDER BY position COLLATE BINARY") suspend fun itemsNow(id: String): List<PlaylistItemEntity>
+    /** The first four track covers of each playlist, for the mosaics. */
+    @Query("""SELECT i.playlistId, t.coverImageId FROM playlist_items i JOIN tracks t ON t.id = i.trackId
+              WHERE t.coverImageId IS NOT NULL ORDER BY i.playlistId, i.position COLLATE BINARY""")
+    fun coverRows(): Flow<List<PlaylistCoverRow>>
     @Upsert suspend fun upsertPlaylist(row: PlaylistEntity)
     @Upsert suspend fun upsertItems(rows: List<PlaylistItemEntity>)
     @Query("DELETE FROM playlist_items WHERE itemId = :itemId") suspend fun deleteItem(itemId: String)
@@ -82,3 +100,5 @@ interface OutboxDao {
     @Query("DELETE FROM outbox WHERE seq IN (:seqs)") suspend fun done(seqs: List<Long>)
     @Query("UPDATE outbox SET attempts = attempts + 1, lastError = :error WHERE seq IN (:seqs)") suspend fun failed(seqs: List<Long>, error: String)
 }
+
+data class PlaylistCoverRow(val playlistId: String, val coverImageId: String)
