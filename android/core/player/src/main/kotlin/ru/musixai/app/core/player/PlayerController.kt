@@ -144,6 +144,8 @@ class PlayerController @Inject constructor(@ApplicationContext private val ctx: 
     fun snippet(url: String, durationMs: Long) = send(PlayerProtocol.CMD_PLAY_SNIPPET, Bundle().apply {
         putString(PlayerProtocol.ARG_URL, url); putLong(PlayerProtocol.ARG_DURATION_MS, durationMs)
     })
+    /** A quiz snippet replaced the queue (no-listen): stopping it is a pause of that item. */
+    fun stopSnippet() { controller?.pause() }
     fun react(kind: String) = send(if (kind == "fire") PlayerProtocol.CMD_FIRE else PlayerProtocol.CMD_WATER)
 
     fun toggle() { controller?.let { if (it.isPlaying) it.pause() else it.play() } }

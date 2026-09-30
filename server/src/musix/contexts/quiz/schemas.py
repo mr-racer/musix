@@ -4,6 +4,7 @@ from typing import Any
 
 from pydantic import Field
 
+from musix.contexts.media.schemas import ImageData
 from musix.schemas import Model
 
 
@@ -36,6 +37,7 @@ class RoundOut(Model):
     input_kind: str
     meta: dict[str, Any]
     audio_url: str | None
+    images: dict[str, ImageData] = Field(default_factory=dict)  # option/prompt covers, by id
 
 
 class AnswerIn(Model):
@@ -50,3 +52,4 @@ class AnswerOut(Model):
     correct_option_id: str | None
     reveal: dict[str, Any]
     truth: dict[str, Any]
+    images: dict[str, ImageData] = Field(default_factory=dict)  # the truth cover, for the reveal

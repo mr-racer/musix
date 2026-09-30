@@ -257,6 +257,13 @@
             "title": "Expired",
             "type": "boolean"
           },
+          "images": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/ImageData"
+            },
+            "title": "Images",
+            "type": "object"
+          },
           "reveal": {
             "additionalProperties": true,
             "title": "Reveal",
@@ -3487,6 +3494,13 @@
           "hasAudio": {
             "title": "Hasaudio",
             "type": "boolean"
+          },
+          "images": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/ImageData"
+            },
+            "title": "Images",
+            "type": "object"
           },
           "inputKind": {
             "title": "Inputkind",

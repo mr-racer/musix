@@ -9,7 +9,7 @@ from fastapi import APIRouter, Request
 from fastapi.responses import FileResponse
 
 from musix.api.deps import Auth, Session
-from musix.contexts.media.delivery import sign
+from musix.contexts.media.delivery import load_images, sign
 from musix.contexts.quiz import schemas as S
 from musix.contexts.quiz import service
 from musix.errors import Conflict, NotFound, Unauthorized
@@ -48,20 +48,33 @@ async def create_round(body: S.RoundIn, p: Auth, s: Session, request: Request) -
         for o in built["options"]:
             o["audioUrl"] = _audio(request, p.account_id, rid, o.get("option_id"))
     built["audio_url"] = _audio(request, p.account_id, rid) if built["has_audio"] else None
+    prompt = (built.get("meta") or {}).get("prompt") or {}
+    covers = [o.get("cover_art_path") for o in built["options"]] + [prompt.get("cover_art_path")]
+    built["images"] = await _images(request, s, covers)
     return built
 
 
+async def _images(request: Request, s: Any, ids: list[Any]) -> dict[str, Any]:
+    st = request.app.state
+    wanted = [i for i in ids if isinstance(i, str) and i]
+    return await load_images(s, str(st.settings.public_base_url), st.secrets.media_hmac, wanted)
+
+
 @router.post("/rounds/{round_id}/answer", response_model=S.AnswerOut)
-async def answer(round_id: uuid.UUID, body: S.AnswerIn, p: Auth, s: Session) -> Any:
+async def answer(
+    round_id: uuid.UUID, body: S.AnswerIn, p: Auth, s: Session, request: Request
+) -> Any:
     """Single-use. Writes no listen and no signal (I-1/I-2)."""
     try:
-        return await service.submit_answer(
+        out = await service.submit_answer(
             s, p.account_id, round_id, body.model_dump(exclude_none=True)
         )
     except RoundNotFound as e:
         raise NotFound("round") from e
     except AlreadyAnswered as e:
         raise Conflict("round already answered") from e
+    out["images"] = await _images(request, s, [out["truth"].get("cover_art_path")])
+    return out
 
 
 def _check(request: Request, e: int, sig: str) -> None:
