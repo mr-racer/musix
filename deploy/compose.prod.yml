@@ -1,0 +1,136 @@
+# MusiX v2 production stack (phase 6). Beside v1 until the switch: its own project, state
+# under /mnt/data/musix-v2-prod (bind mounts: backups are plain directories), loopback
+# ports only. The edge is 127.0.0.1:${MUSIX_EDGE_PORT:-18090} (staging, reached from the VPS
+# through a second tunnel); at the switch v1 stops and the edge takes :8000, where the
+# existing tunnel already points. `make prod-up` from v2/. Secrets for interpolation (the
+# Postgres password, the SearXNG secret) live in /mnt/data/musix-v2-prod/prod.env (0600,
+# generated once by `make prod-env`); the app's own keys are generated into secrets/.
+name: musix-v2
+
+x-server: &server
+  build: ../server
+  image: musix-v2-server:prod
+  restart: unless-stopped
+  environment: &server-env
+    MUSIX_DATABASE_URL: postgresql://musix:${MUSIX_PG_PASSWORD:-musix}@postgres:5432/${MUSIX_DB:-musix}
+    MUSIX_QDRANT_URL: http://qdrant:6333
+    MUSIX_MEDIA_DIR: /mnt/data/musix-v2-prod/media
+    MUSIX_LIBRARY_ROOTS: '["/mnt/data/music"]'
+    MUSIX_ML_URL: http://ml:8002
+    MUSIX_PUBLIC_BASE_URL: ${MUSIX_PUBLIC_BASE_URL:-https://musixai.ru}
+    MUSIX_LLM_BASE_URL: ${MUSIX_LLM_BASE_URL:-http://192.168.0.168:8082/v1}
+    MUSIX_LLM_MODEL: ${MUSIX_LLM_MODEL:-qwen3.8-27b-ud-iq3_s}
+    MUSIX_PROXY_URL: ${MUSIX_PROXY_URL:-}  # outbound knowledge sources only; the operator's env
+    SEARXNG_URL: http://searxng:8080
+  volumes:
+    - /mnt/data/musix-v2-prod/media:/mnt/data/musix-v2-prod/media
+    - /mnt/data/music:/mnt/data/music:ro
+    - /mnt/data/musix-v2-prod/secrets:/var/lib/musix/secrets
+
+services:
+  postgres:
+    image: postgres:18
+    restart: unless-stopped
+    command: postgres -c shared_preload_libraries=pg_stat_statements -c max_connections=120 -c idle_in_transaction_session_timeout=30s
+    environment: {POSTGRES_USER: musix, POSTGRES_PASSWORD: "${MUSIX_PG_PASSWORD:-musix}", POSTGRES_DB: musix}
+    ports: ["127.0.0.1:18532:5432"]  # the host-side migrator only
+    volumes: [/mnt/data/musix-v2-prod/pg:/var/lib/postgresql]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U musix -d musix"]
+      interval: 2s
+      retries: 30
+
+  qdrant:
+    image: qdrant/qdrant:v1.18.2
+    restart: unless-stopped
+    ports: ["127.0.0.1:18533:6333"]  # the host-side migrator only
+    volumes: [/mnt/data/musix-v2-prod/qdrant:/qdrant/storage]
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c ':> /dev/tcp/127.0.0.1/6333'"]
+      interval: 2s
+      retries: 30
+
+  searxng:
+    image: searxng/searxng:latest  # = v1 prod's and dev's image
+    restart: unless-stopped
+    volumes: [./searxng/settings.yml:/etc/searxng/settings.yml:ro]
+    environment:
+      SEARXNG_SECRET: ${SEARXNG_SECRET:?generated into the prod env file by make prod-env}
+      UWSGI_WORKERS: 2
+      UWSGI_THREADS: 4
+
+  migrate:
+    <<: *server
+    restart: "no"
+    command: alembic upgrade head
+    depends_on: {postgres: {condition: service_healthy}}
+
+  ml:
+    build: ../ml
+    image: musix-v2-ml:prod
+    restart: unless-stopped
+    # CPU until the switch (v1 holds the GPU); compose.prod.gpu.yml moves it to the GPU
+    environment: {ML_DEVICE: cpu, ML_THREADS: "6"}
+    mem_limit: 10g
+    volumes:
+      - v1-hf-cache:/models/hf:ro
+      - /mnt/data/lyrics-search/weights:/models/weights:ro
+      - /mnt/data/music:/mnt/data/music:ro
+      - /mnt/data/musix-v2-prod/media:/mnt/data/musix-v2-prod/media:ro
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request as u; u.urlopen('http://127.0.0.1:8002/health', timeout=3)"]
+      interval: 5s
+      retries: 30
+
+  api:
+    <<: *server
+    command: >-
+      sh -c "rm -rf /tmp/prom && mkdir -p /tmp/prom &&
+      exec uvicorn musix.api.app:create_app --factory --host 0.0.0.0 --port 8000 --workers 4 --proxy-headers --forwarded-allow-ips='*'"
+    environment:
+      <<: *server-env
+      PROMETHEUS_MULTIPROC_DIR: /tmp/prom
+    depends_on:
+      migrate: {condition: service_completed_successfully}
+      qdrant: {condition: service_healthy}
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request as u; u.urlopen('http://127.0.0.1:8000/api/v2/ready', timeout=3)"]
+      interval: 3s
+      retries: 30
+
+  worker:
+    <<: *server
+    command: procrastinate --app=musix.workers.app.app worker --concurrency 3 --queues default,ingest,media,net,ml
+    depends_on: {migrate: {condition: service_completed_successfully}}
+    healthcheck:
+      test: ["CMD", "procrastinate", "--app=musix.workers.app.app", "healthchecks"]
+      interval: 10s
+      retries: 10
+
+  # the one LLM is prod's llama-server: off until the switch (`--profile ai`), so staging
+  # adds no load next to v1's own AI jobs
+  worker-ai:
+    <<: *server
+    profiles: [ai]
+    command: procrastinate --app=musix.workers.app.app worker --concurrency 1 --queues ai
+    depends_on: {migrate: {condition: service_completed_successfully}}
+
+  nginx:
+    image: nginx:1.29-alpine
+    restart: unless-stopped
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/v2-prod.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./nginx/media.prod.conf:/etc/nginx/media.conf:ro
+      - ./nginx/web.conf:/etc/nginx/web.conf:ro
+      - ../web/dist:/srv/web:ro
+      - ./nginx/njs:/etc/nginx/njs:ro
+      - /mnt/data/musix-v2-prod/secrets:/etc/nginx/secrets:ro
+      - /mnt/data/musix-v2-prod/media:/mnt/data/musix-v2-prod/media:ro
+    ports: ["127.0.0.1:${MUSIX_EDGE_PORT:-18090}:80"]
+    depends_on: {api: {condition: service_healthy}}
+
+volumes:
+  v1-hf-cache:
+    external: true
+    name: lyrics-search_hf-cache

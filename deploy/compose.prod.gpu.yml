@@ -1,0 +1,9 @@
+# At the switch (T+29), after v1 has stopped and released the GPU: `make prod-up GPU=1`.
+# Never while v1 `musix` runs — the VRAM holds one of them (spec §1).
+services:
+  ml:
+    environment: {ML_DEVICE: cuda}
+    deploy:
+      resources:
+        reservations:
+          devices: [{driver: nvidia, count: 1, capabilities: [gpu]}]

@@ -25,9 +25,10 @@ import sqlalchemy as sa
 from musix.contexts.library.models import media_files, renditions, tracks
 from musix.contexts.media import audio
 
-MEDIA = Path("/mnt/data/musix-v2-media")
+# the target stack: dev by default; the prod stack sets both (make prod-migrate)
+MEDIA = Path(os.environ.get("MUSIX_MIGRATE_MEDIA", "/mnt/data/musix-v2-media"))
 BATCH = 150
-COMPOSE = Path(__file__).resolve().parents[2] / "deploy" / "compose.dev.yml"
+COMPOSE = Path(os.environ.get("MUSIX_MIGRATE_COMPOSE", Path(__file__).resolve().parents[2] / "deploy" / "compose.dev.yml"))
 
 
 COPY_FOREIGN = False  # set by --copy-foreign (dev): see _link
@@ -183,7 +184,7 @@ def _drain(url: str) -> str:
     """A one-shot worker of the server image on the target database's `media` queue."""
     db = url.rsplit("/", 1)[1]
     cmd = ["docker", "compose", "-f", str(COMPOSE), "run", "--rm", "--no-deps",
-           "-e", f"MUSIX_DATABASE_URL=postgresql://musix:musix@postgres:5432/{db}",
+           "-e", f"MUSIX_DATABASE_URL=postgresql://musix:{os.environ.get('MUSIX_PG_PASSWORD', 'musix')}@postgres:5432/{db}",
            "worker", "procrastinate", "--app=musix.workers.app.app", "worker",
            "--queues", "media", "--concurrency", "3", "--one-shot"]
     r = subprocess.run(cmd, capture_output=True, text=True, timeout=3600)

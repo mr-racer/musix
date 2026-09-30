@@ -61,6 +61,30 @@ android-check:
 android-emu:
 	tools/android/emu.sh up
 
+# ── v2 prod stack (deploy/compose.prod.yml, phase 6). State in /mnt/data/musix-v2-prod.
+.PHONY: prod-env prod-up prod-down prod-migrate prod-logs
+PROD_DIR = /mnt/data/musix-v2-prod
+PROD = docker compose --env-file $(PROD_DIR)/prod.env -f deploy/compose.prod.yml $(if $(GPU),-f deploy/compose.prod.gpu.yml)
+prod-env:  # once: the stack's interpolation secrets, never printed
+	@mkdir -p $(PROD_DIR)/pg $(PROD_DIR)/qdrant $(PROD_DIR)/media/downloads $(PROD_DIR)/secrets
+	@test -f $(PROD_DIR)/prod.env || (umask 077 && printf 'MUSIX_PG_PASSWORD=%s\nSEARXNG_SECRET=%s\n' \
+	  "$$(openssl rand -hex 24)" "$$(openssl rand -hex 32)" > $(PROD_DIR)/prod.env && echo "prod.env created")
+# the prod images are the dev images retagged: Docker's root is on the small system disk,
+# and a separate build would duplicate gigabytes (`make dev` builds them first)
+prod-up: prod-env web
+	docker tag musix-v2-server:dev musix-v2-server:prod && docker tag musix-v2-ml:dev musix-v2-ml:prod
+	$(PROD) up -d --wait $(if $(AI),--profile ai)
+prod-down:
+	$(PROD) down
+prod-logs:
+	$(PROD) logs --tail 100 -f api worker nginx
+# the migration into the prod stack: its media dir, compose file, Postgres and Qdrant
+prod-migrate:
+	set -a && . $(PROD_DIR)/prod.env && set +a && cd tools/migrate && \
+	MUSIX_MIGRATE_MEDIA=$(PROD_DIR)/media MUSIX_MIGRATE_COMPOSE=$(CURDIR)/deploy/compose.prod.yml \
+	../../server/.venv/bin/python migrate.py run /mnt/data/musix-snapshots/$(SNAP) --db $(or $(DB),musix) --reset \
+	  --admin-dsn "postgresql://musix:$$MUSIX_PG_PASSWORD@127.0.0.1:18532/postgres" --qdrant http://127.0.0.1:18533 $(if $(COPY),--copy-foreign)
+
 # ── web client (web/, phase 5): caches on /mnt/data (the system disk is small) ───
 .PHONY: web web-dev web-check web-e2e
 WEB_ENV = export npm_config_cache=/mnt/data/.cache/npm PLAYWRIGHT_BROWSERS_PATH=/mnt/data/.cache/ms-playwright && cd web
