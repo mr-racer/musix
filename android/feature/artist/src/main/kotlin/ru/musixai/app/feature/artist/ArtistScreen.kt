@@ -53,6 +53,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import ru.musixai.app.core.data.ArtistRepository
+import ru.musixai.app.core.designsystem.component.rise
 import ru.musixai.app.core.designsystem.MusixIcons
 import ru.musixai.app.core.designsystem.MusixTheme
 import ru.musixai.app.core.designsystem.component.Cover
@@ -114,9 +115,10 @@ fun ArtistRoute(onBack: () -> Unit, onAlbum: (String) -> Unit, vm: ArtistViewMod
                     style = MusixTheme.type.mono.copy(fontSize = 12.sp, letterSpacing = 0.08.em, color = c.textMuted))
                 Text("${page.albums.size} АЛЬБОМОВ · ${page.trackCount} ТРЕКОВ", Modifier.padding(top = 6.dp), style = MusixTheme.type.mono.copy(fontSize = 12.sp, letterSpacing = 0.1.em, color = c.textMuted))
                 PlayPill(vm::playArtist)
-                page.bio?.let { Bio(it) }
-                Dossier(page)
-                if (page.albums.isNotEmpty()) {
+                // v1's section cascade (lib-rise): bio .08 s → dossier .16 s → albums .24 s
+                page.bio?.let { Column(Modifier.rise(80, blur = 5.dp)) { Bio(it) } }
+                Box(Modifier.rise(160, blur = 5.dp)) { Dossier(page) }
+                if (page.albums.isNotEmpty()) Column(Modifier.rise(240, blur = 5.dp)) {
                     Eyebrow("Альбомы", Modifier.padding(top = 26.dp, bottom = 12.dp))
                     LazyRow(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
                         items(page.albums) { a -> Column(Modifier.width(140.dp).pressable { onAlbum(a.id) }) {
@@ -126,7 +128,7 @@ fun ArtistRoute(onBack: () -> Unit, onAlbum: (String) -> Unit, vm: ArtistViewMod
                         } }
                     }
                 }
-                if (page.topTracks.isNotEmpty()) {
+                if (page.topTracks.isNotEmpty()) Column(Modifier.rise(300, blur = 5.dp)) {
                     Eyebrow("Чаще всего", Modifier.padding(top = 26.dp, bottom = 8.dp))
                     page.topTracks.take(10).forEachIndexed { i, t ->
                         Row(Modifier.fillMaxWidth().pressable { vm.play(i) }.padding(vertical = 7.dp), verticalAlignment = Alignment.CenterVertically) {

@@ -1,5 +1,10 @@
 package ru.musixai.app.feature.player
 
+import ru.musixai.app.core.designsystem.component.rise
+import kotlinx.coroutines.delay
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.key
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.animateFloat
@@ -82,14 +87,23 @@ private fun classOf(f: Fact) = FACT_CLASSES.firstOrNull { it.first in f.labels }
 fun FactsRail(ctx: PlayerContext?, modifier: Modifier = Modifier) {
     val c = MusixTheme.colors
     val dark = MusixTheme.isDark
-    var artistTab by remember(ctx?.track?.id) { mutableStateOf(false) }
-    var page by remember(ctx?.track?.id, artistTab) { mutableIntStateOf(0) }
+    // v1: the scope is sticky across tracks; a pinned class is per track and scope
+    var artistTab by rememberSaveable { mutableStateOf(false) }
+    val track = ctx?.track?.id
+    var pin by remember(track, artistTab) { mutableStateOf<Pair<String, Float>?>(null) }
+    var page by remember(track, artistTab, pin) { mutableIntStateOf(0) }
     Column(modifier.fillMaxWidth()) {
         if (ctx == null) {
             Skel(Modifier.fillMaxWidth().height(90.dp), 14.dp)
             return@Column
         }
-        val facts = if (artistTab || ctx.songFacts.isEmpty()) ctx.artistFacts else ctx.songFacts
+        val all = if (artistTab || ctx.songFacts.isEmpty()) ctx.artistFacts else ctx.songFacts
+        val facts = pin?.let { p -> all.filter { classOf(it) == p } }?.takeIf { it.isNotEmpty() } ?: all
+        // v1 rotates the player's facts every 12 s (a phone has no hover to pause it)
+        LaunchedEffect(track, artistTab, pin, facts.size) {
+            if (facts.size < 2) return@LaunchedEffect
+            while (true) { delay(12_000); page = (page + 1) % facts.size }
+        }
         Row(verticalAlignment = Alignment.CenterVertically) {
             Row(Modifier.skeInset(RoundedCornerShape(22.dp)).padding(3.dp)) {
                 for ((i, label) in listOf("ПЕСНЯ", "АРТИСТ").withIndex()) {
@@ -112,13 +126,14 @@ fun FactsRail(ctx: PlayerContext?, modifier: Modifier = Modifier) {
             return@Column
         }
         // the class line: every class on this subject with its count, the shown one lit
-        val classes = facts.mapNotNull { classOf(it) }.groupingBy { it }.eachCount()
-        val shown = classOf(facts[page.coerceIn(0, facts.lastIndex)])
+        val classes = all.mapNotNull { classOf(it) }.groupingBy { it }.eachCount()
+        val shown = pin ?: classOf(facts[page.coerceIn(0, facts.lastIndex)])
         FlowRow(Modifier.padding(top = 12.dp, start = 4.dp), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             for ((cls, n) in classes) {
                 val hue = cls.second
                 val lit = cls == shown
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                // a tap pins the class (the pager then walks only its facts); a second tap frees it
+                Row(Modifier.pressable { pin = if (pin == cls) null else cls }, verticalAlignment = Alignment.CenterVertically) {
                     Box(Modifier.size(7.dp).clip(CircleShape).background(oklch(if (dark) 78f else 48f, 0.13f, hue)))
                     Spacer(Modifier.width(7.dp))
                     Text(cls.first, style = MusixTheme.type.mono.copy(fontSize = 12.sp, letterSpacing = 0.04.em,
@@ -129,33 +144,10 @@ fun FactsRail(ctx: PlayerContext?, modifier: Modifier = Modifier) {
         }
         Box(Modifier.padding(start = 6.dp, top = 12.dp).width(48.dp).height(1.dp).background(c.border))
         val f = facts[page.coerceIn(0, facts.lastIndex)]
-        Text(f.text, Modifier.padding(horizontal = 6.dp, vertical = 12.dp),
-            style = MusixTheme.type.serif.copy(fontSize = 17.sp, lineHeight = 1.5.em, color = c.text.copy(alpha = if (f.confirmed) 1f else 0.82f)))
-    }
-}
-
-/** Synced LRC: the current line lit and larger; a tap seeks there. Plain text otherwise. */
-@Composable
-fun LyricsPanel(ctx: PlayerContext?, positionMs: Long, onSeek: (Long) -> Unit, modifier: Modifier = Modifier, onExplain: (String) -> Unit = {}) {
-    val c = MusixTheme.colors
-    Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Eyebrow("Текст песни · удерживай строчку — гуру объяснит", Modifier.padding(bottom = 6.dp))
-        when {
-            ctx == null -> Skel(Modifier.fillMaxWidth().height(120.dp), 12.dp)
-            ctx.synced.isNotEmpty() -> {
-                val cur = ctx.synced.indexOfLast { it.atMs <= positionMs + 250 }
-                val window = ctx.synced.withIndex().toList().let { all -> all.subList((cur - 3).coerceAtLeast(0), (cur + 9).coerceAtMost(all.size)) }
-                for ((i, line) in window) {
-                    val on = i == cur
-                    val col by animateColorAsState(if (on) c.text else c.textSubtle, label = "line")
-                    Text(line.text.ifEmpty { "♪" }, Modifier.pointerInput(line.atMs) {
-                        detectTapGestures(onTap = { onSeek(line.atMs) }, onLongPress = { if (line.text.isNotBlank()) onExplain(line.text) })
-                    },
-                        style = MusixTheme.type.serif.copy(fontSize = if (on) 20.sp else 17.sp, lineHeight = 1.4.em, fontWeight = if (on) FontWeight.SemiBold else FontWeight.Normal, color = col))
-                }
-            }
-            ctx.lyrics != null -> Text(ctx.lyrics!!, style = MusixTheme.type.serif.copy(fontSize = 16.sp, lineHeight = 1.6.em, color = c.text))
-            else -> Empty("Текста для этого трека нет", Modifier.fillMaxWidth())
+        // v1 `factIn`: every new fact rises 8 dp out of a 2 dp blur over 550 ms
+        key(track, artistTab, pin, page) {
+            Text(f.text, Modifier.rise(distance = 8.dp, blur = 2.dp, durationMs = 550).padding(horizontal = 6.dp, vertical = 12.dp),
+                style = MusixTheme.type.serif.copy(fontSize = 17.sp, lineHeight = 1.5.em, color = c.text.copy(alpha = if (f.confirmed) 1f else 0.82f)))
         }
     }
 }

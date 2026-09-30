@@ -37,6 +37,7 @@ data class LibraryUi(
     val recent: List<Track> = emptyList(),
     val images: Map<String, Image> = emptyMap(),
     val playlists: List<Pair<Playlist, List<Image?>>> = emptyList(),
+    val loaded: Boolean = false,  // the local catalog answered once (empty then means empty)
 )
 
 @HiltViewModel
@@ -54,7 +55,7 @@ class LibraryViewModel @Inject constructor(
         local, catalog.summary, catalog.years, catalog.albums(sort), home.home,
     ) { l, s, y, albums, h ->
         val q = l.query.trim().lowercase()
-        l.copy(summary = s, years = y, recent = h.recent, images = h.images,
+        l.copy(summary = s, years = y, recent = h.recent, images = h.images, loaded = true,
             albums = if (q.isEmpty()) albums else albums.filter { q in it.title.lowercase() || q in (it.artist ?: "").lowercase() })
     }.combine(playlistCards()) { u, p -> u.copy(playlists = p) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), LibraryUi())

@@ -1,5 +1,7 @@
 package ru.musixai.app.feature.library
 
+import ru.musixai.app.core.designsystem.component.Skel
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -51,6 +53,11 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import ru.musixai.app.core.data.AlbumSort
+import ru.musixai.app.core.designsystem.component.Entry
+import ru.musixai.app.core.designsystem.component.cardIn
+import ru.musixai.app.core.designsystem.component.rememberEntry
+import ru.musixai.app.core.designsystem.component.rise
+import androidx.compose.foundation.lazy.grid.itemsIndexed
 import ru.musixai.app.core.designsystem.MusixIcons
 import ru.musixai.app.core.designsystem.MusixTheme
 import ru.musixai.app.core.designsystem.component.Cover
@@ -80,28 +87,38 @@ private val TABS = listOf(LibraryTab.Albums to MusixIcons.Grid, LibraryTab.Recen
 fun LibraryScreen(ui: LibraryUi, vm: LibraryViewModel, onAlbum: (String) -> Unit, onPlaylist: (String) -> Unit, stats: @Composable () -> Unit) {
     val c = MusixTheme.colors
     val cols = if (ui.tab == LibraryTab.Albums && ui.grid) 2 else 1
+    // v1's library cascade: the header rises on each visit, a tab's pane on each switch
+    val visit = rememberEntry(Unit)
+    val pane = rememberEntry(ui.tab, ui.grid, ui.sort, ui.loaded)  // the cascade starts when the rows exist
     LazyVerticalGrid(GridCells.Fixed(cols), Modifier.fillMaxSize().background(c.bg).statusBarsPadding(),
         contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 20.dp, vertical = 16.dp),
         horizontalArrangement = Arrangement.spacedBy(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-        full { SummaryCard(ui) }
         full {
-            MusixField(ui.query, vm::query, "Поиск: песня, альбом или исполнитель", textStyle = MusixTheme.type.body.copy(fontSize = 15.sp))
+            if (ui.summary == null) Skel(Modifier.fillMaxWidth().height(96.dp), 18.dp)
+            else Box(Modifier.rise(blur = 5.dp, entry = rememberEntry(Unit))) { SummaryCard(ui) }
         }
         full {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            MusixField(ui.query, vm::query, "Поиск: песня, альбом или исполнитель", Modifier.rise(160, blur = 5.dp, entry = visit),
+                textStyle = MusixTheme.type.body.copy(fontSize = 15.sp))
+        }
+        full {
+            Row(Modifier.rise(180, blur = 5.dp, entry = visit), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 for ((t, icon) in TABS) TabButton(icon, ui.tab == t, Modifier.weight(1f)) { vm.tab(t) }
             }
         }
         when (ui.tab) {
-            LibraryTab.Albums -> albums(ui, vm, onAlbum)
-            LibraryTab.Recent -> recent(ui, vm)
-            LibraryTab.Playlists -> playlists(ui, vm, onPlaylist)
-            LibraryTab.Stats -> full { stats() }
+            LibraryTab.Albums -> albums(ui, vm, onAlbum, pane)
+            LibraryTab.Recent -> recent(ui, vm, pane)
+            LibraryTab.Playlists -> playlists(ui, vm, onPlaylist, pane)
+            LibraryTab.Stats -> full { Box(Modifier.paneIn(pane)) { stats() } }
         }
     }
 }
 
 private fun LazyGridScope.full(content: @Composable () -> Unit) = item(span = { GridItemSpan(maxLineSpan) }) { content() }
+
+/** v1 `.lib-tab-pane` (tabFadeIn): 10 dp up over 450 ms, 50 ms after the switch. */
+private fun Modifier.paneIn(pane: Entry) = rise(50, distance = 10.dp, durationMs = 450, entry = pane)
 
 @Composable
 private fun SummaryCard(ui: LibraryUi) {
@@ -137,12 +154,12 @@ private fun TabButton(icon: ImageVector, active: Boolean, modifier: Modifier, on
     ) { Icon(icon, null, Modifier.size(22.dp), tint = if (active) Color.White else c.textMuted) }
 }
 
-private fun LazyGridScope.albums(ui: LibraryUi, vm: LibraryViewModel, onAlbum: (String) -> Unit) {
+private fun LazyGridScope.albums(ui: LibraryUi, vm: LibraryViewModel, onAlbum: (String) -> Unit, pane: Entry) {
     full {
         val c = MusixTheme.colors
         var menu by remember { mutableStateOf(false) }
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("${ui.albums.size} альбомов", Modifier.weight(1f), style = MusixTheme.type.mono.copy(fontSize = 13.sp, letterSpacing = 0.06.em, color = c.textSubtle))
+        Row(Modifier.paneIn(pane), verticalAlignment = Alignment.CenterVertically) {
+            Text(if (ui.loaded) "${ui.albums.size} альбомов" else "", Modifier.weight(1f), style = MusixTheme.type.mono.copy(fontSize = 13.sp, letterSpacing = 0.06.em, color = c.textSubtle))
             val label = when (ui.sort) { AlbumSort.Plays -> "слушаю чаще"; AlbumSort.Year -> "по году"; AlbumSort.Title -> "А–Я"; AlbumSort.Added -> "недавние" }
             Text("$label ▾", Modifier.skeInset(RoundedCornerShape(12.dp)).pressable { menu = !menu }.padding(horizontal = 12.dp, vertical = 8.dp),
                 style = MusixTheme.type.body.copy(fontSize = 13.sp, color = c.textMuted))
@@ -158,8 +175,11 @@ private fun LazyGridScope.albums(ui: LibraryUi, vm: LibraryViewModel, onAlbum: (
             }
         }
     }
-    if (ui.albums.isEmpty()) full { Empty() }
-    items(ui.albums, key = { it.id }) { a -> if (ui.grid) AlbumTile(a) { onAlbum(a.id) } else AlbumLine(a) { onAlbum(a.id) } }
+    if (!ui.loaded) items(4) { Skel(Modifier.fillMaxWidth().aspectRatio(0.78f), 18.dp) }
+    else if (ui.albums.isEmpty()) full { Empty() }
+    itemsIndexed(ui.albums, key = { _, a -> a.id }) { i, a ->
+        Box(Modifier.cardIn(i, pane)) { if (ui.grid) AlbumTile(a) { onAlbum(a.id) } else AlbumLine(a) { onAlbum(a.id) } }
+    }
 }
 
 @Composable
@@ -192,9 +212,9 @@ private fun AlbumLine(a: AlbumCard, onClick: () -> Unit) {
     }
 }
 
-private fun LazyGridScope.recent(ui: LibraryUi, vm: LibraryViewModel) {
+private fun LazyGridScope.recent(ui: LibraryUi, vm: LibraryViewModel, pane: Entry) {
     if (ui.recent.isEmpty()) full { Empty("Вы ещё ничего не слушали") }
-    items(ui.recent.size) { i -> TrackLine(ui.recent[i], ui.images[ui.recent[i].coverImageId]) { vm.play(ui.recent, i, "queue") } }
+    items(ui.recent.size) { i -> Box(Modifier.paneIn(pane)) { TrackLine(ui.recent[i], ui.images[ui.recent[i].coverImageId]) { vm.play(ui.recent, i, "queue") } } }
 }
 
 @Composable
@@ -210,10 +230,10 @@ fun TrackLine(t: Track, image: ru.musixai.app.core.model.Image?, trailing: (@Com
     }
 }
 
-private fun LazyGridScope.playlists(ui: LibraryUi, vm: LibraryViewModel, onPlaylist: (String) -> Unit) {
+private fun LazyGridScope.playlists(ui: LibraryUi, vm: LibraryViewModel, onPlaylist: (String) -> Unit, pane: Entry) {
     full {
         var name by remember { mutableStateOf("") }
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        Row(Modifier.paneIn(pane), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             MusixField(name, { name = it }, "Новый плейлист", Modifier.weight(1f))
             CtaButton("Создать", { if (name.isNotBlank()) { vm.createPlaylist(name.trim()); name = "" } })
         }
@@ -222,7 +242,7 @@ private fun LazyGridScope.playlists(ui: LibraryUi, vm: LibraryViewModel, onPlayl
     items(ui.playlists.size) { i ->
         val (p, covers) = ui.playlists[i]
         val c = MusixTheme.colors
-        Row(Modifier.fillMaxWidth().pressable { onPlaylist(p.id) }, verticalAlignment = Alignment.CenterVertically) {
+        Row(Modifier.fillMaxWidth().paneIn(pane).pressable { onPlaylist(p.id) }, verticalAlignment = Alignment.CenterVertically) {
             MosaicCover(covers, size = 58.dp, radius = 10.dp)
             Column(Modifier.weight(1f).padding(horizontal = 14.dp)) {
                 Text(p.name, maxLines = 1, overflow = TextOverflow.Ellipsis, style = MusixTheme.type.body.copy(fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = c.text))
