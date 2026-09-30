@@ -138,6 +138,7 @@ def context_routers() -> list[APIRouter]:
     from musix.contexts.playlists.router import router as playlists
     from musix.contexts.screens.router import router as screens
     from musix.contexts.search.router import router as search
+    from musix.contexts.stream.router import router as stream
     from musix.contexts.sync.router import router as sync
 
     return [
@@ -148,6 +149,7 @@ def context_routers() -> list[APIRouter]:
         playlists,
         screens,
         search,
+        stream,
         sync,
         realtime,
         models_public,
