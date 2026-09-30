@@ -51,3 +51,8 @@ createRoot(document.getElementById("root")!).render(
     </QueryClientProvider>
   </StrictMode>,
 );
+
+if (import.meta.env.DEV) {
+  // dev-only handle for the Playwright checks (never in a production build)
+  void import("./player/engine").then((m) => Object.assign(window, { __musix: { player: m.player, usePlayer: m.usePlayer } }));
+}

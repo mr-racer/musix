@@ -1,0 +1,2 @@
+.wave { width: 100%; height: 34px; cursor: pointer; display: block; --played: oklch(74% 0.15 70); --rest: rgba(255,255,255,0.22); }
+:root[data-theme="light"] .wave { --played: oklch(62% 0.16 60); --rest: rgba(20,20,30,0.18); }

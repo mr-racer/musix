@@ -1,5 +1,6 @@
 import { Link, Outlet, useRouterState } from "@tanstack/react-router";
 import { useAuth } from "../api/auth";
+import { MiniPlayer } from "../player/MiniPlayer";
 import { BrandMark } from "./Brand";
 import { Icon, type IconName } from "./icons";
 import css from "./Shell.module.css";
@@ -39,6 +40,7 @@ export function Shell() {
       <main className={css.main}>
         <Outlet />
       </main>
+      <MiniPlayer />
       <nav className={css.tabbar} aria-label="Разделы">
         {tabs.map((t) => (
           <Link key={t.to} to={t.to} className={active(t.to) ? css.tabOn : css.tab}>

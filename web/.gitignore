@@ -4,3 +4,4 @@ src/api/schema.gen.d.ts
 src/routeTree.gen.ts
 test-results/
 playwright-report/
+*.tsbuildinfo
