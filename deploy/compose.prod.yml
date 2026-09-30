@@ -130,6 +130,21 @@ services:
     ports: ["127.0.0.1:${MUSIX_EDGE_PORT:-18090}:80"]
     depends_on: {api: {condition: service_healthy}}
 
+  # staging only (the owner's week, deploy/vps/v2-staging.md): VPS 127.0.0.1:8001 → this
+  # edge, beside v1's tunnel (untouched). Removed at the switch, when v2 takes :8000.
+  tunnel:
+    image: alpine:3.22
+    profiles: [staging]
+    restart: unless-stopped
+    network_mode: host  # the edge is on the host's loopback
+    command: >-
+      sh -c "apk add --no-cache openssh-client >/dev/null &&
+      exec ssh -N -T -o ServerAliveInterval=30 -o ServerAliveCountMax=3 -o ExitOnForwardFailure=yes
+      -o StrictHostKeyChecking=accept-new -o UserKnownHostsFile=/tmp/known_hosts -o IdentitiesOnly=yes
+      -i /key -R 127.0.0.1:8001:localhost:${MUSIX_EDGE_PORT:-18090} tunnel@${MUSIX_VPS_HOST:?the VPS address, in prod.env}"
+    volumes:
+      - /home/ivan/.ssh/musix_tunnel:/key:ro
+
 volumes:
   v1-hf-cache:
     external: true
