@@ -22,7 +22,7 @@ openapi:
 check: lint test
 
 # ── contract: schemathesis against the dev api; the three generated clients ──
-.PHONY: contract codegen codegen-check bench-v2
+.PHONY: contract codegen codegen-check bench-v2 snap-load snap-api
 contract:
 	tools/contract/run.sh
 codegen:
@@ -31,6 +31,11 @@ codegen-check:
 	contracts/codegen/run.sh check
 bench-v2:
 	tools/bench/v2/run.sh
+# the prod snapshot in a separate dev database (musix_snap) + an api on it at :18010
+snap-load:
+	cd server && uv run python ../tools/migrate/load_snapshot.py /mnt/data/musix-snapshots/$(or $(SNAP),2026-09-29) $(if $(RESET),--reset)
+snap-api:
+	$(COMPOSE) --profile snap up -d --build --wait api-snap
 
 # ── prod snapshot (tools/snapshot) ──────────────────────────────────────────
 .PHONY: snapshot snapshot-restore

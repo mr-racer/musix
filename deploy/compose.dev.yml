@@ -94,6 +94,26 @@ services:
       interval: 3s
       retries: 20
 
+  # `docker compose --profile snap up -d api-snap`: the api on the loaded prod snapshot
+  # (tools/migrate/load_snapshot.py → database musix_snap), for the gates and benches
+  api-snap:
+    <<: *server
+    profiles: [snap]
+    environment:
+      <<: *server-env
+      MUSIX_DATABASE_URL: postgresql://musix:musix@postgres:5432/musix_snap
+    volumes:
+      - secrets:/var/lib/musix/secrets
+      - /mnt/data/musix-v2-media:/mnt/data/musix-v2-media
+      - /mnt/data/music:/mnt/data/music:ro
+    ports: ["127.0.0.1:18010:8000"]
+    depends_on:
+      migrate: {condition: service_completed_successfully}
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request as u; u.urlopen('http://127.0.0.1:8000/api/v2/ready', timeout=3)"]
+      interval: 3s
+      retries: 20
+
   nginx:
     image: nginx:1.29-alpine
     volumes:
