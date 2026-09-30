@@ -2653,8 +2653,8 @@
             "title": "Accounts",
             "type": "integer"
           },
-          "listens24H": {
-            "title": "Listens24H",
+          "listensDay": {
+            "title": "Listensday",
             "type": "integer"
           },
           "mediaBytes": {
@@ -2706,7 +2706,7 @@
           "renditions",
           "accounts",
           "tracks",
-          "listens24H"
+          "listensDay"
         ],
         "title": "OpsOut",
         "type": "object"

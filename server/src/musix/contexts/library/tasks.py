@@ -17,9 +17,16 @@ from musix.contexts.media.tasks import enqueue as media
 from musix.workers.context import sessionmaker, settings
 
 
-async def scan_folder(account_id: str, root: str) -> dict[str, int]:
+async def scan_folder(
+    account_id: str, root: str, job_id: str | None = None, watcher: str | None = None
+) -> dict[str, int]:
     return await ingest.scan_folder(
-        sessionmaker(), uuid.UUID(account_id), Path(root), on_registered=media
+        sessionmaker(),
+        uuid.UUID(account_id),
+        Path(root),
+        on_registered=media,
+        job_id=uuid.UUID(job_id) if job_id else None,
+        watcher=uuid.UUID(watcher) if watcher else None,
     )
 
 

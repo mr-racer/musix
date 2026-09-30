@@ -2,12 +2,14 @@ import uuid
 from pathlib import Path
 from typing import Annotated, Any
 
+import sqlalchemy as sa
 from fastapi import APIRouter, Header, Query, Request, Response
 
 from musix.api import etag
 from musix.api.deps import Auth, Owner, Session
 from musix.contexts.library import schemas as S
 from musix.contexts.library import service
+from musix.contexts.library.models import jobs
 from musix.errors import Invalid, NotFound
 from musix.schemas import ID_LIST
 
@@ -19,17 +21,29 @@ def _queue(request: Request):  # type: ignore[no-untyped-def]
 
 
 @router.post("/library/scan", response_model=S.JobOut, status_code=202)
-async def scan(body: S.ScanIn, p: Owner, request: Request) -> S.JobOut:
+async def scan(body: S.ScanIn, p: Owner, s: Session, request: Request) -> S.JobOut:
     root = Path(body.path)
     if not root.is_absolute() or ".." in root.parts:  # the roots check below must mean it
         raise Invalid("path must be absolute, without '..'")
     roots = [Path(r) for r in request.app.state.settings.library_roots]
     if not any(root.is_relative_to(r) for r in roots):
         raise Invalid("path is outside the library roots", roots=[str(r) for r in roots])
-    job = (
-        await _queue(request)
+    target = body.account_id or p.account_id
+    # the progress row is created here, so the id the client gets is the one its
+    # `job.progress` events carry
+    job = await s.scalar(
+        sa.insert(jobs).values(account_id=target, kind="scan", total=0).returning(jobs.c.id)
+    )
+    await s.commit()
+    await (
+        _queue(request)
         .configure_task("library:scan_folder")
-        .defer_async(account_id=str(body.account_id or p.account_id), root=str(root))
+        .defer_async(
+            account_id=str(target),
+            root=str(root),
+            job_id=str(job),
+            watcher=str(p.account_id) if p.account_id != target else None,
+        )
     )
     return S.JobOut(job=str(job))
 

@@ -1,0 +1,44 @@
+.page { max-width: 1080px; margin: 0 auto; padding: 32px 24px 48px; display: flex; flex-direction: column; gap: 20px; }
+.head { display: flex; flex-direction: column; gap: 14px; }
+.title { font-family: var(--mx-font-serif-display); font-style: italic; font-weight: 300; font-size: 40px; }
+.tabs { composes: segmented from "../../../ui/controls.module.css"; align-self: flex-start; flex-wrap: wrap; }
+.tab { composes: segment from "../../../ui/controls.module.css"; }
+.tabOn { composes: segmentOn from "../../../ui/controls.module.css"; }
+.card { composes: glass from "../../../ui/relief.module.css"; border-radius: 18px; padding: 18px 20px; display: flex; flex-direction: column; gap: 10px; }
+.eyebrow { font-size: 11px; font-weight: 500; letter-spacing: 0.22em; text-transform: uppercase; color: var(--mx-text-subtle); display: flex; align-items: center; gap: 8px; }
+.eyebrow::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--mx-accent-light); box-shadow: 0 0 8px var(--mx-accent-light); }
+.row { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 10px 0; border-top: 1px solid var(--mx-border); flex-wrap: wrap; }
+.row:first-of-type { border-top: 0; }
+.label { display: flex; flex-direction: column; gap: 2px; font-size: 14px; min-width: 0; }
+.hint { font-size: 12px; color: var(--mx-text-subtle); }
+.tools { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+.table th { text-align: left; font-size: 10.5px; font-weight: 500; letter-spacing: 0.16em; text-transform: uppercase; color: var(--mx-text-subtle); padding: 8px 10px; }
+.table td { padding: 10px; border-top: 1px solid var(--mx-border); vertical-align: middle; }
+.num { font-variant-numeric: tabular-nums; text-align: right; }
+.scroll { overflow-x: auto; }
+.pill { font-size: 11px; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--mx-border-strong); color: var(--mx-text-muted); }
+.owner { composes: pill; color: var(--mx-amber); border-color: color-mix(in oklch, var(--mx-amber) 40%, transparent); }
+.code { font-family: var(--mx-font-mono); letter-spacing: 0.08em; }
+.field { composes: field from "../../../ui/controls.module.css"; }
+.ghost { composes: ghost from "../../../ui/controls.module.css"; }
+.cta { composes: cta from "../../../ui/controls.module.css"; }
+.danger { composes: ghost from "../../../ui/controls.module.css"; color: var(--mx-red); }
+.error { composes: error from "../../../ui/controls.module.css"; }
+.ok { color: var(--mx-green); font-size: 13px; }
+.muted { color: var(--mx-text-muted); font-size: 13px; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 14px; }
+.stat { composes: display from "../../../ui/relief.module.css"; border-radius: 14px; padding: 14px 16px; display: flex; flex-direction: column; gap: 4px; }
+.statValue { font-size: 24px; font-weight: 500; font-variant-numeric: tabular-nums; }
+.statLabel { font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--mx-text-subtle); }
+.bar { height: 6px; border-radius: 6px; background: linear-gradient(90deg, var(--mx-accent-light) calc(var(--p) * 100%), var(--mx-border) 0); }
+.form { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.form > :last-child { grid-column: 1 / -1; }
+.switch { position: relative; display: inline-block; width: 44px; height: 26px; flex-shrink: 0; }
+.switch input { opacity: 0; width: 0; height: 0; }
+.switch span { position: absolute; inset: 0; border-radius: 999px; background: var(--mx-surface-3); transition: background 0.2s ease; cursor: pointer; box-shadow: inset 0 1px 3px rgba(0,0,0,0.35); }
+.switch span::before { content: ""; position: absolute; left: 3px; top: 3px; width: 20px; height: 20px; border-radius: 50%; background: #fff; transition: transform 0.2s var(--mx-ease-spring); }
+.switch input:checked + span { background: var(--mx-accent); }
+.switch input:checked + span::before { transform: translateX(18px); }
+.switch input:focus-visible + span { outline: 2px solid oklch(68% 0.17 275 / 0.9); outline-offset: 2px; }
+@media (max-width: 760px) { .form { grid-template-columns: 1fr; } }

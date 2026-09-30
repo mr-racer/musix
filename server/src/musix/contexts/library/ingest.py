@@ -369,9 +369,18 @@ async def ingest_file(
 
 
 async def scan_folder(
-    sm: SM, account_id: uuid.UUID, root: Path, on_registered: OnRegistered = None
+    sm: SM,
+    account_id: uuid.UUID,
+    root: Path,
+    on_registered: OnRegistered = None,
+    job_id: uuid.UUID | None = None,
+    watcher: uuid.UUID | None = None,
 ) -> dict[str, int]:
-    """Walk a granted folder; only new or changed files (by path, size, mtime) are ingested."""
+    """Walk a granted folder; only new or changed files (by path, size, mtime) are ingested.
+    `job_id`: the `jobs` row the API created (its id is what clients track); `watcher`: an
+    account that asked for the scan besides the owner of the folder (the admin) and gets
+    the same progress events — counts only."""
+    to = {account_id, *([watcher] if watcher else [])}
 
     def walk() -> list[tuple[Path, int, float]]:  # directory walk + stat off the event loop
         out = []
@@ -414,11 +423,15 @@ async def scan_folder(
                 )
             ).all()
         )
-        job = await s.scalar(
-            sa.insert(jobs)
-            .values(account_id=account_id, kind="scan", total=len(files))
-            .returning(jobs.c.id)
-        )
+        if job_id:
+            await s.execute(sa.update(jobs).where(jobs.c.id == job_id).values(total=len(files)))
+            job = job_id
+        else:
+            job = await s.scalar(
+                sa.insert(jobs)
+                .values(account_id=account_id, kind="scan", total=len(files))
+                .returning(jobs.c.id)
+            )
         await s.commit()
     counts = {"files": len(files), "ingested": 0, "unchanged": 0, "failed": 0}
     last_pct = -1
@@ -439,7 +452,8 @@ async def scan_folder(
                     .where(jobs.c.id == job)
                     .values(done=i + 1, updated_at=sa.func.now())
                 )
-                await notify(s, account_id, "job", job=job, done=i + 1, total=len(files))
+                for a in to:
+                    await notify(s, a, "job", job=job, done=i + 1, total=len(files))
                 await s.commit()
     async with sm() as s:
         await s.execute(
@@ -447,7 +461,8 @@ async def scan_folder(
             .where(jobs.c.id == job)
             .values(state="done", done=len(files), updated_at=sa.func.now())
         )
-        await notify(s, account_id, "job", job=job, done=len(files), total=len(files), state="done")
+        for a in to:
+            await notify(s, a, "job", job=job, done=len(files), total=len(files), state="done")
         await s.commit()
     return counts
 

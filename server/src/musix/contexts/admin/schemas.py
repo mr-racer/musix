@@ -75,7 +75,7 @@ class OpsOut(Model):
     renditions: list[TierCoverage]
     accounts: int
     tracks: int
-    listens_24h: int
+    listens_day: int  # the last 24 hours
 
 
 class BackfillOut(Model):

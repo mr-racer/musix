@@ -104,6 +104,7 @@ async def setup(s: AsyncSession, k: Secrets, body: S.SetupIn) -> S.Tokens:
         raise Conflict("instance already set up")
     await s.execute(sa.insert(instance).values(mode=body.mode))
     aid = await _create_account(s, body.email, body.password, "owner")
+    await s.execute(sa.update(accounts).where(accounts.c.id == aid).values(last_login_at=now()))
     dev = await _new_device(s, aid, body.device)
     tokens = await _issue(s, k, aid, "owner", dev)
     await s.commit()
@@ -143,6 +144,7 @@ async def register(s: AsyncSession, k: Secrets, body: S.RegisterIn) -> S.Tokens:
     if inv is None or inv.consumed_at is not None or inv.expires_at < now():
         raise Invalid("invite is invalid, used or expired")
     aid = await _create_account(s, body.email, body.password, "member")
+    await s.execute(sa.update(accounts).where(accounts.c.id == aid).values(last_login_at=now()))
     await s.execute(
         sa.update(invites)
         .where(invites.c.code == inv.code)

@@ -267,7 +267,7 @@ async def ops(s: AsyncSession, budget_gb: int) -> S.OpsOut:
             )
             or 0
         ),
-        listens_24h=int(
+        listens_day=int(
             await s.scalar(
                 sa.select(sa.func.count())
                 .select_from(listen_events)
