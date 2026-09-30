@@ -51,6 +51,16 @@ migrate:
 	cd tools/recsys-eval && MUSIX_SNAP_DB=$(MIG_DB) uv run python -m recsys_eval.v2 $(MIG_SNAP)
 	cd tools/migrate && ../../server/.venv/bin/python migrate.py run $(MIG_SNAP) --db $(MIG_DB) --stages verify
 
+# ── Android (android/; phase 4). The emulator runs in Docker (tools/android/emu.sh) ──
+.PHONY: android android-check android-emu
+ANDROID_ENV = . /mnt/data/android/env.sh && cd android
+android:
+	$(ANDROID_ENV) && ./gradlew -q :app:assembleDebug
+android-check:
+	$(ANDROID_ENV) && ./gradlew -q testDebugUnitTest
+android-emu:
+	tools/android/emu.sh up
+
 # ── prod snapshot (tools/snapshot) ──────────────────────────────────────────
 .PHONY: snapshot snapshot-restore
 snapshot:

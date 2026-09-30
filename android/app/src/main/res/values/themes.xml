@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- The window before Compose draws: the v1 dark ground, no action bar (edge-to-edge) -->
+    <style name="Theme.Musix" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/musix_bg</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+    </style>
+    <color name="musix_bg">#0A0A10</color>
+</resources>
