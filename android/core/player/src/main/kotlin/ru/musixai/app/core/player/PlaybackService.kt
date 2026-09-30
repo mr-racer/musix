@@ -338,7 +338,8 @@ class PlaybackService : MediaLibraryService() {
             QueueMode.STREAM -> if (count > 0 && QueuePolicy.needsStreamRefill(count, idx)) {
                 refillJob = scope.launch { runCatching { append(streamChunk()) }.onFailure { broadcastError("stream_refill", it) } }
             }
-            QueueMode.LIST -> if (QueuePolicy.needsListTopUp(count, idx)) {
+            // shuffled, the index says nothing about what is left: top up on the last track of the shuffle order
+            QueueMode.LIST -> if (if (exo.shuffleModeEnabled) !exo.hasNextMediaItem() else QueuePolicy.needsListTopUp(count, idx)) {
                 val seed = exo.currentMediaItem?.mediaId ?: return
                 if (seed == toppedUpFrom || exo.currentMediaItem?.noListen() == true) return
                 toppedUpFrom = seed

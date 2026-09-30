@@ -121,7 +121,7 @@ fun QuizRoute(vm: QuizViewModel = hiltViewModel()) {
 private fun ModeCard(title: String, sub: String, hue: Float, available: Boolean, onClick: () -> Unit) {
     val c = MusixTheme.colors
     val shape = RoundedCornerShape(24.dp)
-    Column(Modifier.padding(bottom = 14.dp).fillMaxWidth().clip(shape).background(Brush.verticalGradient(listOf(Color(0xFF1B1B20), Color(0xFF141418))))
+    Column(Modifier.padding(bottom = 14.dp).fillMaxWidth().clip(shape).background(Brush.verticalGradient(if (MusixTheme.isDark) listOf(Color(0xFF1B1B20), Color(0xFF141418)) else listOf(Color.White, Color(0xFFF7F6FA))))
         .border(1.dp, c.border, shape).pressable(available, onClick)) {
         Box(Modifier.padding(horizontal = 18.dp).fillMaxWidth().height(2.dp).background(Brush.horizontalGradient(listOf(oklch(65f, 0.15f, hue), oklch(65f, 0.15f, hue, 0f)))))
         Column(Modifier.padding(horizontal = 18.dp, vertical = 20.dp)) {

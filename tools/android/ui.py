@@ -32,16 +32,20 @@ def center(n: ET.Element) -> tuple[int, int]:
     return (x1 + x2) // 2, (y1 + y2) // 2
 
 
+def tap_text(text: str, index: int = 0, tries: int = 10) -> None:
+    for _ in range(tries):
+        n = find(text, index=index)
+        if n is not None:
+            subprocess.run(ADB + ["shell", "input", "tap", *map(str, center(n))], check=True)
+            return
+        time.sleep(1)
+    raise SystemExit(f"not on screen: {text}")
+
+
 def main() -> None:
     cmd, *args = sys.argv[1:]
     if cmd == "tap":
-        for _ in range(10):
-            n = find(args[0], index=int(args[1]) if len(args) > 1 else 0)
-            if n is not None:
-                subprocess.run(ADB + ["shell", "input", "tap", *map(str, center(n))], check=True)
-                return
-            time.sleep(1)
-        raise SystemExit(f"not on screen: {args[0]}")
+        tap_text(args[0], int(args[1]) if len(args) > 1 else 0)
     if cmd == "type":
         subprocess.run(ADB + ["shell", "input", "text", args[0].replace(" ", "%s")], check=True)
     elif cmd == "has":

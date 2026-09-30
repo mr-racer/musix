@@ -43,6 +43,7 @@ data class PlayerState(
     val mode: QueueMode = QueueMode.LIST,
     val taste: String? = null,
     val tasteLocked: Boolean = false,
+    val shuffle: Boolean = false,
     val error: String? = null,
 )
 
@@ -105,6 +106,7 @@ class PlayerController @Inject constructor(@ApplicationContext private val ctx: 
                 durationMs = c.duration.takeIf { d -> d > 0 } ?: (item?.mediaMetadata?.durationMs ?: 0),
                 queue = queue,
                 index = c.currentMediaItemIndex,
+                shuffle = c.shuffleModeEnabled,
                 taste = if (same) it.taste else null,
                 tasteLocked = if (same) it.tasteLocked else false,
             )
@@ -152,4 +154,5 @@ class PlayerController @Inject constructor(@ApplicationContext private val ctx: 
     fun move(from: Int, to: Int) { controller?.moveMediaItem(from, to) }
     fun remove(index: Int) { controller?.removeMediaItem(index) }
     fun stop() { controller?.run { stop(); clearMediaItems() } }
+    fun toggleShuffle() { controller?.let { it.shuffleModeEnabled = !it.shuffleModeEnabled } }
 }

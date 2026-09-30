@@ -88,7 +88,7 @@ private val DOSSIER = listOf("name_origin" to "Откуда название", "
 fun ArtistRoute(onBack: () -> Unit, onAlbum: (String) -> Unit, vm: ArtistViewModel = hiltViewModel()) {
     val p by vm.page.collectAsStateWithLifecycle()
     val c = MusixTheme.colors
-    Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color(0xFF0B0B10), c.bg)))) {
+    Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(if (MusixTheme.isDark) Color(0xFF0B0B10) else c.surface, c.bg)))) {
         Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).statusBarsPadding()) {
             Row(Modifier.padding(horizontal = 16.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                 RoundGlassButton(onBack, size = 38.dp) { Icon(MusixIcons.ChevronLeft, "Назад", Modifier.size(18.dp), tint = c.text) }
@@ -144,8 +144,9 @@ fun ArtistRoute(onBack: () -> Unit, onAlbum: (String) -> Unit, vm: ArtistViewMod
 @Composable
 private fun PlayPill(onClick: () -> Unit) {
     val c = MusixTheme.colors
-    Row(Modifier.padding(top = 22.dp).fillMaxWidth().clip(RoundedCornerShape(999.dp)).background(Brush.horizontalGradient(listOf(Color(0xFF14141E), Color(0xFF1A1830))))
-        .border(1.dp, Color(0x2EFFFFFF), RoundedCornerShape(999.dp)).pressable(onClick = onClick).padding(vertical = 12.dp),
+    Row(Modifier.padding(top = 22.dp).fillMaxWidth().clip(RoundedCornerShape(999.dp))
+        .background(Brush.horizontalGradient(if (MusixTheme.isDark) listOf(Color(0xFF14141E), Color(0xFF1A1830)) else listOf(Color.White, Color(0xFFF3F2F8))))
+        .border(1.dp, if (MusixTheme.isDark) Color(0x2EFFFFFF) else Color(0x14000000), RoundedCornerShape(999.dp)).pressable(onClick = onClick).padding(vertical = 12.dp),
         horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
         Box(Modifier.size(42.dp).clip(CircleShape).background(Brush.radialGradient(listOf(Color(0xFF8A96FF), Color(0xFF4F46E0)))), contentAlignment = Alignment.Center) {
             Icon(MusixIcons.Play, null, Modifier.size(16.dp), tint = Color.White)

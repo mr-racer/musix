@@ -107,7 +107,7 @@ private fun SummaryCard(ui: LibraryUi) {
     val s = ui.summary ?: return
     val fmt = NumberFormat.getIntegerInstance(Locale.US)
     val years = ui.years?.let { "${it.first}—${it.last}" }
-    Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(Brush.linearGradient(listOf(Color(0x80221E30), Color(0x66121119))))
+    Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(Brush.linearGradient(if (MusixTheme.isDark) listOf(Color(0x80221E30), Color(0x66121119)) else listOf(Color(0xF2FFFFFF), Color(0xCCF6F5FA))))
         .border(1.dp, c.border, RoundedCornerShape(18.dp)).padding(horizontal = 20.dp, vertical = 20.dp), contentAlignment = Alignment.Center) {
         Text(buildAnnotatedString {
             val parts = listOfNotNull(fmt.format(s.counts.tracks) to "треков", fmt.format(s.counts.albums) to "альбомов",

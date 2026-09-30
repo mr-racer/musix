@@ -39,3 +39,14 @@ fun Modifier.skeInset(shape: Shape = RoundedCornerShape(10.dp)): Modifier {
         .innerShadow(shape, Shadow(radius = if (dark) 5.dp else 4.dp, color = if (dark) Color(0xB3000000) else Color(0x212E1E3C), offset = DpOffset(0.dp, 2.dp)))
         .innerShadow(shape, Shadow(radius = 0.dp, spread = 1.dp, color = if (dark) Color(0x80000000) else Color(0x122E1E3C)))
 }
+
+/** v1 `.ske-display-*`: the recessed readout of a stat — near-black glass in dark, warm
+ *  paper in light, both with a faint amber glow from the top. */
+@Composable
+fun Modifier.skeDisplay(shape: Shape = RoundedCornerShape(16.dp)): Modifier {
+    val dark = MusixTheme.isDark
+    return this.background(if (dark) Brush.verticalGradient(listOf(Color(0xFF07070A), Color(0xFF0E0E12))) else Brush.verticalGradient(listOf(Color(0xFFF4F2E9), Color(0xFFE8E5D8))), shape)
+        .background(Brush.radialGradient(listOf(Color(0xD4A55A).copy(alpha = if (dark) 0.04f else 0.06f), Color.Transparent)), shape)
+        .innerShadow(shape, Shadow(radius = if (dark) 8.dp else 5.dp, color = if (dark) Color(0xD9000000) else Color(0x2E46371E), offset = DpOffset(0.dp, 2.dp)))
+        .innerShadow(shape, Shadow(radius = 0.dp, spread = 1.dp, color = if (dark) Color(0x99000000) else Color(0x2146371E)))
+}

@@ -50,6 +50,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import ru.musixai.app.core.data.StatsRepository
 import ru.musixai.app.core.designsystem.MusixTheme
+import ru.musixai.app.core.designsystem.component.skeDisplay
 import ru.musixai.app.core.designsystem.component.Cover
 import ru.musixai.app.core.designsystem.component.Eyebrow
 import ru.musixai.app.core.designsystem.component.Skel
@@ -132,8 +133,7 @@ internal fun plural(n: Int, one: String, few: String, many: String): String {
 @Composable
 private fun StatCard(content: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit) {
     val c = MusixTheme.colors
-    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(22.dp))
-        .background(Brush.linearGradient(listOf(Color(0xFF17171C), Color(0xFF0B0B0F))))
+    Column(Modifier.fillMaxWidth().skeDisplay(RoundedCornerShape(22.dp))
         .border(1.dp, c.border, RoundedCornerShape(22.dp)).padding(horizontal = 22.dp, vertical = 24.dp), content = content)
 }
 
