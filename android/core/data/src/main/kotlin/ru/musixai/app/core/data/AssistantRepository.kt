@@ -84,7 +84,9 @@ class AssistantRepository @Inject constructor(private val api: MusixApi, private
         val tracks = (t["tracks"] as? JsonObject).orEmpty().mapNotNull { (_, v) -> runCatching { ApiJson.decodeFromJsonElement(TrackOut.serializer(), v).model() }.getOrNull() }
         val images = (t["images"] as? JsonObject).orEmpty().mapNotNull { (k, v) -> runCatching { k to ApiJson.decodeFromJsonElement(ImageData.serializer(), v).model() }.getOrNull() }.toMap()
         fun str(o: JsonObject?, k: String) = (o?.get(k) as? JsonPrimitive)?.content?.takeIf { it != "null" && it.isNotBlank() }
-        val text = str(r, "answer") ?: str(r?.get("search") as? JsonObject, "message") ?: str(r?.get("clarify") as? JsonObject, "question")
+        // a track-chat turn answers `{message, web_search_used}`; the bubbles are plain text, so
+        // the LLM's markdown emphasis is dropped rather than shown as asterisks
+        val text = (str(r, "answer") ?: str(r, "message"))?.replace("**", "") ?: str(r?.get("search") as? JsonObject, "message") ?: str(r?.get("clarify") as? JsonObject, "question")
             ?: str(r?.get("playlist") as? JsonObject, "title") ?: str(r?.get("facts") as? JsonObject, "answer")
         return AssistantAnswer(text, tracks, images, str(r, "context_id"), str(t, "error"))
     }

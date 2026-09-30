@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import ru.musixai.app.core.data.PlayerRepository
+import ru.musixai.app.core.data.AssistantRepository
 import ru.musixai.app.core.data.PlaylistRepository
 import ru.musixai.app.core.model.Playlist
 import kotlinx.coroutines.launch
@@ -32,11 +33,19 @@ data class PlayerUi(
     val queueOpen: Boolean = false,
     val burst: Pair<String, Long>? = null,  // (fire|water, nonce): the combustion replays per tap
     val addOpen: Boolean = false,
+    val chatOpen: Boolean = false,
+    val chat: List<Pair<Boolean, String>> = emptyList(),  // (mine, text)
+    val chatStage: String? = null,
 )
 
 @OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
-class PlayerViewModel @Inject constructor(private val player: PlayerController, private val repo: PlayerRepository, private val playlists: PlaylistRepository) : ViewModel() {
+class PlayerViewModel @Inject constructor(
+    private val player: PlayerController,
+    private val repo: PlayerRepository,
+    private val playlists: PlaylistRepository,
+    private val assistant: AssistantRepository,
+) : ViewModel() {
     val allPlaylists = playlists.playlists
 
     private val local = MutableStateFlow(PlayerUi())
@@ -71,6 +80,21 @@ class PlayerViewModel @Inject constructor(private val player: PlayerController, 
     fun toggleQueue() = local.update { it.copy(queueOpen = !it.queueOpen) }
 
     fun openAdd(open: Boolean) = local.update { it.copy(addOpen = open) }
+    fun toggleChat() = local.update { it.copy(chatOpen = !it.chatOpen) }
+
+    /** The track chat (v1 AIChatDrawer): about this song; with [line], lyric explain. */
+    fun shuffle() = player.toggleShuffle()
+
+    fun ask(message: String, line: String? = null) {
+        val id = player.state.value.trackId ?: return
+        if (local.value.chatStage != null) return
+        val history = local.value.chat.takeLast(6).map { (mine, text) -> (if (mine) "user" else "assistant") to text }
+        local.update { it.copy(chatOpen = true, chat = it.chat + (true to (line?.let { l -> "«$l»" } ?: message)), chatStage = "Думаю…") }
+        viewModelScope.launch {
+            val r = runCatching { assistant.trackChat(id, message, line, history) { s -> local.update { it.copy(chatStage = s) } } }
+            local.update { u -> u.copy(chatStage = null, chat = u.chat + (false to (r.getOrNull()?.text ?: "Не получилось ответить"))) }
+        }
+    }
 
     /** «+»: the current track into a playlist (offline-first, through the outbox). */
     fun addTo(p: Playlist?, newName: String? = null) = viewModelScope.launch {

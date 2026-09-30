@@ -3,6 +3,7 @@ package ru.musixai.app.feature.player
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -120,10 +121,10 @@ fun FactsRail(ctx: PlayerContext?, modifier: Modifier = Modifier) {
 
 /** Synced LRC: the current line lit and larger; a tap seeks there. Plain text otherwise. */
 @Composable
-fun LyricsPanel(ctx: PlayerContext?, positionMs: Long, onSeek: (Long) -> Unit, modifier: Modifier = Modifier) {
+fun LyricsPanel(ctx: PlayerContext?, positionMs: Long, onSeek: (Long) -> Unit, modifier: Modifier = Modifier, onExplain: (String) -> Unit = {}) {
     val c = MusixTheme.colors
     Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Eyebrow("Текст песни", Modifier.padding(bottom = 6.dp))
+        Eyebrow("Текст песни · удерживай строчку — гуру объяснит", Modifier.padding(bottom = 6.dp))
         when {
             ctx == null -> Skel(Modifier.fillMaxWidth().height(120.dp), 12.dp)
             ctx.synced.isNotEmpty() -> {
@@ -132,7 +133,9 @@ fun LyricsPanel(ctx: PlayerContext?, positionMs: Long, onSeek: (Long) -> Unit, m
                 for ((i, line) in window) {
                     val on = i == cur
                     val col by animateColorAsState(if (on) c.text else c.textSubtle, label = "line")
-                    Text(line.text.ifEmpty { "♪" }, Modifier.pressable { onSeek(line.atMs) },
+                    Text(line.text.ifEmpty { "♪" }, Modifier.pointerInput(line.atMs) {
+                        detectTapGestures(onTap = { onSeek(line.atMs) }, onLongPress = { if (line.text.isNotBlank()) onExplain(line.text) })
+                    },
                         style = MusixTheme.type.serif.copy(fontSize = if (on) 20.sp else 17.sp, lineHeight = 1.4.em, fontWeight = if (on) FontWeight.SemiBold else FontWeight.Normal, color = col))
                 }
             }

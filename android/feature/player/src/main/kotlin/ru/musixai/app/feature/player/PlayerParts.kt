@@ -180,28 +180,29 @@ fun ActionRow(ui: PlayerUi, vm: PlayerViewModel, modifier: Modifier = Modifier) 
     val c = MusixTheme.colors
     val p = ui.player
     Row(modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.CenterVertically) {
-        TasteButton(MusixIcons.Fire, Color(0xFFFF7A18), p.taste == "fire", p.taste == "fire" && p.tasteLocked) { vm.react("fire") }
-        TasteButton(MusixIcons.Water, Color(0xFF38BDF8), p.taste == "water", p.taste == "water" && p.tasteLocked) { vm.react("water") }
-        ActionIcon(MusixIcons.Plus) { vm.openAdd(true) }
-        ActionIcon(MusixIcons.Lyrics, active = ui.lyricsOpen) { vm.toggleLyrics() }
-        if (p.mode != QueueMode.STREAM) ActionIcon(MusixIcons.Shuffle) { }
+        TasteButton(MusixIcons.Fire, "Огонёк", Color(0xFFFF7A18), p.taste == "fire", p.taste == "fire" && p.tasteLocked) { vm.react("fire") }
+        TasteButton(MusixIcons.Water, "Вода", Color(0xFF38BDF8), p.taste == "water", p.taste == "water" && p.tasteLocked) { vm.react("water") }
+        ActionIcon(MusixIcons.Plus, "В плейлист") { vm.openAdd(true) }
+        ActionIcon(MusixIcons.Lyrics, "Текст", active = ui.lyricsOpen) { vm.toggleLyrics() }
+        ActionIcon(MusixIcons.Sparkles, "Спросить о песне", active = ui.chatOpen) { vm.toggleChat() }
+        if (p.mode != QueueMode.STREAM) ActionIcon(MusixIcons.Shuffle, "Перемешать", active = p.shuffle) { vm.shuffle() }
     }
 }
 
 @Composable
-private fun ActionIcon(icon: androidx.compose.ui.graphics.vector.ImageVector, active: Boolean = false, onClick: () -> Unit) {
+private fun ActionIcon(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, active: Boolean = false, onClick: () -> Unit) {
     val c = MusixTheme.colors
     Box(Modifier.size(44.dp).pressable(onClick = onClick), contentAlignment = Alignment.Center) {
-        Icon(icon, null, Modifier.size(20.dp), tint = if (active) c.accentLight else c.textMuted)
+        Icon(icon, label, Modifier.size(20.dp), tint = if (active) c.accentLight else c.textMuted)
     }
 }
 
 @Composable
-private fun TasteButton(icon: androidx.compose.ui.graphics.vector.ImageVector, fill: Color, active: Boolean, locked: Boolean, onClick: () -> Unit) {
+private fun TasteButton(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, fill: Color, active: Boolean, locked: Boolean, onClick: () -> Unit) {
     val c = MusixTheme.colors
     Box(Modifier.size(44.dp).graphicsLayer { alpha = if (locked) 0.5f else 1f }.pressable(!locked, onClick), contentAlignment = Alignment.Center) {
         if (active) Icon(icon, null, Modifier.size(20.dp), tint = fill.copy(alpha = 0.9f))
-        Icon(icon, null, Modifier.size(20.dp), tint = if (active) fill else c.textMuted)
+        Icon(icon, label, Modifier.size(20.dp), tint = if (active) fill else c.textMuted)
     }
 }
 
