@@ -128,7 +128,7 @@ function Home() {
 
 function WaveSettings() {
   const [open, setOpen] = useState(false);
-  const presets = useQuery({ queryKey: ["presets"], queryFn: () => ok(api.GET("/api/v2/stream/presets")), staleTime: Infinity }).data ?? [];
+  const presets = useQuery({ queryKey: ["presets"], queryFn: () => ok(api.GET("/api/v2/stream/presets")), staleTime: Infinity, enabled: open }).data ?? [];
   const [sel, setSel] = useState<{ familiarity: string; sound: string | null }>({ familiarity: "mix", sound: null });
   async function pick(p: Schemas["PresetOut"]) {
     const next = p.row === "sound" ? { ...sel, sound: sel.sound === p.id ? null : p.id } : { ...sel, familiarity: p.id };
