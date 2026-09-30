@@ -152,7 +152,21 @@ def refined_facts(collection_name: str, kind: str, slug: str, lang: str) -> list
               AND r.text IS NOT NULL AND NOT (r.labels ? 'other') AND {owns} ORDER BY f.id""",
         {"a": _acct(collection_name), "k": kind, "slug": slug, "lang": lang},
     )
-    return [str(t).strip() for (t,) in got if t and str(t).strip()]
+    out = [str(t).strip() for (t,) in got if t and str(t).strip()]
+    if out:
+        return out
+    sets = rows(  # v1's order: items, then the legacy refinement set
+        f"""SELECT x.payload FROM fact_refinement_sets x JOIN {table} ON {alias}.id = x.subject_id
+            WHERE x.subject_kind = %(k)s AND {alias}.slug = %(slug)s AND x.lang = %(lang)s AND {owns}""",
+        {"a": _acct(collection_name), "k": kind, "slug": slug, "lang": lang},
+    )
+    for (payload,) in sets:
+        return [
+            str(i.get("text") or "").strip()
+            for i in payload
+            if isinstance(i, dict) and (i.get("text") or "").strip()
+        ]
+    return []
 
 
 def facts_rich(collection_name: str, kind: str, slug: str) -> list[dict[str, Any]]:

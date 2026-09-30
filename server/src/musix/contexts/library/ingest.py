@@ -199,8 +199,10 @@ async def register(
     media_file_id: uuid.UUID,
     tags: Tags,
     duration_ms: int | None,
+    track_id: uuid.UUID | None = None,
 ) -> uuid.UUID:
-    """Catalog + library rows for one file in one account, and their change_log entries."""
+    """Catalog + library rows for one file in one account, and their change_log entries.
+    `track_id` pins the id of a NEW track (the migrator keeps v1's: clients cache them)."""
     main = artist_split.split_artists(tags.artist) or [tags.artist]
     parsed = artist_split.parse_title_feat(tags.title)
     feat = [n for n in [*parsed.feat_names, *parsed.with_names] if n not in main]
@@ -226,6 +228,7 @@ async def register(
             {"t": tags.album, "n": " ".join(tags.album.lower().split()), "a": aa, "y": tags.year},
         )
     values = {
+        **({"id": track_id} if track_id is not None else {}),
         "account_id": account_id,
         "media_file_id": media_file_id,
         "song_id": song_id,
@@ -251,7 +254,7 @@ async def register(
                         **{
                             k: v
                             for k, v in values.items()
-                            if k not in ("account_id", "media_file_id")
+                            if k not in ("id", "account_id", "media_file_id")
                         },
                         "updated_at": sa.func.now(),
                         "deleted_at": None,

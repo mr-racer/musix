@@ -20,7 +20,7 @@ async def main() -> None:
         rows = await c.execute(sa.text(
             "select m.v1_user_id, a.id, a.role, d.id from migr_account_map m "
             "join accounts a on a.id = m.account_id "
-            "join devices d on d.account_id = a.id and d.name = 'v1 import'"
+            "join devices d on d.account_id = a.id and d.name = 'legacy-v1'"
         ))
         out = {v1: sec.issue_access(keys, sec.Principal(aid, dev, role)) for v1, aid, role, dev in rows}
     await engine.dispose()

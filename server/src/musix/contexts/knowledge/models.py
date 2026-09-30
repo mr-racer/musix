@@ -100,3 +100,12 @@ llm_cache = sa.Table(
     sa.Column("response", sa.Text, nullable=False),
     sa.Column("created_at", TS, nullable=False, server_default=sa.func.now()),
 )
+fact_refinement_sets = sa.Table(
+    "fact_refinement_sets",
+    metadata,
+    sa.Column("subject_kind", sa.Text, primary_key=True),
+    sa.Column("subject_id", U, primary_key=True),
+    sa.Column("lang", sa.Text, primary_key=True),
+    sa.Column("payload", JSONB, nullable=False),
+    sa.Column("generated_at", TS),
+)

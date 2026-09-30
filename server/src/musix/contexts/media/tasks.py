@@ -38,8 +38,16 @@ async def backfill() -> int:
     return len(ids)
 
 
+async def import_images(batch: dict[str, object]) -> dict[str, int]:
+    """The migrator's covers and artist photos (the host has no libvips; this does)."""
+    from musix.contexts.media.imports import import_images as run
+
+    return await run(sessionmaker(), Path(settings().media_dir), batch)
+
+
 def register(app: procrastinate.App) -> None:
     app.task(name="media:process", queue="media")(process)
+    app.task(name="media:import_images", queue="media")(import_images)
     app.task(name="media:backfill", queue="default")(backfill)
 
 

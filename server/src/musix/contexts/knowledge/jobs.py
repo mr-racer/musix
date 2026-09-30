@@ -15,7 +15,6 @@ from __future__ import annotations
 
 import asyncio
 import datetime as dt
-import json
 import logging
 import uuid
 from collections.abc import Awaitable, Callable
@@ -694,44 +693,6 @@ async def subjects_of(sm: SM, media_file_id: uuid.UUID) -> tuple[list[uuid.UUID]
             )
         )
     return song_ids, artist_ids
-
-
-def _read_file(p: Path) -> bytes | None:
-    return p.read_bytes() if p.is_file() else None
-
-
-async def import_artist_images(sm: SM, media_dir: Path, manifest: Path) -> dict[str, int]:
-    """One-off for the migration (run inside a container that has libvips): the v1
-    artist thumbs and cutouts listed in `manifest` ({artist_id: {thumb, cutout}}, paths
-    under the media dir) go through the image pipeline onto their artists."""
-    from musix.contexts.media.process import store_image
-
-    todo = json.loads(await asyncio.to_thread(manifest.read_text))
-    n = {"images": 0, "missing": 0}
-    for aid, paths in todo.items():
-        values: dict[str, Any] = {}
-        for col, key, kind in (
-            ("image_id", "thumb", "artist"),
-            ("cutout_id", "cutout", "artist_cutout"),
-        ):
-            p = Path(paths[key]) if paths.get(key) else None
-            if p is None:
-                continue
-            data = await asyncio.to_thread(_read_file, p)
-            if data is None:
-                n["missing"] += 1
-                continue
-            async with sm() as s:
-                values[col] = await store_image(s, media_dir, data, kind)
-                await s.commit()
-            n["images"] += 1
-        if values:
-            async with sm() as s:
-                await s.execute(
-                    sa.update(artists).where(artists.c.id == uuid.UUID(aid)).values(**values)
-                )
-                await s.commit()
-    return n
 
 
 # ── the biography (ai queue) ─────────────────────────────────────────────────

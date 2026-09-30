@@ -1,22 +1,18 @@
-"""Load v1's knowledge base into a dev v2 database that `load_snapshot.py` filled
-(it needs `migr_track_map`): facts, facts_v2 refinements, bios, song relations, vibe
-lines, aliases, the negative fetch cache and the MusicBrainz verdicts.
+"""The migrator's `knowledge` stage (it needs `migr_track_map` from `library`): facts,
+facts_v2 refinements and v1's legacy refinement sets, bios, song relations, vibe lines,
+aliases, the negative fetch cache, the MusicBrainz verdicts and the AudioDB profiles.
 
 Knowledge is global in both versions, keyed by song / artist slug. Songs are first
 re-keyed with v1's song key (`slug.song_key`), then every v1 song and artist is upserted
 by slug — orphans too: a fact about a song nobody owns today is a cache hit tomorrow.
 
-Legacy `refined_facts` blobs (pre-facts_v2, ~530 subjects without items) are not
-loaded: those subjects fall back to their raw facts until the facts_v2 job refines them.
-
-Usage (from v2/server):
-    uv run python ../tools/migrate/load_knowledge.py /mnt/data/musix-snapshots/2026-09-29 [--db musix_snap]
+v1's legacy `refined_facts` sets (pre-facts_v2; ~530 subjects have no items) go to
+`fact_refinement_sets` verbatim: v1 read them after the items and before the raw facts,
+and so does v2 (phase 3 spec §3). The artist images are the `files` stage's.
 """
 
 from __future__ import annotations
 
-import argparse
-import asyncio
 import datetime as dt
 import json
 import re
@@ -241,49 +237,47 @@ class Loader:
             [(f"facts:{r['kind']}", r["slug"], v1_time(r["fetched_at"])) for r in self.rows("SELECT * FROM fact_fetch_misses")],
         )
 
-    async def artist_media(self, media_dir: Path) -> None:
-        """AudioDB profiles onto `artists.profile`; the v1 image files copied under the
-        media dir with a manifest for `jobs.import_artist_images` (the host has no
-        libvips — the import runs in the worker container)."""
-        import shutil
-
-        v1_front = Path("/mnt/data/lyrics-search/frontend")
-        out_dir = media_dir / "import" / "v1-artists"
-        out_dir.mkdir(parents=True, exist_ok=True)
-        manifest: dict[str, dict[str, str]] = {}
+    async def artist_profiles(self) -> None:
+        """AudioDB's record onto `artists.profile` (NULL = never asked)."""
         n = 0
-        for r in self.rows("SELECT * FROM artists WHERE audiodb_fetched_at IS NOT NULL OR thumb_path IS NOT NULL"):
+        for r in self.rows("SELECT * FROM artists WHERE audiodb_fetched_at IS NOT NULL"):
             aid = self.artist.get(r["slug"])
             if aid is None:
                 continue
             profile = {k: v for k, v in {
                 "bio": r["audiodb_bio"], "mood": r["mood"], "country": r["country"],
                 "countryCode": r["country_code"], "label": r["label"], "mbid": r["audiodb_mbid"],
-                "fetchedAt": str(v1_time(r["audiodb_fetched_at"]).isoformat()) if r["audiodb_fetched_at"] else None,
+                "fetchedAt": v1_time(r["audiodb_fetched_at"]).isoformat(),
             }.items() if v}
             await self.pg.execute("UPDATE artists SET profile = $2::jsonb WHERE id = $1", aid, json.dumps(profile))
-            entry: dict[str, str] = {}
-            for key, col in (("thumb", "thumb_path"), ("cutout", "cutout_path")):
-                if r[col]:
-                    src_file = v1_front / r[col].lstrip("/")
-                    if src_file.is_file():
-                        dst = out_dir / src_file.name
-                        if not dst.exists():
-                            shutil.copyfile(src_file, dst)
-                        entry[key] = str(dst)
-            if entry:
-                manifest[str(aid)] = entry
             n += 1
-        (out_dir / "manifest.json").write_text(json.dumps(manifest))
         self.counts["artist_profiles"] = n
-        self.counts["artist_images"] = sum(len(v) for v in manifest.values())
+
+    async def refinement_sets(self) -> None:
+        recs = []
+        for r in self.rows("SELECT * FROM refined_facts"):
+            subjects = self.song if r["scope"] == "song" else self.artist
+            sid = subjects.get(r["scope_key"])
+            if sid is None:
+                continue
+            try:
+                payload = json.loads(r["refined_json"] or "[]")
+            except ValueError:
+                continue
+            recs.append((r["scope"], sid, r["lang"], json.dumps(payload), v1_time(r["generated_at"])))
+        await self.pg.executemany(
+            "INSERT INTO fact_refinement_sets (subject_kind, subject_id, lang, payload, generated_at) "
+            "VALUES ($1, $2, $3, $4::jsonb, $5) ON CONFLICT DO NOTHING",
+            recs,
+        )
+        self.counts["fact_refinement_sets"] = len(recs)
 
     async def run(self) -> None:
         t = time.time()
         async with self.pg.transaction():
             await self.pg.execute(
-                "TRUNCATE facts, fact_refinements, artist_bios, song_relations, song_vibes, artist_aliases, "
-                "source_fetch_log, verification_cache"
+                "TRUNCATE facts, fact_refinements, fact_refinement_sets, artist_bios, song_relations, song_vibes, "
+                "artist_aliases, source_fetch_log, verification_cache"
             )
             self.counts["song_keys"] = await rekey_songs(self.pg)
             await self.catalog()
@@ -291,23 +285,7 @@ class Loader:
             await self.bios()
             await self.relations()
             await self.vibes_aliases_misses()
-            await self.artist_media(Path("/mnt/data/musix-v2-media"))
+            await self.refinement_sets()
+            await self.artist_profiles()
             await self.pg.execute("UPDATE songs SET knowledge_at = now(); UPDATE artists SET knowledge_at = now()")
-        print(json.dumps({**self.counts, "seconds": round(time.time() - t, 1)}))
-
-
-async def main() -> None:
-    ap = argparse.ArgumentParser()
-    ap.add_argument("snapshot", type=Path)
-    ap.add_argument("--db", default="musix_snap")
-    ap.add_argument("--dsn", default="postgresql://musix:musix@127.0.0.1:18432/")
-    a = ap.parse_args()
-    pg = await asyncpg.connect(a.dsn + a.db)
-    try:
-        await Loader(a.snapshot, pg).run()
-    finally:
-        await pg.close()
-
-
-if __name__ == "__main__":
-    asyncio.run(main())
+        self.counts["seconds"] = round(time.time() - t, 1)

@@ -33,7 +33,7 @@ bench-v2:
 	tools/bench/v2/run.sh
 # the prod snapshot in a separate dev database (musix_snap) + an api on it at :18010
 snap-load:
-	cd server && uv run python ../tools/migrate/load_snapshot.py /mnt/data/musix-snapshots/$(or $(SNAP),2026-09-29) $(if $(RESET),--reset)
+	cd tools/migrate && ../../server/.venv/bin/python migrate.py run /mnt/data/musix-snapshots/$(or $(SNAP),2026-09-29) --db $(or $(DB),musix_snap) $(if $(RESET),--reset) $(if $(COPY),--copy-foreign)
 snap-api:
 	$(COMPOSE) --profile snap up -d --build --wait api-snap
 

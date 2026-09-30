@@ -11,7 +11,7 @@ import sqlalchemy as sa
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from musix.contexts.knowledge import schemas as S
-from musix.contexts.knowledge.models import artist_bios, song_vibes
+from musix.contexts.knowledge.models import artist_bios, fact_refinement_sets, song_vibes
 from musix.contexts.library.models import track_artists, tracks
 
 HIDDEN_LABELS = frozenset({"other", "about_artist", "about_song"})  # v1 MetadataDB.HIDDEN_LABELS
@@ -57,8 +57,27 @@ async def subject_facts(
 ) -> tuple[list[S.FactOut], bool]:
     if subject is None:
         return [], False
-    rows = (await s.execute(_FACTS, {"kind": kind, "id": subject, "lang": lang})).all()
-    return pick_facts(list(rows))
+    rows = list((await s.execute(_FACTS, {"kind": kind, "id": subject, "lang": lang})).all())
+    if not any(r.rlang is not None for r in rows):  # v1's order: items, then the legacy set
+        payload = await s.scalar(
+            sa.select(fact_refinement_sets.c.payload).where(
+                fact_refinement_sets.c.subject_kind == kind,
+                fact_refinement_sets.c.subject_id == subject,
+                fact_refinement_sets.c.lang == lang,
+            )
+        )
+        if payload is not None:
+            return [
+                S.FactOut(
+                    text=str(i.get("text") or ""),
+                    labels=[],
+                    confirmed=bool(i.get("confirmed", True)),
+                    source="refined",
+                )
+                for i in payload
+                if isinstance(i, dict) and i.get("text")
+            ], True
+    return pick_facts(rows)
 
 
 async def track_knowledge(

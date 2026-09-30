@@ -67,6 +67,7 @@ ignore = ["S101", "RUF001", "RUF002", "RUF003"]  # asserts in tests; −, × and
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = ["S105", "S106", "S311", "S603", "S607", "S310", "ASYNC221", "ASYNC240"]  # throwaway secrets, seeded randomness, local tools
+"tests/integration/test_migrate.py" = ["E501"]  # a synthetic v1 snapshot, in v1's SQL
 "migrations/**" = ["E501"]
 "src/musix/contexts/library/{tags,sanitizer,artist_split,slug}.py" = ["E", "W", "B", "UP", "RUF", "SIM", "S", "I"]
 "src/musix/contexts/search/normalize.py" = ["E", "W", "B", "UP", "RUF", "SIM", "S", "I"]  # v1 text_normalize, verbatim

@@ -1,6 +1,6 @@
 """E1 / E2 / E4 with the v2 engine itself (phase 2 §10): `musix.recsys` — the features,
 the replay, the ranker, the policy — on the snapshot as v2 stores it (the database
-`musix_snap`, loaded by tools/migrate/load_snapshot.py).
+`musix_snap`, loaded by tools/migrate/migrate.py).
 
 - E1: session GAUC of the v2 ranker, rolling-origin folds (the same folds as the study).
 - E2: recall of the v2 merged candidate set (the online sources, their budgets).
