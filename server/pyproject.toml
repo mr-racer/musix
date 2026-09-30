@@ -24,6 +24,7 @@ dependencies = [
     "opentelemetry-exporter-otlp-proto-http>=1.37",
     "numpy>=2.3",
     "cryptography>=46",
+    "syncedlyrics>=1.0",
 ]
 
 [dependency-groups]
@@ -65,7 +66,7 @@ mypy_path = "src"
 packages = ["musix"]
 
 [[tool.mypy.overrides]]
-module = ["procrastinate.*", "testcontainers.*", "pyvips.*", "asyncpg.*"]
+module = ["procrastinate.*", "testcontainers.*", "pyvips.*", "asyncpg.*", "syncedlyrics.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]

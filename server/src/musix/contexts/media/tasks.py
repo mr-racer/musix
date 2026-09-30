@@ -50,3 +50,6 @@ async def enqueue(media_file_id: uuid.UUID) -> None:
     await app.configure_task("media:process", queueing_lock=f"media:{media_file_id}").defer_async(
         media_file_id=str(media_file_id)
     )
+    await app.configure_task(
+        "intel:start", queueing_lock=f"intel:start:{media_file_id}"
+    ).defer_async(media_file_id=str(media_file_id))

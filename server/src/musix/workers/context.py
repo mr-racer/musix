@@ -4,9 +4,10 @@ from __future__ import annotations
 
 from functools import cache
 
+from qdrant_client import AsyncQdrantClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from musix.infra import db
+from musix.infra import db, vectors
 from musix.infra.ml_client import MlClient
 from musix.settings import Settings
 
@@ -25,3 +26,13 @@ def sessionmaker() -> async_sessionmaker[AsyncSession]:
 def ml() -> MlClient:
     """The worker's ml client: long reads (a bulk CLAP pass queues behind interactive work)."""
     return MlClient(settings().ml_url, read_timeout=900.0)
+
+
+_qdrant: AsyncQdrantClient | None = None
+
+
+async def qdrant() -> AsyncQdrantClient:
+    global _qdrant
+    if _qdrant is None:
+        _qdrant = vectors.client(settings().qdrant_url)
+    return _qdrant

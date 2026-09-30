@@ -26,6 +26,12 @@ media_files = sa.Table(
     sa.Column("true_peak_dbtp", sa.Float),
     sa.Column("loudness_range", sa.Float),
     sa.Column("credits", JSONB),
+    # intel (migration 0009): content-level, computed once per sha256
+    sa.Column("axes", JSONB),
+    sa.Column("sonic_tags", JSONB),
+    sa.Column("envelope", sa.LargeBinary),
+    sa.Column("intel_state", sa.Text, nullable=False, server_default="pending"),
+    sa.Column("intel_error", sa.Text),
     sa.Column("state", sa.Text, nullable=False, server_default="hashed"),
     sa.Column("error", sa.Text),
     sa.Column("created_at", TS, server_default=sa.func.now()),
