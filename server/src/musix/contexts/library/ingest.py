@@ -239,6 +239,7 @@ async def register(
         "year": tags.year,
         "genre": tags.genre,
         "duration_ms": duration_ms,
+        "primary_artist_id": main_ids[0],
     }
     track_id = uuid.UUID(
         str(

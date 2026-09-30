@@ -61,25 +61,65 @@ WITH input AS (
         context_id
     FROM valid
     ON CONFLICT (client_event_id) DO NOTHING
-    RETURNING track_id, started_at, played_ms, end_reason, skipped_early
+    RETURNING track_id, started_at, played_ms, duration_ms, end_reason, skipped_early
+), o AS (  -- musix.recsys.outcome, in SQL
+    SELECT ins.*, t.primary_artist_id AS artist_id, coalesce(nullif(t.genre, ''), 'Other') AS genre,
+        CASE WHEN coalesce(nullif(ins.duration_ms, 0), t.duration_ms) > 0
+                  AND coalesce(nullif(ins.duration_ms, 0), t.duration_ms) < 120000
+             THEN ins.played_ms < 0.25 * coalesce(nullif(ins.duration_ms, 0), t.duration_ms)
+             ELSE ins.played_ms < 30000 END AS qskip,
+        coalesce(nullif(ins.duration_ms, 0), t.duration_ms) AS dur
+    FROM ins JOIN tracks t ON t.id = ins.track_id
 ), agg AS (
     SELECT track_id,
         count(*) FILTER (WHERE NOT skipped_early) AS plays,  -- v1: a play = not skipped early
         count(*) FILTER (WHERE end_reason = 'completed') AS completes,
         count(*) FILTER (WHERE end_reason = 'skipped') AS skips,
-        sum(played_ms) AS ms, min(started_at) AS first, max(started_at) AS last
-    FROM ins GROUP BY track_id
+        sum(played_ms) AS ms, min(started_at) AS first, max(started_at) AS last,
+        count(*) AS listens,
+        count(*) FILTER (WHERE NOT qskip AND dur > 0 AND played_ms >= 0.85 * dur) AS fulls,
+        count(*) FILTER (WHERE qskip) AS quick_skips
+    FROM o GROUP BY track_id
 ), up AS (
     INSERT INTO account_track_stats AS s (account_id, track_id, plays, completes, skips,
-        total_played_ms, first_played_at, last_played_at)
-    SELECT :account, track_id, plays, completes, skips, ms, first, last FROM agg ORDER BY track_id
+        total_played_ms, first_played_at, last_played_at, listens, fulls, quick_skips)
+    SELECT :account, track_id, plays, completes, skips, ms, first, last, listens, fulls,
+        quick_skips
+    FROM agg ORDER BY track_id
     ON CONFLICT (account_id, track_id) DO UPDATE SET
         plays = s.plays + excluded.plays,
         completes = s.completes + excluded.completes,
         skips = s.skips + excluded.skips,
         total_played_ms = s.total_played_ms + excluded.total_played_ms,
         first_played_at = least(s.first_played_at, excluded.first_played_at),
-        last_played_at = greatest(s.last_played_at, excluded.last_played_at)
+        last_played_at = greatest(s.last_played_at, excluded.last_played_at),
+        listens = s.listens + excluded.listens,
+        fulls = s.fulls + excluded.fulls,
+        quick_skips = s.quick_skips + excluded.quick_skips
+    RETURNING 1
+), up_artist AS (
+    INSERT INTO account_artist_stats AS s (account_id, artist_id, listens, fulls, quick_skips,
+        last_heard_at)
+    SELECT :account, artist_id, count(*),
+        count(*) FILTER (WHERE NOT qskip AND dur > 0 AND played_ms >= 0.85 * dur),
+        count(*) FILTER (WHERE qskip), max(started_at)
+    FROM o WHERE artist_id IS NOT NULL GROUP BY artist_id ORDER BY artist_id
+    ON CONFLICT (account_id, artist_id) DO UPDATE SET
+        listens = s.listens + excluded.listens,
+        fulls = s.fulls + excluded.fulls,
+        quick_skips = s.quick_skips + excluded.quick_skips,
+        last_heard_at = greatest(s.last_heard_at, excluded.last_heard_at)
+    RETURNING 1
+), up_genre AS (
+    INSERT INTO account_genre_stats AS s (account_id, genre, listens, fulls, quick_skips)
+    SELECT :account, genre, count(*),
+        count(*) FILTER (WHERE NOT qskip AND dur > 0 AND played_ms >= 0.85 * dur),
+        count(*) FILTER (WHERE qskip)
+    FROM o GROUP BY genre ORDER BY genre
+    ON CONFLICT (account_id, genre) DO UPDATE SET
+        listens = s.listens + excluded.listens,
+        fulls = s.fulls + excluded.fulls,
+        quick_skips = s.quick_skips + excluded.quick_skips
     RETURNING 1
 )
 SELECT
@@ -87,7 +127,8 @@ SELECT
     (SELECT count(*) FROM valid) AS valid,
     (SELECT coalesce(array_agg(client_event_id), '{}') FROM input
         WHERE client_event_id NOT IN (SELECT client_event_id FROM valid)) AS rejected,
-    (SELECT count(*) FROM up) AS stats,
+    (SELECT count(*) FROM up) + (SELECT count(*) FROM up_artist) + (SELECT count(*) FROM up_genre)
+        AS stats,
     CASE WHEN EXISTS (SELECT 1 FROM ins) THEN pg_notify(:channel, :payload) END AS notified
 """).bindparams(sa.bindparam("events", type_=JSONB))
 

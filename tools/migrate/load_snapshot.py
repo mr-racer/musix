@@ -176,7 +176,7 @@ class Loader:
                 first_track.setdefault(r.media_file_id, r)
             for tid, aid in await s.execute(
                 sa.select(track_artists.c.track_id, track_artists.c.artist_id)
-                .order_by(track_artists.c.role, track_artists.c.position)
+                .order_by(track_artists.c.role != "main", track_artists.c.position)  # main first, then feat
             ):
                 arts[tid].append(str(aid))
             axes = dict((await s.execute(sa.select(media_files.c.id, media_files.c.axes))).all())

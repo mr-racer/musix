@@ -25,6 +25,8 @@ dependencies = [
     "numpy>=2.3",
     "cryptography>=46",
     "syncedlyrics>=1.0",
+    "scipy>=1.16",  # co-listen PPMI-SVD
+    "lightgbm>=4.6",  # the «Поток» ranker
 ]
 
 [dependency-groups]
@@ -67,7 +69,7 @@ mypy_path = "src"
 packages = ["musix"]
 
 [[tool.mypy.overrides]]
-module = ["procrastinate.*", "testcontainers.*", "pyvips.*", "asyncpg.*", "syncedlyrics.*"]
+module = ["procrastinate.*", "testcontainers.*", "pyvips.*", "asyncpg.*", "syncedlyrics.*", "scipy.*", "lightgbm.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]

@@ -125,7 +125,9 @@ async def get_tracks(
                 )
                 .join(artists, artists.c.id == track_artists.c.artist_id)
                 .where(track_artists.c.track_id.in_([r.id for r in rows]))
-                .order_by(track_artists.c.role, track_artists.c.position)
+                .order_by(
+                    track_artists.c.role != "main", track_artists.c.position
+                )  # main first, then feat
             )
         ).all()
         if rows

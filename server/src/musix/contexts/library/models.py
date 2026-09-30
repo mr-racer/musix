@@ -116,6 +116,7 @@ tracks = sa.Table(
     sa.Column("genre", sa.Text),
     sa.Column("duration_ms", sa.Integer),
     sa.Column("cover_image_id", sa.Text, sa.ForeignKey("images.id")),
+    sa.Column("primary_artist_id", U, sa.ForeignKey("artists.id")),
     sa.Column("added_at", TS, server_default=sa.func.now()),
     sa.Column("updated_at", TS, server_default=sa.func.now()),
     sa.Column("deleted_at", TS),

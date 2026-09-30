@@ -37,6 +37,28 @@ account_track_stats = sa.Table(
     sa.Column("total_played_ms", sa.BigInteger, nullable=False),
     sa.Column("first_played_at", TS),
     sa.Column("last_played_at", TS),
+    sa.Column("listens", sa.Integer, nullable=False),
+    sa.Column("fulls", sa.Integer, nullable=False),
+    sa.Column("quick_skips", sa.Integer, nullable=False),
+)
+account_artist_stats = sa.Table(
+    "account_artist_stats",
+    metadata,
+    sa.Column("account_id", U, primary_key=True),
+    sa.Column("artist_id", U, primary_key=True),
+    sa.Column("listens", sa.Integer, nullable=False),
+    sa.Column("fulls", sa.Integer, nullable=False),
+    sa.Column("quick_skips", sa.Integer, nullable=False),
+    sa.Column("last_heard_at", TS),
+)
+account_genre_stats = sa.Table(
+    "account_genre_stats",
+    metadata,
+    sa.Column("account_id", U, primary_key=True),
+    sa.Column("genre", sa.Text, primary_key=True),
+    sa.Column("listens", sa.Integer, nullable=False),
+    sa.Column("fulls", sa.Integer, nullable=False),
+    sa.Column("quick_skips", sa.Integer, nullable=False),
 )
 taste_signals = sa.Table(
     "taste_signals",

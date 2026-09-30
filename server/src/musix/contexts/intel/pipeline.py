@@ -96,7 +96,9 @@ async def meta(s: AsyncSession, mf_id: uuid.UUID) -> Meta | None:
             sa.select(artists.c.id, artists.c.name)
             .join(track_artists, track_artists.c.artist_id == artists.c.id)
             .where(track_artists.c.track_id == first.id)
-            .order_by(track_artists.c.role, track_artists.c.position)
+            .order_by(
+                track_artists.c.role != "main", track_artists.c.position
+            )  # main first, then feat
         )
     ).all()
     return Meta(
