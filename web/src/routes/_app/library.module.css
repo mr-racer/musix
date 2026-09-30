@@ -1,0 +1,50 @@
+/* The library in the home/player language: a display readout, a glass filter, the section
+   switch, and a virtualized grid or list over the local mirror. */
+.page { padding: 24px 48px 48px 24px; max-width: 1360px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; }
+.readout { composes: display from "../../ui/relief.module.css"; border-radius: 18px; padding: 20px; text-align: center; font-size: 14px; color: var(--mx-text-muted); font-variant-numeric: tabular-nums; }
+.readout b { color: var(--mx-text); font-weight: 600; }
+.filter { composes: glass from "../../ui/relief.module.css"; display: flex; align-items: center; gap: 10px; height: 46px; padding: 0 16px; border-radius: 14px; color: var(--mx-text-subtle); }
+.filter input { flex: 1; background: none; border: 0; outline: 0; font-size: 14px; color: var(--mx-text); min-width: 0; }
+.bar { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; margin-top: 4px; }
+.tabs { display: flex; gap: 8px; flex-wrap: wrap; }
+.tab, .tabOn { display: inline-flex; align-items: center; gap: 8px; padding: 9px 16px; border-radius: 12px; font-size: 13px; font-weight: 500; }
+.tab { composes: btn from "../../ui/relief.module.css"; color: var(--mx-text-muted); }
+.tabOn { color: #fff; background: linear-gradient(180deg, #7584ff, #5d54e6); box-shadow: 0 6px 16px rgba(88,116,234,0.4); }
+.count { font-size: 11px; padding: 1px 7px; border-radius: 999px; background: rgba(255,255,255,0.14); font-variant-numeric: tabular-nums; }
+.tab .count { background: color-mix(in oklch, var(--mx-text) 8%, transparent); }
+.sorts { composes: segmented from "../../ui/controls.module.css"; }
+.sort { composes: segment from "../../ui/controls.module.css"; font-size: 12px; }
+.sortOn { composes: segmentOn segment from "../../ui/controls.module.css"; font-size: 12px; }
+
+.virtual { position: relative; height: var(--h); margin-top: 8px; }
+.gridRow { position: absolute; top: 0; left: 0; right: 0; transform: translateY(var(--y)); display: grid; grid-template-columns: repeat(var(--cols), minmax(0, 1fr)); gap: 22px; padding-bottom: 26px; }
+.album, .artist { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.artist { align-items: center; text-align: center; }
+.albumCover { position: relative; display: block; transition: transform 0.2s ease; }
+.album:hover .albumCover { transform: translateY(-3px); }
+.albumCover > span:first-child { width: 100% !important; height: auto !important; aspect-ratio: 1; box-shadow: 0 14px 30px rgba(0,0,0,0.35); }
+.badge { position: absolute; top: 10px; right: 10px; font-size: 11.5px; padding: 3px 9px; border-radius: 999px; background: rgba(13,13,18,0.7); color: #eeeef3; backdrop-filter: blur(6px); }
+.albumTitle { font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.albumSub { font-size: 12.5px; color: var(--mx-text-subtle); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+
+.trackRow { position: absolute; top: 0; left: 0; right: 0; transform: translateY(var(--y)); height: 54px; display: grid; grid-template-columns: 40px minmax(0, 1.4fr) minmax(0, 1fr) 56px; align-items: center; gap: 14px; padding: 0 12px; border-radius: 12px; text-align: left; }
+.trackRow:hover { background: color-mix(in oklch, var(--mx-text) 5%, transparent); }
+.trackText { display: flex; flex-direction: column; min-width: 0; }
+.trackTitle { font-size: 14px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.trackSub, .trackAlbum { font-size: 12.5px; color: var(--mx-text-subtle); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.trackTime { font-size: 12px; color: var(--mx-text-subtle); text-align: right; font-variant-numeric: tabular-nums; }
+
+.playlists { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 22px; margin-top: 8px; }
+.playlist { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.mosaic { display: grid; grid-template-columns: 1fr 1fr; aspect-ratio: 1; border-radius: 14px; overflow: hidden; background: var(--mx-surface-2); box-shadow: 0 14px 30px rgba(0,0,0,0.3); transition: transform 0.2s ease; }
+.mosaic > span { width: 100% !important; height: 100% !important; }
+.playlist:hover .mosaic { transform: translateY(-3px); }
+.newList { aspect-ratio: 1; border-radius: 14px; border: 1.5px dashed var(--mx-border-strong); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 16px; color: var(--mx-text-subtle); }
+.newList input { width: 100%; text-align: center; background: none; border: 0; border-bottom: 1px solid var(--mx-border-strong); outline: 0; font-size: 14px; color: var(--mx-text); padding: 6px 0; }
+.plus { width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; background: var(--mx-accent-bg); color: var(--mx-accent-light); }
+
+@media (max-width: 760px) {
+  .page { padding: 16px; }
+  .trackRow { grid-template-columns: 40px minmax(0, 1fr) 48px; }
+  .trackAlbum { display: none; }
+}

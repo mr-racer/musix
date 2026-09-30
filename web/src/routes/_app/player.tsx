@@ -1,9 +1,10 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { Schemas } from "../../api/client";
 import { contextQuery } from "../../api/queries";
 import { clock, plural } from "../../lib/format";
+import { factClass } from "../../lib/facts";
 import { image } from "../../lib/images";
 import { player, usePlayer } from "../../player/engine";
 import { Wave } from "../../player/Wave";
@@ -39,7 +40,8 @@ function Playing({ trackId }: { trackId: string }) {
   const s = usePlayer();
   const item = s.queue[s.index]!;
   const ctx = useQuery(contextQuery(trackId)).data;
-  const [side, setSide] = useState<"song" | "artist" | "lyrics">("song");
+  const [side, setSide] = useState<"song" | "artist">("song");
+  const [flipped, setFlipped] = useState(false);
   const [adding, setAdding] = useState(false);
   const palette = image(item.coverImageId)?.palette;
   const k = ctx?.knowledge;
@@ -52,16 +54,15 @@ function Playing({ trackId }: { trackId: string }) {
       <section className={css.left} aria-label="Сейчас играет">
         <p className={css.hint}>Нажми на обложку, чтобы поставить на паузу</p>
         <div className={css.coverRow}>
-          <button type="button" className={css.flank} onClick={() => void player.prev()} aria-label="Предыдущий"><Icon name="ChevronLeft" size={22} /></button>
-          <button type="button" className={css.coverBtn + (s.playing ? "" : " " + css.paused)} onClick={() => player.toggle()} aria-label={s.playing ? "Пауза" : "Играть"}>
-            <Cover id={item.coverImageId} size={440} radius={18} eager alt={item.album ?? item.title} className={css.cover} />
-          </button>
-          <button type="button" className={css.flank} onClick={() => void player.next()} aria-label="Следующий"><Icon name="ChevronRight" size={22} /></button>
+          <button type="button" className={css.flank + (flipped ? " " + css.hidden : "")} onClick={() => void player.prev()} aria-label="Предыдущий" tabIndex={flipped ? -1 : 0}><Icon name="ChevronLeft" size={22} /></button>
+          <CoverStage item={item} flipped={flipped} playing={s.playing} buffering={s.buffering}
+            back={<LyricsBack title={item.title} lyrics={ctx?.lyrics ?? null} positionMs={s.positionMs} onSeek={(ms) => player.seek(ms)} />} />
+          <button type="button" className={css.flank + (flipped ? " " + css.hidden : "")} onClick={() => void player.next()} aria-label="Следующий" tabIndex={flipped ? -1 : 0}><Icon name="ChevronRight" size={22} /></button>
         </div>
         <h1 className={css.title}>{item.title}</h1>
         {item.artistId ? <Link to="/artist/$id" params={{ id: item.artistId }} className={css.artist}>{item.artist} <Icon name="ChevronDown" size={14} /></Link> : <span className={css.artist}>{item.artist}</span>}
         <p className={css.album}>{[item.album, ctx?.track.year].filter(Boolean).join(" · ")}</p>
-        {line && <p className={css.fact}>{line}</p>}
+        {line && <p className={css.fact}><span className={css.wing} />{line.replace(/^[\s"'«“„]+|[\s"'»”]+$/g, "")}<span className={css.wing} /></p>}
         {item.reason && s.mode === "stream" && <p className={css.reason}>✦ {item.reason}</p>}
         <div className={css.scrub}>
           <span className={css.time}>{clock(s.positionMs)}</span>
@@ -75,7 +76,7 @@ function Playing({ trackId }: { trackId: string }) {
             <button type="button" className={css.act} onClick={() => setAdding((v) => !v)} aria-label="В плейлист" aria-expanded={adding}><Icon name="Plus" /></button>
             {adding && <AddToPlaylist trackIds={[trackId]} onDone={() => setAdding(false)} />}
           </span>
-          <button type="button" className={css.act + (side === "lyrics" ? " " + css.on : "")} onClick={() => setSide(side === "lyrics" ? "song" : "lyrics")} aria-label="Текст" aria-pressed={side === "lyrics"}><Icon name="Lyrics" /></button>
+          <button type="button" className={css.act + (flipped ? " " + css.on : "")} onClick={() => setFlipped((f) => !f)} aria-label="Текст песни" aria-pressed={flipped}><Icon name="Lyrics" /></button>
           <button type="button" className={css.act} onClick={() => player.shuffleUpcoming()} disabled={s.mode === "stream"} aria-label="Перемешать очередь" title={s.mode === "stream" ? "В «Потоке» порядок ведёт волна" : "Перемешать очередь"}><Icon name="Shuffle" /></button>
           <Volume />
         </div>
@@ -85,15 +86,14 @@ function Playing({ trackId }: { trackId: string }) {
 
       <section className={css.right} aria-label="О треке и очередь">
         <div className={css.tabs} role="tablist">
-          {(["song", "artist", "lyrics"] as const).map((t) => (
+          {(["song", "artist"] as const).map((t) => (
             <button key={t} type="button" role="tab" aria-selected={side === t} className={side === t ? css.tabOn : css.tab} onClick={() => setSide(t)}>
-              {{ song: "Песня", artist: "Артист", lyrics: "Текст" }[t]}
+              {{ song: "Песня", artist: "Артист" }[t]}
             </button>
           ))}
         </div>
         <div className={css.panel}>
-          {side === "lyrics" ? <Lyrics lyrics={ctx?.lyrics ?? null} positionMs={s.positionMs} onSeek={(ms) => player.seek(ms)} />
-            : <Facts facts={side === "song" ? k?.songFacts ?? [] : k?.artistFacts ?? []} empty={side === "song" ? "О песне пока ничего не известно" : "Об артисте пока ничего не известно"} />}
+          <Facts facts={side === "song" ? k?.songFacts ?? [] : k?.artistFacts ?? []} empty={side === "song" ? "О песне пока ничего не известно" : "Об артисте пока ничего не известно"} />
           {side === "song" && k && <Credits k={k} />}
         </div>
         <Queue />
@@ -120,7 +120,13 @@ function Facts({ facts, empty }: { facts: Schemas["FactOut"][]; empty: string })
   return (
     <div className={css.facts}>
       <div className={css.factHead}>
-        <span className={css.labels}>{f.labels.map((l) => <span key={l} className={css.label}>{l}</span>)}</span>
+        <span className={css.labels}>
+          {(() => {
+            const c = factClass(f.labels);
+            return c && <span className={css.label} style={{ ["--hue" as string]: String(c.hue) }}>{c.label}</span>;
+          })()}
+          {!f.confirmed && <span className={css.unconfirmed}>из открытых источников</span>}
+        </span>
         <span className={css.pager}>
           <button type="button" onClick={() => setI((i - 1 + facts.length) % facts.length)} aria-label="Предыдущий факт">‹</button>
           <span>{Math.min(i, facts.length - 1) + 1} / {facts.length}</span>
@@ -159,20 +165,48 @@ function parseLrc(lrc: string): { ms: number; text: string }[] {
   return out.sort((a, b) => a.ms - b.ms);
 }
 
-function Lyrics({ lyrics, positionMs, onSeek }: { lyrics: Schemas["LyricsOut"] | null; positionMs: number; onSeek: (ms: number) => void }) {
+/** v1 `LyricsBackFace`: the lyrics on the back of the flipped cover. Synced lyrics mark
+ *  the line being sung and a click on a line seeks there; the page never scrolls itself. */
+function LyricsBack({ title, lyrics, positionMs, onSeek }: { title: string; lyrics: Schemas["LyricsOut"] | null; positionMs: number; onSeek: (ms: number) => void }) {
   const lines = useMemo(() => (lyrics?.syncedLrc ? parseLrc(lyrics.syncedLrc) : null), [lyrics]);
-  const box = useRef<HTMLDivElement>(null);
   const cur = lines ? lines.findLastIndex((l) => l.ms <= positionMs + 250) : -1;
-  useEffect(() => {
-    box.current?.querySelector(`[data-i="${cur}"]`)?.scrollIntoView({ block: "center", behavior: "smooth" });
-  }, [cur]);
-  if (!lyrics) return <p className={css.empty}>Текста нет</p>;
-  if (!lines) return <div className={css.lyrics}>{lyrics.text.split("\n").map((l, i) => <p key={i}>{l || " "}</p>)}</div>;
   return (
-    <div className={css.lyrics} ref={box}>
-      {lines.map((l, i) => (
-        <button key={i} type="button" data-i={i} className={i === cur ? css.lineOn : css.line} onClick={() => onSeek(l.ms)}>{l.text || "♪"}</button>
-      ))}
+    <div className={css.back}>
+      <div className={css.backHead}>{title} · Текст</div>
+      {!lyrics ? <p className={css.backEmpty}>тексты ещё не добавлены</p>
+        : lines ? lines.map((l, i) => (
+            <button key={i} type="button" className={i === cur ? css.lineOn : css.line} onClick={() => onSeek(l.ms)}>{l.text || " "}</button>
+          ))
+        : lyrics.text.split("\n").map((l, i) => (l.trim() ? <p key={i}>{l}</p> : <div key={i} className={css.gap} />))}
+    </div>
+  );
+}
+
+/** v1's cover stage: a tilt and a shine under the pointer, a press on click (play/pause),
+ *  a veil while buffering, and the flip to the lyrics face. */
+function CoverStage({ item, flipped, playing, buffering, back }: { item: { coverImageId?: string | null; title: string; album?: string | null }; flipped: boolean; playing: boolean; buffering: boolean; back: React.ReactNode }) {
+  const [tilt, setTilt] = useState<{ x: number; y: number } | null>(null);
+  const [pulse, setPulse] = useState(0);
+  return (
+    <div className={css.art}
+      onMouseMove={(e) => {
+        if (flipped) return;
+        const r = e.currentTarget.getBoundingClientRect();
+        setTilt({ x: (e.clientY - r.top) / r.height - 0.5, y: (e.clientX - r.left) / r.width - 0.5 });
+      }}
+      onMouseLeave={() => setTilt(null)}>
+      <div className={css.tilt} style={{ transform: flipped || !tilt ? "none" : `rotateY(${tilt.y * 10}deg) rotateX(${-tilt.x * 10}deg) scale(1.04)` }}>
+        <div className={css.flipper + (flipped ? " " + css.isFlipped : "")}>
+          <button type="button" className={css.front + (playing ? "" : " " + css.paused)} tabIndex={flipped ? -1 : 0}
+            onClick={() => { player.toggle(); setPulse((n) => n + 1); }} aria-label={playing ? "Пауза" : "Играть"}>
+            <Cover id={item.coverImageId} size={440} radius={20} eager alt={item.album ?? item.title} className={css.cover} />
+            <span className={css.veil + (buffering ? " " + css.veilOn : "")} aria-hidden><span className={css.spinner} /></span>
+            {tilt && <span className={css.shine} style={{ ["--a" as string]: `${135 + tilt.y * 20}deg`, ["--p" as string]: `${48 + tilt.y * 8}%` }} />}
+            {pulse > 0 && <span key={pulse} className={css.feedback} aria-hidden><Icon name={playing ? "Play" : "Pause"} size={54} /></span>}
+          </button>
+          <div className={css.backFace} aria-hidden={!flipped}>{back}</div>
+        </div>
+      </div>
     </div>
   );
 }

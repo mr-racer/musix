@@ -1,0 +1,11 @@
+.tracks { list-style: none; display: flex; flex-direction: column; gap: 2px; }
+.row, .rowOn { display: flex; align-items: center; border-radius: 12px; }
+.row:hover { background: color-mix(in oklch, var(--mx-text) 5%, transparent); }
+.rowOn { background: linear-gradient(90deg, color-mix(in oklch, var(--mx-amber) 16%, transparent), color-mix(in oklch, var(--mx-amber) 5%, transparent)); }
+.track { flex: 1; display: flex; align-items: center; gap: 14px; padding: 7px 12px; text-align: left; min-width: 0; }
+.num { width: 26px; text-align: center; font-size: 12.5px; color: var(--mx-text-subtle); font-variant-numeric: tabular-nums; flex-shrink: 0; }
+.rowOn .num { color: var(--mx-amber); }
+.text { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+.title { font-size: 14px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sub { font-size: 12.5px; color: var(--mx-text-subtle); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.time { font-size: 12px; color: var(--mx-text-subtle); font-variant-numeric: tabular-nums; }

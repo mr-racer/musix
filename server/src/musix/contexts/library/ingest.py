@@ -149,8 +149,10 @@ class Tags:
     lyrics: str | None
 
 
-def read_tags(path: Path, probe: dict[str, Any]) -> Tags:
-    """mutagen via v1's readers (FLAC/MP3/M4A), ffprobe's tags for everything else."""
+def read_tags(path: Path, probe: dict[str, Any], name: str | None = None) -> Tags:
+    """mutagen via v1's readers (FLAC/MP3/M4A), ffprobe's tags for everything else. An
+    untagged file is titled by `name` (an upload's original file name: managed storage
+    names the file by its sha256), else its own file name."""
     m = get_metadata(path) or {}
     t = {k.lower(): v for k, v in (probe.get("format", {}).get("tags") or {}).items()}
 
@@ -160,7 +162,7 @@ def read_tags(path: Path, probe: dict[str, Any]) -> Tags:
         except ValueError:
             return None
 
-    title = m.get("title") or t.get("title") or path.stem
+    title = m.get("title") or t.get("title") or Path(name or path.name).stem
     raw_lyrics = (
         read_embedded_lyrics(path)
         if path.suffix.lower() in {".flac", ".mp3", ".m4a"}
@@ -302,8 +304,10 @@ async def ingest_file(
     path: Path,
     storage: str = "reference",
     on_registered: OnRegistered = None,
+    name: str | None = None,
 ) -> uuid.UUID | None:
-    """hash → probe → tags → register for one file. Returns the track id, or None on failure."""
+    """hash → probe → tags → register for one file. Returns the track id, or None on failure.
+    `name`: the file's original name when it is stored under another (uploads)."""
     st = await asyncio.to_thread(path.stat)
     sha = await asyncio.to_thread(sha256_file, path)
     async with sm() as s:
@@ -325,7 +329,7 @@ async def ingest_file(
     try:
         probe = await ffprobe(path)
         fields = probe_fields(probe)
-        tags = await asyncio.to_thread(read_tags, path, probe)
+        tags = await asyncio.to_thread(read_tags, path, probe, name)
     except (ValueError, TimeoutError, OSError) as e:
         async with sm() as s:
             await s.execute(
@@ -470,7 +474,7 @@ async def finalize_upload(
     dest.parent.mkdir(parents=True, exist_ok=True)
     await asyncio.to_thread(shutil.move, str(part), str(dest))
     track = await ingest_file(
-        sm, up.account_id, dest, storage="managed", on_registered=on_registered
+        sm, up.account_id, dest, storage="managed", on_registered=on_registered, name=up.filename
     )
     async with sm() as s:
         await s.execute(

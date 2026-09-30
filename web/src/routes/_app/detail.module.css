@@ -1,0 +1,79 @@
+/* Album, playlist and artist pages in the home/player language: an ambient field from the
+   cover, a large serif head, dot eyebrows, rows like the player's queue. */
+.page { position: relative; padding: 28px 48px 48px 24px; max-width: 1280px; margin: 0 auto; display: flex; flex-direction: column; gap: 26px; isolation: isolate; }
+.ambient { position: fixed; inset: 0; z-index: -1; pointer-events: none;
+  background: radial-gradient(55% 50% at 22% 20%, color-mix(in oklch, var(--amb1) 36%, transparent), transparent 70%),
+    radial-gradient(45% 45% at 85% 70%, color-mix(in oklch, var(--amb2) 40%, transparent), transparent 70%), var(--mx-bg); }
+:root[data-theme="light"] .ambient { background: radial-gradient(55% 50% at 22% 20%, color-mix(in oklch, var(--amb1) 20%, transparent), transparent 70%), var(--mx-bg); }
+.eyebrow { font-size: 11px; font-weight: 500; letter-spacing: 0.22em; text-transform: uppercase; color: var(--mx-text-subtle); display: flex; align-items: center; gap: 8px; }
+.eyebrow::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--mx-accent-light); box-shadow: 0 0 8px var(--mx-accent-light); }
+.head { display: flex; gap: 32px; align-items: flex-end; }
+.headCover { box-shadow: 0 30px 70px rgba(0,0,0,0.5); }
+.mosaic { display: grid; grid-template-columns: 1fr 1fr; width: 260px; height: 260px; border-radius: 18px; overflow: hidden; background: var(--mx-surface-2); box-shadow: 0 30px 70px rgba(0,0,0,0.45); flex-shrink: 0; }
+.headText { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.headTitle { font-family: var(--mx-font-serif-display); font-style: italic; font-weight: 300; font-size: clamp(34px, 4vw, 56px); line-height: 1.05; letter-spacing: -0.015em; text-wrap: balance; }
+.headSub { color: var(--mx-text-muted); font-size: 14px; }
+.headSub a:hover { color: var(--mx-text); text-decoration: underline; }
+.actions { display: flex; gap: 10px; margin-top: 8px; flex-wrap: wrap; }
+.cta { composes: cta from "../../ui/controls.module.css"; display: inline-flex; align-items: center; gap: 8px; }
+.ghost { composes: ghost from "../../ui/controls.module.css"; display: inline-flex; align-items: center; gap: 8px; padding: 11px 16px; }
+.dangerOn { composes: ghost; color: var(--mx-red); }
+.addWrap { position: relative; }
+.addWrap > [role="dialog"] { top: 48px; left: 0; }
+.renamable { font: inherit; text-align: left; border-bottom: 1px dashed transparent; }
+.renamable:hover { border-bottom-color: var(--mx-border-strong); }
+.renameInput { font-family: var(--mx-font-serif-display); font-style: italic; font-weight: 300; font-size: clamp(34px, 4vw, 56px); background: none; border: 0; border-bottom: 1px solid var(--mx-accent); outline: 0; color: var(--mx-text); width: 100%; }
+.empty { color: var(--mx-text-muted); }
+.rowTools { display: flex; align-items: center; gap: 2px; padding-right: 8px; }
+.handle { cursor: grab; color: var(--mx-text-subtle); padding: 6px; opacity: 0.5; }
+.rowX { width: 30px; height: 30px; border-radius: 8px; color: var(--mx-text-subtle); }
+.rowX:hover { color: var(--mx-text); background: color-mix(in oklch, var(--mx-text) 8%, transparent); }
+
+/* the artist atlas */
+.atlasGlow { position: fixed; inset: 0; z-index: -1; pointer-events: none;
+  background: radial-gradient(40% 55% at 72% 30%, color-mix(in oklch, var(--tint) 28%, transparent), transparent 70%),
+    radial-gradient(60% 60% at 10% 10%, #1b1730, transparent 70%), var(--mx-bg); }
+:root[data-theme="light"] .atlasGlow { background: radial-gradient(40% 55% at 72% 30%, color-mix(in oklch, var(--tint) 18%, transparent), transparent 70%), var(--mx-bg); }
+.crumbs { font-size: 10.5px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--mx-text-subtle); padding-left: 52px; }
+.crumbs b { color: var(--mx-text); font-weight: 600; }
+.crumbs a:hover { color: var(--mx-text); }
+.atlas { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 0.9fr); align-items: center; gap: 24px; padding-left: 52px; min-height: 380px; }
+.atlasText { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.atlasName { font-family: var(--mx-font-text); font-weight: 300; font-size: clamp(48px, 6vw, 84px); line-height: 1; letter-spacing: -0.02em; }
+.atlasTags { font-size: 13px; font-weight: 600; letter-spacing: 0.16em; text-transform: uppercase; color: #d9d2ff; margin-top: 8px; }
+:root[data-theme="light"] .atlasTags { color: oklch(45% 0.12 285); }
+.atlasMeta { font-size: 12px; letter-spacing: 0.08em; color: var(--mx-text-muted); }
+.playPill { composes: glass from "../../ui/relief.module.css"; align-self: flex-start; display: inline-flex; align-items: center; gap: 14px; margin-top: 18px; padding: 8px 22px 8px 8px; border-radius: 999px; font-size: 12.5px; font-weight: 600; letter-spacing: 0.18em; text-transform: uppercase; }
+.playKey { width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center; color: #fff; background: radial-gradient(circle, #8a96ff, #4f46e0); }
+.portrait { justify-self: center; width: min(420px, 100%); aspect-ratio: 1; border-radius: 50%; overflow: hidden; position: relative;
+  box-shadow: 0 0 120px color-mix(in oklch, var(--tint) 35%, transparent); }
+.portrait img { width: 100%; height: 100%; object-fit: cover; }
+.portrait::after { content: ""; position: absolute; inset: 0; background: radial-gradient(circle at 50% 40%, transparent 55%, color-mix(in oklch, var(--mx-bg) 70%, transparent)); }
+.atlasBody { display: grid; grid-template-columns: 280px minmax(0, 1fr); gap: 36px; padding-left: 52px; align-items: start; }
+.atlasBody:not(:has(.dossier)) { grid-template-columns: minmax(0, 1fr); }
+.dossier { composes: glass from "../../ui/relief.module.css"; border-radius: 18px; padding: 18px; display: flex; flex-direction: column; gap: 14px; position: sticky; top: 24px; }
+.dossierTitle { font-size: 11px; letter-spacing: 0.22em; text-transform: uppercase; color: var(--mx-text-subtle); display: flex; align-items: center; gap: 10px; }
+.dossierTitle::after { content: ""; flex: 1; height: 1px; background: var(--mx-border-strong); }
+.dossierRow { display: flex; flex-direction: column; gap: 4px; font-size: 13.5px; line-height: 1.5; }
+.dossierKey { font-size: 10.5px; font-weight: 600; letter-spacing: 0.16em; text-transform: uppercase; color: var(--mx-text-subtle); display: flex; align-items: center; gap: 6px; }
+.dossierKey::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: oklch(80% 0.15 110); }
+.atlasMain { display: flex; flex-direction: column; gap: 30px; min-width: 0; }
+.bio { display: flex; flex-direction: column; gap: 10px; }
+.ai { font-size: 9px; padding: 2px 8px; border-radius: 999px; border: 1px solid rgba(154,123,255,0.5); color: #b9a6ff; letter-spacing: 0.1em; }
+.bioText, .bioOpen { font-size: 15.5px; line-height: 1.6; max-width: 70ch; }
+.bioText { display: -webkit-box; -webkit-line-clamp: 6; -webkit-box-orient: vertical; overflow: hidden; mask-image: linear-gradient(#000 60%, transparent); }
+.more { align-self: flex-start; font-size: 12.5px; color: var(--mx-accent-light); }
+.block { display: flex; flex-direction: column; gap: 12px; }
+.albums { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 22px; }
+.albumCard { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.albumCard > span:first-child { width: 100% !important; height: auto !important; aspect-ratio: 1; box-shadow: 0 14px 30px rgba(0,0,0,0.35); }
+.cardTitle { font-size: 13.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cardSub { font-size: 12px; color: var(--mx-text-subtle); }
+
+@media (max-width: 900px) {
+  .page { padding: 16px; }
+  .head { flex-direction: column; align-items: flex-start; }
+  .atlas, .atlasBody { grid-template-columns: 1fr; padding-left: 0; }
+  .crumbs { padding-left: 0; }
+  .dossier { position: static; }
+}

@@ -1,0 +1,15 @@
+.page { max-width: 780px; margin: 0 auto; padding: 32px 24px 48px; display: flex; flex-direction: column; gap: 16px; }
+.title { font-family: var(--mx-font-serif-display); font-style: italic; font-weight: 300; font-size: 40px; }
+.sub { color: var(--mx-text-muted); }
+.drop, .dropOn { position: relative; border: 1.5px dashed var(--mx-border-strong); border-radius: 22px; padding: 48px 24px; display: flex; flex-direction: column; align-items: center; gap: 10px; color: var(--mx-text-muted); cursor: pointer; transition: border-color 0.15s ease, background 0.15s ease; }
+.dropOn, .drop:hover { border-color: color-mix(in oklch, var(--mx-accent) 60%, transparent); background: var(--mx-accent-bg); }
+.drop input, .dropOn input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+.dropTitle { font-size: 16px; color: var(--mx-text); font-weight: 500; }
+.dropSub { font-size: 13px; }
+.list { list-style: none; display: flex; flex-direction: column; gap: 8px; }
+.row { composes: glass from "../../ui/relief.module.css"; border-radius: 14px; padding: 12px 14px; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px 12px; }
+.name { font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.state { font-size: 12.5px; color: var(--mx-text-subtle); }
+.bar { grid-column: 1 / -1; height: 3px; border-radius: 3px; background: linear-gradient(90deg, var(--mx-accent-light) calc(var(--p) * 100%), var(--mx-border) 0); }
+.bar[data-phase="error"] { background: var(--mx-red); }
+.bar[data-phase="done"], .bar[data-phase="verify"] { background: var(--mx-green); }

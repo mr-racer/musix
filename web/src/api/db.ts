@@ -72,3 +72,12 @@ export async function guard(accountId: string | null): Promise<void> {
   await db.wipe();
   if (accountId) await db.kv.put({ key: "account", value: accountId });
 }
+
+/** A mirror row in the API's track shape, for components shared with API screens. */
+export function rowToTrack(t: TrackRow): import("./client").Schemas["TrackOut"] {
+  return {
+    id: t.id, title: t.title, titleDisplay: null, artistDisplay: t.artist, artists: t.artists.map((a) => ({ ...a, role: "primary" })),
+    albumId: t.albumId, album: t.album, year: t.year, genre: t.genre, trackNo: t.trackNo, discNo: t.discNo,
+    durationMs: t.durationMs, coverImageId: t.coverImageId, addedAt: new Date(t.addedAt).toISOString(),
+  };
+}
