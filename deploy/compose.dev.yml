@@ -11,6 +11,7 @@ x-server: &server
     MUSIX_QDRANT_URL: http://qdrant:6333
     MUSIX_MEDIA_DIR: /mnt/data/musix-v2-media
     MUSIX_LIBRARY_ROOTS: '["/mnt/data/music", "/mnt/data/musix-v2-media/dev-subset"]'
+    MUSIX_ML_URL: http://ml:8002
   # Same paths inside and out: media_files.path is a host path, and nginx serves the same.
   volumes:
     - /mnt/data/musix-v2-media:/mnt/data/musix-v2-media
@@ -76,9 +77,17 @@ services:
       retries: 6
 
   ml:
-    <<: *server
-    command: uvicorn musix.ml.app:app --host 0.0.0.0 --port 8002
-    environment: {MUSIX_ML_DEVICE: cpu}
+    build: ../ml
+    image: musix-v2-ml:dev
+    # CPU in dev, capped: the box's GPU and most of its RAM belong to prod. Models load
+    # on first use; the weights are v1's, mounted read-only (nothing downloaded twice).
+    environment: {ML_DEVICE: cpu, ML_THREADS: "4"}
+    mem_limit: 10g
+    volumes:
+      - v1-hf-cache:/models/hf:ro
+      - /mnt/data/lyrics-search/weights:/models/weights:ro
+      - /mnt/data/music:/mnt/data/music:ro
+      - /mnt/data/musix-v2-media:/mnt/data/musix-v2-media:ro
     ports: ["127.0.0.1:18002:8002"]
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request as u; u.urlopen('http://127.0.0.1:8002/health', timeout=3)"]
@@ -102,3 +111,7 @@ volumes:
   pgdata:
   qdrant:
   secrets:
+  # v1 prod's HF cache, read-only: the same weights, never downloaded twice
+  v1-hf-cache:
+    external: true
+    name: lyrics-search_hf-cache

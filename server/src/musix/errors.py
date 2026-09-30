@@ -25,6 +25,12 @@ class DomainError(Exception):
         self.extra = extra
 
 
+class Unavailable(DomainError):
+    """A dependency (the model host, a source) cannot answer right now: retry later."""
+
+    status, title = 503, "Service unavailable"
+
+
 class Invalid(DomainError):
     status, title = 400, "Invalid request"
 

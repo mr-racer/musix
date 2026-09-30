@@ -7,6 +7,7 @@ from functools import cache
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from musix.infra import db
+from musix.infra.ml_client import MlClient
 from musix.settings import Settings
 
 
@@ -18,3 +19,9 @@ def settings() -> Settings:
 @cache
 def sessionmaker() -> async_sessionmaker[AsyncSession]:
     return db.make_sessionmaker(db.make_engine(settings(), statement_timeout_ms=300_000))
+
+
+@cache
+def ml() -> MlClient:
+    """The worker's ml client: long reads (a bulk CLAP pass queues behind interactive work)."""
+    return MlClient(settings().ml_url, read_timeout=900.0)

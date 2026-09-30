@@ -1,0 +1,74 @@
+[project]
+name = "musix-ml"
+version = "2.0.0.dev0"
+description = "MusiX v2 model host: the only process with the models (and, in prod, the GPU)"
+# 3.11, like v1: laion-clap 1.1.7 pins numpy<2, which has no 3.13 wheels. The server
+# stays on 3.13 / numpy 2 — it only talks to this service over HTTP.
+requires-python = ">=3.11,<3.12"
+dependencies = [
+    "fastapi>=0.141,<0.142",
+    "uvicorn[standard]>=0.54,<0.55",
+    "numpy==1.26.4",
+    "prometheus-client>=0.23",
+]
+
+[dependency-groups]
+# The weights' stack. Versions = v1's, so vectors copied from a v1 snapshot stay valid.
+models = [
+    "torch==2.6.0",
+    "torchvision==0.21.0",  # laion_clap imports it (v1 installed it explicitly too)
+    "torchaudio==2.6.0",
+    "sentence-transformers==5.7.0",
+    "transformers==5.15.1",
+    "huggingface-hub==1.18.0",
+    "laion-clap==1.1.7",
+    "librosa==0.11.0",
+    "soundfile>=0.13",
+    "gliner2==1.3.2",
+]
+dev = [
+    "ruff==0.16.9",
+    "mypy>=2.3,<2.4",
+    "pytest>=9.1,<10",
+    "httpx>=0.28",
+]
+
+# the dev box's GPU belongs to prod: CPU wheels; the prod build swaps the index (phase 6)
+[tool.uv.sources]
+torch = { index = "pytorch-cpu" }
+torchvision = { index = "pytorch-cpu" }
+torchaudio = { index = "pytorch-cpu" }
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/musix_ml"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "S", "RUF", "SIM"]
+ignore = ["S101", "RUF001", "RUF002", "RUF003"]
+
+[tool.mypy]
+python_version = "3.11"
+mypy_path = "src"
+packages = ["musix_ml"]
+ignore_missing_imports = true
+check_untyped_defs = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+
+[tool.ruff.lint.per-file-ignores]
+"src/musix_ml/models.py" = ["E501"]  # the GLiNER2 schema prompts are v1's, verbatim

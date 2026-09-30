@@ -13,8 +13,10 @@ logs:
 	$(COMPOSE) logs -f --tail=100
 test:
 	cd server && uv run pytest -q
+	cd ml && uv run pytest -q
 lint:
 	cd server && uv run ruff check . && uv run ruff format --check . && uv run mypy
+	cd ml && uv run ruff check . && uv run ruff format --check . && uv run mypy
 openapi:
 	cd server && uv run python -m musix.api.openapi_export > ../contracts/openapi.json
 check: lint test
