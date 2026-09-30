@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -85,10 +86,17 @@ private fun Fallback(title: String, artist: String, size: Dp?) {
     }
 }
 
+private val blurhashes = android.util.LruCache<String, Bitmap>(256)
+
+/** The placeholder decode runs off the main thread (a grid scroll shows dozens at once). */
 @Composable
 private fun Blurhash(hash: String) {
-    val bmp: Bitmap? = remember(hash) { BlurHash.decode(hash, 24, 24) }
-    if (bmp != null) Image(bmp.asImageBitmap(), null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+    val bmp by androidx.compose.runtime.produceState(blurhashes.get(hash), hash) {
+        if (value == null) value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
+            BlurHash.decode(hash, 24, 24)?.also { blurhashes.put(hash, it) }
+        }
+    }
+    bmp?.let { Image(it.asImageBitmap(), null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop) }
 }
 
 /** v1 `MosaicCover`: the first 1–4 track covers of a playlist; three = the first full width. */

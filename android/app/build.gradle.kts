@@ -5,6 +5,7 @@ plugins {
     id("musix.android.compose")
     id("musix.hilt")
     alias(libs.plugins.kotlin.serialization)
+    alias(libs.plugins.baselineprofile)
 }
 
 // Release signing lives OUTSIDE the repo (the 1.0.0 key: v2 must install over it)
@@ -73,6 +74,7 @@ dependencies {
     implementation(libs.navigation.compose)
     implementation(libs.hilt.navigation.compose)
     implementation(libs.profileinstaller)
+    baselineProfile(project(":benchmark"))
     implementation(libs.serialization.json)
     implementation(project(":core:database"))
     implementation(libs.work.runtime)

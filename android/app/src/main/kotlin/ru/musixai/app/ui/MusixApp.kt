@@ -34,6 +34,7 @@ import androidx.navigation.compose.rememberNavController
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
 import ru.musixai.app.core.data.AuthRepository
 import ru.musixai.app.core.designsystem.MusixTheme
@@ -52,6 +53,7 @@ import ru.musixai.app.feature.imports.ImportRoute
 import ru.musixai.app.feature.upload.UploadRoute
 import ru.musixai.app.feature.quiz.QuizRoute
 import ru.musixai.app.feature.stats.StatsRoute
+import ru.musixai.app.feature.assistant.ChatRoute
 import ru.musixai.app.core.designsystem.component.SegmentOption
 import ru.musixai.app.core.designsystem.component.Segmented
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -71,8 +73,12 @@ import javax.inject.Inject
 @Serializable data object UploadDest
 
 @HiltViewModel
-class AppViewModel @Inject constructor(auth: AuthRepository, val player: PlayerController) : ViewModel() {
+class AppViewModel @Inject constructor(auth: AuthRepository, val player: PlayerController, val updates: AppUpdates) : ViewModel() {
     val signedIn = auth.signedIn.stateIn(viewModelScope, SharingStarted.Eagerly, null)
+
+    init { viewModelScope.launch { auth.signedIn.collect { if (it) runCatching { updates.check() } } } }
+
+    fun install(r: ru.musixai.app.core.data.Release) = viewModelScope.launch { runCatching { updates.install(r) }.onFailure { updates.progress.value = "Не удалось: ${it.message}" } }
 }
 
 /** The root: the login flow until a session exists, then the app shell. */
@@ -95,10 +101,21 @@ private fun Shell(vm: AppViewModel) {
     val route = entry?.destination?.route.orEmpty()
     Box(Modifier.fillMaxSize().background(MusixTheme.colors.bg)) {
         Column(Modifier.fillMaxSize()) {
-            Box(Modifier.weight(1f)) { Routes(nav, openPlayer = { playerOpen = true }) }
+            Box(Modifier.weight(1f)) { Routes(nav, openPlayer = { playerOpen = true }, install = vm::install) }
             MiniPlayer(onOpen = { playerOpen = true })
             BottomTabBar(route, onNav = { dest -> nav.navigate(dest) { popUpTo(HomeDest) { saveState = true }; launchSingleTop = true; restoreState = true } },
                 Modifier.navigationBarsPadding())
+        }
+        val offer by vm.updates.offer.collectAsStateWithLifecycle()
+        val progress by vm.updates.progress.collectAsStateWithLifecycle()
+        offer?.let { r ->
+            androidx.compose.material3.AlertDialog(
+                onDismissRequest = vm.updates::dismiss,
+                title = { Text("MusiX ${r.versionName}") },
+                text = { Text(progress ?: r.notes.ifBlank { "Доступна новая версия приложения." }) },
+                confirmButton = { androidx.compose.material3.TextButton({ vm.install(r) }) { Text("Обновить") } },
+                dismissButton = { androidx.compose.material3.TextButton(vm.updates::dismiss) { Text("Позже") } },
+            )
         }
         AnimatedVisibility(playerOpen, enter = slideInVertically(tween(320)) { it }, exit = slideOutVertically(tween(260)) { it }) {
             BackHandler { playerOpen = false }
@@ -108,7 +125,7 @@ private fun Shell(vm: AppViewModel) {
 }
 
 @Composable
-private fun Routes(nav: NavHostController, openPlayer: () -> Unit) {
+private fun Routes(nav: NavHostController, openPlayer: () -> Unit, install: (ru.musixai.app.core.data.Release) -> Unit) {
     val back: () -> Unit = { nav.popBackStack() }
     NavHost(nav, startDestination = HomeDest) {
         composable<HomeDest> {
@@ -124,7 +141,7 @@ private fun Routes(nav: NavHostController, openPlayer: () -> Unit) {
         composable<AlbumDest> { AlbumRoute(onBack = back) }
         composable<PlaylistDest> { PlaylistRoute(onBack = back) }
         composable<SettingsDest> {
-            SettingsRoute(onBack = back, onImport = { nav.navigate(ImportDest) }, onUpload = { nav.navigate(UploadDest) }, onUpdate = { AppUpdates.install(it) })
+            SettingsRoute(onBack = back, onImport = { nav.navigate(ImportDest) }, onUpload = { nav.navigate(UploadDest) }, onUpdate = { install(it) })
         }
         composable<ImportDest> { ImportRoute(onBack = back) }
         composable<UploadDest> { UploadRoute(onBack = back) }
@@ -140,7 +157,7 @@ private fun AssistantTab(onArtist: (String) -> Unit, onAlbum: (String) -> Unit) 
             Segmented(chat, listOf(SegmentOption(false, "🔍 Поиск"), SegmentOption(true, "💬 Чат")), { chat = it }, small = true)
         }
         Box(Modifier.weight(1f)) {
-            if (chat) Placeholder("Чат с ассистентом") else SearchRoute(onArtist = onArtist, onAlbum = onAlbum)
+            if (chat) ChatRoute() else SearchRoute(onArtist = onArtist, onAlbum = onAlbum)
         }
     }
 }

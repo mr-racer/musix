@@ -10,4 +10,6 @@ plugins {
     alias(libs.plugins.room) apply false
     alias(libs.plugins.openapi) apply false
     alias(libs.plugins.roborazzi) apply false
+    alias(libs.plugins.android.test) apply false
+    alias(libs.plugins.baselineprofile) apply false
 }

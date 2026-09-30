@@ -25,6 +25,7 @@ class AuthRepository @Inject constructor(
     val signedIn: Flow<Boolean> = sessions.session.map { it.signedIn }.distinctUntilChanged()
     val server: Flow<String> = sessions.session.map { it.server }.distinctUntilChanged()
     val accountId: String? get() = sessions.current.accountId
+    fun serverUrl(): String = sessions.current.server.trimEnd('/')
     val refused: SharedFlow<Unit> = signOut.events
 
     private fun device() = DeviceIn(name = "${Build.MANUFACTURER} ${Build.MODEL}".trim(), platform = DeviceIn.Platform.android,

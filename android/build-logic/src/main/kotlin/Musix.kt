@@ -38,6 +38,8 @@ private fun Project.configureAndroid() {
     dep("implementation", lib("coroutines-android"))
     dep("testImplementation", lib("junit"))
     dep("testImplementation", lib("coroutines-test"))
+    // most modules have no JVM tests (the ~100-test budget): an empty test task is not a failure
+    tasks.withType(org.gradle.api.tasks.testing.Test::class.java).configureEach { it.failOnNoDiscoveredTests.set(false) }
 }
 
 class LibraryConvention : Plugin<Project> {

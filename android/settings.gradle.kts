@@ -15,7 +15,7 @@ dependencyResolutionManagement {
 }
 rootProject.name = "musix"
 
-include(":app")
+include(":app", ":benchmark")
 include(":core:common", ":core:model", ":core:network", ":core:database", ":core:data", ":core:player",
         ":core:designsystem", ":core:testing")
 include(":feature:auth", ":feature:home", ":feature:player", ":feature:library", ":feature:search",

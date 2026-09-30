@@ -112,6 +112,7 @@ class PlaybackService : MediaLibraryService() {
     private var prefetchJob: Job? = null
     private var prefetchFor: List<String> = emptyList()
     private var snippetStop: Job? = null
+    private var perfStart = 0L
 
     private data class Taste(val trackId: String, val kind: String, val locked: Boolean)
 
@@ -224,6 +225,7 @@ class PlaybackService : MediaLibraryService() {
     }
 
     private fun playTracks(ids: List<String>, index: Int, positionMs: Long, context: String?) {
+        perfStart = android.os.SystemClock.elapsedRealtime()
         scope.launch {
             val list = items(ids, context = context)
             if (list.isEmpty()) return@launch
@@ -237,6 +239,7 @@ class PlaybackService : MediaLibraryService() {
     }
 
     private fun startStream() {
+        perfStart = android.os.SystemClock.elapsedRealtime()
         mode = QueueMode.STREAM
         publishMode()
         refillJob?.cancel()
@@ -472,6 +475,10 @@ class PlaybackService : MediaLibraryService() {
         }
 
         override fun onIsPlayingChanged(isPlaying: Boolean) {
+            if (isPlaying && perfStart > 0) {  // spec §8 «stream start»: command → audio playing
+                Log.i(PERF, "stream start ${android.os.SystemClock.elapsedRealtime() - perfStart} ms (${network().wire})")
+                perfStart = 0
+            }
             tick()
             if (isPlaying) startTicker() else stopTicker()
         }
@@ -660,6 +667,7 @@ class PlaybackService : MediaLibraryService() {
 
     companion object {
         private const val TAG = "MusixPlayback"
+        private const val PERF = "MusixPerf"
         private const val ROOT_ID = "musix.root"
         private const val TICK_MS = 500L
         private val RETRY_DELAYS_MS = longArrayOf(1000, 3000, 8000)

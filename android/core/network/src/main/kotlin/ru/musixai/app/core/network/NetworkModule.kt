@@ -21,7 +21,13 @@ import javax.inject.Singleton
 object NetworkModule {
     @Provides @Singleton
     fun sessions(@ApplicationContext ctx: Context, @AppScope scope: CoroutineScope): SessionStore =
-        SessionStore.create(ctx, KeystoreSealer(), scope)
+        SessionStore.create(ctx, KeystoreSealer(), scope).also { s ->
+            // installed over 1.0.0: its saved server is the default (its v1 token is useless to v2)
+            val legacy = ctx.getSharedPreferences("musix_player", Context.MODE_PRIVATE).getString("server_url", null)
+            if (!legacy.isNullOrBlank() && !s.current.signedIn && s.current.server == Session.DEFAULT_SERVER) {
+                s.updateBlocking { it.copy(server = legacy.trimEnd('/')) }
+            }
+        }
 
     @Provides @Singleton fun signOut() = SignOutSignal()
 

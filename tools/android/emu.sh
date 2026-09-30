@@ -23,7 +23,7 @@ case "${1:-up}" in
     fi
     adb start-server >/dev/null
     for _ in $(seq 1 90); do
-      adb connect 127.0.0.1:5555 >/dev/null 2>&1 || true
+      # the host network lets the adb server find emulator-5554 itself (an extra `adb connect` would list it twice)
       [ "$(adb -s emulator-5554 shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" = 1 ] && break
       sleep 2
     done
