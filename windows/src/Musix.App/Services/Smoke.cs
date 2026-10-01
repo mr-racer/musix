@@ -30,8 +30,14 @@ public static class Smoke
     public static void Failed(string where, Exception? e)
     {
         failures++;
-        Report.AppendLine($"FAIL {Page ?? where}: {e?.GetType().Name}: {e?.Message}");
-        Report.AppendLine(e?.StackTrace);
+        Note($"FAIL {Page ?? where}: {e?.GetType().Name}: {e?.Message}\n{e?.StackTrace}");
+    }
+
+    /// <summary>The report grows page by page, so a crash that takes the process down still leaves its trail.</summary>
+    private static void Note(string line)
+    {
+        Report.AppendLine(line);
+        try { if (Dir is not null) File.AppendAllText(Path.Combine(Dir, "report.txt"), line + "\n"); } catch (Exception) { }
     }
 
     public static void Seed(App app)
@@ -80,6 +86,7 @@ public static class Smoke
     {
         var dir = Dir!;
         Directory.CreateDirectory(dir);
+        File.Delete(Path.Combine(dir, "report.txt"));
         var win = app.Window;
         var wav = SilentWav(dir);
         PlayerView? player = null;
@@ -133,13 +140,12 @@ public static class Smoke
                 open();
                 await Task.Delay(settle);  // entrance animations settle
                 await Shot(win.Content, Path.Combine(dir, $"{++i:00}-{name}.png"));
-                Report.AppendLine($"ok   {name}");
+                Note($"ok   {name}");
             }
             catch (Exception e) { Failed(name, e); }
         }
         Page = null;
-        Report.AppendLine(failures == 0 ? "ALL PAGES OK" : $"{failures} FAILURE(S)");
-        File.WriteAllText(Path.Combine(dir, "report.txt"), Report.ToString());
+        Note(failures == 0 ? "ALL PAGES OK" : $"{failures} FAILURE(S)");
         Environment.Exit(failures == 0 ? 0 : 1);
     }
 

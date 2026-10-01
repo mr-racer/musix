@@ -104,6 +104,7 @@ public sealed class AlbumTile : StackPanel, IBind<AlbumRow>
         sheen.GradientStops.Add(new GradientStop { Offset = 0.34, Color = Windows.UI.Color.FromArgb(0, 255, 255, 255) });
         sheen.GradientStops.Add(new GradientStop { Offset = 0.68, Color = Windows.UI.Color.FromArgb(0, 0, 0, 0) });
         sheen.GradientStops.Add(new GradientStop { Offset = 1, Color = Windows.UI.Color.FromArgb(56, 0, 0, 0) });
+        frame.Child = null;  // the image moves under the sheen; WinUI refuses an element that still has a parent (0x800F1000)
         frame.Child = new Grid { Children = { img, new Microsoft.UI.Xaml.Shapes.Rectangle { Fill = sheen, IsHitTestVisible = false } } };
         var g = new RadialGradientBrush();
         g.GradientStops.Add(new GradientStop { Offset = 0.45, Color = Windows.UI.Color.FromArgb(82, 124, 91, 255) });
