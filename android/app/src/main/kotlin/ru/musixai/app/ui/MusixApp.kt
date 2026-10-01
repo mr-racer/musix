@@ -87,10 +87,13 @@ import javax.inject.Inject
 @Serializable data object UploadDest
 
 @HiltViewModel
-class AppViewModel @Inject constructor(auth: AuthRepository, val player: PlayerController, val updates: AppUpdates) : ViewModel() {
+class AppViewModel @Inject constructor(auth: AuthRepository, val player: PlayerController, val updates: AppUpdates,
+                                       private val prefetch: ru.musixai.app.feature.player.PlayerPrefetch) : ViewModel() {
     val signedIn = auth.signedIn.stateIn(viewModelScope, SharingStarted.Eagerly, null)
 
-    init { viewModelScope.launch { auth.signedIn.collect { if (it) runCatching { updates.check() } } } }
+    init {
+        viewModelScope.launch { auth.signedIn.collect { if (it) { runCatching { updates.check() }; prefetch.start(viewModelScope) } } }
+    }
 
     fun install(r: ru.musixai.app.core.data.Release) = viewModelScope.launch { runCatching { updates.install(r) }.onFailure { updates.progress.value = "Не удалось: ${it.message}" } }
 }
@@ -126,7 +129,10 @@ internal fun NavHostController.toTab(dest: Any) {
     navigate(dest) {
         popUpTo(graph.findStartDestination().id) { saveState = true }
         launchSingleTop = true
-        restoreState = true
+        // «Главная» lands on the home root itself. Restoring its saved stack brought back
+        // whatever had been pushed over it (the library opened from the home card), so the
+        // button seemed dead from the library (the owner, 2026-10-02).
+        restoreState = dest !is HomeDest
     }
 }
 
@@ -193,7 +199,7 @@ private fun Routes(nav: NavHostController, openPlayer: () -> Unit, install: (ru.
         predictivePopExitTransition = { _ -> if (tabs(initialState) && tabs(targetState)) fadeOut(tween(160)) else slideOutHorizontally(scrub) { it } },
     ) {
         composable<HomeDest> {
-            HomeRoute(onSearch = { q -> nav.navigate(SearchDest(q)) }, onSettings = { nav.navigate(SettingsDest) }, onLibrary = { nav.navigate(LibraryDest) })
+            HomeRoute(onSearch = { q -> nav.navigate(SearchDest(q)) }, onSettings = { nav.navigate(SettingsDest) }, onLibrary = { nav.toTab(LibraryDest) })
         }
         composable<AssistantDest> { AssistantTab(onArtist = { nav.navigate(ArtistDest(it)) }, onAlbum = { nav.navigate(AlbumDest(it)) }) }
         composable<LibraryDest> {

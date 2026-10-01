@@ -45,6 +45,9 @@ data class PlayerState(
     val tasteLocked: Boolean = false,
     val shuffle: Boolean = false,
     val error: String? = null,
+    /** In «Поток»: why the wave picked this track (the chip), and the lines behind it. */
+    val reason: String? = null,
+    val reasonDetails: List<String> = emptyList(),
 )
 
 /** The UI's handle on [PlaybackService]: one MediaController in-process — the same channel
@@ -116,6 +119,8 @@ class PlayerController @Inject constructor(@ApplicationContext private val ctx: 
                 queue = queue,
                 index = c.currentMediaItemIndex,
                 shuffle = c.shuffleModeEnabled,
+                reason = item?.mediaMetadata?.extras?.getString(PlayerProtocol.EXTRA_REASON),
+                reasonDetails = item?.mediaMetadata?.extras?.getString(PlayerProtocol.EXTRA_REASON_DETAILS)?.split('\n').orEmpty(),
                 taste = if (same) it.taste else null,
                 tasteLocked = if (same) it.tasteLocked else false,
             )

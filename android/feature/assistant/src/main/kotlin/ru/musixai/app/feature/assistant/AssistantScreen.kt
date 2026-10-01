@@ -354,7 +354,7 @@ private fun Caption(ui: AssistantUi, compact: Boolean) {
     val base = MusixTheme.type.body.copy(fontSize = size, textAlign = TextAlign.Center)
     when (ui.orb) {
         OrbState.Sleep -> Text("ИИ сейчас недоступен", Modifier.rise(distance = 5.dp, durationMs = 400), style = base.copy(letterSpacing = 0.02.em, color = if (dark) Color(0xFFE8C2CC) else Color(0xFFA05568)))
-        OrbState.Idle -> Text("найти, собрать или рассказать?", style = base.copy(fontFamily = MusixFontFamilies.Playfair, fontStyle = FontStyle.Italic, color = if (dark) Color(0xFFA49EC4) else Color(0x80161620)))
+        OrbState.Idle -> Text("найти, собрать или рассказать?", style = base.copy(fontFamily = MusixFontFamilies.SerifDisplay, fontStyle = FontStyle.Italic, color = if (dark) Color(0xFFA49EC4) else Color(0x80161620)))
         OrbState.Work -> androidx.compose.runtime.key(ui.stage) { Shimmer(ui.stage.ifBlank { "думаю…" }, base) }
         OrbState.Fail -> Text("ничего не нашлось — спроси иначе", Modifier.rise(distance = 5.dp, durationMs = 400), style = base.copy(letterSpacing = 0.02.em, color = if (dark) Color(0xFFE8C2CC) else Color(0xFFA05568)))
         OrbState.Done -> {
@@ -397,7 +397,7 @@ private fun Composer(ui: AssistantUi, vm: AssistantViewModel) {
     val dark = MusixTheme.isDark
     Column(Modifier.widthIn(max = 560.dp).fillMaxWidth().padding(top = 2.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-            val style = TextStyle(fontFamily = MusixFontFamilies.Playfair, fontStyle = FontStyle.Italic, fontSize = 17.sp, textAlign = TextAlign.Center,
+            val style = TextStyle(fontFamily = MusixFontFamilies.SerifDisplay, fontStyle = FontStyle.Italic, fontSize = 17.sp, textAlign = TextAlign.Center,
                 color = if (dark) Color(0xFFEEEEF3) else Color(0xFF161620))
             if (ui.input.isEmpty()) Text("строчка из песни, желание или вопрос…", Modifier.padding(top = 8.dp, bottom = 13.dp), maxLines = 1, overflow = TextOverflow.Ellipsis,
                 style = style.copy(color = if (dark) Color(0xBFA49EC4) else Color(0x6B161620)))

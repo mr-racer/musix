@@ -281,9 +281,12 @@ class PlaybackService : MediaLibraryService() {
     private suspend fun streamChunk(): List<MediaItem> {
         val out = api.call { stream.nextChunkApiV2StreamNextGet(settings.sessionId(), QueuePolicy.STREAM_CHUNK, tzOffsetMinutes = tzMinutes()) }
         library.remember(out.items.mapNotNull { it.track }, out.images)
-        val pools = out.items.associate { it.trackId.toString() to it.pool }
+        val byId = out.items.associateBy { it.trackId.toString() }
         return items(out.items.map { it.trackId.toString() }, context = "stream").map { item ->
-            item.withExtra(PlayerProtocol.EXTRA_SOURCE, pools[item.mediaId])
+            val it = byId[item.mediaId]
+            item.withExtra(PlayerProtocol.EXTRA_SOURCE, it?.pool)
+                .withExtra(PlayerProtocol.EXTRA_REASON, it?.reason?.text?.takeIf(String::isNotBlank))
+                .withExtra(PlayerProtocol.EXTRA_REASON_DETAILS, it?.reason?.details?.takeIf { d -> d.isNotEmpty() }?.joinToString("\n"))
         }
     }
 

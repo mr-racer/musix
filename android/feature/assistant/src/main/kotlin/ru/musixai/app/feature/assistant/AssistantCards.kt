@@ -189,7 +189,7 @@ internal fun SearchCard(s: AsxSearch, query: String, onPlay: (Int) -> Unit, onNe
                 }
                 val line = b.matchedLine ?: b.lyrics?.let { l -> matchLine(l, query) }
                 if (line != null && b.matchedOn != "audio") Text("«$line»", Modifier.padding(top = 11.dp),
-                    style = MusixTheme.type.body.copy(fontFamily = MusixFontFamilies.Playfair, fontStyle = FontStyle.Italic, fontSize = 14.sp, lineHeight = 1.5.em, color = c.textMuted))
+                    style = MusixTheme.type.body.copy(fontFamily = MusixFontFamilies.SerifDisplay, fontStyle = FontStyle.Italic, fontSize = 14.sp, lineHeight = 1.5.em, color = c.textMuted))
             }
         }
         if (rest.isNotEmpty()) {

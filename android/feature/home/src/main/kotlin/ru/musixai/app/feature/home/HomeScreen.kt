@@ -85,7 +85,7 @@ import java.util.Locale
 @Composable
 fun HomeRoute(onSearch: (String?) -> Unit, onSettings: () -> Unit, onLibrary: () -> Unit, vm: HomeViewModel = hiltViewModel()) {
     val ui by vm.ui.collectAsStateWithLifecycle()
-    HomeScreen(ui, vm::orb, vm::playVibe, onSearch, onSettings, onLibrary, vm::toggleTune, { vm.pick(it) })
+    HomeScreen(ui, vm::orb, vm::playVibe, onSearch, onSettings, onLibrary, vm::toggleTune, { vm.pick(it) }, vm::resetTune)
 }
 
 private val BRAND_BLOBS = listOf(Color(0xFF7C5BFF), Color(0xFFFF78C8), Color(0xFFE0B341), Color(0xFFB06BFF))
@@ -94,7 +94,7 @@ private val BRAND_BLOBS = listOf(Color(0xFF7C5BFF), Color(0xFFFF78C8), Color(0xF
  *  lyrics-search path and the library path, over an aurora in the taste palette. */
 @Composable
 fun HomeScreen(ui: HomeUi, orb: () -> Unit, playVibe: (Vibe) -> Unit, onSearch: (String?) -> Unit, onSettings: () -> Unit, onLibrary: () -> Unit,
-               onTune: () -> Unit = {}, onPick: (ru.musixai.app.core.model.WavePreset) -> Unit = {}) {
+               onTune: () -> Unit = {}, onPick: (ru.musixai.app.core.model.WavePreset) -> Unit = {}, onReset: () -> Unit = {}) {
     val c = MusixTheme.colors
     val dark = MusixTheme.isDark
     val home = ui.home
@@ -123,7 +123,7 @@ fun HomeScreen(ui: HomeUi, orb: () -> Unit, playVibe: (Vibe) -> Unit, onSearch: 
                 val p = ui.player
                 Hero(home, live, p.isPlaying, launching || (live && p.buffering && !p.isPlaying),
                     if (p.durationMs > 0) p.positionMs.toFloat() / p.durationMs else 0f, blobs,
-                    { if (!live) launching = true; orb() }, playVibe, ui.tune, onTune, onPick)
+                    { if (!live) launching = true; orb() }, playVibe, ui.tune, onTune, onPick, onReset)
                 LyricsSearch(onSubmit = { onSearch(it) })
                 LibraryCard(home, ui.tracks, onLibrary)
             }
@@ -173,7 +173,7 @@ private fun Header(onSearch: () -> Unit, onSettings: () -> Unit) {
 
 @Composable
 private fun Hero(home: Home?, streamLive: Boolean, playing: Boolean, loading: Boolean, progress: Float, blobs: List<Color>, orb: () -> Unit, playVibe: (Vibe) -> Unit,
-                 tune: Tune, onTune: () -> Unit, onPick: (ru.musixai.app.core.model.WavePreset) -> Unit) {
+                 tune: Tune, onTune: () -> Unit, onPick: (ru.musixai.app.core.model.WavePreset) -> Unit, onReset: () -> Unit) {
     val c = MusixTheme.colors
     val dark = MusixTheme.isDark
     val kicker = if (dark) Color(0xFFC9B8FF) else oklch(46f, 0.19f, 280f)
@@ -211,7 +211,7 @@ private fun Hero(home: Home?, streamLive: Boolean, playing: Boolean, loading: Bo
         }
         androidx.compose.animation.AnimatedVisibility(tune.open, enter = androidx.compose.animation.expandVertically(tween(320)) + androidx.compose.animation.fadeIn(tween(240)),
             exit = androidx.compose.animation.shrinkVertically(tween(260)) + androidx.compose.animation.fadeOut(tween(160))) {
-            TunePanel(tune, onPick)
+            TunePanel(tune, onPick, onReset)
         }
         val vibes = home?.vibes.orEmpty()
         if (vibes.isNotEmpty()) {
@@ -258,36 +258,84 @@ private fun TunePill(open: Boolean, onClick: () -> Unit) {
     }
 }
 
-/** The presets (web WaveSettings): «Что» — one of the familiarity choices; «Звук» — an optional sound, tap again to drop it. */
+/** What each choice means, in a line (the server sends the label only). */
+private val HINTS = mapOf(
+    "mix" to "всё вперемешку", "favorites" to "то, что заходит", "rediscover" to "забытое из библиотеки", "unfamiliar" to "то, что ещё не слушал",
+    "calm" to "тише и мягче", "energetic" to "громче и быстрее",
+)
+private val GLYPHS = mapOf("mix" to "◐", "favorites" to "♥", "rediscover" to "↺", "unfamiliar" to "✧", "calm" to "☾", "energetic" to "ϟ")
+
+/**
+ * «Моя волна» (web WaveSettings, redesigned 2026-10-02 at the owner's word):
+ * - a glass card: the summary of the choice and «Сбросить»;
+ * - «Что играть» as four tiles (one is always on; a tap on it goes back to «Микс»);
+ * - «Звук» as two tiles (optional; a tap on the lit one drops it).
+ * The lit tile fades in its accent. «Сохранено» confirms the save, or the error says why not.
+ */
 @OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
-private fun TunePanel(tune: Tune, onPick: (ru.musixai.app.core.model.WavePreset) -> Unit) {
+private fun TunePanel(tune: Tune, onPick: (ru.musixai.app.core.model.WavePreset) -> Unit, onReset: () -> Unit) {
     val c = MusixTheme.colors
     val dark = MusixTheme.isDark
-    Column(Modifier.padding(top = 14.dp).fillMaxWidth().clip(RoundedCornerShape(18.dp))
-        .background(if (dark) Color(0x0DFFFFFF) else Color(0x0A000000)).padding(14.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    val shape = RoundedCornerShape(22.dp)
+    Column(Modifier.padding(top = 14.dp).fillMaxWidth().clip(shape)
+        .background(Brush.linearGradient(if (dark) listOf(Color(0x1A7C5BFF), Color(0x0DFFFFFF)) else listOf(Color(0x147C5BFF), Color(0x08000000))))
+        .border(1.dp, if (dark) Color(0x2E9C86FF) else Color(0x297C5BFF), shape).padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
         val list = tune.presets
+        val labels = list.orEmpty().associate { it.id to it.label }
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text("Моя волна", style = MusixTheme.type.body.copy(fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = c.text))
+                val summary = listOfNotNull(labels[tune.familiarity] ?: "Микс", tune.sound?.let { labels[it] }).joinToString(" · ")
+                androidx.compose.animation.AnimatedContent(summary, label = "summary") { t ->
+                    Text(t, Modifier.padding(top = 2.dp), style = MusixTheme.type.body.copy(fontSize = 12.5.sp, color = c.textMuted))
+                }
+            }
+            val custom = tune.familiarity != "mix" || tune.sound != null
+            androidx.compose.animation.AnimatedVisibility(custom && !list.isNullOrEmpty()) {
+                Text("Сбросить", Modifier.clip(RoundedCornerShape(999.dp)).border(1.dp, c.border, RoundedCornerShape(999.dp)).pressable(onClick = onReset)
+                    .padding(horizontal = 12.dp, vertical = 6.dp), style = MusixTheme.type.body.copy(fontSize = 12.5.sp, color = c.textMuted))
+            }
+        }
         when {
             list == null -> Text("Загружаю…", style = MusixTheme.type.body.copy(fontSize = 13.sp, color = c.textMuted))
             list.isEmpty() -> Text(tune.error ?: "Настроек пока нет", style = MusixTheme.type.body.copy(fontSize = 13.sp, color = c.textMuted))
-            else -> for ((row, label) in listOf("familiarity" to "ЧТО", "sound" to "ЗВУК")) {
+            else -> for ((row, label) in listOf("familiarity" to "ЧТО ИГРАТЬ", "sound" to "ЗВУК")) {
                 val items = list.filter { it.row == row }
                 if (items.isEmpty()) continue
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(label, style = MusixTheme.type.mono.copy(fontSize = 10.5.sp, letterSpacing = 0.2.em, color = c.textSubtle))
-                    androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        for (p in items) {
+                    for (pair in items.chunked(2)) Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        for (p in pair) {
                             val on = if (row == "sound") tune.sound == p.id else tune.familiarity == p.id
-                            Text(p.label, Modifier.clip(RoundedCornerShape(999.dp))
-                                .background(if (on) c.accent else if (dark) Color(0x14FFFFFF) else Color(0x0F000000))
-                                .pressable { onPick(p) }.padding(horizontal = 14.dp, vertical = 8.dp),
-                                style = MusixTheme.type.body.copy(fontSize = 13.sp, fontWeight = if (on) FontWeight.SemiBold else FontWeight.Normal, color = if (on) Color.White else c.text))
+                            TuneTile(p, on, Modifier.weight(1f)) { onPick(p) }
                         }
+                        if (pair.size == 1) Spacer(Modifier.weight(1f))
                     }
                 }
             }
         }
-        if (tune.error != null && !list.isNullOrEmpty()) Text(tune.error, style = MusixTheme.type.body.copy(fontSize = 12.5.sp, color = c.red))
+        androidx.compose.animation.AnimatedContent(tune.error ?: if (tune.saved) "Сохранено ✓" else "", label = "status") { t ->
+            if (t.isNotEmpty()) Text(t, style = MusixTheme.type.body.copy(fontSize = 12.5.sp, color = if (tune.error != null) c.red else c.textSubtle))
+        }
+    }
+}
+
+@Composable
+private fun TuneTile(p: ru.musixai.app.core.model.WavePreset, on: Boolean, modifier: Modifier, onClick: () -> Unit) {
+    val c = MusixTheme.colors
+    val dark = MusixTheme.isDark
+    val shape = RoundedCornerShape(16.dp)
+    val bg by androidx.compose.animation.animateColorAsState(if (on) c.accent.copy(alpha = if (dark) 0.26f else 0.16f) else if (dark) Color(0x0DFFFFFF) else Color(0x0A000000), tween(220), label = "bg")
+    val edge by androidx.compose.animation.animateColorAsState(if (on) c.accentLight.copy(alpha = 0.7f) else c.border, tween(220), label = "edge")
+    Row(modifier.clip(shape).background(bg).border(1.dp, edge, shape).pressable(onClick = onClick).padding(horizontal = 12.dp, vertical = 11.dp),
+        verticalAlignment = Alignment.CenterVertically) {
+        Text(GLYPHS[p.id] ?: "•", Modifier.size(22.dp), textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+            style = MusixTheme.type.body.copy(fontSize = 15.sp, color = if (on) c.accentLight else c.textMuted))
+        Column(Modifier.padding(start = 8.dp)) {
+            Text(p.label, maxLines = 1, style = MusixTheme.type.body.copy(fontSize = 13.5.sp, fontWeight = if (on) FontWeight.SemiBold else FontWeight.Medium, color = c.text))
+            HINTS[p.id]?.let { Text(it, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis, style = MusixTheme.type.body.copy(fontSize = 11.5.sp, color = c.textSubtle)) }
+        }
     }
 }
 

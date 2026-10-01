@@ -1,5 +1,8 @@
 package ru.musixai.app.feature.player
 
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.layout.positionInParent
+import androidx.compose.ui.layout.onGloballyPositioned
 import android.os.Build
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Animatable
@@ -36,6 +39,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
@@ -159,7 +163,7 @@ fun CoverStage(
                 rotationZ = -7f * dir * k
                 val s = 1f - 0.06f * k; scaleX = s; scaleY = s
                 alpha = 1f - k
-            }) { CoverFace(img, p.title, p.artist) }
+            }) { CoverFace(img, p.title, p.artist, track = "out", known = true) }
         }
         Box(
             Modifier.fillMaxSize()
@@ -211,7 +215,7 @@ fun CoverStage(
                     val blur = (feedbackBlur(fb.value) * 9f + veil * 7f)
                     Box(Modifier.fillMaxSize()) {
                         Box(Modifier.fillMaxSize().then(if (blur > 0.3f && Build.VERSION.SDK_INT >= 31) Modifier.blur(blur.dp) else Modifier)) {
-                            CoverFace(shown.second, p.title, p.artist)
+                            CoverFace(shown.second, p.title, p.artist, track = shown.first, known = ui.context?.track?.id == shown.first)
                         }
                         if (veil > 0f) BufferingVeil(veil)
                     }
@@ -241,13 +245,36 @@ typealias CoverImage = Image
 
 private fun coverOf(ui: PlayerUi): CoverImage? =
     ui.context?.takeIf { it.track.id == ui.player.trackId }?.image
-        ?: ui.player.artUri?.let { Image(it, null, null, null, null, mapOf(256 to it)) }
+        ?: ui.player.artUri?.let { Image(it, null, null, null, null, mapOf(PlayerPrefetch.STAGE_PX to it)) }
 
+/**
+ * The stage's cover never shows the generated placeholder while a real image is on its way.
+ * It holds the image last decoded for this [track] (so the media item's art can upgrade to
+ * the context's sharper variant without a gap), else the blurhash or a quiet dark sleeve, and
+ * fades the bitmap in once decoded. The generated gradient with initials is drawn only when
+ * the track really has no cover ([known]: its context has come). Before, that placeholder
+ * flashed for ~0.5 s on every track start (the owner, 2026-10-02).
+ */
 @Composable
-private fun CoverFace(img: CoverImage?, title: String, artist: String) {
-    Cover(img, title, artist, Modifier.fillMaxSize(), size = null, radius = 20.dp)
+private fun CoverFace(img: CoverImage?, title: String, artist: String, track: String?, known: Boolean) {
+    val shape = RoundedCornerShape(20.dp)
+    val url = img?.url(PlayerPrefetch.STAGE_PX)
+    var held by remember(track) { mutableStateOf<androidx.compose.ui.graphics.painter.Painter?>(null) }
+    Box(Modifier.fillMaxSize().clip(shape).background(Color(0xFF15151B))) {
+        if (url != null) {
+            val painter = coil3.compose.rememberAsyncImagePainter(url)
+            val state by painter.state.collectAsState()
+            LaunchedEffect(state) { (state as? coil3.compose.AsyncImagePainter.State.Success)?.let { held = it.painter } }
+            val shownAlpha by animateFloatAsState(if (held != null) 1f else 0f, tween(180), label = "cover")
+            if (held == null) img.blurhash?.let { ru.musixai.app.core.designsystem.component.Blurhash(it) }
+            held?.let { androidx.compose.foundation.Image(it, null, Modifier.fillMaxSize().graphicsLayer { alpha = shownAlpha }, contentScale = androidx.compose.ui.layout.ContentScale.Crop) }
+            if (state is coil3.compose.AsyncImagePainter.State.Error && held == null && known) Cover(null, title, artist, Modifier.fillMaxSize(), size = null, radius = 20.dp, shadow = false)
+        } else if (known) {
+            Cover(null, title, artist, Modifier.fillMaxSize(), size = null, radius = 20.dp, shadow = false)
+        }
+    }
     // the sleeve's inset ring (v1 .player-art-front)
-    Box(Modifier.fillMaxSize().border(1.dp, Color(0x14FFFFFF), RoundedCornerShape(20.dp)))
+    Box(Modifier.fillMaxSize().border(1.dp, Color(0x14FFFFFF), shape))
 }
 
 /** v1 playerFeedbackBlur: 0 → full at 14 %, held to 70 %, gone at 100 %. */
@@ -308,33 +335,53 @@ private fun BufferingVeil(k: Float) {
 }
 
 /**
- * v1 `LyricsBackFace`: the reading face — the title in the label voice, the lines in a book
- * serif, a blank line kept as air. A tap on a line asks the guru what stands behind it
- * (v1 `InlineLyricExplain`); the answer opens under the line. With synced lyrics the line
- * being sung is a shade brighter.
+ * v1 `LyricsBackFace`: the reading face. The title is in the label voice, the lines in Lora
+ * (a text serif, readable at phone size), a blank line kept as air.
+ * - Synced lyrics: the sung line is brighter and kept a third of the way down. A scroll by
+ *   the finger pauses that for 4 s.
+ * - Runs of blank lines collapse into one gap, and `[Припев]`-style markers become small
+ *   labels, not lines (2026-10-02, the owner asked for the lyrics to be fixed).
+ * - A tap on a line asks the guru what stands behind it (v1 `InlineLyricExplain`); the
+ *   answer opens under the line.
  */
 @Composable
 private fun LyricsBack(ctx: PlayerContext?, title: String, positionMs: Long, explain: Map<Int, Explain>, onExplain: (Int, String) -> Unit) {
     val dark = MusixTheme.isDark
     val body = if (dark) Color(0xFFD8D4C8) else Color(0xFF2A2620)
-    val head = if (dark) Color(0xFF666666) else Color(0xFF8A8275)
+    val bright = if (dark) Color(0xFFF7EBCB) else Color(0xFF3A2A10)
+    val head = if (dark) Color(0xFF7A7A80) else Color(0xFF8A8275)
+    val synced = ctx?.synced.orEmpty()
     val lines: List<String> = when {
         ctx == null -> emptyList()
-        ctx.synced.isNotEmpty() -> ctx.synced.map { it.text }
-        else -> ctx.lyrics?.lines().orEmpty()
+        synced.isNotEmpty() -> synced.map { it.text.trim() }
+        else -> ctx.lyrics?.lines().orEmpty().map { it.trim() }
     }
-    val cur = ctx?.synced?.takeIf { it.isNotEmpty() }?.indexOfLast { it.atMs <= positionMs + 250 } ?: -1
+    val cur = if (synced.isNotEmpty()) synced.indexOfLast { it.atMs <= positionMs + 250 } else -1
+    val scroll = rememberScrollState()
+    val tops = remember(lines) { IntArray(lines.size) }
+    var viewport by remember { mutableIntStateOf(0) }
+    var touchedAt by remember { mutableLongStateOf(0L) }
+    var auto by remember { mutableStateOf(false) }
+    LaunchedEffect(scroll.isScrollInProgress) { if (scroll.isScrollInProgress && !auto) touchedAt = System.currentTimeMillis() }
+    LaunchedEffect(cur) {
+        if (cur < 0 || System.currentTimeMillis() - touchedAt < 4_000) return@LaunchedEffect
+        auto = true
+        try { scroll.animateScrollTo((tops[cur] - viewport / 3).coerceAtLeast(0), tween(450)) } finally { auto = false }
+    }
+    val serif = MusixTheme.type.body.copy(fontFamily = ru.musixai.app.core.designsystem.MusixFontFamilies.SerifDisplay, fontStyle = androidx.compose.ui.text.font.FontStyle.Normal,
+        fontSize = 16.sp, lineHeight = 1.62.em)
     Column(
         Modifier.fillMaxSize().clip(RoundedCornerShape(20.dp))
             .background(Brush.linearGradient(if (dark) listOf(Color(0xFF15151B), Color(0xFF1F1F29)) else listOf(Color(0xFFF6F5ED), Color(0xFFEDE9D8))))
             .border(1.dp, if (dark) Color(0x0FFFFFFF) else Color(0x14161620), RoundedCornerShape(20.dp))
-            .verticalScroll(rememberScrollState())
-            .padding(horizontal = 24.dp, vertical = 22.dp),
+            .onSizeChanged { viewport = it.height }
+            .verticalScroll(scroll)
+            .padding(horizontal = 22.dp, vertical = 20.dp),
     ) {
-        Text("${title.uppercase()} · ТЕКСТ", style = MusixTheme.type.body.copy(fontSize = 9.sp, letterSpacing = 0.18.em, color = head))
+        Text("${title.uppercase()} · ТЕКСТ", style = MusixTheme.type.body.copy(fontSize = 9.5.sp, letterSpacing = 0.18.em, color = head))
         Spacer(Modifier.height(14.dp))
-        if (lines.isEmpty()) {
-            Text(if (ctx == null) "…" else "тексты ещё не добавлены", style = MusixTheme.type.body.copy(fontFamily = FontFamily.Serif, fontSize = 14.sp, color = head))
+        if (lines.none { it.isNotBlank() }) {
+            Text(if (ctx == null) "…" else "тексты ещё не добавлены", style = serif.copy(fontStyle = androidx.compose.ui.text.font.FontStyle.Italic, fontSize = 15.sp, color = head))
             return@Column
         }
         if (explain.isEmpty()) {
@@ -345,18 +392,30 @@ private fun LyricsBack(ctx: PlayerContext?, title: String, positionMs: Long, exp
                 style = MusixTheme.type.body.copy(fontSize = 12.5.sp, lineHeight = 1.4.em, color = if (dark) Color(0xD9D8CCFF) else Color(0xFF4A3A86)))
         }
         lines.forEachIndexed { i, line ->
-            if (line.isBlank()) { Spacer(Modifier.height(16.dp)); return@forEachIndexed }
-            val col by animateColorAsState(if (i == cur) (if (dark) Color(0xFFF3E6C4) else Color(0xFF3A2A10)) else body, tween(250), label = "line")
-            Text(line, Modifier.fillMaxWidth().pressable { onExplain(i, line) },
-                style = MusixTheme.type.body.copy(fontFamily = FontFamily.Serif, fontSize = 14.sp, lineHeight = 1.7.em, color = col))
-            when (val e = explain[i]) {
-                Explain.Loading -> ExplainCard("Гуру думает…", dark, muted = true)
-                is Explain.Done -> ExplainCard(e.text, dark, muted = false)
-                null -> {}
+            val pos = Modifier.onGloballyPositioned { tops[i] = it.positionInParent().y.toInt() }
+            when {
+                line.isBlank() -> if (i > 0 && lines[i - 1].isNotBlank()) Spacer(pos.height(14.dp)) else Spacer(pos)
+                SECTION.matches(line) -> Text(line.trim('[', ']', '(', ')').uppercase(), pos.padding(top = 6.dp, bottom = 4.dp),
+                    style = MusixTheme.type.body.copy(fontSize = 10.sp, letterSpacing = 0.16.em, fontWeight = FontWeight.SemiBold, color = head))
+                else -> {
+                    val on = i == cur
+                    val col by animateColorAsState(when { on -> bright; cur >= 0 -> body.copy(alpha = 0.6f); else -> body }, tween(250), label = "line")
+                    Text(line, pos.fillMaxWidth().pressable { onExplain(i, line) }.padding(vertical = 1.dp),
+                        style = serif.copy(color = col, fontWeight = if (on) FontWeight.Medium else FontWeight.Normal))
+                    when (val e = explain[i]) {
+                        Explain.Loading -> ExplainCard("Гуру думает…", dark, muted = true)
+                        is Explain.Done -> ExplainCard(e.text, dark, muted = false)
+                        null -> {}
+                    }
+                }
             }
         }
+        Spacer(Modifier.height(48.dp))  // the last line can rise to the reading third
     }
 }
+
+/** `[Припев]`, `[Verse 2: …]`, `(Chorus)`: a section marker, not a line to sing. */
+private val SECTION = Regex("""^\s*[\[(][^\])]{1,40}[\])]\s*$""")
 
 @Composable
 private fun ExplainCard(text: String, dark: Boolean, muted: Boolean) {

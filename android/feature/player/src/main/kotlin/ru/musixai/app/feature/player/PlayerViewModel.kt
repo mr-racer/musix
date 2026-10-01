@@ -37,6 +37,7 @@ data class PlayerUi(
     val chatOpen: Boolean = false,
     val chat: List<Pair<Boolean, String>> = emptyList(),  // (mine, text)
     val chatStage: String? = null,
+    val chatFor: String? = null,                  // the chat belongs to this track (v1 useTrackChat(trackId))
     val explain: Map<Int, Explain> = emptyMap(),  // lyric line → the guru's answer (v1 InlineLyricExplain)
     val explainFor: String? = null,               // … for this track only
     val devicesOpen: Boolean = false,              // «Слушать на…»
@@ -61,20 +62,24 @@ class PlayerViewModel @Inject constructor(
     private val context = current.flatMapLatest { id ->
         flow { emit(id?.let(repo::cached)); if (id != null) emit(runCatching { repo.context(id) }.getOrNull()) }
     }
+    // The prefetcher has usually fetched it before the track starts, so the scrubber's wave
+    // comes with the song. A 404 means "computing now" (the server queues it): ask again soon.
     private val envelope = current.flatMapLatest { id ->
         flow {
-            emit(null)
-            if (id != null) for (attempt in 0 until 4) {  // the server computes it on the first ask
+            val hit = id?.let(repo::cachedEnvelope)
+            emit(hit)
+            if (id != null && hit == null) for (attempt in 0 until 8) {
                 val e = repo.envelope(id)
                 if (e != null) { emit(e); break }
-                kotlinx.coroutines.delay(2_500L * (attempt + 1))
+                kotlinx.coroutines.delay(if (attempt < 3) 1_200L else 4_000L)
             }
         }
     }
 
     val ui: StateFlow<PlayerUi> = combine(player.state, context, envelope, local, handoff.remote) { p, ctx, env, l, remote ->
         l.copy(player = p, context = ctx?.takeIf { it.track.id == p.trackId }, envelope = env,
-            explain = if (l.explainFor == p.trackId) l.explain else emptyMap(), remote = remote?.takeIf { it.playing })
+            explain = if (l.explainFor == p.trackId) l.explain else emptyMap(), remote = remote?.takeIf { it.playing },
+            chat = if (l.chatFor == p.trackId) l.chat else emptyList())
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), PlayerUi())
 
     fun toggle() = player.toggle()
@@ -107,6 +112,8 @@ class PlayerViewModel @Inject constructor(
         runCatching { handoff.transfer(me.id) }
     }
     fun toggleChat() = local.update { it.copy(chatOpen = !it.chatOpen) }
+    /** ↺ in the track chat: a fresh conversation about the same song. */
+    fun clearChat() = local.update { if (it.chatStage != null) it else it.copy(chat = emptyList()) }
 
     /** The track chat (v1 AIChatDrawer): about this song; with [line], lyric explain. */
     fun shuffle() = player.toggleShuffle()
@@ -114,6 +121,7 @@ class PlayerViewModel @Inject constructor(
     fun ask(message: String, line: String? = null) {
         val id = player.state.value.trackId ?: return
         if (local.value.chatStage != null) return
+        if (local.value.chatFor != id) local.update { it.copy(chat = emptyList(), chatFor = id) }
         val history = local.value.chat.takeLast(6).map { (mine, text) -> (if (mine) "user" else "assistant") to text }
         local.update { it.copy(chatOpen = true, chat = it.chat + (true to (line?.let { l -> "«$l»" } ?: message)), chatStage = "Думаю…") }
         viewModelScope.launch {

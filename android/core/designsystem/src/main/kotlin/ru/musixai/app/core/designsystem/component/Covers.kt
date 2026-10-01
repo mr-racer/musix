@@ -90,7 +90,7 @@ private val blurhashes = android.util.LruCache<String, Bitmap>(256)
 
 /** The placeholder decode runs off the main thread (a grid scroll shows dozens at once). */
 @Composable
-private fun Blurhash(hash: String) {
+fun Blurhash(hash: String) {
     val bmp by androidx.compose.runtime.produceState(blurhashes.get(hash), hash) {
         if (value == null) value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
             BlurHash.decode(hash, 24, 24)?.also { blurhashes.put(hash, it) }

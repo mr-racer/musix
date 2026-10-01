@@ -23,6 +23,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -114,18 +115,40 @@ fun PlayerScreen(ui: PlayerUi, vm: PlayerViewModel, onClose: () -> Unit, onArtis
                     }
                 }
             }
+            if (p.mode == QueueMode.STREAM) p.reason?.let { WhyThis(p.trackId, it, p.reasonDetails) }
             Scrubber(p.positionMs, p.durationMs, ui.envelope, vm::seek, Modifier.padding(horizontal = 36.dp))
             ActionRow(ui, vm, Modifier.padding(top = 14.dp))
             ElsewhereBar(ui, vm, Modifier.align(Alignment.CenterHorizontally).padding(top = 10.dp))
             if (ui.devicesOpen) DevicesCard(ui, vm, Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
             if (ctx?.lossless == true) LosslessMark(Modifier.align(Alignment.CenterHorizontally).padding(top = 10.dp))
             Spacer(Modifier.height(18.dp))
-            if (ui.chatOpen) TrackChat(ui, vm, Modifier.padding(horizontal = 16.dp).padding(bottom = 12.dp))
             FactsRail(ctx, Modifier.padding(horizontal = 12.dp))
             Credits(ctx, Modifier.padding(horizontal = 16.dp, vertical = 12.dp))
             if (ui.addOpen) AddToPlaylist(vm)
             QueueButton(p.queue.size, vm::toggleQueue, Modifier.padding(horizontal = 14.dp).padding(bottom = 24.dp))
         }
         QueueDrawer(ui.queueOpen, p, onClose = vm::toggleQueue, onJump = vm::jump, onMove = vm::move, onRemove = vm::remove)
+        TrackChatSheet(ui, vm)
+    }
+}
+
+/**
+ * «Почему этот трек» in «Поток» (the web player's `✦ reason`): the wave's one-line reason in
+ * amber under the title; a tap opens the lines behind it. The phone had none (the owner,
+ * 2026-10-02).
+ */
+@Composable
+private fun WhyThis(trackId: String?, reason: String, details: List<String>) {
+    val c = MusixTheme.colors
+    var open by androidx.compose.runtime.saveable.rememberSaveable(trackId) { androidx.compose.runtime.mutableStateOf(false) }
+    Column(Modifier.fillMaxWidth().padding(horizontal = 28.dp).padding(bottom = 12.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+        Text("✦ $reason" + if (details.isNotEmpty()) (if (open) "  ▴" else "  ▾") else "",
+            Modifier.pressable(enabled = details.isNotEmpty()) { open = !open }.padding(vertical = 4.dp, horizontal = 8.dp), textAlign = TextAlign.Center,
+            style = MusixTheme.type.body.copy(fontSize = 13.sp, lineHeight = 1.4.em, color = c.amber))
+        androidx.compose.animation.AnimatedVisibility(open) {
+            Column(Modifier.padding(top = 4.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                for (d in details) Text(d, textAlign = TextAlign.Center, style = MusixTheme.type.body.copy(fontSize = 12.5.sp, lineHeight = 1.4.em, color = c.textMuted))
+            }
+        }
     }
 }

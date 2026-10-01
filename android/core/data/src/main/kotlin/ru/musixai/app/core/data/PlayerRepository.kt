@@ -47,6 +47,9 @@ class PlayerRepository @Inject constructor(private val api: MusixApi) {
 
     /** The energy envelope (uint8 frames × 4 bands, 10 fps), or null while the server has
      *  none yet (it computes it on the first ask). */
+    /** The envelope already fetched for [trackId] (the player draws it with the first frame). */
+    fun cachedEnvelope(trackId: String): ByteArray? = envelopes.get(trackId)
+
     suspend fun envelope(trackId: String): ByteArray? {
         envelopes.get(trackId)?.let { return it }
         val packed = runCatching { api.getBytes("/api/v2/tracks/$trackId/envelope") }.getOrNull() ?: return null

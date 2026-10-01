@@ -25,5 +25,8 @@ object PlayerProtocol {
     const val EXTRA_MODE = "mode"
     const val EXTRA_SOURCE = "source"
     const val EXTRA_CONTEXT = "context"
+    /** «Почему этот трек» from `/stream/next` (the chip text, then the detail lines). */
+    const val EXTRA_REASON = "reason"
+    const val EXTRA_REASON_DETAILS = "reasonDetails"
     const val EXTRA_NO_LISTEN = "noListen"
 }
