@@ -26,7 +26,18 @@
 .hidden { opacity: 0; pointer-events: none; }
 .flank { transition: opacity 0.3s ease, color 0.15s ease, background 0.15s ease; }
 /* the cover stage (v1 .player-art-*) */
-.art { --s: min(440px, 46vh); width: var(--s); height: var(--s); perspective: 1400px; flex-shrink: 0; }
+.art { --s: min(440px, 46vh); width: var(--s); height: var(--s); perspective: 1400px; flex-shrink: 0; position: relative; transform-style: preserve-3d; }
+/* v1 vinyl-stack change: out first (420 ms, ease-in), in 320 ms later (600 ms, a bounce) */
+.entry, .inNext, .inPrev { position: relative; width: 100%; height: 100%; transform-style: preserve-3d; }
+.inNext { animation: inNext 600ms cubic-bezier(0.34, 1.56, 0.64, 1) 320ms both; }
+.inPrev { animation: inPrev 600ms cubic-bezier(0.34, 1.56, 0.64, 1) 320ms both; }
+.outNext, .outPrev { position: absolute; inset: 0; z-index: 5; pointer-events: none; transform-style: preserve-3d; border-radius: 20px; overflow: hidden; }
+.outNext { animation: outNext 420ms cubic-bezier(0.5, 0, 0.75, 0) forwards; }
+.outPrev { animation: outPrev 420ms cubic-bezier(0.5, 0, 0.75, 0) forwards; }
+@keyframes outNext { to { transform: translate3d(18%, -3%, -480px) rotateY(-78deg) scale(0.55); opacity: 0; } }
+@keyframes outPrev { to { transform: translate3d(-18%, -3%, -480px) rotateY(78deg) scale(0.55); opacity: 0; } }
+@keyframes inNext { 0% { transform: translate3d(60%, 0, 120px) rotateY(-72deg) scale(0.6); opacity: 0; } 20% { opacity: 1; } 100% { transform: none; opacity: 1; } }
+@keyframes inPrev { 0% { transform: translate3d(-60%, 0, 120px) rotateY(72deg) scale(0.6); opacity: 0; } 20% { opacity: 1; } 100% { transform: none; opacity: 1; } }
 .tilt { width: 100%; height: 100%; transition: transform 0.25s ease-out; transform-style: preserve-3d; }
 .flipper { position: relative; width: 100%; height: 100%; transform-style: preserve-3d; transition: transform 0.85s cubic-bezier(.35,.72,.22,1); }
 .isFlipped { transform: rotateY(180deg); }

@@ -3,6 +3,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { api, ok, type Schemas } from "../../api/client";
 import { remember } from "../../lib/images";
+import { AlbumCard } from "../../ui/AlbumCard";
 import { Cover } from "../../ui/Cover";
 import { Icon } from "../../ui/icons";
 import { TrackList } from "../../ui/TrackList";
@@ -137,11 +138,8 @@ function Results({ r, loading, error }: { r: Schemas["SearchOut"] | undefined; l
         <Section title="Альбомы">
           <div className={css.albums}>
             {r.albums.map((a) => (
-              <Link key={a.id} to="/album/$id" params={{ id: a.id }} className={css.album}>
-                <Cover id={a.coverImageId} size={160} radius={12} />
-                <span className={css.albumTitle}>{a.title}</span>
-                <span className={css.albumSub}>{[a.albumArtist?.name, a.year].filter(Boolean).join(" · ")}</span>
-              </Link>
+              <AlbumCard key={a.id} id={a.id} coverImageId={a.coverImageId} title={a.title} size={160}
+                sub={[a.albumArtist?.name, a.year].filter(Boolean).join(" · ")} />
             ))}
           </div>
         </Section>

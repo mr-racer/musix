@@ -10,6 +10,7 @@ import { clock, num, plural } from "../../lib/format";
 import { warmFromMirror } from "../../lib/images";
 import { useLive } from "../../lib/live";
 import { player, type QueueItem } from "../../player/engine";
+import { AlbumCard } from "../../ui/AlbumCard";
 import { Cover } from "../../ui/Cover";
 import { Icon } from "../../ui/icons";
 import css from "./library.module.css";
@@ -134,14 +135,8 @@ function Albums({ filter, sort, plays }: { filter: string; sort: Sort; plays?: R
         <div key={r.key} className={css.gridRow} data-index={r.index} ref={v.measureElement}
           style={{ ["--y" as string]: `${r.start - (v.options.scrollMargin ?? 0)}px`, ["--cols" as string]: String(cols) }}>
           {list.slice(r.index * cols, r.index * cols + cols).map((a) => (
-            <Link key={a.id} to="/album/$id" params={{ id: a.id }} className={css.album}>
-              <span className={css.albumCover}>
-                <Cover id={a.coverImageId} size={200} radius={14} />
-                <span className={css.badge}>{a.tracks} тр</span>
-              </span>
-              <span className={css.albumTitle}>{a.title}</span>
-              <span className={css.albumSub}>{[a.artist, a.year].filter(Boolean).join(" · ")}</span>
-            </Link>
+            <AlbumCard key={a.id} id={a.id} coverImageId={a.coverImageId} title={a.title} badge={`${a.tracks} тр`}
+              sub={[a.artist, a.year].filter(Boolean).join(" · ")} />
           ))}
         </div>
       ))}

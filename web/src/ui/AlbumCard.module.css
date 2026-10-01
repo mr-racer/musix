@@ -1,0 +1,31 @@
+/* v1 AtlasAlbumCard plus the home deck's `.vinyl-disc`: the record waits behind the sleeve,
+   then slides out and turns on hover. The spin runs only on hover, so a grid of hundreds
+   keeps no idle animations. */
+.card { position: relative; display: flex; flex-direction: column; gap: 6px; min-width: 0; z-index: 1; }
+.card:hover, .card:focus-visible { z-index: 12; }
+.deck { position: relative; display: block; aspect-ratio: 1; }
+.disc { position: absolute; top: 4%; left: 6%; width: 92%; height: 92%; z-index: 1; transform: translateX(6px);
+  transition: transform .5s cubic-bezier(.22,.9,.3,1); }
+.card:hover .disc, .card:focus-visible .disc { transform: translateX(52%) rotate(10deg); }
+.grooves { position: relative; display: block; width: 100%; height: 100%; border-radius: 50%;
+  background: radial-gradient(circle at 34% 28%, rgba(255,255,255,.16), transparent 42%),
+    repeating-radial-gradient(circle at 50% 50%, #0b0b0d 0px, #0b0b0d 2px, #161619 2.5px, #0b0b0d 4px);
+  box-shadow: 0 16px 38px rgba(0,0,0,.55), inset 0 1px 1px rgba(255,255,255,.07), 0 0 0 1px rgba(255,255,255,.05); }
+.card:hover .grooves { animation: spin 10s linear infinite; }
+.grooves::after { content: ""; position: absolute; left: 50%; top: 50%; width: 9px; height: 9px; margin: -4.5px 0 0 -4.5px; border-radius: 50%;
+  background: #08080a; box-shadow: inset 0 1px 2px rgba(0,0,0,.9), 0 1px 0 rgba(255,255,255,.08); z-index: 2; }
+.label { position: absolute; inset: 33%; border-radius: 50%; box-shadow: inset 0 0 0 1px rgba(0,0,0,.35), inset 0 1px 1px rgba(255,255,255,.22); }
+@keyframes spin { to { transform: rotate(360deg); } }
+.sleeve { position: relative; z-index: 2; display: block; width: 100%; height: 100%; border-radius: 12px; overflow: hidden;
+  box-shadow: 0 6px 18px rgba(0,0,0,.3); transition: transform .5s cubic-bezier(.22,.9,.3,1), box-shadow .5s ease; }
+.sleeve > span:first-child { width: 100% !important; height: 100% !important; }
+.card:hover .sleeve, .card:focus-visible .sleeve { transform: translateX(-7px) rotate(-2deg); box-shadow: 0 18px 42px rgba(124,91,255,.32); }
+.sheen { position: absolute; inset: 0; pointer-events: none; background: linear-gradient(115deg, rgba(255,255,255,.14) 0%, transparent 34%, transparent 68%, rgba(0,0,0,.22) 100%); }
+.badge { position: absolute; top: 10px; right: 10px; font-size: 11.5px; padding: 3px 9px; border-radius: 999px; background: rgba(13,13,18,.7); color: #eeeef3; backdrop-filter: blur(6px); }
+.title { font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; margin-top: 4px; }
+.sub { font-size: 12.5px; color: var(--mx-text-subtle); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+@media (prefers-reduced-motion: reduce) {
+  .disc, .sleeve { transition: none; }
+  .card:hover .grooves { animation: none; }
+}
+@media (hover: none) { .card:hover .disc { transform: translateX(6px); } .card:hover .sleeve { transform: none; } }

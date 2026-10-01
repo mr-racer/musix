@@ -6,7 +6,7 @@ import { artistQuery } from "../../api/queries";
 import { plural } from "../../lib/format";
 import { image, imageUrl } from "../../lib/images";
 import { fromTrack, player } from "../../player/engine";
-import { Cover } from "../../ui/Cover";
+import { AlbumCard } from "../../ui/AlbumCard";
 import { Icon } from "../../ui/icons";
 import { TrackList } from "../../ui/TrackList";
 import css from "./detail.module.css";
@@ -76,11 +76,8 @@ function Artist() {
               <div className={css.eyebrow}>Альбомы</div>
               <div className={css.albums}>
                 {page.albums.map((a) => (
-                  <Link key={a.id} to="/album/$id" params={{ id: a.id }} className={css.albumCard}>
-                    <Cover id={a.coverImageId} size={180} radius={12} />
-                    <span className={css.cardTitle}>{a.title}</span>
-                    <span className={css.cardSub}>{[a.year, `${a.trackCount} тр`].filter(Boolean).join(" · ")}</span>
-                  </Link>
+                  <AlbumCard key={a.id} id={a.id} coverImageId={a.coverImageId} title={a.title} size={180}
+                    sub={[a.year, `${a.trackCount} тр`].filter(Boolean).join(" · ")} />
                 ))}
               </div>
             </section>

@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { Schemas } from "../../api/client";
 import { contextQuery } from "../../api/queries";
 import { clock, plural } from "../../lib/format";
@@ -55,7 +55,7 @@ function Playing({ trackId }: { trackId: string }) {
         <p className={css.hint}>Нажми на обложку, чтобы поставить на паузу</p>
         <div className={css.coverRow}>
           <button type="button" className={css.flank + (flipped ? " " + css.hidden : "")} onClick={() => void player.prev()} aria-label="Предыдущий" tabIndex={flipped ? -1 : 0}><Icon name="ChevronLeft" size={22} /></button>
-          <CoverStage item={item} flipped={flipped} playing={s.playing} buffering={s.buffering}
+          <CoverStage item={item} index={s.index} flipped={flipped} playing={s.playing} buffering={s.buffering}
             back={<LyricsBack title={item.title} lyrics={ctx?.lyrics ?? null} positionMs={s.positionMs} onSeek={(ms) => player.seek(ms)} />} />
           <button type="button" className={css.flank + (flipped ? " " + css.hidden : "")} onClick={() => void player.next()} aria-label="Следующий" tabIndex={flipped ? -1 : 0}><Icon name="ChevronRight" size={22} /></button>
         </div>
@@ -182,11 +182,31 @@ function LyricsBack({ title, lyrics, positionMs, onSeek }: { title: string; lyri
   );
 }
 
-/** v1's cover stage: a tilt and a shine under the pointer, a press on click (play/pause),
- *  a veil while buffering, and the flip to the lyrics face. */
-function CoverStage({ item, flipped, playing, buffering, back }: { item: { coverImageId?: string | null; title: string; album?: string | null }; flipped: boolean; playing: boolean; buffering: boolean; back: React.ReactNode }) {
+type Swap = { cover: string | null | undefined; dir: "next" | "prev"; n: number };
+
+/** v1's cover stage:
+ *  - a tilt and a shine under the pointer;
+ *  - a press on click (play/pause) and a veil while buffering;
+ *  - the flip to the lyrics face;
+ *  - the vinyl-stack change: the old cover recedes door-style into the stack, then the new
+ *    one bounces in from the side (mirrored for «назад»). */
+function CoverStage({ item, index, flipped, playing, buffering, back }: { item: { trackId: string; coverImageId?: string | null; title: string; album?: string | null }; index: number; flipped: boolean; playing: boolean; buffering: boolean; back: React.ReactNode }) {
   const [tilt, setTilt] = useState<{ x: number; y: number } | null>(null);
   const [pulse, setPulse] = useState(0);
+  const [swap, setSwap] = useState<Swap | null>(null);
+  const last = useRef({ id: item.trackId, cover: item.coverImageId, index });
+  useEffect(() => {
+    const l = last.current;
+    if (l.id === item.trackId) return;
+    last.current = { id: item.trackId, cover: item.coverImageId, index };
+    if (flipped || window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
+    setSwap((s) => ({ cover: l.cover, dir: index >= l.index ? "next" : "prev", n: (s?.n ?? 0) + 1 }));
+  }, [item.trackId, item.coverImageId, index, flipped]);
+  useEffect(() => {
+    if (!swap) return;
+    const t = setTimeout(() => setSwap(null), 940);  // the entry ends at 320 + 600 ms
+    return () => clearTimeout(t);
+  }, [swap]);
   return (
     <div className={css.art}
       onMouseMove={(e) => {
@@ -195,6 +215,12 @@ function CoverStage({ item, flipped, playing, buffering, back }: { item: { cover
         setTilt({ x: (e.clientY - r.top) / r.height - 0.5, y: (e.clientX - r.left) / r.width - 0.5 });
       }}
       onMouseLeave={() => setTilt(null)}>
+      {swap && (
+        <div key={"out" + swap.n} className={swap.dir === "next" ? css.outNext : css.outPrev} aria-hidden>
+          <Cover id={swap.cover} size={440} radius={20} className={css.cover} />
+        </div>
+      )}
+      <div key={"in" + (swap?.n ?? 0)} className={swap ? (swap.dir === "next" ? css.inNext : css.inPrev) : css.entry}>
       <div className={css.tilt} style={{ transform: flipped || !tilt ? "none" : `rotateY(${tilt.y * 10}deg) rotateX(${-tilt.x * 10}deg) scale(1.04)` }}>
         <div className={css.flipper + (flipped ? " " + css.isFlipped : "")}>
           <button type="button" className={css.front + (playing ? "" : " " + css.paused)} tabIndex={flipped ? -1 : 0}
@@ -206,6 +232,7 @@ function CoverStage({ item, flipped, playing, buffering, back }: { item: { cover
           </button>
           <div className={css.backFace} aria-hidden={!flipped}>{back}</div>
         </div>
+      </div>
       </div>
     </div>
   );
