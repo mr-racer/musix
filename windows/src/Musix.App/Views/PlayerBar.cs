@@ -31,6 +31,8 @@ public sealed class PlayerBar : Grid
         var p = App.Shared.Player;
 
         var left = M.H(12, new Border { CornerRadius = new CornerRadius(10), Child = cover }, M.V(2, title, artist).Align(HorizontalAlignment.Left, VerticalAlignment.Center));
+        left.Tapped += (_, _) => { if (App.Shared.Player.Current is not null) App.Shared.Window.Go(() => new PlayerView()); };
+        ToolTipService.SetToolTip(left, "Открыть плеер");
         var play = new Button { Content = playIcon, Width = 44, Height = 44, CornerRadius = new CornerRadius(22), Style = (Style)Application.Current.Resources["AccentButtonStyle"] };
         play.Click += (_, _) => p.Toggle();
         var transport = M.H(8, M.Glyph("", p.Previous, tip: "Назад"), play, M.Glyph("", p.Next, tip: "Дальше"));

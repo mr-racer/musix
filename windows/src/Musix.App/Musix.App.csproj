@@ -39,7 +39,7 @@
   <ItemGroup>
     <!-- one source of truth: the design tokens' generated theme and the Android app's fonts -->
     <EmbeddedResource Include="..\..\..\design\gen\windows\MusixTheme.xaml" Link="Theme\MusixTheme.xaml" LogicalName="MusixTheme.xaml" />
-    <Content Include="Assets\musix.ico;Assets\musix.png" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="Assets\*.ico;Assets\*.png" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="..\..\..\android\core\designsystem\src\main\res\font\*.ttf" Link="Fonts\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

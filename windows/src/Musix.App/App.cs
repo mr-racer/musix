@@ -35,6 +35,7 @@ public sealed class App : Application
     public MainWindow Window { get; private set; } = null!;
     public Tray? Tray { get; private set; }
     public Updates Updates { get; private set; } = null!;
+    public ThumbBar? Thumbs { get; private set; }
 
     private readonly HttpClient http = new() { Timeout = TimeSpan.FromSeconds(60) };
     private Timer? loop;
@@ -49,6 +50,7 @@ public sealed class App : Application
         Window = new MainWindow();
         Window.Activate();
         Tray = new Tray(this);
+        Thumbs = ThumbBar.Attach(Window, this);
         if (Session.SignedIn) Window.ShowShell(); else Window.ShowLogin();
     }
 
@@ -69,6 +71,7 @@ public sealed class App : Application
         Engine?.Dispose();
         Engine = new MediaEngine(Api, id => CoverUrl(id, 512));
         Player = new PlayerController(Engine, Api, Db, (kind, key2, payload) => Outbox.Enqueue(kind, key2, payload));
+        Player.Changed += () => Thumbs?.SetPlaying(Player.IsPlaying);
         Outbox.Enqueued += () => _ = Outbox.FlushAsync();
     }
 

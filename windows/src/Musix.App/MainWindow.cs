@@ -46,6 +46,7 @@ public sealed class MainWindow : Window
         rail.IsSettingsVisible = true;
         rail.Background = Theme.Brush("MxSidebarBg");
         rail.MenuItems.Add(Item("Главная", "", "home"));
+        rail.MenuItems.Add(Item("Поиск", "", "search"));
         rail.MenuItems.Add(Item("Библиотека", "", "library"));
         rail.MenuItems.Add(Item("На этом компьютере", "", "local"));
         rail.Content = page;
@@ -55,6 +56,7 @@ public sealed class MainWindow : Window
             switch ((e.SelectedItem as NavigationViewItem)?.Tag as string)
             {
                 case "home": Go(() => new HomeView(), root: true); break;
+                case "search": Go(() => new SearchView(), root: true); break;
                 case "library": Go(() => new LibraryView(), root: true); break;
                 case "local": Go(() => new LocalView(), root: true); break;
             }
