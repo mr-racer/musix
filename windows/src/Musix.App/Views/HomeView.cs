@@ -37,7 +37,7 @@ public sealed class HomeView : UserControl, IRefreshable
     private readonly TextBlock orbSub = M.T("Волна под ваш вкус — подстраивается под реакции", 13, Theme.B("MxTextMuted"));
     private readonly StackPanel anchors = M.H(13);
     private readonly StackPanel vibes = M.V(10);
-    private readonly TextBlock libraryCounts = M.T("", 10.5, Theme.B("MxTextSubtle"), spacing: 0.16);
+    private readonly TextBlock libraryCounts = M.T("", 10.5, Theme.B("MxTextSubtle"), spacing: 0.16, wrap: true);
     private readonly Grid libraryStack = new() { Width = 140, Height = 64 };
     private readonly Grid discoveries = new() { ColumnSpacing = 28 };
     private readonly StackPanel pulse = M.V(8);
@@ -141,6 +141,9 @@ public sealed class HomeView : UserControl, IRefreshable
     {
         double w = ActualWidth, h = ActualHeight, vmax = Math.Max(w, h) / 100;
         if (w <= 0) return;
+        aurora.Clip = new RectangleGeometry { Rect = new Rect(0, 0, w, h) };  // the blobs overhang the page; never over the rail
+        vibe.FontSize = Math.Clamp(w * 0.026, 26, 38);  // v1's clamp(26px, 2.6vw, 38px)
+        vibe.LineHeight = vibe.FontSize * 1.2;
         var at = new (double X, double Y)[] { (-8 * vmax, -18 * vmax), (0.34 * w, -12 * vmax), (w + 12 * vmax - 40 * vmax, 6 * vmax), (0.2 * w, h + 16 * vmax - 26 * vmax) };
         for (var i = 0; i < blobs.Count; i++)
         {
@@ -200,7 +203,7 @@ public sealed class HomeView : UserControl, IRefreshable
         orbSub.TextWrapping = TextWrapping.WrapWholeWords;
         var tune = new Button
         {
-            Content = M.H(6, M.T("НАСТРОИТЬ ВОЛНУ", 10.5, Theme.B("MxTextMuted"), FontWeights.SemiBold, spacing: 0.16), new Icon("ChevronDown", 12, Theme.B("MxTextMuted"))),
+            Content = M.H(6, Untrimmed(M.T("НАСТРОИТЬ ВОЛНУ", 10.5, Theme.B("MxTextMuted"), FontWeights.SemiBold, spacing: 0.16)), new Icon("ChevronDown", 12, Theme.B("MxTextMuted"))),
             CornerRadius = new CornerRadius(999), Padding = new Thickness(14, 7, 14, 7), Margin = new Thickness(0, 6, 0, 0),
             Background = Theme.WithAlphaBrush("MxSurface", 0.6), BorderBrush = Theme.B("MxBorderStrong"), BorderThickness = new Thickness(1),
             Flyout = WaveSettings(),
@@ -321,6 +324,12 @@ public sealed class HomeView : UserControl, IRefreshable
         Child = child, CornerRadius = new CornerRadius(radius), Background = Theme.WithAlphaBrush("MxSurface", 0.55),
         BorderBrush = Theme.B("MxBorder"), BorderThickness = new Thickness(1),
     };
+
+    /// <summary>
+    /// Spaced caps lose their tail to the ellipsis: Geist has no Cyrillic, the fallback font is
+    /// wider than the measure, and the label was cut at «ВОЛН» (smoke screenshot, 2026-10-01).
+    /// </summary>
+    private static TextBlock Untrimmed(TextBlock t) { t.TextTrimming = TextTrimming.None; return t; }
 
     private static StackPanel EqMark()
     {
