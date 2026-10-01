@@ -23,17 +23,21 @@ import asyncpg
 import sqlalchemy as sa
 import structlog
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+from pydantic import ValidationError
 
+from musix.contexts.handoff import schemas as HS
+from musix.contexts.handoff import service as handoff
 from musix.contexts.identity.models import instance_settings
 from musix.contexts.identity.security import verify_access
 from musix.contexts.sync.service import delta_cursor, head_seq
-from musix.errors import Unauthorized
+from musix.errors import DomainError, Unauthorized
 from musix.infra.changelog import CHANNEL, notify
 
 log = structlog.get_logger()
 HEARTBEAT_S = 25.0
 AUTH_TIMEOUT_S = 10.0
 QUEUE_MAX = 256
+PLAYBACK = ("playback.state", "playback.take", "playback.release", "playback.command")
 router = APIRouter(tags=["realtime"])
 
 
@@ -71,6 +75,11 @@ def route(payload: dict[str, Any]) -> dict[str, Any] | None:
             "type": "device.presence",
             "deviceId": payload["device"],
             "online": payload["online"],
+        }
+    if kind in PLAYBACK:  # handoff (phase 8): the fields travel as they are
+        return {
+            "type": kind,
+            **{k: v for k, v in payload.items() if k not in ("account", "kind", "target")},
         }
     return None  # "listens" is for the stream state (phase 2)
 
@@ -116,9 +125,14 @@ class Hub:
             if account is None
             else self._clients.get(uuid.UUID(account), ())
         )
+        target = payload.get("target")  # handoff: one device only (the queue owner rule)
         for c in list(targets):
-            if msg["type"] == "device.presence" and str(c.device_id) == payload["device"]:
+            if target is not None and str(c.device_id) != target:
                 continue
+            if msg["type"] in ("device.presence", "playback.state") and str(
+                c.device_id
+            ) == payload.get("device"):
+                continue  # not echoed to the device it is about
             c.push(msg)
 
     async def _run(self) -> None:
@@ -161,8 +175,36 @@ async def _auth(ws: WebSocket) -> tuple[Any, int | None]:
 
 async def _presence(ws: WebSocket, c: Client, online: bool) -> None:
     async with ws.app.state.sessionmaker() as s:
+        if online:
+            await handoff.touch(s, c.account_id, c.device_id)
+        else:
+            await handoff.gone(s, c.device_id)
         await notify(s, c.account_id, "presence", device=str(c.device_id), online=online)
         await s.commit()
+
+
+async def _client_message(ws: WebSocket, c: Client, msg: dict[str, Any]) -> None:
+    """What a client says over the socket (handoff). A bad one gets an `error` back; the
+    socket stays open."""
+    kind = msg.get("type")
+    try:
+        async with ws.app.state.sessionmaker() as s:
+            if kind == "device.hello":
+                await handoff.touch(s, c.account_id, c.device_id, can_play=bool(msg.get("canPlay")))
+                await notify(s, c.account_id, "presence", device=str(c.device_id), online=True)
+            elif kind == "playback.state":
+                await handoff.publish(
+                    s, c.account_id, c.device_id, HS.PlaybackState.model_validate(msg.get("state"))
+                )
+            elif kind == "playback.command":
+                await handoff.command(
+                    s, c.account_id, c.device_id, HS.CommandMsg.model_validate(msg)
+                )
+            else:
+                return
+            await s.commit()
+    except (ValidationError, DomainError) as e:
+        c.push({"type": "error", "for": kind, "detail": str(e)[:300]})
 
 
 @router.websocket("/ws")
@@ -199,11 +241,15 @@ async def ws_endpoint(ws: WebSocket) -> None:
             nonlocal expires_at
             while True:
                 msg = await ws.receive_json()
-                if isinstance(msg, dict) and msg.get("type") == "auth" and msg.get("token"):
+                if not isinstance(msg, dict):
+                    continue
+                if msg.get("type") == "auth" and msg.get("token"):
                     np = verify_access(ws.app.state.secrets, str(msg["token"]))  # a refreshed token
                     if np.account_id != p.account_id:
                         raise Unauthorized("account changed")
                     expires_at = np.expires_at
+                else:
+                    await _client_message(ws, c, msg)
 
         async def heartbeat() -> None:
             while True:
@@ -211,6 +257,9 @@ async def ws_endpoint(ws: WebSocket) -> None:
                 if time.time() > expires_at:
                     raise Unauthorized("access token expired")
                 c.push({"type": "ping"})
+                async with ws.app.state.sessionmaker() as s:  # still online (handoff presence)
+                    await handoff.touch(s, c.account_id, c.device_id)
+                    await s.commit()
 
         async def overflow() -> None:
             await c.overflow.wait()

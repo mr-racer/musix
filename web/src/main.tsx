@@ -6,6 +6,7 @@ import { bootstrap, onAccountChange, onBeforeSignOut, useAuth } from "./api/auth
 import { guard } from "./api/db";
 import { connect, disconnect, subscribe } from "./api/realtime";
 import { sync } from "./api/sync";
+import "./player/handoff"; // «Слушать на…»: a tab can be handed the music before the player is opened
 import { routeTree } from "./routeTree.gen";
 import "./styles/fonts";
 import "./styles/global.css";

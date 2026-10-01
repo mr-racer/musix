@@ -7,6 +7,7 @@ import { clock, plural } from "../../lib/format";
 import { factClass } from "../../lib/facts";
 import { image } from "../../lib/images";
 import { player, usePlayer } from "../../player/engine";
+import { DevicePicker, ElsewhereBar } from "../../player/DevicePicker";
 import { Wave } from "../../player/Wave";
 import { AddToPlaylist } from "../../ui/AddToPlaylist";
 import { Cover } from "../../ui/Cover";
@@ -32,6 +33,7 @@ function Idle() {
         <button type="button" className={css.cta} onClick={() => void player.startStream()}>Включить поток</button>
         <Link to="/library" className={css.ghost}>В библиотеку</Link>
       </div>
+      <ElsewhereBar />
     </div>
   );
 }
@@ -78,8 +80,10 @@ function Playing({ trackId }: { trackId: string }) {
           </span>
           <button type="button" className={css.act + (flipped ? " " + css.on : "")} onClick={() => setFlipped((f) => !f)} aria-label="Текст песни" aria-pressed={flipped}><Icon name="Lyrics" /></button>
           <button type="button" className={css.act} onClick={() => player.shuffleUpcoming()} disabled={s.mode === "stream"} aria-label="Перемешать очередь" title={s.mode === "stream" ? "В «Потоке» порядок ведёт волна" : "Перемешать очередь"}><Icon name="Shuffle" /></button>
+          <DevicePicker />
           <Volume />
         </div>
+        <ElsewhereBar />
         {lossless && <div className={css.lossless} title={[s.codec?.toUpperCase(), ctx?.audio.sampleRate && `${ctx.audio.sampleRate / 1000} кГц`, ctx?.audio.bitDepth && `${ctx.audio.bitDepth} бит`].filter(Boolean).join(" · ")}><LosslessMark /> Lossless</div>}
         {s.error && <p className={css.error} role="status">{s.error}</p>}
       </section>

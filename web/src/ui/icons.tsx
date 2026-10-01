@@ -36,6 +36,7 @@ const defs = {
   Volume: { d: ["M11 5 6 9H3v6h3l5 4z", "M15.5 8.5a5 5 0 0 1 0 7", "M18.5 5.5a9 9 0 0 1 0 13"], w: 1.8, fill: [] },
   Trash: { d: ["M3 6h18", "M8 6V4h8v2", "M6 6l1 14h10l1-14"], w: 1.8, fill: [] },
   Copy: { d: ["M9 9h11v11H9z", "M5 15H4V4h11v1"], w: 1.8, fill: [] },
+  Devices: { d: ["M3 5h10v14H3z", "M6.5,14.5a1.5,1.5 0 1,0 3,0a1.5,1.5 0 1,0 -3,0", "M7 8.5h2", "M16 9h5v10h-5z", "M18.5 16.5h.01"], w: 1.8, fill: [] },
 } satisfies Record<string, Def>;
 
 export type IconName = keyof typeof defs;

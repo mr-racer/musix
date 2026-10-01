@@ -19,6 +19,45 @@
         "title": "Accent",
         "type": "object"
       },
+      "ActiveDevice": {
+        "properties": {
+          "active": {
+            "title": "Active",
+            "type": "boolean"
+          },
+          "canPlay": {
+            "title": "Canplay",
+            "type": "boolean"
+          },
+          "current": {
+            "title": "Current",
+            "type": "boolean"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "platform": {
+            "title": "Platform",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "platform",
+          "canPlay",
+          "current",
+          "active"
+        ],
+        "title": "ActiveDevice",
+        "type": "object"
+      },
       "AlbumChange": {
         "properties": {
           "data": {
@@ -2992,6 +3031,75 @@
         "title": "Palette",
         "type": "object"
       },
+      "PlaybackState": {
+        "description": "What the active player plays, enough for another device to continue it.",
+        "properties": {
+          "contextId": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Contextid"
+          },
+          "contextType": {
+            "anyOf": [
+              {
+                "maxLength": 32,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Contexttype"
+          },
+          "index": {
+            "minimum": 0.0,
+            "title": "Index",
+            "type": "integer"
+          },
+          "mode": {
+            "default": "list",
+            "enum": [
+              "list",
+              "stream"
+            ],
+            "title": "Mode",
+            "type": "string"
+          },
+          "playing": {
+            "title": "Playing",
+            "type": "boolean"
+          },
+          "positionMs": {
+            "minimum": 0.0,
+            "title": "Positionms",
+            "type": "integer"
+          },
+          "trackIds": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "maxItems": 500,
+            "title": "Trackids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "trackIds",
+          "index",
+          "positionMs",
+          "playing"
+        ],
+        "title": "PlaybackState",
+        "type": "object"
+      },
       "PlayerContextOut": {
         "properties": {
           "audio": {
@@ -3889,6 +3997,37 @@
           "images"
         ],
         "title": "SearchOut",
+        "type": "object"
+      },
+      "SessionOut": {
+        "properties": {
+          "deviceId": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Deviceid"
+          },
+          "state": {
+            "$ref": "#/components/schemas/PlaybackState"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "title": "Updatedat",
+            "type": "string"
+          }
+        },
+        "required": [
+          "deviceId",
+          "state",
+          "updatedAt"
+        ],
+        "title": "SessionOut",
         "type": "object"
       },
       "SettingsChange": {
@@ -5044,6 +5183,25 @@
           "lastPlayedAt"
         ],
         "title": "TrackStats",
+        "type": "object"
+      },
+      "TransferIn": {
+        "properties": {
+          "play": {
+            "default": true,
+            "title": "Play",
+            "type": "boolean"
+          },
+          "toDevice": {
+            "format": "uuid",
+            "title": "Todevice",
+            "type": "string"
+          }
+        },
+        "required": [
+          "toDevice"
+        ],
+        "title": "TransferIn",
         "type": "object"
       },
       "TurnAccepted": {
@@ -8198,6 +8356,107 @@
         ]
       }
     },
+    "/api/v2/devices/active": {
+      "get": {
+        "description": "Who can take the music now (the «Слушать на…» picker).",
+        "operationId": "active_devices_api_v2_devices_active_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ActiveDevice"
+                  },
+                  "title": "Response Active Devices Api V2 Devices Active Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Validation failed"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Rate limited"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Active Devices",
+        "tags": [
+          "handoff"
+        ]
+      }
+    },
     "/api/v2/devices/{device_id}": {
       "delete": {
         "operationId": "delete_device_api_v2_devices__device_id__delete",
@@ -10475,6 +10734,207 @@
         "summary": "Manifest",
         "tags": [
           "media"
+        ]
+      }
+    },
+    "/api/v2/playback/session": {
+      "get": {
+        "description": "The account's last playback state: a device taking over, or one continuing where the\nmusic stopped, starts from here.",
+        "operationId": "playback_session_api_v2_playback_session_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Validation failed"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Rate limited"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Playback Session",
+        "tags": [
+          "handoff"
+        ]
+      }
+    },
+    "/api/v2/playback/transfer": {
+      "post": {
+        "operationId": "transfer_api_v2_playback_transfer_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TransferIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Validation failed"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Rate limited"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Transfer",
+        "tags": [
+          "handoff"
         ]
       }
     },

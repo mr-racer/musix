@@ -9,6 +9,11 @@ export type Event =
   | { type: "job.progress" | "job.done"; job: string; done?: number; total?: number }
   | { type: "instance.status"; status: { llm?: string } }
   | { type: "device.presence"; deviceId: string; online: boolean }
+  | { type: "playback.state"; device: string; trackId: string | null; playing: boolean; positionMs: number }
+  | { type: "playback.take"; play: boolean; by: string }
+  | { type: "playback.release"; to: string }
+  | { type: "playback.command"; command: "play" | "pause" | "toggle" | "next" | "prev" | "seek" | "signal"; positionMs?: number; kind?: "fire" | "water"; by: string }
+  | { type: "error"; for: string; detail: string }
   | { type: "ping" };
 
 type Handler = (e: Event) => void;
@@ -47,6 +52,12 @@ function open(): void {
     if (c.code === 4401) void refresh().then((ok) => ok && again());
     else again();
   };
+}
+
+/** A message to the server over the open socket (dropped while it reconnects: the handoff
+ *  publishes its state again on `ready`). */
+export function send(msg: Record<string, unknown>): void {
+  if (ws?.readyState === WebSocket.OPEN) ws.send(JSON.stringify(msg));
 }
 
 export function connect(): void {

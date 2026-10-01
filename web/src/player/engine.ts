@@ -246,6 +246,15 @@ class Engine {
     await this.load(index);
   }
 
+  /** Handoff: another device's queue, continued here from where it was (phase 8). */
+  async adopt(items: QueueItem[], index: number, positionMs: number, mode: "list" | "stream", play: boolean): Promise<void> {
+    this.endListen(true);
+    this.toppedUpFrom = null;
+    set({ queue: items, index, mode, error: null });
+    await this.load(index, positionMs);
+    if (!play) this.pause();
+  }
+
   /** «Поток»: the server's session plans the chunk; the first track starts at once. */
   async startStream(): Promise<void> {
     this.endListen(true);

@@ -132,6 +132,7 @@ def context_routers() -> list[APIRouter]:
     from musix.api.realtime import router as realtime
     from musix.contexts.admin.router import router as admin
     from musix.contexts.assistant.router import router as assistant
+    from musix.contexts.handoff.router import router as handoff
     from musix.contexts.identity.router import router as identity
     from musix.contexts.imports.router import router as imports
     from musix.contexts.knowledge.router import router as knowledge
@@ -163,6 +164,7 @@ def context_routers() -> list[APIRouter]:
         search,
         stream,
         sync,
+        handoff,
         realtime,
         models_public,
     ]
