@@ -110,3 +110,37 @@ on the same VPS, and the desktop (v1 at `musixai.ru/`) must keep working.
 3. The rollback restores v1 with v2's new rows (tested, not assumed).
 4. Old 1.0.0 apps get the 426 + download link, not a crash loop.
 5. The GPU is never held by both v1 and v2 `ml`.
+
+---
+
+## Status: done (2026-10-01)
+
+The owner gave one go for the whole run (Block 4's rehearsals were skipped, the owner's
+call). Timings are in `/mnt/data/musix-v2-prod/cutover.log`:
+
+| Step | UTC | Took |
+|---|---|---|
+| stop-v1 | 06:06:42 | 11 s |
+| snapshot 2026-10-01 | 06:11:24 | 270 s |
+| migrate | 06:22:33 | 630 s |
+| gate (verify ok, search = baseline) | 06:30:51 | 265 s |
+| switch (edge on :8000) | 06:31:44 | 18 s |
+| smoke | 06:31:52 | 0 s |
+| publish-apk 2.0.1 (versionCode 3) | 06:34:48 | — |
+
+Downtime was 06:06:31 → 06:31:52, about 25 min.
+
+Rulings and findings:
+- **Staging activity was not carried** (9 listens and 3 reactions from the owner's phone),
+  so v1's SQLite is untouched. Owner's choice.
+- **The Yandex tokens needed two fixes.** v1's key comes from the stopped container's env,
+  because its `.env` parse differed. `MUSIX_SECRETS_DIR` was missing for the v2 key. After
+  both, 4 links were re-encrypted (fixed in `make prod-migrate`).
+- **Lossless returned 404 after the switch.** `lossless.flac` is a symlink into
+  `/mnt/data/music`, which prod nginx did not mount. The mount was added at 06:40.
+- **`publish-apk` exited silently** on a SIGPIPE from `head` under `pipefail`. Fixed and
+  re-run.
+- **The prod `ml` runs on the CPU.** The image is torch 2.6.0+cpu. A CUDA image is the
+  follow-up and needs disk.
+- **Rollback (until 2026-10-08):** `tools/cutover/run.sh rollback 2026-10-01T06:31:26Z
+  --yes`, on the owner's go.
