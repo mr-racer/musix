@@ -66,6 +66,7 @@ public static class Theme
     public static FontFamily Sans { get; } = new("ms-appx:///Fonts/geist_400.ttf#Geist");
     public static FontFamily Text { get; } = new("ms-appx:///Fonts/noto_sans_400.ttf#Noto Sans");
     public static FontFamily Display { get; } = new("ms-appx:///Fonts/playfair_display_400.ttf#Playfair Display");
-    public static FontFamily SerifItalic { get; } = new("ms-appx:///Fonts/noto_serif_display_300_italic.ttf#Noto Serif Display");
+    // Lora, not Noto Serif Display: the Light italic was unreadable at caption sizes (owner, 2026-10-02)
+    public static FontFamily SerifItalic { get; } = new("ms-appx:///Fonts/lora_400_italic.ttf#Lora");
     public static FontFamily Mono { get; } = new("ms-appx:///Fonts/jetbrains_mono_400.ttf#JetBrains Mono");
 }

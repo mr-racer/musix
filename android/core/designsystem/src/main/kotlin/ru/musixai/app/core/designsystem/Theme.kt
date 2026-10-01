@@ -22,7 +22,7 @@ import kotlin.math.cos
 import kotlin.math.sin
 
 /** The v1 font stacks (styles.css): Geist is the body AND the `.mono` label voice; Noto Sans
- *  is `.serif`; Noto Serif Display / Playfair are display; JetBrains Mono only for code. */
+ *  is `.serif`; Lora (was Noto Serif Display) / Playfair are display; JetBrains Mono only for code. */
 object MusixFontFamilies {
     val Sans = FontFamily(
         Font(R.font.noto_sans_400, FontWeight.Normal), Font(R.font.noto_sans_400_italic, FontWeight.Normal, FontStyle.Italic),
@@ -33,9 +33,14 @@ object MusixFontFamilies {
         Font(R.font.geist_400, FontWeight.Normal), Font(R.font.geist_500, FontWeight.Medium),
         Font(R.font.geist_600, FontWeight.SemiBold), Font(R.font.geist_700, FontWeight.Bold),
     )
+    /** The italic caption voice (the vibe line, the AI's small lines, the login head). Lora since
+     *  2026-10-02: Noto Serif Display Light was unreadable at caption sizes (the owner's call). */
     val SerifDisplay = FontFamily(
-        Font(R.font.noto_serif_display_300_italic, FontWeight.Light, FontStyle.Italic),
-        Font(R.font.noto_serif_display_400_italic, FontWeight.Normal, FontStyle.Italic),
+        Font(R.font.lora_400_italic, FontWeight.Light, FontStyle.Italic),
+        Font(R.font.lora_400_italic, FontWeight.Normal, FontStyle.Italic),
+        Font(R.font.lora_500_italic, FontWeight.Medium, FontStyle.Italic),
+        Font(R.font.lora_400, FontWeight.Normal),
+        Font(R.font.lora_500, FontWeight.Medium),
     )
     val Playfair = FontFamily(
         Font(R.font.playfair_display_400, FontWeight.Normal), Font(R.font.playfair_display_500, FontWeight.Medium),

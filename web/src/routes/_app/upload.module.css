@@ -1,5 +1,5 @@
 .page { max-width: 780px; margin: 0 auto; padding: 32px 24px 48px; display: flex; flex-direction: column; gap: 16px; }
-.title { font-family: var(--mx-font-serif-display); font-style: italic; font-weight: 300; font-size: 40px; }
+.title { font-family: var(--mx-font-serif-display); font-style: italic; font-weight: 400; font-size: 40px; }
 .sub { color: var(--mx-text-muted); }
 .drop, .dropOn { position: relative; border: 1.5px dashed var(--mx-border-strong); border-radius: 22px; padding: 48px 24px; display: flex; flex-direction: column; align-items: center; gap: 10px; color: var(--mx-text-muted); cursor: pointer; transition: border-color 0.15s ease, background 0.15s ease; }
 .dropOn, .drop:hover { border-color: color-mix(in oklch, var(--mx-accent) 60%, transparent); background: var(--mx-accent-bg); }

@@ -88,6 +88,6 @@
   <x:String x:Key="MxFontSans">Geist</x:String>
   <x:String x:Key="MxFontText">Noto Sans</x:String>
   <x:String x:Key="MxFontDisplay">Playfair Display</x:String>
-  <x:String x:Key="MxFontSerifDisplay">Noto Serif Display</x:String>
+  <x:String x:Key="MxFontSerifDisplay">Lora</x:String>
   <x:String x:Key="MxFontMono">JetBrains Mono</x:String>
 </ResourceDictionary>

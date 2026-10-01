@@ -3,7 +3,7 @@
   --mx-font-sans: Geist, Inter, system-ui, sans-serif;
   --mx-font-text: 'Noto Sans', 'Times New Roman', serif;
   --mx-font-display: 'Playfair Display', Georgia, serif;
-  --mx-font-serif-display: 'Noto Serif Display', Georgia, serif;
+  --mx-font-serif-display: Lora, Georgia, serif;
   --mx-font-mono: 'JetBrains Mono', monospace;
   --mx-ease-standard: cubic-bezier(0.22, 0.9, 0.3, 1);
   --mx-ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);

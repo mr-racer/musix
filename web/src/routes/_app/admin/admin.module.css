@@ -1,6 +1,6 @@
 .page { max-width: 1080px; margin: 0 auto; padding: 32px 24px 48px; display: flex; flex-direction: column; gap: 20px; }
 .head { display: flex; flex-direction: column; gap: 14px; }
-.title { font-family: var(--mx-font-serif-display); font-style: italic; font-weight: 300; font-size: 40px; }
+.title { font-family: var(--mx-font-serif-display); font-style: italic; font-weight: 400; font-size: 40px; }
 .tabs { composes: segmented from "../../../ui/controls.module.css"; align-self: flex-start; flex-wrap: wrap; }
 .tab { composes: segment from "../../../ui/controls.module.css"; }
 .tabOn { composes: segmentOn from "../../../ui/controls.module.css"; }

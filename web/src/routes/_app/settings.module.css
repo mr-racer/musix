@@ -1,5 +1,5 @@
 .page { max-width: 780px; margin: 0 auto; padding: 32px 24px 48px; display: flex; flex-direction: column; gap: 18px; }
-.title { font-family: var(--mx-font-serif-display); font-style: italic; font-weight: 300; font-size: 40px; margin-bottom: 6px; }
+.title { font-family: var(--mx-font-serif-display); font-style: italic; font-weight: 400; font-size: 40px; margin-bottom: 6px; }
 .card { composes: glass from "../../ui/relief.module.css"; border-radius: 18px; padding: 18px 20px; display: flex; flex-direction: column; gap: 4px; }
 .eyebrow { font-size: 11px; font-weight: 500; letter-spacing: 0.22em; text-transform: uppercase; color: var(--mx-text-subtle); display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
 .eyebrow::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--mx-accent-light); box-shadow: 0 0 8px var(--mx-accent-light); }

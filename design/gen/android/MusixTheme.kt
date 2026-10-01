@@ -138,6 +138,6 @@ object MusixFonts {
     const val Sans = "Geist"
     const val Text = "Noto Sans"
     const val Display = "Playfair Display"
-    const val SerifDisplay = "Noto Serif Display"
+    const val SerifDisplay = "Lora"
     const val Mono = "JetBrains Mono"
 }

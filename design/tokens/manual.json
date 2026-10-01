@@ -3,7 +3,7 @@
     "sans":    {"$type": "fontFamily", "$value": ["Geist", "Inter", "system-ui", "sans-serif"], "$description": "body and UI (styles.css :root)"},
     "text":    {"$type": "fontFamily", "$value": ["Noto Sans", "Times New Roman", "serif"], "$description": ".serif"},
     "display": {"$type": "fontFamily", "$value": ["Playfair Display", "Georgia", "serif"], "$description": ".vibe-serif, island titles"},
-    "serifDisplay": {"$type": "fontFamily", "$value": ["Noto Serif Display", "Georgia", "serif"], "$description": "artist atlas italic headings (styles.css:1471)"},
+    "serifDisplay": {"$type": "fontFamily", "$value": ["Lora", "Georgia", "serif"], "$description": "artist atlas italic headings (styles.css:1471)"},
     "mono":    {"$type": "fontFamily", "$value": ["JetBrains Mono", "monospace"], "$description": "numbers and code"}
   },
   "motion": {
