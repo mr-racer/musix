@@ -63,8 +63,12 @@ case "$step" in
     [ -f "$D/musix-1.0.0.apk" ] || cp -p /mnt/data/lyrics-search/downloads/musix.apk "$D/musix-1.0.0.apk"
     cp "$APK" "$D/musix.apk"
     SHA=$(sha256sum "$D/musix.apk" | cut -d' ' -f1)
+    # the version comes from the APK itself (the in-app updater compares versionCode)
+    BADGE=$(. /mnt/data/android/env.sh >/dev/null 2>&1; "$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)/aapt2" dump badging "$D/musix.apk" | head -1)
+    VC=$(echo "$BADGE" | sed -n "s/.*versionCode='\([0-9]*\)'.*/\1/p"); VN=$(echo "$BADGE" | sed -n "s/.*versionName='\([^']*\)'.*/\1/p")
+    [ -n "$VC" ] || { echo "no versionCode in the APK" >&2; exit 1; }
     # merge: the windows entry (tools/windows/publish.sh) stays
-    python3 -c 'import json,pathlib,sys; p=pathlib.Path(sys.argv[1]); m=json.loads(p.read_text()) if p.exists() else {}; m["android"]={"versionCode":2,"versionName":"2.0.0","url":"/download/musix.apk","sha256":sys.argv[2],"notes":"MusiX 2"}; p.write_text(json.dumps(m,ensure_ascii=False,indent=2)+"\n")' "$D/manifest.json" "$SHA"
+    python3 -c 'import json,pathlib,sys; p=pathlib.Path(sys.argv[1]); m=json.loads(p.read_text()) if p.exists() else {}; m["android"]={"versionCode":int(sys.argv[3]),"versionName":sys.argv[4],"url":"/download/musix.apk","sha256":sys.argv[2],"notes":"MusiX 2"}; p.write_text(json.dumps(m,ensure_ascii=False,indent=2)+"\n")' "$D/manifest.json" "$SHA" "$VC" "$VN"
     done_ "published" ;;
   rollback) yes "$@"; SINCE=${1:?SINCE (the switch time)}
     "${P[@]}" stop nginx ml worker-ai
