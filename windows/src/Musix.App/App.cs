@@ -18,8 +18,19 @@ namespace Musix.App;
 /// app opens on the local mirror at once (spec §7: interactive home from the local store);
 /// the network catches up behind it.
 /// </summary>
-public sealed class App : Application
+public sealed class App : Application, Microsoft.UI.Xaml.Markup.IXamlMetadataProvider
 {
+    // A code-only app has no App.xaml, so the XAML compiler generates no metadata provider.
+    // Without one, WinUI can't resolve the controls' types and XamlControlsResources dies at
+    // start ("Cannot find a resource with the given key: AcrylicBackgroundFillColorDefaultBrush"),
+    // as caught by the CI smoke run on 2026-10-01. The app hands type lookups to WinUI's own
+    // provider.
+    private readonly Microsoft.UI.Xaml.XamlTypeInfo.XamlControlsXamlMetaDataProvider controlsMetadata = new();
+
+    public Microsoft.UI.Xaml.Markup.IXamlType GetXamlType(Type type) => controlsMetadata.GetXamlType(type);
+    public Microsoft.UI.Xaml.Markup.IXamlType GetXamlType(string fullName) => controlsMetadata.GetXamlType(fullName);
+    public Microsoft.UI.Xaml.Markup.XmlnsDefinition[] GetXmlnsDefinitions() => controlsMetadata.GetXmlnsDefinitions();
+
     public static App Shared => (App)Current;
 
     public AppSettings Settings { get; } = AppSettings.Load();
