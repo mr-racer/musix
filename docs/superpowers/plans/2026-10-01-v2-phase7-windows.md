@@ -74,3 +74,31 @@ desktop motion and polish (golden `design/golden/*-desktop-*`) are kept, not fla
 3. The refresh token never leaves the Locker; logs carry no tokens or URLs with signatures.
 4. A moved or renamed folder does not re-upload anything.
 5. The shell's budgets (spec §7) are measured on the owner's PC, not assumed.
+
+---
+
+## Status (2026-10-01)
+
+- **Block 1:** done (bca3558). 7 core tests, including the queue/engine alignment one (f64d2c9).
+- **Block 2:** written and compiling on Linux (a6a7bd5, e8bf32f, 14b082f). **It has never run.**
+  The first launch, the budgets and the screenshot review all happen on the owner's PC
+  (`v2/windows/README.md`).
+- **Block 3:** done (9e71b31). Velopack updates; `tools/windows/pack.ps1` on the PC; `tools/windows/publish.sh`
+  on this host (prod's downloads directory, so a prod step: `--yes` on the owner's word).
+  Checked on dev with a test feed.
+- **Block 4:** web parity on the web's existing surfaces (4c45b20, 14b082f, e070d22):
+  - the album gatefold with the vinyl;
+  - the record sliding out on hover;
+  - the player's vinyl-stack track change;
+  - «Якоря вкуса»;
+  - the artist cutout hero.
+
+Rulings:
+- **Quiz, assistant and the collection map stay off the web.** The phase 5 spec (approved)
+  keeps them on the native clients. Block 4's mention of them conflicts with that spec, and
+  the spec wins. Cost if wrong: one port per screen, whenever the owner asks.
+- **No Kiota client in the shell.** `MusixHttp` and `JsonNode` cover the few screen calls,
+  and a generated client would add build weight and nothing else. Cost if wrong: swapping
+  call sites later.
+- **Uploads are in «На этом компьютере», not on a page of their own.** Per-file and «всё
+  новое» sending, with progress, live there. Cost if wrong: one small page.
