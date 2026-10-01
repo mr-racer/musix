@@ -22,7 +22,7 @@ refuse to run without `--yes`, and are run only on the owner's go for that step.
 | 1 | `run.sh stop-v1 --yes`: v1 `musix` stops; its Qdrant and SearXNG stay up | ~10 s |
 | 2 | `run.sh carry-week <staging start> --yes`: the owner's week on staging → v1's SQLite (a backup is kept) | < 30 s |
 | 3 | `run.sh snapshot`: the final snapshot of the stopped v1 (consistent) | 248 s (2026-09-30) |
-| 4 | `run.sh migrate <date>`, as root with hardlinks (else `COPY=1`) | 894 s with COPY=1, first fill; less as root and with the media dir already filled |
+| 4 | `run.sh migrate <date>`, as root with hardlinks (else `COPY=1`). For the Yandex tokens, `V1_JWT_SECRET` comes from the stopped v1 container's env (`docker inspect musix`), never printed; v1's `.env` parse differed from its container (2026-10-01) | 894 s with COPY=1, first fill; less as root and with the media dir already filled |
 | 5 | `run.sh gate <date>`: counts, checksums, spot checks, search (on the baseline's fixtures), «Поток» | 301 s + 19 s |
 | 6 | `run.sh switch --yes`: v2's edge takes `127.0.0.1:8000` (the existing tunnel), `ml` on the GPU, the AI worker on, the staging tunnel follows the edge | ~2 min (estimate) |
 | 7 | `run.sh smoke`: ready, web shell, the 426 for 1.0.0 | 5 s |

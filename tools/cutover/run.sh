@@ -64,7 +64,7 @@ case "$step" in
     cp "$APK" "$D/musix.apk"
     SHA=$(sha256sum "$D/musix.apk" | cut -d' ' -f1)
     # the version comes from the APK itself (the in-app updater compares versionCode)
-    BADGE=$(. /mnt/data/android/env.sh >/dev/null 2>&1; "$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)/aapt2" dump badging "$D/musix.apk" | head -1)
+    BADGE=$(. /mnt/data/android/env.sh >/dev/null 2>&1; "$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)/aapt2" dump badging "$D/musix.apk" | sed -n 1p)
     VC=$(echo "$BADGE" | sed -n "s/.*versionCode='\([0-9]*\)'.*/\1/p"); VN=$(echo "$BADGE" | sed -n "s/.*versionName='\([^']*\)'.*/\1/p")
     [ -n "$VC" ] || { echo "no versionCode in the APK" >&2; exit 1; }
     # merge: the windows entry (tools/windows/publish.sh) stays

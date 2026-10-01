@@ -137,6 +137,8 @@ services:
       - ./nginx/njs:/etc/nginx/njs:ro
       - /mnt/data/musix-v2-prod/secrets:/etc/nginx/secrets:ro
       - /mnt/data/musix-v2-prod/media:/mnt/data/musix-v2-prod/media:ro
+      # lossless.flac in the media dir is a symlink to the original in the library
+      - /mnt/data/music:/mnt/data/music:ro
     ports: ["127.0.0.1:${MUSIX_EDGE_PORT:-18090}:80"]
     depends_on: {api: {condition: service_healthy}}
 

@@ -81,7 +81,7 @@ prod-logs:
 # the migration into the prod stack: its media dir, compose file, Postgres and Qdrant
 prod-migrate:
 	set -a && . $(PROD_DIR)/prod.env && set +a && cd tools/migrate && \
-	MUSIX_MIGRATE_MEDIA=$(PROD_DIR)/media MUSIX_MIGRATE_COMPOSE=$(CURDIR)/deploy/compose.prod.yml \
+	MUSIX_MIGRATE_MEDIA=$(PROD_DIR)/media MUSIX_MIGRATE_COMPOSE=$(CURDIR)/deploy/compose.prod.yml MUSIX_SECRETS_DIR=$(PROD_DIR)/secrets \
 	../../server/.venv/bin/python migrate.py run /mnt/data/musix-snapshots/$(SNAP) --db $(or $(DB),musix) --reset \
 	  --admin-dsn "postgresql://musix:$$MUSIX_PG_PASSWORD@127.0.0.1:18532/postgres" --qdrant http://127.0.0.1:18533 $(if $(COPY),--copy-foreign)
 
