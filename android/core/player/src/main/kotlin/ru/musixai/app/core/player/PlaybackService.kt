@@ -577,6 +577,7 @@ class PlaybackService : MediaLibraryService() {
             queueSnapshot = queueIds()
             if (item == null) return
             if (item.noListen()) { exo.volume = 1f; gain.gainDb = 0f; return }  // a quiz snippet: no taste, no refill
+            resolver.unpinExcept((listOf(item.mediaId) + lookahead(item.mediaId).take(2)).toSet())  // the play window keeps its tiers
             publishSoon()
             pushWidget()
             applyGain(item.mediaId)

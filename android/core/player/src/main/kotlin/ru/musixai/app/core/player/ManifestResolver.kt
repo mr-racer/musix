@@ -16,8 +16,15 @@ data class Resolved(val url: String, val tier: String, val cacheKey: String)
 
 /**
  * Signed URLs from `POST /playback/manifest` (spec §3), fetched for the current track and
- * the next five in one call and cached per (track, network). A track resolves when its
- * load starts, so a network change applies from the next track, never mid-song.
+ * the next five in one call and cached per (track, network).
+ *
+ * A track is pinned to the network of its first resolve, so a network change applies from
+ * the next track, never mid-song. ExoPlayer reopens the source inside one track (a read
+ * error resumes the same load at its byte offset with the same extractor, and the cache
+ * hands off to the network), and an unpinned resolve could then return another tier's file
+ * at that offset. That was the «the song plays but there is no sound» bug (2026-10-01): a
+ * Wi-Fi hiccup or a VPN reconnect reads as metered for a moment, and lossless turned into
+ * high AAC mid-file.
  *
  * - an expired entry (60 s margin) or a 403/410 on its URL → fetched again;
  * - a 404 on a source → the next fallback (`lossless` → `high` → …);
@@ -31,12 +38,13 @@ class ManifestResolver(
 ) {
     private val cache = ConcurrentHashMap<Pair<String, Network>, ManifestEntry>()
     private val fallback = ConcurrentHashMap<String, Int>()
+    private val pins = ConcurrentHashMap<String, Network>()
 
-    fun entry(trackId: String): ManifestEntry? = cache[trackId to network()]
+    fun entry(trackId: String): ManifestEntry? = cache[trackId to (pins[trackId] ?: network())]
 
     @Synchronized
     fun resolve(trackId: String): Resolved {
-        val net = network()
+        val net = pins.getOrPut(trackId) { network() }
         val e = cache[trackId to net]?.takeIf { it.expiresAtSec - 60 > now() } ?: run {
             val ids = (listOf(trackId) + lookahead(trackId)).distinct().take(6)
             fetch(ids, net).forEach { cache[it.trackId to net] = it }
@@ -47,7 +55,12 @@ class ManifestResolver(
         return Resolved(url, tier, "$trackId:$tier")
     }
 
-    /** The signature expired or was refused: the next resolve fetches fresh URLs. */
+    /** Tracks that left the play window lose their pin; a later replay follows the network of then. */
+    fun unpinExcept(keep: Set<String>) {
+        pins.keys.retainAll(keep)
+    }
+
+    /** The signature expired or was refused: the next resolve fetches fresh URLs (same tier: the pin stays). */
     fun invalidate(trackId: String) {
         cache.keys.filter { it.first == trackId }.forEach { cache.remove(it) }
     }

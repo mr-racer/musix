@@ -19,8 +19,8 @@ android {
         applicationId = "ru.musixai.app"
         targetSdk = 36  // 37 once its behaviour changes are reviewed
         // Bump BOTH for every APK handed out; 1.0.0 was versionCode 1
-        versionCode = 3
-        versionName = "2.0.1"
+        versionCode = 4
+        versionName = "2.0.2"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
     signingConfigs {

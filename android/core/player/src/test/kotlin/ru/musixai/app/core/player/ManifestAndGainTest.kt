@@ -49,6 +49,23 @@ class ManifestAndGainTest {
     }
 
     @Test
+    fun `a started track keeps its tier when the network flips mid-song`() {
+        var net = Network.WIFI
+        val r = ManifestResolver(
+            fetch = { ids, n -> ids.map { ManifestEntry(it, listOf((if (n == Network.WIFI) "lossless" else "high") to "https://m/$it/${n.wire}"), null, 9_999_999_999) } },
+            network = { net },
+            lookahead = { emptyList() },
+        )
+        val first = r.resolve("a")
+        net = Network.CELLULAR  // a Wi-Fi hiccup or a VPN reconnect, while «a» plays
+        assertEquals(first, r.resolve("a"))  // the reopened load continues the SAME file at its offset
+        r.invalidate("a")  // a 403 mid-song: a fresh signature, still the same tier
+        assertEquals("a:lossless", r.resolve("a").cacheKey)
+        r.unpinExcept(setOf("b"))  // «a» left the play window
+        assertEquals("a:high", r.resolve("a").cacheKey)  // a later replay follows the network
+    }
+
+    @Test
     fun `normalization attenuates by volume and boosts through PCM gain, clamped`() {
         assertEquals(Normalization.Plan(1f, 0f), Normalization.plan(null, true))
         assertEquals(Normalization.Plan(1f, 0f), Normalization.plan(-6.0, false))
