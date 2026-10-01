@@ -239,6 +239,7 @@ SOURCES: dict[str, tuple[float, float, bool]] = {
     # name: (tokens/s, burst, breaker) — one budget for the whole instance
     "wikipedia": (5.0, 5.0, True),
     "duckduckgo": (1.0, 2.0, True),
+    "bing": (1.0, 2.0, True),
     "reddit": (0.5, 1.0, True),
     "web-pages": (8.0, 8.0, False),  # arbitrary hosts: paced as one, no shared breaker
     "searxng": (1.0 / 1.5, 1.0, False),  # = searxng_client's pacing (a local instance)

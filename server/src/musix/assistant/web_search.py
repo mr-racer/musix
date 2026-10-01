@@ -16,7 +16,7 @@ from __future__ import annotations
 import logging
 import os
 import re
-from urllib.parse import urlparse
+from urllib.parse import parse_qs, urlencode, urlparse, urlsplit
 
 import httpx
 
@@ -365,25 +365,93 @@ def search_searxng(query: str, max_results: int = 5, engines: str | None = None)
             "[searxng] query=%r → %d results: %s", query, len(results), _describe_results(results)
         )
         if not results:
-            logger.warning("[searxng] 0 results for query=%r, falling back to DDG", query)
-            return search_ddg(query, max_results)
+            logger.warning("[searxng] 0 results for query=%r, falling back to Bing/DDG", query)
+            return _fallback(query, max_results)
         return results
     except httpx.ConnectError:
         logger.warning(
-            "[searxng] connection refused (%s not reachable), falling back to DDG", SEARXNG_URL
+            "[searxng] connection refused (%s not reachable), falling back to Bing/DDG", SEARXNG_URL
         )
-        return search_ddg(query, max_results)
+        return _fallback(query, max_results)
     except httpx.TimeoutException:
-        logger.warning("[searxng] timeout for query=%r, falling back to DDG", query)
-        return search_ddg(query, max_results)
+        logger.warning("[searxng] timeout for query=%r, falling back to Bing/DDG", query)
+        return _fallback(query, max_results)
     except httpx.HTTPStatusError as e:
         logger.warning(
-            "[searxng] HTTP %s for query=%r, falling back to DDG", e.response.status_code, query
+            "[searxng] HTTP %s for query=%r, falling back to Bing/DDG", e.response.status_code, query
         )
-        return search_ddg(query, max_results)
+        return _fallback(query, max_results)
     except Exception as e:
-        logger.warning("[searxng] unexpected error for query=%r: %s, falling back to DDG", query, e)
-        return search_ddg(query, max_results)
+        logger.warning("[searxng] unexpected error for query=%r: %s, falling back to Bing/DDG", query, e)
+        return _fallback(query, max_results)
+
+
+def _fallback(query: str, max_results: int) -> list[dict]:
+    """SearXNG came back empty: Bing directly, then DuckDuckGo."""
+    return search_bing(query, max_results) or search_ddg(query, max_results)
+
+
+def search_bing(query: str, max_results: int = 5) -> list[dict]:
+    """Fallback: Bing's result page, fetched directly with Chrome's TLS fingerprint.
+
+    From this host SearXNG's engines are blocked: Brave rate-limits, DuckDuckGo and
+    Startpage answer with a CAPTCHA, and its Bing engine times out on HTTP/1.1, which
+    suspends it. A direct HTTP/2 request answers in under a second (2026-10-02), so web
+    answers came back empty until this. There are two attempts, because some connections
+    to foreign hosts are dropped here.
+    """
+    try:
+        from bs4 import BeautifulSoup
+        from curl_cffi import requests as curl_requests
+    except ImportError:
+        return []
+    from musix.assistant.compat import outbound
+
+    url = "https://www.bing.com/search?" + urlencode({"q": query, "count": max(10, max_results)})
+    html = ""
+    for attempt in (1, 2):
+        try:
+            with outbound("bing"):
+                r = curl_requests.get(url, impersonate="chrome124", timeout=8, headers={"Accept-Language": "ru,en;q=0.8"})
+            if r.status_code == 200:
+                html = r.text
+                break
+            logger.warning("[bing] HTTP %s for query=%r", r.status_code, query)
+        except Exception as e:  # noqa: BLE001 — a dropped connection, the breaker
+            logger.warning("[bing] attempt %d failed for query=%r: %s", attempt, query, e)
+    if not html:
+        return []
+    out: list[dict] = []
+    for li in BeautifulSoup(html, "lxml").select("li.b_algo"):
+        a = li.select_one("h2 a")
+        if a is None or not a.get("href"):
+            continue
+        snippet = li.select_one(".b_caption p") or li.select_one("p")
+        out.append({
+            "title": a.get_text(" ", strip=True),
+            "url": _bing_target(str(a["href"])),
+            "content": snippet.get_text(" ", strip=True) if snippet else "",
+        })
+        if len(out) >= max_results:
+            break
+    logger.info("[bing] query=%r → %d results: %s", query, len(out), _describe_results(out))
+    return out
+
+
+def _bing_target(href: str) -> str:
+    """Bing wraps results as `bing.com/ck/a?…&u=a1<base64url of the target>`: the target itself."""
+    if "bing.com/ck/a" not in href:
+        return href
+    u = parse_qs(urlsplit(href).query).get("u", [""])[0]
+    if u.startswith("a1"):
+        import base64
+
+        raw = u[2:] + "=" * (-len(u[2:]) % 4)
+        try:
+            return base64.urlsafe_b64decode(raw).decode()
+        except Exception:  # noqa: BLE001
+            pass
+    return href
 
 
 def search_ddg(query: str, max_results: int = 5) -> list[dict]:
@@ -439,18 +507,32 @@ def _http_get_text_raw(url: str, timeout: float = 12.0) -> str:
     except ImportError:
         curl_requests = None
     if curl_requests is not None:
-        kwargs: dict = {"timeout": timeout, "allow_redirects": True, "impersonate": "chrome124"}
+        # Direct first, then the proxy. Through the host-local proxy, ordinary sites time
+        # out; directly, Wikipedia is blocked from this host (2026-10-02). So each page
+        # takes whichever road reaches it.
         proxies = get_proxy()
-        if proxies:
-            kwargs["proxies"] = proxies
-        try:
-            resp = curl_requests.get(url, **kwargs)
-        except Exception:
-            # Older curl_cffi may not know this impersonation target — retry plain.
-            kwargs.pop("impersonate", None)
-            resp = curl_requests.get(url, **kwargs)
-        resp.raise_for_status()
-        return resp.text
+        last: Exception | None = None
+        for via in ([None, proxies] if proxies else [None]):
+            kwargs: dict = {"timeout": min(timeout, 8.0) if via is None and proxies else timeout, "allow_redirects": True, "impersonate": "chrome124"}
+            if via:
+                kwargs["proxies"] = via
+            try:
+                try:
+                    resp = curl_requests.get(url, **kwargs)
+                except Exception as e:
+                    if "impersonat" not in str(e).lower():
+                        raise
+                    # Older curl_cffi may not know this impersonation target — retry plain.
+                    kwargs.pop("impersonate", None)
+                    resp = curl_requests.get(url, **kwargs)
+                if via is None and proxies and resp.status_code in (403, 451):
+                    last = httpx.HTTPStatusError(f"HTTP {resp.status_code}", request=None, response=None)  # type: ignore[arg-type]
+                    continue  # blocked here; the proxy may reach it
+                resp.raise_for_status()
+                return resp.text
+            except Exception as e:  # noqa: BLE001
+                last = e
+        raise last if last else RuntimeError("fetch failed")
     headers = {
         "User-Agent": (
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "

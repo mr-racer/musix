@@ -513,6 +513,10 @@ engines:
     disabled: true
 
   - name: wikipedia
+    # Wikipedia is blocked from this host's IP; the host-local proxy (proxy-bridge on docker0) reaches it (2026-10-02). The other engines go direct: through the proxy they time out.
+    proxies:
+      all://:
+        - http://172.17.0.1:10809
     engine: wikipedia
     shortcut: wp
     # "list" обязателен: без него Википедия отдаёт только infobox, а страницы
@@ -785,6 +789,9 @@ engines:
     inactive: true
 
   - name: wikidata
+    proxies:
+      all://:
+        - http://172.17.0.1:10809
     engine: wikidata
     shortcut: wd
     timeout: 3.0

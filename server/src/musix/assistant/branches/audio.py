@@ -20,6 +20,7 @@ towards whatever that artist's most typical track sounds like.
 from __future__ import annotations
 
 import asyncio
+import re
 import logging
 from typing import Optional
 
@@ -54,7 +55,7 @@ class AudioBranch:
 
         if not queries:
             return AudioResult(
-                title=_title(message),
+                title=_title(plan.filters.style or message),
                 comment=_no_prompt(self.cfg.lang),
                 notes=["clap rephrasing failed"],
             )
@@ -106,20 +107,22 @@ class AudioBranch:
 
         if not by_id:
             return AudioResult(
-                title=_title(message),
+                title=_title(plan.filters.style or message),
                 comment=_nothing(self.cfg.lang),
                 queries=queries,
                 notes=["nothing matched"],
             )
 
         merged = _rrf(rankings, k=self.cfg.clap_rrf_k)
-        tracks = [by_id[tid] for tid, _ in merged[: self.cfg.clap_result_count]]
+        # «собери из 10 треков» is honoured; otherwise the configured size
+        want = plan.filters.count or self.cfg.clap_result_count
+        tracks = [by_id[tid] for tid, _ in merged[: max(3, min(want, 40))]]
         for rank, (tid, score) in enumerate(merged[: len(tracks)]):
             by_id[tid].score = float(score)
 
         self.sink.put("result", tracks=len(tracks), missing=0)
         return AudioResult(
-            title=_title(message),
+            title=_title(plan.filters.style or message),
             comment=_caption(len(tracks), artist, self.cfg.lang),
             tracks=tracks,
             queries=queries,
@@ -208,8 +211,23 @@ def _rrf(rankings: list, *, k: int = 60) -> list:
     return sorted(scores.items(), key=lambda kv: -kv[1])
 
 
-def _title(message: str) -> str:
-    return " ".join((message or "").split())[:80] or "Подборка"
+# «найди в моей библиотеке что-то», «собери плейлист из 10 треков»: the request around the
+# description, not a title for it
+_ASK = re.compile(
+    r"^(?:пожалуйста[,\s]+)?(?:найди|подбери|собери|сделай|составь|включи|поставь|дай|покажи|хочу|find|make|build|play|give me)\b"
+    r"(?:\s+(?:мне|в\s+моей\s+библиотеке|из\s+библиотеки|плейлист|подборку|треки|песни|музыку|что-?(?:то|нибудь)|playlist|songs|tracks|music|some|из\s+\d+\s+\w+))*"
+    r"(?:\s+(?:по\s+звучанию\s+)?похож\w*\s+на)?\s*",
+    re.I,
+)
+
+
+def _title(text: str) -> str:
+    """The playlist's name: the user's own description of sound, capitalised, without
+    the request around it. Before, the whole sentence was the title («найди в моей
+    библиотеке что-то по звучанию похожее на …»)."""
+    t = " ".join((text or "").split())
+    core = _ASK.sub("", t).strip(" ,.!?") or t
+    return (core[:1].upper() + core[1:])[:80] or "Подборка по звучанию"
 
 
 def _caption(count: int, artist: Optional[str], lang: str) -> str:
