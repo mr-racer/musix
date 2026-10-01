@@ -20,6 +20,11 @@
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <Version>2.0.0</Version>
   </PropertyGroup>
+  <!-- Windows: the MSIX tooling generates MusiX.pri even though the app is unpackaged.
+       Without it, XamlControlsResources finds no theme resources and the app dies at start. -->
+  <PropertyGroup Condition="'$(OS)' == 'Windows_NT'">
+    <EnableMsixTooling>true</EnableMsixTooling>
+  </PropertyGroup>
   <!-- Linux compile check only: the Windows-only resource tooling is off there -->
   <PropertyGroup Condition="'$(OS)' != 'Windows_NT'">
     <AppxGeneratePriEnabled>false</AppxGeneratePriEnabled>

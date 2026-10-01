@@ -5,17 +5,44 @@ namespace Musix.App;
 
 public static class Program
 {
+    /// <summary>
+    /// Where a crash leaves its trace (%LOCALAPPDATA%\MusiX\crash.log). An unpackaged WinUI app
+    /// that dies at start shows nothing at all, so the log is the only report there is.
+    /// </summary>
+    public static string CrashLog => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "MusiX", "crash.log");
+
+    public static void Crash(string where, Exception? e)
+    {
+        try
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(CrashLog)!);
+            File.AppendAllText(CrashLog, $"{DateTime.Now:O} {where}: {e}\n\n");
+        }
+        catch (Exception) { /* nothing left to report to */ }
+    }
+
     [STAThread]
     public static void Main(string[] args)
     {
-        // Velopack's install/update hooks run first and may exit (spec §5)
-        VelopackApp.Build().Run();
-        WinRT.ComWrappersSupport.InitializeComWrappers();
-        Application.Start(p =>
+        AppDomain.CurrentDomain.UnhandledException += (_, e) => Crash("domain", e.ExceptionObject as Exception);
+        TaskScheduler.UnobservedTaskException += (_, e) => { Crash("task", e.Exception); e.SetObserved(); };
+        try
         {
-            var ctx = new Microsoft.UI.Dispatching.DispatcherQueueSynchronizationContext(Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread());
-            SynchronizationContext.SetSynchronizationContext(ctx);
-            _ = new App();
-        });
+            // Velopack's install/update hooks run first and may exit (spec §5)
+            VelopackApp.Build().Run();
+            WinRT.ComWrappersSupport.InitializeComWrappers();
+            Application.Start(p =>
+            {
+                var ctx = new Microsoft.UI.Dispatching.DispatcherQueueSynchronizationContext(Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread());
+                SynchronizationContext.SetSynchronizationContext(ctx);
+                var app = new App();
+                app.UnhandledException += (_, e) => Crash("xaml", e.Exception);
+            });
+        }
+        catch (Exception e)
+        {
+            Crash("start", e);
+            throw;
+        }
     }
 }
