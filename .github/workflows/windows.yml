@@ -1,0 +1,38 @@
+# MusiX for Windows: built on a Windows runner (the WinUI XAML compiler and PRI generation run
+# only there). Output: a self-contained portable zip (.NET and the Windows App SDK included,
+# nothing to install) — unzip and run MusiX.exe.
+name: windows
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version (x.y.z)"
+        required: false
+        default: "2.0.1"
+  push:
+    branches: [v2]
+    paths: ["windows/**", ".github/workflows/windows.yml"]
+
+jobs:
+  build:
+    runs-on: windows-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+      - name: Core tests
+        run: dotnet test windows/tests/Musix.Core.Tests -c Release --nologo
+      - name: Publish (self-contained, win-x64)
+        shell: pwsh
+        run: |
+          $v = "${{ github.event.inputs.version }}"; if (-not $v) { $v = "2.0.1" }
+          dotnet publish windows/src/Musix.App -c Release -r win-x64 --self-contained -p:Version=$v -o out/MusiX
+          Compress-Archive -Path out/MusiX/* -DestinationPath "out/MusiX-$v-win-x64.zip"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MusiX-win-x64
+          path: out/*.zip
+          retention-days: 14
