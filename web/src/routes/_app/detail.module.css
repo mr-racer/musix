@@ -34,10 +34,12 @@
   background: radial-gradient(40% 55% at 72% 30%, color-mix(in oklch, var(--tint) 28%, transparent), transparent 70%),
     radial-gradient(60% 60% at 10% 10%, #1b1730, transparent 70%), var(--mx-bg); }
 :root[data-theme="light"] .atlasGlow { background: radial-gradient(40% 55% at 72% 30%, color-mix(in oklch, var(--tint) 18%, transparent), transparent 70%), var(--mx-bg); }
-.crumbs { font-size: 10.5px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--mx-text-subtle); padding-left: 52px; }
+.crumbs { position: relative; z-index: 1; font-size: 10.5px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--mx-text-subtle); padding-left: 52px; }
 .crumbs b { color: var(--mx-text); font-weight: 600; }
 .crumbs a:hover { color: var(--mx-text); }
 .atlas { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 0.9fr); align-items: center; gap: 24px; padding-left: 52px; min-height: 380px; }
+.atlas { position: relative; isolation: isolate; }
+.atlasCut .atlasName { text-shadow: 0 2px 30px color-mix(in oklch, var(--mx-bg) 60%, transparent); }
 .atlasText { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
 .atlasName { font-family: var(--mx-font-text); font-weight: 300; font-size: clamp(48px, 6vw, 84px); line-height: 1; letter-spacing: -0.02em; }
 .atlasTags { font-size: 13px; font-weight: 600; letter-spacing: 0.16em; text-transform: uppercase; color: #d9d2ff; margin-top: 8px; }
