@@ -42,6 +42,7 @@ import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import ru.musixai.app.core.designsystem.component.rise
 import ru.musixai.app.core.designsystem.MusixFontFamilies
 import ru.musixai.app.core.designsystem.MusixTheme
 import ru.musixai.app.core.designsystem.component.BrandMark
@@ -69,23 +70,24 @@ fun LoginScreen(ui: AuthUi, edit: (AuthUi.() -> AuthUi) -> Unit, saveServer: (St
                 .padding(start = 18.dp, end = 18.dp, top = 56.dp, bottom = 40.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+            // v1 `.login-rise` (fadeInUp 600 ms): brand → title .08 s → line .16 s, the card .14 s
+            Row(Modifier.rise(0, distance = 20.dp, durationMs = 600), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
                 BrandMark(46.dp)
                 Text("MUSIX", style = MusixTheme.type.mono.copy(fontSize = 15.sp, fontWeight = FontWeight.SemiBold,
                     letterSpacing = 0.3.em, color = Color(0xD9EEEEF3)))
             }
             Text(
                 "Подними свой Spotify у себя дома",
-                modifier = Modifier.padding(top = 22.dp, bottom = 12.dp),
+                modifier = Modifier.padding(top = 22.dp, bottom = 12.dp).rise(80, distance = 20.dp, durationMs = 600),
                 style = MusixTheme.type.display.copy(fontSize = 30.sp, color = Color(0xFFF1EEFF), textAlign = TextAlign.Center),
             )
             Text(
                 "Бесплатно, на твоих файлах и без буллшита в рекомендациях. Не только слушай музыку — узнавай её.",
-                modifier = Modifier.widthIn(max = 440.dp),
+                modifier = Modifier.widthIn(max = 440.dp).rise(160, distance = 20.dp, durationMs = 600),
                 style = MusixTheme.type.body.copy(fontSize = 15.sp, lineHeight = 1.55.em, color = Color(0x99EEEEF3), textAlign = TextAlign.Center),
             )
             Spacer(Modifier.height(28.dp))
-            LiquidGlass(Modifier.fillMaxWidth().widthIn(max = 460.dp)) {
+            LiquidGlass(Modifier.fillMaxWidth().widthIn(max = 460.dp).rise(140, distance = 20.dp, durationMs = 600)) {
                 Column(Modifier.padding(horizontal = 24.dp, vertical = 28.dp)) {
                     ServerRow(ui, edit, saveServer)
                     Eyebrow("Общий сервер", Modifier.padding(bottom = 18.dp), color = Color(0x80EEEEF3))
