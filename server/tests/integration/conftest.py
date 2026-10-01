@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import shutil
 import uuid
 from collections.abc import Iterator
@@ -40,7 +41,21 @@ def settings(tmp_path_factory: pytest.TempPathFactory) -> Iterator[Settings]:
         cfg = Config(str(SERVER / "alembic.ini"))
         cfg.attributes["url"] = s.sqlalchemy_sync_url
         command.upgrade(cfg, "head")
-        yield s
+        # The worker context builds its own Settings() from the env and the defaults, so it
+        # gets pointed here too. Without this, in-process tasks reached the dev stack's
+        # Postgres and Qdrant. Nobody noticed until that stack was stopped (2026-10-01).
+        env = {"MUSIX_DATABASE_URL": s.database_url, "MUSIX_QDRANT_URL": s.qdrant_url,
+               "MUSIX_SECRETS_DIR": s.secrets_dir, "MUSIX_MEDIA_DIR": s.media_dir}
+        before = {k: os.environ.get(k) for k in env}
+        os.environ.update(env)
+        try:
+            yield s
+        finally:
+            for k, v in before.items():
+                if v is None:
+                    os.environ.pop(k, None)
+                else:
+                    os.environ[k] = v
 
 
 @pytest.fixture
