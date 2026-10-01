@@ -1,0 +1,44 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    MusiX for Windows (phase 7): WinUI 3, unpackaged, self-contained. The UI is built in code
+    (no XAML pages), so the C# compiles and type-checks on the Linux dev box too; the XAML
+    compiler and PRI generation only run on Windows, where the real build happens.
+  -->
+  <PropertyGroup>
+    <ApplicationIcon>Assets\musix.ico</ApplicationIcon>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
+    <TargetPlatformMinVersion>10.0.17763.0</TargetPlatformMinVersion>
+    <RootNamespace>Musix.App</RootNamespace>
+    <AssemblyName>MusiX</AssemblyName>
+    <UseWinUI>true</UseWinUI>
+    <WindowsPackageType>None</WindowsPackageType>
+    <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
+    <SelfContained>true</SelfContained>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <Version>2.0.0</Version>
+  </PropertyGroup>
+  <!-- Linux compile check only: the Windows-only resource tooling is off there -->
+  <PropertyGroup Condition="'$(OS)' != 'Windows_NT'">
+    <AppxGeneratePriEnabled>false</AppxGeneratePriEnabled>
+    <EnableMsixTooling>false</EnableMsixTooling>
+    <WindowsAppSDKSelfContained>false</WindowsAppSDKSelfContained>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.8.*" />
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.*" />
+    <PackageReference Include="H.NotifyIcon.WinUI" Version="2.*" />
+    <PackageReference Include="Velopack" Version="0.*" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Musix.Core\Musix.Core.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- one source of truth: the design tokens' generated theme and the Android app's fonts -->
+    <EmbeddedResource Include="..\..\..\design\gen\windows\MusixTheme.xaml" Link="Theme\MusixTheme.xaml" LogicalName="MusixTheme.xaml" />
+    <Content Include="Assets\musix.ico;Assets\musix.png" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\..\..\android\core\designsystem\src\main\res\font\*.ttf" Link="Fonts\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

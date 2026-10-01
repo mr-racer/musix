@@ -41,8 +41,8 @@ public sealed class Session(HttpClient http, Uri server, ITokenVault vault, stri
     public Task LoginAsync(string email, string password, CancellationToken ct = default) =>
         TokensFrom("api/v2/auth/login", new { email, password, device = Device }, ct);
 
-    public Task RegisterAsync(string email, string password, string? invite, CancellationToken ct = default) =>
-        TokensFrom("api/v2/auth/register", new { email, password, invite, device = Device }, ct);
+    public Task RegisterAsync(string email, string password, string inviteCode, CancellationToken ct = default) =>
+        TokensFrom("api/v2/auth/register", new { email, password, inviteCode, device = Device }, ct);
 
     public async Task<string?> RenewAsync(string? stale, CancellationToken ct)
     {

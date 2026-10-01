@@ -1,0 +1,149 @@
+using System.Text.Json.Nodes;
+using Dapper;
+using Musix.Core.Api;
+using Musix.Core.Local;
+using Musix.Core.Store;
+
+namespace Musix.Core.Playback;
+
+/// <summary>
+/// The queue's brain over a platform engine (Android's PlaybackService rules): list mode
+/// tops up from autoplay as the last item starts; «Поток» keeps a prefetch of 1–2 and, after
+/// a reaction or a skip, drops the tail chosen by the old profile and asks again. Every heard
+/// server track becomes a listen in the outbox; reactions go there too, as signals.
+/// </summary>
+public sealed class PlayerController
+{
+    private readonly IPlaybackEngine engine;
+    private readonly MusixHttp api;
+    private readonly Db db;
+    private readonly Action<string, string, JsonObject> enqueue;
+    private readonly ListenTracker tracker;
+    private readonly string session = Guid.NewGuid().ToString("N")[..16];
+    private readonly List<QueueItem> queue = [];
+    private bool refilling;
+    private int current = -1;
+
+    public PlayerController(IPlaybackEngine engine, MusixHttp api, Db db, Action<string, string, JsonObject> enqueue)
+    {
+        this.engine = engine;
+        this.api = api;
+        this.db = db;
+        this.enqueue = enqueue;
+        tracker = new ListenTracker((key, e) => enqueue("listen", key, e), session);
+        engine.CurrentChanged += OnCurrent;
+        engine.PlayingChanged += on => { tracker.Playing(on); Changed?.Invoke(); };
+    }
+
+    public event Action? Changed;
+    public QueueMode Mode { get; private set; } = QueueMode.List;
+    public string Context { get; private set; } = "queue";
+    public IReadOnlyList<QueueItem> Queue => queue;
+    public QueueItem? Current => current >= 0 && current < queue.Count ? queue[current] : null;
+    public bool IsPlaying => engine.IsPlaying;
+
+    /// <summary>Plays server tracks from the mirror, in order, from <paramref name="index"/>.</summary>
+    public void PlayTracks(IReadOnlyList<string> trackIds, int index, string context)
+    {
+        var rows = db.Conn.Query<(string Id, string Title, string Artist, long DurationMs, string? CoverImageId)>(
+            "SELECT id, title, artist, duration_ms, cover_image_id FROM tracks WHERE id IN @ids", new { ids = trackIds }).ToDictionary(r => r.Id);
+        var items = trackIds.Where(rows.ContainsKey).Select(id => rows[id]).Select(r => new QueueItem(r.Id, r.Title, r.Artist, r.Id, null, r.DurationMs, r.CoverImageId)).ToList();
+        Start(items, index, QueueMode.List, context);
+    }
+
+    /// <summary>Plays this PC's files at once (no network); a file linked to a server track also counts as a listen.</summary>
+    public void PlayLocal(IReadOnlyList<LocalTrack> files, int index) =>
+        Start(files.Select(f => new QueueItem($"local:{f.Id}", f.Title, f.Artist, f.ServerTrackId, f.Path, f.DurationMs ?? 0, null)).ToList(), index, QueueMode.List, "queue");
+
+    /// <summary>«Поток»: the server picks, three at a time, and keeps its own session state.</summary>
+    public async Task StartStreamAsync(CancellationToken ct = default)
+    {
+        var items = await NextChunk(QueuePolicy.StreamChunk, ct);
+        Start(items, 0, QueueMode.Stream, "stream");
+    }
+
+    public void Toggle() { if (engine.IsPlaying) engine.Pause(); else engine.Play(); }
+    public void Next() { tracker.End("skipped"); Signal(StreamSignal.Skip); engine.Next(); }
+    public void Previous() => engine.Previous();
+    public void Seek(TimeSpan to) { tracker.Interacted(); engine.Seek(to); }
+
+    /// <summary>огонёк / вода: a signal in the outbox; in «Поток» the stale tail goes and new picks come.</summary>
+    public void React(string kind)
+    {
+        if (Current?.ServerTrackId is not { } id) return;
+        tracker.Interacted();
+        var key = Guid.NewGuid().ToString();
+        enqueue("signal", key, new JsonObject { ["trackId"] = id, ["kind"] = kind, ["clientEventId"] = key, ["sessionId"] = session });
+        Signal(StreamSignal.Reaction);
+    }
+
+    private void Start(List<QueueItem> items, int index, QueueMode mode, string context)
+    {
+        tracker.End("stopped");
+        Mode = mode;
+        Context = context;
+        queue.Clear();
+        queue.AddRange(items);
+        current = -1;
+        engine.Replace(items, Math.Clamp(index, 0, Math.Max(0, items.Count - 1)));
+        Changed?.Invoke();
+    }
+
+    private void OnCurrent(int index)
+    {
+        if (index == current) return;
+        if (current >= 0) tracker.End(index == current + 1 ? "completed" : "skipped");
+        current = index;
+        if (Current is { } item) { tracker.Start(item, Context); tracker.Playing(engine.IsPlaying); }
+        Changed?.Invoke();
+        _ = Refill();
+    }
+
+    private void Signal(StreamSignal s)
+    {
+        if (Mode != QueueMode.Stream) return;
+        if (QueuePolicy.DropAfterSignal(s, current, queue.Count) is { } drop)
+        {
+            var (from, len) = drop.GetOffsetAndLength(queue.Count);
+            queue.RemoveRange(from, len);
+            engine.RemoveRange(drop);
+        }
+        _ = Refill();
+    }
+
+    private async Task Refill()
+    {
+        if (refilling) return;
+        refilling = true;
+        try
+        {
+            if (Mode == QueueMode.Stream && QueuePolicy.NeedsStreamRefill(queue.Count, current))
+            {
+                var more = await NextChunk(QueuePolicy.StreamChunk, default);
+                queue.AddRange(more);
+                engine.Append(more);
+            }
+            else if (Mode == QueueMode.List && QueuePolicy.NeedsListTopUp(queue.Count, current) && Current?.ServerTrackId is { } seed)
+            {
+                var exclude = queue.Select(q => q.ServerTrackId).OfType<string>().TakeLast(QueuePolicy.PlayedExcludeMax).ToArray();
+                var r = await api.SendJsonAsync(HttpMethod.Post, "api/v2/stream/autoplay",
+                    new { seedTrackId = seed, excludeIds = exclude, limit = QueuePolicy.AutoplayLimit });
+                var more = Tracks(r?["tracks"]?.AsArray());
+                queue.AddRange(more);
+                engine.Append(more);
+            }
+        }
+        catch (Exception) { /* offline: the queue just ends; the next start tries again */ }
+        finally { refilling = false; Changed?.Invoke(); }
+    }
+
+    private async Task<List<QueueItem>> NextChunk(int n, CancellationToken ct) =>
+        Items(await api.GetJsonAsync($"api/v2/stream/next?sessionId={session}&n={n}&lang=ru&tzOffsetMinutes={(int)TimeZoneInfo.Local.GetUtcOffset(DateTime.Now).TotalMinutes}", ct));
+
+    private static List<QueueItem> Items(JsonNode? r) => Tracks(new JsonArray((r?["items"]?.AsArray() ?? []).Select(it => it?["track"]?.DeepClone()).ToArray()));
+
+    private static List<QueueItem> Tracks(JsonArray? tracks) =>
+        (tracks ?? []).OfType<JsonObject>().Select(t => new QueueItem(
+            t["id"]!.GetValue<string>(), t["titleDisplay"]?.GetValue<string>() ?? t["title"]!.GetValue<string>(), t["artistDisplay"]?.GetValue<string>() ?? "",
+            t["id"]!.GetValue<string>(), null, t["durationMs"]?.GetValue<long>() ?? 0, t["coverImageId"]?.GetValue<string>())).ToList();
+}
