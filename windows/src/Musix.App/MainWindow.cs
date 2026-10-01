@@ -100,6 +100,22 @@ public sealed class MainWindow : Window
         rail.IsBackEnabled = history.Count > 0;
     }
 
+    /// <summary>A downloaded update waits: a bar over the page offers the restart (never forced).</summary>
+    public void ShowUpdate(string version)
+    {
+        if (root.Children.OfType<InfoBar>().Any()) return;
+        var restart = new Button { Content = "Перезапустить" };
+        restart.Click += (_, _) => App.Shared.Updates.ApplyAndRestart();
+        var info = new InfoBar
+        {
+            Title = $"MusiX {version} готов", Message = "Обновление скачано и установится при перезапуске.", IsOpen = true,
+            Severity = InfoBarSeverity.Informational, ActionButton = restart,
+            HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(0, 12, 16, 0), MaxWidth = 460,
+        };
+        info.Closed += (_, _) => root.Children.Remove(info);
+        root.Children.Add(info);
+    }
+
     /// <summary>Opens an album; its cover flies from the tile into the header (a connected animation).</summary>
     public void OpenAlbum(string id, Image from)
     {

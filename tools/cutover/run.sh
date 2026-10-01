@@ -63,7 +63,8 @@ case "$step" in
     [ -f "$D/musix-1.0.0.apk" ] || cp -p /mnt/data/lyrics-search/downloads/musix.apk "$D/musix-1.0.0.apk"
     cp "$APK" "$D/musix.apk"
     SHA=$(sha256sum "$D/musix.apk" | cut -d' ' -f1)
-    printf '{"android": {"versionCode": 2, "versionName": "2.0.0", "url": "/download/musix.apk", "sha256": "%s", "notes": "MusiX 2"}}\n' "$SHA" > "$D/manifest.json"
+    # merge: the windows entry (tools/windows/publish.sh) stays
+    python3 -c 'import json,pathlib,sys; p=pathlib.Path(sys.argv[1]); m=json.loads(p.read_text()) if p.exists() else {}; m["android"]={"versionCode":2,"versionName":"2.0.0","url":"/download/musix.apk","sha256":sys.argv[2],"notes":"MusiX 2"}; p.write_text(json.dumps(m,ensure_ascii=False,indent=2)+"\n")' "$D/manifest.json" "$SHA"
     done_ "published" ;;
   rollback) yes "$@"; SINCE=${1:?SINCE (the switch time)}
     "${P[@]}" stop nginx ml worker-ai

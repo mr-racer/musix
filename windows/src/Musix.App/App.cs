@@ -34,9 +34,11 @@ public sealed class App : Application
     public PlayerController Player { get; private set; } = null!;
     public MainWindow Window { get; private set; } = null!;
     public Tray? Tray { get; private set; }
+    public Updates Updates { get; private set; } = null!;
 
     private readonly HttpClient http = new() { Timeout = TimeSpan.FromSeconds(60) };
     private Timer? loop;
+    private Timer? updates;
 
     protected override void OnLaunched(LaunchActivatedEventArgs args)
     {
@@ -63,6 +65,7 @@ public sealed class App : Application
         Outbox = new Musix.Core.Outbox.Outbox(Db, Api);
         Local = new LocalLibrary(Db, Path.Combine(AppSettings.Dir, "covers"));
         Uploader = new Uploader(Api, Local);
+        Updates = new Updates(server);
         Engine?.Dispose();
         Engine = new MediaEngine(Api, id => CoverUrl(id, 512));
         Player = new PlayerController(Engine, Api, Db, (kind, key2, payload) => Outbox.Enqueue(kind, key2, payload));
@@ -80,11 +83,17 @@ public sealed class App : Application
             try { await Uploader.LinkAsync(); } catch (Exception) { }
             Window.DispatcherQueue.TryEnqueue(() => Window.Refresh());
         }, null, TimeSpan.Zero, TimeSpan.FromMinutes(2));
+        updates?.Dispose();
+        updates = new Timer(async _ =>
+        {
+            try { if (await Updates.CheckAsync()) Window.DispatcherQueue.TryEnqueue(() => Window.ShowUpdate(Updates.Ready!)); }
+            catch (Exception) { /* no feed, offline: the next check tries again */ }
+        }, null, TimeSpan.FromSeconds(20), TimeSpan.FromHours(6));
         if (Settings.Folders.Count > 0)
             Local.Watch(Settings.Folders, TimeSpan.FromSeconds(5), t => t.ContinueWith(_ => Window.DispatcherQueue.TryEnqueue(() => Window.Refresh())));
     }
 
-    public void StopLoops() { loop?.Dispose(); loop = null; Local.StopWatching(); }
+    public void StopLoops() { loop?.Dispose(); loop = null; updates?.Dispose(); updates = null; Local.StopWatching(); }
 
     /// <summary>The smallest variant at least <paramref name="px"/> wide (the mirror keeps the signed URLs).</summary>
     public Uri? CoverUrl(string? imageId, int px)

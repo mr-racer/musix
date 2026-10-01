@@ -22,6 +22,10 @@ function SettingsView() {
   const qc = useQueryClient();
   const devices = useQuery({ queryKey: ["devices"], queryFn: () => ok(api.GET("/api/v2/devices")) });
   const cacheRows = useLive(() => db.tracks.count(), [], 0);
+  const apps = useQuery({ queryKey: ["apps"], queryFn: async () => {
+    const one = async (platform: "android" | "windows") => (await api.GET("/api/v2/app/{platform}/latest", { params: { path: { platform } } })).data ?? null;
+    return { android: await one("android"), windows: await one("windows") };
+  }, staleTime: 3_600_000 });
 
   return (
     <div className={css.page}>
@@ -65,6 +69,14 @@ function SettingsView() {
         <Row label="Импорт из Яндекс Музыки"><Link to="/import" className={css.link}>Открыть →</Link></Row>
         <Row label="В этом браузере" hint="Копия библиотеки для мгновенного открытия">{(cacheRows ?? 0).toLocaleString("ru")} треков</Row>
       </section>
+
+      {(apps.data?.android || apps.data?.windows) && (
+        <section className={css.card}>
+          <div className={css.eyebrow}>Приложения</div>
+          {apps.data.android && <Row label="Android" hint={`Версия ${apps.data.android.versionName}`}><a href={apps.data.android.url} className={css.link}>Скачать APK →</a></Row>}
+          {apps.data.windows && <Row label="Windows" hint={`Версия ${apps.data.windows.versionName} · обновляется само`}><a href={apps.data.windows.url} className={css.link}>Скачать установщик →</a></Row>}
+        </section>
+      )}
 
       <section className={css.card}>
         <div className={css.eyebrow}>Аккаунт</div>
