@@ -1,0 +1,8 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Musix.Core/Musix.Core.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Musix.Core.Tests/Musix.Core.Tests.csproj" />
+  </Folder>
+</Solution>
