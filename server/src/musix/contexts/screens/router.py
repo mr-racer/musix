@@ -11,7 +11,7 @@ from musix.contexts.knowledge.service import knowledge_version
 from musix.contexts.screens import schemas as S
 from musix.contexts.screens import service, stats
 from musix.contexts.stream.models import taste_maps, taste_profile
-from musix.errors import Invalid
+from musix.errors import Invalid, NotFound
 from musix.schemas import ID_LIST
 
 router = APIRouter(tags=["screens"])
@@ -143,6 +143,21 @@ async def albums(
     return await etag.conditional(
         request, response, tag, lambda: service.albums_by_ids(_ctx(request, p), parsed)
     )
+
+
+@router.get("/artists/by-slug/{slug}", response_model=S.ArtistOut)
+async def artist_by_slug(slug: str, p: Auth, request: Request) -> Any:
+    """The assistant names artists by slug (v1's key); clients open pages by id."""
+    import sqlalchemy as sa
+
+    from musix.contexts.library.models import artists
+
+    c = _ctx(request, p)
+    aid = await c.run(lambda s: s.scalar(sa.select(artists.c.id).where(artists.c.slug == slug)))
+    found = await service.artists_by_ids(c, [aid]) if aid else []
+    if not found:
+        raise NotFound("artist")
+    return found[0]
 
 
 @router.get("/artists", response_model=list[S.ArtistOut], responses=etag.NOT_MODIFIED)
