@@ -39,6 +39,9 @@ data class Image(
 
 data class Artist(val id: String, val name: String, val sortName: String?, val imageId: String?)
 
+/** A «Настроить волну» choice (`GET /stream/presets`): a familiarity row and an optional sound row. */
+data class WavePreset(val id: String, val row: String, val label: String)
+
 /** One line of a browse list (Android Auto): an album or an artist with its counts. */
 data class BrowseEntry(val id: String, val title: String, val year: Int?, val artist: String?, val tracks: Int, val imageId: String?)
 

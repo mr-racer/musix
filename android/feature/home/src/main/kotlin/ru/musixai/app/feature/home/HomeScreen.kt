@@ -85,7 +85,7 @@ import java.util.Locale
 @Composable
 fun HomeRoute(onSearch: (String?) -> Unit, onSettings: () -> Unit, onLibrary: () -> Unit, vm: HomeViewModel = hiltViewModel()) {
     val ui by vm.ui.collectAsStateWithLifecycle()
-    HomeScreen(ui, vm::orb, vm::playVibe, onSearch, onSettings, onLibrary)
+    HomeScreen(ui, vm::orb, vm::playVibe, onSearch, onSettings, onLibrary, vm::toggleTune, { vm.pick(it) })
 }
 
 private val BRAND_BLOBS = listOf(Color(0xFF7C5BFF), Color(0xFFFF78C8), Color(0xFFE0B341), Color(0xFFB06BFF))
@@ -93,7 +93,8 @@ private val BRAND_BLOBS = listOf(Color(0xFF7C5BFF), Color(0xFFFF78C8), Color(0xF
 /** v1 `LandingScreen` in its mobile «Эфир» form: the hero (vibe + orb + вайбики), the
  *  lyrics-search path and the library path, over an aurora in the taste palette. */
 @Composable
-fun HomeScreen(ui: HomeUi, orb: () -> Unit, playVibe: (Vibe) -> Unit, onSearch: (String?) -> Unit, onSettings: () -> Unit, onLibrary: () -> Unit) {
+fun HomeScreen(ui: HomeUi, orb: () -> Unit, playVibe: (Vibe) -> Unit, onSearch: (String?) -> Unit, onSettings: () -> Unit, onLibrary: () -> Unit,
+               onTune: () -> Unit = {}, onPick: (ru.musixai.app.core.model.WavePreset) -> Unit = {}) {
     val c = MusixTheme.colors
     val dark = MusixTheme.isDark
     val home = ui.home
@@ -122,7 +123,7 @@ fun HomeScreen(ui: HomeUi, orb: () -> Unit, playVibe: (Vibe) -> Unit, onSearch: 
                 val p = ui.player
                 Hero(home, live, p.isPlaying, launching || (live && p.buffering && !p.isPlaying),
                     if (p.durationMs > 0) p.positionMs.toFloat() / p.durationMs else 0f, blobs,
-                    { if (!live) launching = true; orb() }, playVibe)
+                    { if (!live) launching = true; orb() }, playVibe, ui.tune, onTune, onPick)
                 LyricsSearch(onSubmit = { onSearch(it) })
                 LibraryCard(home, ui.tracks, onLibrary)
             }
@@ -171,7 +172,8 @@ private fun Header(onSearch: () -> Unit, onSettings: () -> Unit) {
 }
 
 @Composable
-private fun Hero(home: Home?, streamLive: Boolean, playing: Boolean, loading: Boolean, progress: Float, blobs: List<Color>, orb: () -> Unit, playVibe: (Vibe) -> Unit) {
+private fun Hero(home: Home?, streamLive: Boolean, playing: Boolean, loading: Boolean, progress: Float, blobs: List<Color>, orb: () -> Unit, playVibe: (Vibe) -> Unit,
+                 tune: Tune, onTune: () -> Unit, onPick: (ru.musixai.app.core.model.WavePreset) -> Unit) {
     val c = MusixTheme.colors
     val dark = MusixTheme.isDark
     val kicker = if (dark) Color(0xFFC9B8FF) else oklch(46f, 0.19f, 280f)
@@ -204,8 +206,12 @@ private fun Hero(home: Home?, streamLive: Boolean, playing: Boolean, loading: Bo
                     streamLive -> "Нажмите, чтобы продолжить волну"
                     else -> "Волна под ваш вкус — подстраивается под реакции"
                 }, Modifier.padding(top = 7.dp), style = MusixTheme.type.body.copy(fontSize = 13.sp, lineHeight = 1.45.em, color = c.textMuted))
-                TunePill()
+                TunePill(tune.open, onTune)
             }
+        }
+        androidx.compose.animation.AnimatedVisibility(tune.open, enter = androidx.compose.animation.expandVertically(tween(320)) + androidx.compose.animation.fadeIn(tween(240)),
+            exit = androidx.compose.animation.shrinkVertically(tween(260)) + androidx.compose.animation.fadeOut(tween(160))) {
+            TunePanel(tune, onPick)
         }
         val vibes = home?.vibes.orEmpty()
         if (vibes.isNotEmpty()) {
@@ -236,19 +242,52 @@ private fun HeroEq() {
 }
 
 @Composable
-private fun TunePill() {
+private fun TunePill(open: Boolean, onClick: () -> Unit) {
     val c = MusixTheme.colors
     val dark = MusixTheme.isDark
-    var open by remember { mutableStateOf(false) }
+    val turn by androidx.compose.animation.core.animateFloatAsState(if (open) 180f else 0f, tween(260), label = "chevron")
     Row(
         Modifier.padding(top = 14.dp).clip(RoundedCornerShape(999.dp))
             .background(if (dark) Color(0x0AFFFFFF) else Color(0x08000000))
-            .pressable { open = !open }.padding(horizontal = 14.dp, vertical = 8.dp),
+            .pressable(onClick = onClick).padding(horizontal = 14.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         Icon(MusixIcons.Settings, null, Modifier.size(14.dp), tint = c.textMuted)
         Text("НАСТРОИТЬ ВОЛНУ", style = MusixTheme.type.mono.copy(fontSize = 11.5.sp, letterSpacing = 0.16.em, color = c.textMuted))
-        Icon(MusixIcons.ChevronDown, null, Modifier.size(12.dp).rotate(if (open) 180f else 0f), tint = c.textMuted)
+        Icon(MusixIcons.ChevronDown, null, Modifier.size(12.dp).rotate(turn), tint = c.textMuted)
+    }
+}
+
+/** The presets (web WaveSettings): «Что» — one of the familiarity choices; «Звук» — an optional sound, tap again to drop it. */
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+@Composable
+private fun TunePanel(tune: Tune, onPick: (ru.musixai.app.core.model.WavePreset) -> Unit) {
+    val c = MusixTheme.colors
+    val dark = MusixTheme.isDark
+    Column(Modifier.padding(top = 14.dp).fillMaxWidth().clip(RoundedCornerShape(18.dp))
+        .background(if (dark) Color(0x0DFFFFFF) else Color(0x0A000000)).padding(14.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        val list = tune.presets
+        when {
+            list == null -> Text("Загружаю…", style = MusixTheme.type.body.copy(fontSize = 13.sp, color = c.textMuted))
+            list.isEmpty() -> Text(tune.error ?: "Настроек пока нет", style = MusixTheme.type.body.copy(fontSize = 13.sp, color = c.textMuted))
+            else -> for ((row, label) in listOf("familiarity" to "ЧТО", "sound" to "ЗВУК")) {
+                val items = list.filter { it.row == row }
+                if (items.isEmpty()) continue
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(label, style = MusixTheme.type.mono.copy(fontSize = 10.5.sp, letterSpacing = 0.2.em, color = c.textSubtle))
+                    androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        for (p in items) {
+                            val on = if (row == "sound") tune.sound == p.id else tune.familiarity == p.id
+                            Text(p.label, Modifier.clip(RoundedCornerShape(999.dp))
+                                .background(if (on) c.accent else if (dark) Color(0x14FFFFFF) else Color(0x0F000000))
+                                .pressable { onPick(p) }.padding(horizontal = 14.dp, vertical = 8.dp),
+                                style = MusixTheme.type.body.copy(fontSize = 13.sp, fontWeight = if (on) FontWeight.SemiBold else FontWeight.Normal, color = if (on) Color.White else c.text))
+                        }
+                    }
+                }
+            }
+        }
+        if (tune.error != null && !list.isNullOrEmpty()) Text(tune.error, style = MusixTheme.type.body.copy(fontSize = 12.5.sp, color = c.red))
     }
 }
 
