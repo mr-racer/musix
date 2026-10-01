@@ -103,6 +103,27 @@ async def get_upload(upload_id: uuid.UUID, p: Auth, s: Session) -> S.UploadOut:
     return await service.get_upload(s, p.account_id, upload_id)
 
 
+@router.get("/tracks/by-hash", response_model=dict[str, uuid.UUID])
+async def tracks_by_hash(
+    p: Auth, s: Session, h: Annotated[str, Query(description="comma-separated sha256, ≤ 200")]
+) -> dict[str, uuid.UUID]:
+    """The account's live tracks by their file's content hash: how a desktop client links the
+    files on its disk to the server's tracks (dedup is by content, never by name)."""
+    from musix.contexts.library.models import media_files, tracks
+
+    hexdigits = set("0123456789abcdef")
+    hashes = [x for x in h.lower().split(",") if len(x) == 64 and set(x) <= hexdigits]
+    if not hashes:
+        return {}
+    T, M = tracks.c, media_files.c
+    q = (
+        sa.select(M.sha256, T.id)
+        .join(media_files, M.id == T.media_file_id)
+        .where(T.account_id == p.account_id, T.deleted_at.is_(None), M.sha256.in_(hashes[:200]))
+    )
+    return {sha: tid for sha, tid in (await s.execute(q)).all()}
+
+
 @router.get("/tracks", response_model=list[S.TrackOut], responses=etag.NOT_MODIFIED)
 async def get_tracks(
     p: Auth,

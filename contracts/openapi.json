@@ -13524,6 +13524,121 @@
         ]
       }
     },
+    "/api/v2/tracks/by-hash": {
+      "get": {
+        "description": "The account's live tracks by their file's content hash: how a desktop client links the\nfiles on its disk to the server's tracks (dedup is by content, never by name).",
+        "operationId": "tracks_by_hash_api_v2_tracks_by_hash_get",
+        "parameters": [
+          {
+            "description": "comma-separated sha256, ≤ 200",
+            "in": "query",
+            "name": "h",
+            "required": true,
+            "schema": {
+              "description": "comma-separated sha256, ≤ 200",
+              "title": "H",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "format": "uuid",
+                    "type": "string"
+                  },
+                  "title": "Response Tracks By Hash Api V2 Tracks By Hash Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Validation failed"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Rate limited"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Tracks By Hash",
+        "tags": [
+          "library"
+        ]
+      }
+    },
     "/api/v2/tracks/{track_id}/envelope": {
       "get": {
         "description": "The energy envelope the players draw the spectrum wave from (phase 4 spec §4):\nzlib of uint8 frames × 4 bands, 10 frames/s (contexts/intel/envelope). Immutable per\nmedia file, so it is cached for a year under the file's sha.",
