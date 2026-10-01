@@ -58,6 +58,15 @@ class PlayerController @Inject constructor(@ApplicationContext private val ctx: 
     private var controller: MediaController? = null
     private var ticker: Job? = null
 
+    /** For callers outside the UI (widgets): connect, and wait until the session answers. */
+    suspend fun ready(): Boolean = kotlinx.coroutines.withContext(Dispatchers.Main) {
+        connect()
+        val f = future ?: return@withContext false
+        kotlinx.coroutines.suspendCancellableCoroutine { cont ->
+            f.addListener({ val c = runCatching { f.get() }.getOrNull(); if (c != null && controller == null) controller = c; cont.resume(c != null) {} }, MoreExecutors.directExecutor())
+        }
+    }
+
     fun connect() {
         if (future != null) return
         val token = SessionToken(ctx, ComponentName(ctx, PlaybackService::class.java))

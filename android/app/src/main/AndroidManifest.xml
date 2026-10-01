@@ -36,5 +36,14 @@
             tools:node="merge">
             <meta-data android:name="androidx.work.WorkManagerInitializer" android:value="androidx.startup" tools:node="remove" />
         </provider>
+            <!-- home screen widgets (phase 8 §3): Glance, re-rendered on playback changes only -->
+        <receiver android:name=".widget.NowPlayingWidgetReceiver" android:exported="true" android:label="MusiX · сейчас играет">
+            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_now_playing" />
+        </receiver>
+        <receiver android:name=".widget.StreamWidgetReceiver" android:exported="true" android:label="MusiX · Поток">
+            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_stream" />
+        </receiver>
     </application>
 </manifest>

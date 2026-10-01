@@ -8,6 +8,8 @@ import androidx.lifecycle.ProcessLifecycleOwner
 import androidx.work.Configuration
 import dagger.hilt.android.HiltAndroidApp
 import kotlinx.coroutines.CoroutineScope
+import androidx.glance.appwidget.updateAll
+import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.launch
 import ru.musixai.app.core.common.AppScope
@@ -41,6 +43,18 @@ class MusixApplication : Application(), Configuration.Provider {
         ru.musixai.app.feature.settings.APP_VERSION_CODE = BuildConfig.VERSION_CODE
         outbox.onEnqueue = { OutboxWorker.schedule(this) }
         handoff.start()
+        // the widgets follow playback: re-rendered on each change the service pushes, never polled
+        val widgets = kotlinx.coroutines.flow.MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+        ru.musixai.app.core.player.NowPlaying.onChange = { widgets.tryEmit(Unit) }
+        scope.launch {
+            @OptIn(kotlinx.coroutines.FlowPreview::class)
+            widgets.debounce(250).collect {
+                runCatching {
+                    ru.musixai.app.widget.NowPlayingWidget().updateAll(this@MusixApplication)
+                    ru.musixai.app.widget.StreamWidget().updateAll(this@MusixApplication)
+                }
+            }
+        }
         scope.launch { auth.refused.collect { guard.wipe() } }  // a revoked session leaves nothing behind
         // signed out (or revoked): the last account's queue must not keep playing or show
         scope.launch { auth.signedIn.filter { !it }.collect { kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) { player.stop() } } }

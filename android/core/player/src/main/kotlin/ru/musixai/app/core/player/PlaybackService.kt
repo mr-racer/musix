@@ -418,6 +418,28 @@ class PlaybackService : MediaLibraryService() {
         if (owner && exo.isPlaying && android.os.SystemClock.elapsedRealtime() - lastPublish > PUBLISH_EVERY_MS) publish()
     }
 
+    // ─── Widgets (phase 8 §3) ───────────────────────────────────────────────
+
+    private var widgetArt: Pair<String, android.graphics.Bitmap>? = null
+
+    /** The widgets' snapshot; the art is decoded once per track, down to ~256 px. */
+    private fun pushWidget() {
+        val item = exo.currentMediaItem
+        val id = item?.mediaId
+        val art = if (id == null) null else widgetArt?.takeIf { it.first == id }?.second ?: artBytes[id]?.let { bytes ->
+            val o = android.graphics.BitmapFactory.Options().apply { inJustDecodeBounds = true }
+            android.graphics.BitmapFactory.decodeByteArray(bytes, 0, bytes.size, o)
+            var sample = 1
+            while (o.outWidth / (sample * 2) >= 256) sample *= 2
+            android.graphics.BitmapFactory.decodeByteArray(bytes, 0, bytes.size, android.graphics.BitmapFactory.Options().apply { inSampleSize = sample })
+                ?.also { widgetArt = id to it }
+        }
+        NowPlaying.publish(NowPlaying.Snapshot(
+            trackId = id, title = item?.mediaMetadata?.title?.toString().orEmpty(), artist = item?.mediaMetadata?.artist?.toString().orEmpty(),
+            playing = exo.isPlaying, art = art, taste = taste?.takeIf { it.trackId == id }?.kind, stream = mode == QueueMode.STREAM,
+        ))
+    }
+
     // ─── Handoff «Слушать на…» ──────────────────────────────────────────────
 
     /** The queue window, the index and the position, enough for another device to continue. */
@@ -530,6 +552,7 @@ class PlaybackService : MediaLibraryService() {
     }
 
     private fun broadcastTaste() {
+        pushWidget()
         val id = exo.currentMediaItem?.mediaId ?: return
         val t = taste?.takeIf { it.trackId == id }
         session?.broadcastCustomCommand(SessionCommand(PlayerProtocol.EVT_TASTE, Bundle.EMPTY), Bundle().apply {
@@ -555,6 +578,7 @@ class PlaybackService : MediaLibraryService() {
             if (item == null) return
             if (item.noListen()) { exo.volume = 1f; gain.gainDb = 0f; return }  // a quiz snippet: no taste, no refill
             publishSoon()
+            pushWidget()
             applyGain(item.mediaId)
             beginListen(item)
             refreshTaste(item.mediaId)
@@ -574,6 +598,7 @@ class PlaybackService : MediaLibraryService() {
             if (isPlaying) owner = true  // playing here = this phone has the account's playback
             realtime.keep(isPlaying)
             publishSoon()
+            pushWidget()
             if (isPlaying && perfStart > 0) {  // spec §8 «stream start»: command → audio playing
                 Log.i(PERF, "stream start ${android.os.SystemClock.elapsedRealtime() - perfStart} ms (${network().wire})")
                 perfStart = 0
@@ -782,6 +807,7 @@ class PlaybackService : MediaLibraryService() {
             val md = item.mediaMetadata.buildUpon().setArtworkData(bytes, MediaMetadata.PICTURE_TYPE_FRONT_COVER).build()
             exo.replaceMediaItem(i, item.buildUpon().setMediaMetadata(md).build())
         }
+        if (exo.currentMediaItem?.mediaId == trackId) pushWidget()  // the art arrived
     }
 
     // ─── Helpers ────────────────────────────────────────────────────────────

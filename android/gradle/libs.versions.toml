@@ -13,6 +13,7 @@ datastore = "1.2.1"
 work = "2.12.0"
 paging = "3.5.1"
 media3 = "1.11.1"
+glance = "1.2.0"
 coroutines = "1.11.0"
 serialization = "1.11.0"
 okhttp = "5.5.0"
@@ -30,6 +31,7 @@ coreKtx = "1.17.0"
 haze = "2.0.1"
 
 [libraries]
+glance-appwidget = { module = "androidx.glance:glance-appwidget", version.ref = "glance" }
 android-gradle = { module = "com.android.tools.build:gradle", version.ref = "agp" }
 kotlin-gradle = { module = "org.jetbrains.kotlin:kotlin-gradle-plugin", version.ref = "kotlin" }
 compose-gradle = { module = "org.jetbrains.kotlin:compose-compiler-gradle-plugin", version.ref = "kotlin" }
