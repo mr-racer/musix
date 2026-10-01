@@ -14,7 +14,7 @@ import sqlalchemy as sa
 
 from musix.contexts.knowledge import jobs
 from musix.errors import Unavailable
-from musix.workers.context import llm, ml, sessionmaker, settings
+from musix.workers.context import llm, sessionmaker, settings
 
 RETRY = procrastinate.RetryStrategy(
     max_attempts=6, wait=30, exponential_wait=2, retry_exceptions={Unavailable}
@@ -90,7 +90,7 @@ async def verify(song_id: str) -> dict[str, int]:
 
 
 async def relations(song_id: str) -> int:
-    return await jobs.relations(sessionmaker(), llm(), ml(), uuid.UUID(song_id))
+    return await jobs.relations(sessionmaker(), llm(), uuid.UUID(song_id))
 
 
 async def vibe(song_id: str, lang: str) -> str | None:

@@ -248,123 +248,6 @@ def _extract_tracklines(text: str | None, max_chars: int = 7000) -> str:
     return _sample_tracklines(kept, max_chars)
 
 
-# ── GLiNER2 salvage for structure-less tracklist pages ───────────────────────
-# Some pages carry the songs in prose or in tables whose separators readability
-# eats ("...features Radio Ga Ga by Queen and Photograph performed by Def
-# Leppard"). The dash-regex finds nothing there, but the shared GLiNER2 model
-# (fact_relations' encoder — no extra weights) extracts song/artist entities
-# reliably. Entities come back WITHOUT positions, so pairing is done by
-# occurrence distance in the source text. CPU-only and ~0.5 s per chunk — used
-# strictly as a fallback, chunk-capped, one page per search call.
-
-_GLINER_CHUNK_CHARS = 1100
-_GLINER_MAX_CHUNKS = 12
-_GLINER_MIN_CONF = 0.7
-
-_gliner_track_schema = None
-_gliner_schema_lock = None
-
-
-def _gliner_extract_entities(chunk: str) -> dict:
-    """One GLiNER2 pass over ``chunk`` → {"songs": [...], "artists": [...]}.
-    v2: the model is the ml service's (`/v1/gliner/tracks`, v1's schema)."""
-    from musix.assistant.compat import ml_sync
-
-    out = ml_sync().gliner_tracks([chunk])[0]
-    ents = (out or {}).get("entities", {})
-
-    def _texts(key):
-        vals = []
-        for e in ents.get(key, []) or []:
-            if isinstance(e, dict):
-                if float(e.get("confidence", 0.0)) >= _GLINER_MIN_CONF:
-                    t = (e.get("text") or "").strip()
-                    if t:
-                        vals.append(t)
-            elif isinstance(e, str) and e.strip():
-                vals.append(e.strip())
-        return vals
-
-    return {"songs": _texts("song_title"), "artists": _texts("artist_name")}
-
-
-def _pair_entities(
-    text: str, songs: list[str], artists: list[str], max_gap: int = 150
-) -> list[str]:
-    """Pair songs with their nearest artist occurrence in ``text``.
-
-    Works for both "Title by Artist" (artist follows) and "Artist – Title"
-    (artist precedes): nearest-by-distance either side within ``max_gap``.
-    Returns "Artist — Title" lines, deduped, in text order of the songs.
-    """
-    low = text.lower()
-
-    def _positions(needle: str) -> list[int]:
-        pos, out = 0, []
-        n = needle.lower()
-        while True:
-            i = low.find(n, pos)
-            if i < 0:
-                break
-            out.append(i)
-            pos = i + 1
-        return out
-
-    artist_pos = [(p, a) for a in set(artists) for p in _positions(a)]
-    if not artist_pos:
-        return []
-    pairs, seen = [], set()
-    song_hits = sorted((p, s) for s in set(songs) for p in _positions(s))
-    year_re = re.compile(r"\((19|20)\d{2}\)|\b(19|20)\d{2}\b")
-    for spos, song in song_hits:
-        best = min(artist_pos, key=lambda t: abs(t[0] - spos))
-        if abs(best[0] - spos) > max_gap:
-            continue
-        key = (best[1].lower(), song.lower())
-        if key in seen:
-            continue
-        seen.add(key)
-        # Год из окна вокруг песни (листиклы пишут его рядом) — иначе матчи
-        # без года не поддаются кодовому фильтру эпохи («после 2020»).
-        window = text[max(0, spos - 30) : spos + len(song) + 90]
-        ym = year_re.search(window)
-        yr = f" ({ym.group(0).strip('()')})" if ym else ""
-        pairs.append(f"{best[1]} — {song}{yr}")
-    return pairs
-
-
-def _gliner_tracklines(text: str, max_chunks: int = _GLINER_MAX_CHUNKS) -> list[str]:
-    """Salvage "Artist — Title" lines from a structure-less page via GLiNER2."""
-    if not text:
-        return []
-    # Chunk on line boundaries.
-    chunks, cur = [], ""
-    for ln in text.splitlines():
-        if len(cur) + len(ln) + 1 > _GLINER_CHUNK_CHARS and cur:
-            chunks.append(cur)
-            cur = ""
-        cur += ln + "\n"
-    if cur.strip():
-        chunks.append(cur)
-    lines: list[str] = []
-    for chunk in chunks[:max_chunks]:
-        try:
-            ents = _gliner_extract_entities(chunk)
-        except Exception:
-            logger.warning("[web_search] GLiNER2 salvage failed on a chunk", exc_info=True)
-            continue
-        if ents["songs"] and ents["artists"]:
-            lines.extend(_pair_entities(chunk, ents["songs"], ents["artists"]))
-    # dedupe across chunks, keep order
-    seen, out = set(), []
-    for ln in lines:
-        k = ln.lower()
-        if k not in seen:
-            seen.add(k)
-            out.append(ln)
-    return out
-
-
 def rank_playlist_results(results: list[dict], query: str = "") -> list[dict]:
     """Re-rank raw SearXNG results for the playlist agent: drop list-query junk,
     float authoritative list/tracklist domains to the top, keep everything else
@@ -671,7 +554,6 @@ def smart_web_search(
         # Prose pages are held as fallback and only inlined (old prefix
         # behaviour) for slots no tracklist page claimed.
         rows, full_got, tries = [], 0, 0  # rows: (kind, title, url, body, snippet)
-        gliner_budget = 1  # CPU-инференс дорог: максимум одна спасённая страница за вызов
         for r in results:
             url = r.get("url", "")
             title = r.get("title", "")
@@ -680,19 +562,9 @@ def smart_web_search(
                 tries += 1
                 content = fetch_full_content(url, max_chars=_PLAYLIST_FETCH_CHARS)
                 if _is_readable_content(content):
+                    # A page without «Artist — Title» structure used to go through a
+                    # GLiNER2 salvage pass; it was removed with GLiNER2 (2026-10-01).
                     lines = _tracklines_list(content)
-                    if len(lines) < _MIN_TRACK_LINES and gliner_budget > 0:
-                        # Страница без «Artist — Title»-структуры (проза или
-                        # таблица, съеденная readability) — GLiNER2-спасение.
-                        gliner_budget -= 1
-                        salvaged = _gliner_tracklines(content)
-                        if len(salvaged) >= _MIN_TRACK_LINES:
-                            logger.info(
-                                "[web_search] GLiNER2 salvaged %d track lines (%.60s)",
-                                len(salvaged),
-                                url,
-                            )
-                            lines = salvaged
                     if len(lines) >= _MIN_TRACK_LINES:
                         if tracklines_out is not None:
                             tracklines_out.extend(lines[:_TRACKLINES_OUT_CAP])

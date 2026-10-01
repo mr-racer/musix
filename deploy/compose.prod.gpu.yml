@@ -1,8 +1,22 @@
 # At the switch (T+29), after v1 has stopped and released the GPU: `make prod-up GPU=1`.
 # Never while v1 `musix` runs — the VRAM holds one of them (spec §1).
+#
+# The ml image ships CPU torch. CUDA torch comes from an overlay directory, so the image
+# needs no rebuild. It was made once with:
+#   uv pip install --target /mnt/data/musix-v2-prod/ml-cuda --python-version 3.11 \
+#     --python-platform x86_64-manylinux_2_28 torch==2.6.0 --index-url https://download.pytorch.org/whl/cu124
+# Then the packages the image already has (sympy, jinja2, …) were removed from the overlay,
+# leaving torch, triton and nvidia/*. Without it, ML_DEVICE=cuda silently fell back to the
+# CPU, and one assistant turn took 137 s, 56% of it in embed and rerank (2026-10-01).
 services:
   ml:
-    environment: {ML_DEVICE: cuda}
+    environment:
+      ML_DEVICE: cuda
+      PYTHONPATH: /opt/cuda-py
+      # llama-server holds ~19 of the 3090's 24 GB: less fragmentation in what's left
+      PYTORCH_CUDA_ALLOC_CONF: expandable_segments:True
+    volumes:
+      - /mnt/data/musix-v2-prod/ml-cuda:/opt/cuda-py:ro
     deploy:
       resources:
         reservations:

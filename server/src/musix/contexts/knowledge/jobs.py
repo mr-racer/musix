@@ -5,7 +5,7 @@ and a rerun of a half-done one is almost free — every LLM answer is in `llm_ca
     intel:embed done ─→ knowledge:start ─┬→ knowledge:song   (net: songfacts, Genius)
                                           └→ knowledge:artist (net: songfacts, AudioDB)
     knowledge:song   ─→ knowledge:refine (ai) ─→ knowledge:verify (net, MusicBrainz)
-                     ─→ knowledge:relations (ai: GLiNER2 in ml + the LLM)
+                     ─→ knowledge:relations (ai: the LLM)
                      ─→ knowledge:vibe (ai)
     knowledge:artist ─→ knowledge:refine (ai)
 
@@ -40,9 +40,8 @@ from musix.contexts.library.models import artists, media_files, songs, track_art
 from musix.contexts.library.slug import slugify, song_key
 from musix.infra.changelog import record_change
 from musix.infra.llm import Llm
-from musix.infra.ml_client import MlClient
 from musix.knowledge import sonic_vibe as SV
-from musix.knowledge.fact_relations.service import collect_claims
+from musix.knowledge.fact_relations.service import song_producers
 from musix.knowledge.facts_v2 import pipeline as fv2
 from musix.knowledge.facts_v2 import sample_links as sl
 
@@ -543,22 +542,12 @@ async def verify(sm: SM, http: httpx.AsyncClient, song_id: uuid.UUID) -> dict[st
     return out
 
 
-# ── producers: GLiNER2 in ml + the LLM (ai queue) ────────────────────────────
+# ── producers: the LLM (ai queue) ────────────────────────────────────────────
 
 
-class _Precomputed:
-    """The `extractor` v1's `collect_claims` expects, answered from one batched ml call."""
-
-    def __init__(self, outputs: dict[str, dict[str, Any]]) -> None:
-        self.outputs = outputs
-
-    def extract(self, fact: str) -> dict[str, Any]:
-        return self.outputs[fact]
-
-
-async def relations(sm: SM, llm: Llm, ml: MlClient, song_id: uuid.UUID) -> int:
+async def relations(sm: SM, llm: Llm, song_id: uuid.UUID) -> int:
     """v1 `fact_relations.process_song_facts`, the producer leg (sampling links are
-    facts_v2's). → the number of producers written."""
+    facts_v2's), without GLiNER2 since 2026-10-01. → the number of producers written."""
     async with sm() as s:
         row = await _song_row(s, song_id)
         texts: list[str] = list(
@@ -574,7 +563,6 @@ async def relations(sm: SM, llm: Llm, ml: MlClient, song_id: uuid.UUID) -> int:
         )
     if row is None or not texts:
         return 0
-    outputs = dict(zip(texts, await ml.gliner(texts), strict=True))
     loop = asyncio.get_running_loop()
 
     def ask(messages: list[dict[str, str]]) -> Any:
@@ -584,18 +572,16 @@ async def relations(sm: SM, llm: Llm, ml: MlClient, song_id: uuid.UUID) -> int:
             llm.ask_json(user, system=system, temperature=0, kind="fact_relations"), loop
         ).result()
 
-    claims = await asyncio.to_thread(
-        collect_claims, texts, row.title, row.artist or "", ask, _Precomputed(outputs), False
-    )
+    producers = await asyncio.to_thread(song_producers, texts, row.title, row.artist or "", ask)
     async with sm() as s:
-        for name in claims["producers"]:
+        for name in producers:
             await _add_relation(
                 s, song_id, "producer", name, "extract", target_artist_id=await _artist_id(s, name)
             )
         await _log(s, "fact_relations", str(song_id), "done")
         await _touch(s, songs, song_id)
         await s.commit()
-    return len(claims["producers"])
+    return len(producers)
 
 
 # ── the sonic vibe line (ai queue) ───────────────────────────────────────────

@@ -258,7 +258,7 @@ def _relations(slugs: list[str]) -> dict[str, list[dict[str, Any]]]:
 
 
 def song_relations_raw(slugs: list[str]) -> dict[str, dict[str, list[dict[str, str]]]]:
-    """v1 `get_song_relations_raw`: the GLiNER2+LLM extraction's samples, split."""
+    """v1 `get_song_relations_raw`: the relation extraction's samples, split."""
     out: dict[str, dict[str, list[dict[str, str]]]] = {}
     for slug, rs in _relations(slugs).items():
         rel: dict[str, list[dict[str, str]]] = {"samples": [], "sampled_by": []}

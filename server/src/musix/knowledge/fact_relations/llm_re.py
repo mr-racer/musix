@@ -1,23 +1,21 @@
-"""LLM leg of the producers/samples relation-extraction pipeline.
+"""LLM leg of the producers/samples relation extraction.
 
-Takes the GLiNER candidates that Task 2's triage bucketed into ``LLM`` (needs
-confirmation), marks them inline in the fact text, builds the chat messages
-for an OpenAI-compatible LLM call, parses the strict-JSON reply, and merges
-it with the ``AS_IS`` (already-confident) results from triage.
+Builds the chat messages for an OpenAI-compatible LLM call over one fact, parses the
+strict-JSON reply and merges replies across a song's facts. The NER markers that GLiNER2
+used to put in the fact were removed with it (2026-10-01); see ``service``.
 
 The system prompt below is taken verbatim from
 ``.superpowers/sdd/reference_llm_re_test.py``, where it was validated on 50
 production facts (100% valid JSON on gemma-12b), plus four extra trap rules
-(8-11) added for this task. No torch/gliner2/network imports here -- pure
+(8-11) added for this task; the sentences about NER markers went with GLiNER2. Pure
 ``re`` + ``json`` + stdlib.
 """
 
 import json
 import re
 
-from .triage import norm
 
-SYSTEM = """You read ONE fact about a KNOWN subject song and label how it links that song to other music. Entity candidates are pre-marked inline as [Person: name], [Song: title], [Artist: name]. Markers come from an automatic NER system: they can be wrong or incomplete. Trust the sentence meaning, not the markers.
+SYSTEM = """You read ONE fact about a KNOWN subject song and label how it links that song to other music.
 
 Return ONLY a JSON object, no explanations, exactly this shape:
 {"producers": ["name", ...], "links": [{"song": "title or null", "artist": "name or null", "direction": "source|usage", "relation": "sample|interpolation|cover|remix|lyrical_reference|inspiration|other"}, ...]}
@@ -64,38 +62,19 @@ _RELATIONS = frozenset(
 _DIRECTIONS = frozenset({"source", "usage"})
 
 
-def mark_fact(fact, candidates):
-    """Insert ``[Type: span]`` markers for candidate spans into ``fact``.
-
-    ``candidates`` is a list of ``(text, type)`` pairs, e.g.
-    ``[("Rick Rubin", "Person"), ("Amen Brother", "Song")]``. Longer spans are
-    marked first, each span only at its first occurrence, and a span is never
-    marked if it would nest inside an already-inserted marker.
-    """
-    marked = fact
-    done = set()
-    for text, typ in sorted(candidates, key=lambda s: -len(s[0])):
-        if not text or text.lower() in done:
-            continue
-        done.add(text.lower())
-        idx = marked.find(text)
-        if idx < 0:
-            continue
-        before = marked[max(0, idx - 30) : idx]
-        if before.count("[") <= before.count("]"):
-            marked = marked[:idx] + f"[{typ}: {text}]" + marked[idx + len(text) :]
-    return marked
+def norm(s):
+    return re.sub(r"[^\w]+", " ", (s or "").lower()).strip()
 
 
-def build_llm_messages(subject_title, subject_artist, marked_fact):
-    """Build the chat messages for the LLM-RE call over one marked fact."""
+def build_llm_messages(subject_title, subject_artist, fact):
+    """Build the chat messages for the LLM-RE call over one fact."""
     artist_display = (subject_artist or "").replace("-", " ")
     subject_line = f'"{subject_title or ""}" (artist: {artist_display})'
     return [
         {"role": "system", "content": SYSTEM},
         {
             "role": "user",
-            "content": f"Subject song: {subject_line}\n\nFact:\n{marked_fact}\n\nJSON:",
+            "content": f"Subject song: {subject_line}\n\nFact:\n{fact}\n\nJSON:",
         },
     ]
 
@@ -197,8 +176,7 @@ def _rank(link):
 def _merge_links(a_list, b_list):
     """Union of two link lists, keyed on (song, artist, direction).
 
-    Ties keep the earlier entry — callers pass AS_IS (explicit-wording) links
-    first — but a stronger relation always replaces a weaker one.
+    Ties keep the earlier entry, but a stronger relation always replaces a weaker one.
     """
     result = []
     index = {}
@@ -220,8 +198,7 @@ def _merge_links(a_list, b_list):
 def merge_results(a, b):
     """Merge two ``{"producers": [...], "links": [...]}`` dicts.
 
-    Used both to fold the AS_IS triage into the LLM leg for one fact and to
-    accumulate across a song's facts.
+    Accumulates the replies across a song's facts.
     """
     a, b = a or {}, b or {}
 

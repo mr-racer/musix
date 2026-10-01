@@ -112,9 +112,6 @@ class MlSync:
     def clap_text(self, texts: list[str]) -> np.ndarray:
         return np.asarray(self._post("/v1/clap/text", {"input": texts})["data"], dtype=np.float32)
 
-    def gliner_tracks(self, texts: list[str]) -> list[dict[str, Any]]:
-        return list(self._post("/v1/gliner/tracks", {"input": texts})["data"])
-
     def is_clap_available(self) -> bool:
         return True  # the ml service serves CLAP whenever it is up
 

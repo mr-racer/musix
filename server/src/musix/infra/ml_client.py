@@ -93,12 +93,6 @@ class MlClient:
             return None
         return np.asarray(d["mean"], np.float32), np.asarray(d["chunks"], np.float32)
 
-    async def gliner(
-        self, texts: list[str], *, priority: Priority = "bulk"
-    ) -> list[dict[str, Any]]:
-        d = await self._post("gliner", "/v1/gliner/relations", {"input": texts}, priority)
-        return list(d["data"])
-
     async def proxy(self, path: str, body: dict[str, Any], priority: Priority) -> Any:
         """The raw ml response, for the public /api/v2/models passthrough."""
         return await self._post(path.rsplit("/", 1)[-1], path, body, priority)

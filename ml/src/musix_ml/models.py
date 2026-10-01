@@ -34,7 +34,6 @@ SPARSE_MODEL = "omai-research/milco-650m"
 SPARSE_MAX_LEN, SPARSE_BATCH = 512, 4
 RERANK_MODEL = "BAAI/bge-reranker-v2-m3"
 RERANK_MAX_LEN, RERANK_BATCH = 512, 8
-GLINER_MODEL = os.environ.get("GLINER2_MODEL", "fastino/gliner2-multi-v1")
 CLAP_WEIGHTS = Path(
     os.environ.get("CLAP_WEIGHTS", "/models/weights/music_audioset_epoch_15_esc_90.14.pt")
 )
@@ -44,7 +43,16 @@ breaker = CircuitBreaker()
 _loaded: dict[str, Any] = {}
 
 
-def device() -> str:
+# CLAP always runs on the CPU, as in v1 (the owner's rule). The interactive trio (dense,
+# sparse, reranker) takes ~5 GB in fp16, which is what llama-server leaves of the 3090's
+# 24 GB; CLAP on top runs the card out of memory (2026-10-01). Its audio leg is bulk
+# (ingest), and its text leg encodes one short query, so the CPU costs nobody a wait.
+CPU_LEGS = frozenset({"clap"})
+
+
+def device(leg: str | None = None) -> str:
+    if leg in CPU_LEGS:
+        return "cpu"
     want = os.environ.get("ML_DEVICE", "cpu")
     if want == "cuda":
         import torch
@@ -75,7 +83,7 @@ def _load(leg: str, name: str, loader: Callable[[], Any]) -> Any:
         breaker.trip(leg, f"{type(e).__name__}: {e}")
         log.exception("model %s would not load", name)
         raise ModelUnavailable(leg, "load", f"{name}: {e}") from e
-    log.info("loaded %s (%s) on %s", leg, name, device())
+    log.info("loaded %s (%s) on %s", leg, name, device(leg))
     return _loaded[leg]
 
 
@@ -227,7 +235,7 @@ def _clap() -> Any:
         import laion_clap
 
         # device passed to the constructor: it runs .to(device) inside it
-        m = laion_clap.CLAP_Module(enable_fusion=False, amodel="HTSAT-base", device=device())
+        m = laion_clap.CLAP_Module(enable_fusion=False, amodel="HTSAT-base", device=device("clap"))
         m.load_ckpt(str(CLAP_WEIGHTS))
         return m.eval()
 
@@ -273,85 +281,3 @@ def clap_audio(path: str) -> tuple[np.ndarray, np.ndarray] | None:
         return _unit(e.mean(axis=0)), _unit(e)
 
     return _guard("clap", "audio", run)  # type: ignore[no-any-return]
-
-
-# ── GLiNER2 (producers / samples) ─────────────────────────────────────────────
-
-
-def _gliner() -> Any:
-    def load() -> Any:
-        from gliner2 import GLiNER2
-
-        model = GLiNER2.from_pretrained(GLINER_MODEL).to(device()).eval()
-        s = model.create_schema()  # v1 fact_relations/extractor.py, verbatim
-        s.entities(
-            {
-                "producer": "person credited as the music producer of this song or album",
-                "sampled_song": "title of an older song that is sampled or interpolated in this song",
-            }
-        )
-        s.relations(
-            {
-                "produced_by": "the song or album (head) was produced by a person (tail)",
-                "samples": "the song (head) contains a sample or interpolation of another, older song or artist (tail)",
-                "sampled_by": "the song (head) was later sampled or reused by another artist or song (tail)",
-            }
-        )
-        src = s.structure("sample_source")
-        src.field(
-            "song",
-            dtype="str",
-            description="title of the OLDER song that is sampled or interpolated inside this song",
-        )
-        src.field(
-            "artist",
-            dtype="str",
-            description="artist of the older song that is sampled inside this song",
-        )
-        use = s.structure("sample_usage")
-        use.field(
-            "song",
-            dtype="str",
-            description="title of the NEWER song in which this song was sampled or reused",
-        )
-        use.field(
-            "artist",
-            dtype="str",
-            description="artist who sampled or reused this song in their own newer track",
-        )
-        return model, s
-
-    return _load("gliner", GLINER_MODEL, load)
-
-
-def gliner_relations(texts: list[str]) -> list[dict[str, Any]]:
-    model, schema = _gliner()
-    return _guard(  # type: ignore[no-any-return]
-        "gliner",
-        "extract",
-        lambda: [model.extract(t, schema, include_confidence=True) for t in texts],
-    )
-
-
-_TRACK_SCHEMA: Any = None
-
-
-def gliner_tracks(texts: list[str]) -> list[dict[str, Any]]:
-    """Song titles and artist names in tracklist text — v1 llm_web_search's schema,
-    verbatim; the assistant's structure-free fallback for playlists."""
-    global _TRACK_SCHEMA
-    model, _ = _gliner()
-    if _TRACK_SCHEMA is None:
-        s = model.create_schema()
-        s.entities(
-            {
-                "song_title": "title of a song in a tracklist or soundtrack",
-                "artist_name": "name of the artist or band performing a song",
-            }
-        )
-        _TRACK_SCHEMA = s
-    return _guard(  # type: ignore[no-any-return]
-        "gliner",
-        "extract",
-        lambda: [model.extract(t, _TRACK_SCHEMA, include_confidence=True) for t in texts],
-    )

@@ -16,7 +16,4 @@ answer, including "explain THIS statement").
 
 ``service`` turns whichever result comes back into the route's payload and
 ``humanize`` gives every progress stage a ready-to-render caption.
-
-Legacy, still in the tree and no longer called: ``router``, ``intent_llm`` and
-``facts_executor`` — the GLiNER2 router and the facts executor this replaced.
 """

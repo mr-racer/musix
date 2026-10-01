@@ -167,16 +167,6 @@ def create_app() -> FastAPI:
         mean, chunks = out
         return {"mean": mean.tolist(), "chunks": chunks.tolist()}
 
-    @app.post("/v1/gliner/relations")
-    async def gliner(body: Texts, priority: Priority = "bulk") -> dict[str, Any]:
-        texts = body.texts()
-        return {"data": await run("gliner", priority, lambda: models.gliner_relations(texts))}
-
-    @app.post("/v1/gliner/tracks")
-    async def gliner_tracks(body: Texts, priority: Priority = "interactive") -> dict[str, Any]:
-        texts = body.texts()
-        return {"data": await run("gliner", priority, lambda: models.gliner_tracks(texts))}
-
     return app
 
 
