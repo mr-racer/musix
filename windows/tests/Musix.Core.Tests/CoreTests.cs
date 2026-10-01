@@ -31,6 +31,34 @@ internal sealed class FakeTags(Func<string, LocalTags> read) : ITagReader
     public LocalTags Read(string path) => read(path);
 }
 
+/// <summary>An engine that refuses one track (no manifest URL for it) and plays the rest.</summary>
+internal sealed class DroppingEngine(string refuse) : IPlaybackEngine
+{
+    public readonly List<QueueItem> Items = [];
+    public event Action<int>? CurrentChanged;
+    public event Action<bool>? PlayingChanged { add { } remove { } }
+    public int CurrentIndex { get; private set; } = -1;
+    public bool IsPlaying => true;
+    public TimeSpan Position => TimeSpan.Zero;
+
+    public Task<IReadOnlyList<QueueItem>> ReplaceAsync(IReadOnlyList<QueueItem> items, int startIndex)
+    {
+        Items.Clear();
+        var taken = Take(items);
+        CurrentIndex = Math.Max(0, Items.IndexOf(items.Skip(startIndex).First(taken.Contains)));
+        return Task.FromResult<IReadOnlyList<QueueItem>>(taken);
+    }
+
+    public Task<IReadOnlyList<QueueItem>> AppendAsync(IReadOnlyList<QueueItem> items) => Task.FromResult<IReadOnlyList<QueueItem>>(Take(items));
+    private List<QueueItem> Take(IReadOnlyList<QueueItem> items) { var t = items.Where(i => i.Id != refuse).ToList(); Items.AddRange(t); return t; }
+    public void RemoveRange(Range range) { }
+    public void Play() { }
+    public void Pause() { }
+    public void Next() { CurrentIndex++; CurrentChanged?.Invoke(CurrentIndex); }
+    public void Previous() { }
+    public void Seek(TimeSpan to) { }
+}
+
 public sealed class CoreTests : IDisposable
 {
     private readonly string dir = Directory.CreateTempSubdirectory("musix-core-").FullName;
@@ -184,5 +212,20 @@ public sealed class CoreTests : IDisposable
         Assert.Equal("Stronger", Assert.Single(lib.Search("kan wes")).Title);
         Assert.Equal("Stronger", Assert.Single(lib.Search("gradu")).Title);
         Assert.Equal("Ночь", Assert.Single(lib.Search("елка")).Title);  // diacritics folded: ё = е
+    }
+
+    [Fact]
+    public async Task A_track_the_engine_leaves_out_does_not_shift_what_counts_as_playing()
+    {
+        foreach (var (id, title) in new[] { ("t1", "One"), ("t2", "Two"), ("t3", "Three") })
+            db.Conn.Execute("INSERT INTO tracks(id, title, sort_title, artist, artists_json, duration_ms, added_at, gen) VALUES (@id, @title, @title, 'A', '[]', 1000, 0, 1)", new { id, title });
+        var engine = new DroppingEngine(refuse: "t2");
+        var heard = new List<JsonObject>();
+        var player = new PlayerController(engine, Api(new FakeServer((_, _) => (HttpStatusCode.OK, "{}"))), db, (kind, _, e) => { if (kind == "listen") heard.Add(e); });
+
+        player.PlayTracks(["t1", "t2", "t3"], 2, "album");  // start at Three
+        await Task.Delay(50);
+        Assert.Equal("t3", player.Current?.ServerTrackId);
+        Assert.Equal(["t1", "t3"], player.Queue.Select(q => q.Id));
     }
 }

@@ -48,18 +48,18 @@ public sealed class PlayerController
         var rows = db.Conn.Query<(string Id, string Title, string Artist, long DurationMs, string? CoverImageId)>(
             "SELECT id, title, artist, duration_ms, cover_image_id FROM tracks WHERE id IN @ids", new { ids = trackIds }).ToDictionary(r => r.Id);
         var items = trackIds.Where(rows.ContainsKey).Select(id => rows[id]).Select(r => new QueueItem(r.Id, r.Title, r.Artist, r.Id, null, r.DurationMs, r.CoverImageId)).ToList();
-        Start(items, index, QueueMode.List, context);
+        _ = StartAsync(items, index, QueueMode.List, context);
     }
 
     /// <summary>Plays this PC's files at once (no network); a file linked to a server track also counts as a listen.</summary>
     public void PlayLocal(IReadOnlyList<LocalTrack> files, int index) =>
-        Start(files.Select(f => new QueueItem($"local:{f.Id}", f.Title, f.Artist, f.ServerTrackId, f.Path, f.DurationMs ?? 0, null)).ToList(), index, QueueMode.List, "queue");
+        _ = StartAsync(files.Select(f => new QueueItem($"local:{f.Id}", f.Title, f.Artist, f.ServerTrackId, f.Path, f.DurationMs ?? 0, null)).ToList(), index, QueueMode.List, "queue");
 
     /// <summary>«Поток»: the server picks, three at a time, and keeps its own session state.</summary>
     public async Task StartStreamAsync(CancellationToken ct = default)
     {
         var items = await NextChunk(QueuePolicy.StreamChunk, ct);
-        Start(items, 0, QueueMode.Stream, "stream");
+        await StartAsync(items, 0, QueueMode.Stream, "stream");
     }
 
     public void Toggle() { if (engine.IsPlaying) engine.Pause(); else engine.Play(); }
@@ -77,21 +77,22 @@ public sealed class PlayerController
         Signal(StreamSignal.Reaction);
     }
 
-    private void Start(List<QueueItem> items, int index, QueueMode mode, string context)
+    private async Task StartAsync(List<QueueItem> items, int index, QueueMode mode, string context)
     {
         tracker.End("stopped");
         Mode = mode;
         Context = context;
-        queue.Clear();
-        queue.AddRange(items);
+        queue.Clear();  // until the engine says what it took, no index means anything
         current = -1;
-        engine.Replace(items, Math.Clamp(index, 0, Math.Max(0, items.Count - 1)));
+        var taken = await engine.ReplaceAsync(items, Math.Clamp(index, 0, Math.Max(0, items.Count - 1)));
+        queue.AddRange(taken);
+        OnCurrent(engine.CurrentIndex);
         Changed?.Invoke();
     }
 
     private void OnCurrent(int index)
     {
-        if (index == current) return;
+        if (index == current || index >= queue.Count) return;  // an event from before the queue landed
         if (current >= 0) tracker.End(index == current + 1 ? "completed" : "skipped");
         current = index;
         if (Current is { } item) { tracker.Start(item, Context); tracker.Playing(engine.IsPlaying); }
@@ -120,17 +121,14 @@ public sealed class PlayerController
             if (Mode == QueueMode.Stream && QueuePolicy.NeedsStreamRefill(queue.Count, current))
             {
                 var more = await NextChunk(QueuePolicy.StreamChunk, default);
-                queue.AddRange(more);
-                engine.Append(more);
+                queue.AddRange(await engine.AppendAsync(more));
             }
             else if (Mode == QueueMode.List && QueuePolicy.NeedsListTopUp(queue.Count, current) && Current?.ServerTrackId is { } seed)
             {
                 var exclude = queue.Select(q => q.ServerTrackId).OfType<string>().TakeLast(QueuePolicy.PlayedExcludeMax).ToArray();
                 var r = await api.SendJsonAsync(HttpMethod.Post, "api/v2/stream/autoplay",
                     new { seedTrackId = seed, excludeIds = exclude, limit = QueuePolicy.AutoplayLimit });
-                var more = Tracks(r?["tracks"]?.AsArray());
-                queue.AddRange(more);
-                engine.Append(more);
+                queue.AddRange(await engine.AppendAsync(Tracks(r?["tracks"]?.AsArray())));
             }
         }
         catch (Exception) { /* offline: the queue just ends; the next start tries again */ }

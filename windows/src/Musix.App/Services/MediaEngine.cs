@@ -58,30 +58,35 @@ public sealed class MediaEngine : IPlaybackEngine, IDisposable
 
     public double Volume { get => volume; set { volume = Math.Clamp(value, 0, 1); ApplyGain(CurrentIndex); } }
 
-    public void Replace(IReadOnlyList<QueueItem> next, int startIndex) => _ = ReplaceAsync(next, startIndex);
-
-    public async Task ReplaceAsync(IReadOnlyList<QueueItem> next, int startIndex)
+    public async Task<IReadOnlyList<QueueItem>> ReplaceAsync(IReadOnlyList<QueueItem> next, int startIndex)
     {
         player.Pause();
         list.Items.Clear();
         items.Clear();
-        await AppendAsync(next);
-        if (startIndex > 0 && startIndex < list.Items.Count) list.MoveTo((uint)startIndex);
-        player.Play();
+        var taken = await AppendAsync(next);
+        // start at the asked-for item, or the first playable one after it
+        var want = next.Skip(startIndex).FirstOrDefault(q => taken.Contains(q));
+        var at = want is null ? 0 : items.IndexOf(want);
+        if (at > 0) list.MoveTo((uint)at);
+        if (items.Count > 0) player.Play();
+        return taken;
     }
 
-    public void Append(IReadOnlyList<QueueItem> more) => _ = AppendAsync(more);
-
-    private async Task AppendAsync(IReadOnlyList<QueueItem> more)
+    public async Task<IReadOnlyList<QueueItem>> AppendAsync(IReadOnlyList<QueueItem> more)
     {
-        var urls = await Manifest(more.Where(i => i.LocalPath is null && i.ServerTrackId is not null).Select(i => i.ServerTrackId!).ToList());
+        Dictionary<string, Uri> urls;
+        try { urls = await Manifest(more.Where(i => i.LocalPath is null && i.ServerTrackId is not null).Select(i => i.ServerTrackId!).ToList()); }
+        catch (Exception) { urls = []; }  // offline: the server's tracks wait, this PC's files play
+        var taken = new List<QueueItem>();
         foreach (var q in more)
         {
             Uri? src = q.LocalPath is { } p ? new Uri(p) : q.ServerTrackId is { } id && urls.TryGetValue(id, out var u) ? u : null;
             if (src is null) continue;  // a track the server no longer knows: left out, as the manifest does
             items.Add(q);
             list.Items.Add(Item(q, src));
+            taken.Add(q);
         }
+        return taken;
     }
 
     public void RemoveRange(Range range)

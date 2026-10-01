@@ -50,8 +50,13 @@ public interface IPlaybackEngine
     int CurrentIndex { get; }
     bool IsPlaying { get; }
     TimeSpan Position { get; }
-    void Replace(IReadOnlyList<QueueItem> items, int startIndex);
-    void Append(IReadOnlyList<QueueItem> items);
+    /// <summary>
+    /// Queues what it can play and returns exactly that list, in order. A server track the
+    /// manifest doesn't return is left out, and so is every server track while offline (local
+    /// files still play). The caller's queue must be this list, or indexes drift apart.
+    /// </summary>
+    Task<IReadOnlyList<QueueItem>> ReplaceAsync(IReadOnlyList<QueueItem> items, int startIndex);
+    Task<IReadOnlyList<QueueItem>> AppendAsync(IReadOnlyList<QueueItem> items);
     void RemoveRange(Range range);
     void Play();
     void Pause();
