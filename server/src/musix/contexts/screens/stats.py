@@ -194,6 +194,18 @@ async def vibe_rows(c: Ctx) -> list[dict[str, Any]]:
     return list(got or [])
 
 
+async def anchor_ids(c: Ctx) -> list[uuid.UUID]:
+    """The taste profile's long-term positives, strongest first: v1's «якоря вкуса»."""
+    got = await c.run(
+        lambda s: s.scalar(
+            sa.select(taste_profile.c.long_positives).where(
+                taste_profile.c.account_id == c.account_id
+            )
+        )
+    )
+    return [uuid.UUID(str(t)) for t, _ in (got or [])[:30]]
+
+
 async def wave(c: Ctx, lang: str = "ru") -> S.WaveOut | None:
     """The hero's phrase: the AI one when `stream:ai_texts` has written it for this
     language, else v1's instant deterministic phrase (no LLM on the request path)."""

@@ -105,6 +105,7 @@ async def home(c: Ctx, head: int | None = None, tz: int = 0) -> S.HomeOut:
 
     live = sa.select(T.id).where(T.id == St.track_id, T.deleted_at.is_(None))
     wave = asyncio.create_task(stats.wave(c))  # gather's typing stops at six
+    anchor_ids = asyncio.create_task(stats.anchor_ids(c))
     recent_ids, added_ids, pls, cnt, vibe_rows, pulse = await asyncio.gather(
         _ids(  # walks account_track_stats_recent_idx, probing tracks by key
             c,
@@ -120,15 +121,27 @@ async def home(c: Ctx, head: int | None = None, tz: int = 0) -> S.HomeOut:
         stats.pulse(c, tz),
     )
     members = [uuid.UUID(m) for v in vibe_rows for m in v["members"]]
-    both = await c.tracks(list(dict.fromkeys([*recent_ids, *added_ids, *members])))
+    strong = await anchor_ids
+    both = await c.tracks(list(dict.fromkeys([*recent_ids, *added_ids, *members, *strong])))
     by = {t.id: t for t in both}
     recent = [by[i] for i in recent_ids if i in by]
     added = [by[i] for i in added_ids if i in by]
+    anchors, seen = [], set()  # one per primary artist, as v1's islands were
+    for i in strong:
+        t = by.get(i)
+        key = t.artists[0].id if t and t.artists else None
+        if t is None or key in seen:
+            continue
+        seen.add(key)
+        anchors.append(t)
+        if len(anchors) == 5:
+            break
     pls = pls[:12]
     imgs = await c.images([*_covers(both), *(p.cover_image_id for p in pls)])
     return S.HomeOut(
         recent=recent,
         recently_added=added,
+        anchors=anchors,
         playlists=pls,
         counts=cnt,
         vibes=await stats.vibes(c, vibe_rows, by),

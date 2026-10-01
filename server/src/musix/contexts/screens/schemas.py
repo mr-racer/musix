@@ -68,6 +68,7 @@ class WaveOut(Model):
 class HomeOut(Model):
     recent: list[TrackOut]  # last played first
     recently_added: list[TrackOut]
+    anchors: list[TrackOut] = Field(default_factory=list)  # «якоря вкуса»: up to 5, one per artist
     playlists: list[PlaylistOut]
     counts: Counts
     vibes: list[VibeOut]

@@ -1535,6 +1535,13 @@
       },
       "HomeOut": {
         "properties": {
+          "anchors": {
+            "items": {
+              "$ref": "#/components/schemas/TrackOut"
+            },
+            "title": "Anchors",
+            "type": "array"
+          },
           "counts": {
             "$ref": "#/components/schemas/Counts"
           },

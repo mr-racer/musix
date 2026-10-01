@@ -77,6 +77,19 @@ function Home() {
               <WaveSettings />
             </div>
           </div>
+          {(home.anchors?.length ?? 0) > 0 && (
+            <div className={css.anchors}>
+              <span className={css.caption}>Якоря вкуса</span>
+              <span className={css.anchorStack}>
+                {home.anchors!.map((t, i) => (
+                  <Link key={t.id} to="/artist/$id" params={{ id: t.artists[0]?.id ?? "" }} className={css.anchor} style={{ zIndex: 10 - i }}
+                    title={`${t.titleDisplay ?? t.title} — ${t.artistDisplay}`}>
+                    <Cover id={t.coverImageId} size={40} radius={10} />
+                  </Link>
+                ))}
+              </span>
+            </div>
+          )}
           {home.vibes.length > 0 && (
             <div className={css.vibes}>
               <div className={css.caption}>Вайбики · <span>то, что держит тебя сейчас</span></div>

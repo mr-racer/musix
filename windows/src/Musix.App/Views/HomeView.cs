@@ -19,6 +19,7 @@ public sealed class HomeView : UserControl, IRefreshable
     private readonly TextBlock phrase = M.T("Музыка, которая подстраивается под тебя", 26, Theme.B("MxText"), FontWeights.Light, Theme.SerifItalic, wrap: true);
     private readonly TextBlock pulse = M.T("", 13, Theme.B("MxTextSubtle"), font: Theme.Mono);
     private readonly StackPanel sections = M.V(34);
+    private readonly StackPanel anchors = new() { Orientation = Orientation.Horizontal, Spacing = 13, HorizontalAlignment = HorizontalAlignment.Center };
     private bool starting;
 
     public HomeView()
@@ -28,7 +29,7 @@ public sealed class HomeView : UserControl, IRefreshable
         phrase.TextAlignment = TextAlignment.Center;
         phrase.MaxWidth = 620;
         pulse.HorizontalAlignment = HorizontalAlignment.Center;
-        var hero = M.V(18, orb.Align(HorizontalAlignment.Center), M.Eyebrow("Поток").Align(HorizontalAlignment.Center), phrase.Align(HorizontalAlignment.Center), pulse);
+        var hero = M.V(18, orb.Align(HorizontalAlignment.Center), M.Eyebrow("Поток").Align(HorizontalAlignment.Center), phrase.Align(HorizontalAlignment.Center), pulse, anchors);
         hero.Margin = new Thickness(0, 10, 0, 6);
         body.Children.Add(hero);
         body.Children.Add(sections);
@@ -78,6 +79,7 @@ public sealed class HomeView : UserControl, IRefreshable
             if (pl["discoveries"]?.GetValue<int>() is > 0 and var d) parts.Add(Ru.Plural(d, "открытие", "открытия", "открытий"));
             pulse.Text = string.Join(" · ", parts);
         }
+        DrawAnchors((h["anchors"]?.AsArray() ?? []).OfType<JsonObject>().ToList(), images);
         sections.Children.Clear();
         var vibes = (h["vibes"]?.AsArray() ?? []).OfType<JsonObject>().ToList();
         if (vibes.Count > 0)
@@ -112,6 +114,34 @@ public sealed class HomeView : UserControl, IRefreshable
             }
             sections.Children.Add(Section("Плейлисты", Row(row)));
         }
+    }
+
+    /// <summary>v1's «якоря вкуса»: the strongest records, overlapped; a tap opens the artist.</summary>
+    private void DrawAnchors(List<JsonObject> list, JsonObject? images)
+    {
+        anchors.Children.Clear();
+        if (list.Count == 0) return;
+        anchors.Children.Add(M.Eyebrow("Якоря вкуса").Align(HorizontalAlignment.Left, VerticalAlignment.Center));
+        var stack = new StackPanel { Orientation = Orientation.Horizontal };
+        for (var i = 0; i < list.Count; i++)
+        {
+            var t = list[i];
+            var (frame, image) = Img.Cover(40, 10);
+            image.Source = Img.Source(t["coverImageId"]?.GetValue<string>(), 96, images);
+            frame.BorderBrush = Theme.B("MxBg");
+            frame.BorderThickness = new Thickness(2);
+            frame.Margin = new Thickness(i == 0 ? 0 : -11, 0, 0, 0);
+            Canvas.SetZIndex(frame, 10 - i);
+            ToolTipService.SetToolTip(frame, $"{t["titleDisplay"]?.GetValue<string>() ?? t["title"]?.GetValue<string>()} — {t["artistDisplay"]?.GetValue<string>()}");
+            if (t["artists"]?[0] is JsonObject a && a["id"]?.GetValue<string>() is { } aid)
+            {
+                var name = a["name"]?.GetValue<string>() ?? "";
+                frame.Tapped += (_, _) => App.Shared.Window.Go(() => new ArtistView(aid, name));
+            }
+            Img.Lift(frame, 1.08f);
+            stack.Children.Add(frame);
+        }
+        anchors.Children.Add(stack);
     }
 
     private void AddTracks(string title, JsonNode? tracks, JsonObject? images, string context)
