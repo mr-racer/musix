@@ -32,8 +32,122 @@ public sealed class PlayerController
         this.enqueue = enqueue;
         tracker = new ListenTracker((key, e) => enqueue("listen", key, e), session);
         engine.CurrentChanged += OnCurrent;
-        engine.PlayingChanged += on => { tracker.Playing(on); Changed?.Invoke(); };
+        engine.PlayingChanged += on =>
+        {
+            tracker.Playing(on);
+            if (on) Owner = true;  // playing here = this PC has the account's playback
+            PublishSoon();
+            Changed?.Invoke();
+        };
     }
+
+    // ─── «Слушать на…» (phase 8 §1) ─────────────────────────────────────────
+
+    /// <summary>Where the state goes (the realtime socket); null until the app connects one.</summary>
+    public Func<JsonObject, Task>? Publish { get; set; }
+
+    /// <summary>This PC owns the account's playback: it publishes and obeys remote commands.</summary>
+    public bool Owner { get; private set; }
+
+    /// <summary>The account plays on another device now (the «Играет на …» line).</summary>
+    public (string Device, bool Playing)? Remote { get; private set; }
+
+    private CancellationTokenSource? publishSoon;
+    private DateTime lastPublish;
+
+    private void PublishSoon()
+    {
+        publishSoon?.Cancel();
+        var cts = publishSoon = new CancellationTokenSource();
+        _ = Task.Delay(400, cts.Token).ContinueWith(t => { if (!t.IsCanceled) _ = PublishState(); }, TaskScheduler.Current);
+    }
+
+    /// <summary>Every 10 s while playing (the app's timer calls it); positions drift otherwise.</summary>
+    public void Heartbeat() { if (Owner && engine.IsPlaying && DateTime.UtcNow - lastPublish > TimeSpan.FromSeconds(10)) _ = PublishState(); }
+
+    public async Task PublishState()
+    {
+        if (!Owner || Publish is null || Current is null) return;
+        var ids = queue.Select(q => q.ServerTrackId).ToList();
+        if (Current.ServerTrackId is null || ids.Any(i => i is null)) return;  // a queue with local files can't be continued elsewhere
+        var from = Math.Max(0, current - 50);
+        var window = ids.Skip(from).Take(500).ToList();
+        lastPublish = DateTime.UtcNow;
+        await Publish(new JsonObject
+        {
+            ["type"] = "playback.state",
+            ["state"] = new JsonObject
+            {
+                ["trackIds"] = new JsonArray(window.Select(i => (JsonNode)JsonValue.Create(i)!).ToArray()),
+                ["index"] = current - from, ["positionMs"] = (long)engine.Position.TotalMilliseconds, ["playing"] = engine.IsPlaying,
+                ["mode"] = Mode == QueueMode.Stream ? "stream" : "list", ["contextType"] = Context,
+            },
+        });
+    }
+
+    /// <summary>A realtime message: hello on `ready`, then take, release, other players' state, commands.</summary>
+    public async Task OnRealtime(JsonObject msg)
+    {
+        switch (msg["type"]?.GetValue<string>())
+        {
+            case "ready":
+                if (Publish is not null) await Publish(new JsonObject { ["type"] = "device.hello", ["canPlay"] = true });
+                await PublishState();
+                break;
+            case "playback.take":
+                await TakeAsync(msg["play"]?.GetValue<bool>() ?? true);
+                break;
+            case "playback.release":
+                Owner = false;
+                engine.Pause();
+                break;
+            case "playback.state":  // never echoed to its sender: another device is the active player
+                var playing = msg["playing"]?.GetValue<bool>() == true;
+                Remote = (msg["device"]?.GetValue<string>() ?? "", playing);
+                if (playing && Owner && engine.IsPlaying) { Owner = false; engine.Pause(); }
+                Changed?.Invoke();
+                break;
+            case "playback.command" when Owner:
+                switch (msg["command"]?.GetValue<string>())
+                {
+                    case "play": engine.Play(); break;
+                    case "pause": engine.Pause(); break;
+                    case "toggle": Toggle(); break;
+                    case "next": Next(); break;
+                    case "prev": Previous(); break;
+                    case "seek" when msg["positionMs"] is JsonValue p: Seek(TimeSpan.FromMilliseconds(p.GetValue<long>())); break;
+                    case "signal" when msg["kind"]?.GetValue<string>() is { } kind: React(kind); break;
+                }
+                break;
+        }
+    }
+
+    /// <summary>The account's session, continued here (the state is up to 10 s old).</summary>
+    public async Task TakeAsync(bool play)
+    {
+        if (await api.GetJsonAsync("api/v2/playback/session") is not JsonObject s || s["state"] is not JsonObject st) return;
+        var ids = (st["trackIds"]?.AsArray() ?? []).Select(x => x!.GetValue<string>()).ToList();
+        var index = st["index"]?.GetValue<int>() ?? 0;
+        var lag = st["playing"]?.GetValue<bool>() == true && s["updatedAt"]?.GetValue<DateTimeOffset>() is { } at ? DateTimeOffset.UtcNow - at : TimeSpan.Zero;
+        var rows = db.Conn.Query<(string Id, string Title, string Artist, long DurationMs, string? CoverImageId)>(
+            "SELECT id, title, artist, duration_ms, cover_image_id FROM tracks WHERE id IN @ids", new { ids }).ToDictionary(r => r.Id);
+        var items = ids.Where(rows.ContainsKey).Select(id => rows[id]).Select(r => new QueueItem(r.Id, r.Title, r.Artist, r.Id, null, r.DurationMs, r.CoverImageId)).ToList();
+        if (items.Count == 0) return;
+        var want = ids.ElementAtOrDefault(index);
+        var at2 = Math.Max(0, items.FindIndex(i => i.Id == want));
+        Owner = true;
+        Remote = null;
+        await StartAsync(items, at2, st["mode"]?.GetValue<string>() == "stream" ? QueueMode.Stream : QueueMode.List, st["contextType"]?.GetValue<string>() ?? "queue");
+        if (items[at2].Id == want) engine.Seek(TimeSpan.FromMilliseconds((st["positionMs"]?.GetValue<long>() ?? 0)) + lag);
+        if (!play) engine.Pause();
+    }
+
+    /// <summary>The music goes to another device (or comes here).</summary>
+    public async Task TransferAsync(string toDevice) =>
+        await api.SendJsonAsync(HttpMethod.Post, "api/v2/playback/transfer", new { toDevice, play = true });
+
+    public async Task<IReadOnlyList<JsonObject>> DevicesAsync() =>
+        (await api.GetJsonAsync("api/v2/devices/active"))?.AsArray().OfType<JsonObject>().ToList() ?? [];
 
     public event Action? Changed;
     public QueueMode Mode { get; private set; } = QueueMode.List;

@@ -36,6 +36,9 @@ public sealed class App : Application
     public Tray? Tray { get; private set; }
     public Updates Updates { get; private set; } = null!;
     public ThumbBar? Thumbs { get; private set; }
+    public Hotkeys? Keys { get; private set; }
+    public Musix.Core.Realtime.RealtimeClient? Realtime { get; private set; }
+    private DispatcherTimer? heartbeat;
 
     private readonly HttpClient http = new() { Timeout = TimeSpan.FromSeconds(60) };
     private Timer? loop;
@@ -51,6 +54,8 @@ public sealed class App : Application
         Window.Activate();
         Tray = new Tray(this);
         Thumbs = ThumbBar.Attach(Window, this);
+        Keys = new Hotkeys(Window, this);
+        Keys.Apply();
         if (Session.SignedIn) Window.ShowShell(); else Window.ShowLogin();
     }
 
@@ -72,12 +77,32 @@ public sealed class App : Application
         Engine = new MediaEngine(Api, id => CoverUrl(id, 512));
         Player = new PlayerController(Engine, Api, Db, (kind, key2, payload) => Outbox.Enqueue(kind, key2, payload));
         Player.Changed += () => Thumbs?.SetPlaying(Player.IsPlaying);
+        var old = Realtime;
+        if (old is not null) _ = old.DisposeAsync().AsTask();
+        Realtime = new Musix.Core.Realtime.RealtimeClient(server, Session);
+        Player.Publish = m => Realtime.SendAsync(m);
+        var ui = Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread();
+        Realtime.Message += m => ui.TryEnqueue(() =>
+        {
+            if (m["type"]?.GetValue<string>() == "sync.changed") _ = SyncNow();
+            else _ = Player.OnRealtime(m);  // the player lives on the UI thread
+        });
         Outbox.Enqueued += () => _ = Outbox.FlushAsync();
     }
 
-    /// <summary>Starts the background loops: a sync and an outbox flush now and every two minutes, the folder watcher.</summary>
+    private async Task SyncNow()
+    {
+        try { await Sync.SyncAsync(); Window.Refresh(); } catch (Exception) { /* the loop retries */ }
+    }
+
+    /// <summary>Starts the background loops: the realtime socket, a sync and an outbox flush now and every two minutes, the folder watcher.</summary>
     public void StartLoops()
     {
+        Realtime?.Start();
+        heartbeat ??= new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
+        heartbeat.Tick -= Beat;
+        heartbeat.Tick += Beat;
+        heartbeat.Start();
         loop?.Dispose();
         loop = new Timer(async _ =>
         {
@@ -96,7 +121,27 @@ public sealed class App : Application
             Local.Watch(Settings.Folders, TimeSpan.FromSeconds(5), t => t.ContinueWith(_ => Window.DispatcherQueue.TryEnqueue(() => Window.Refresh())));
     }
 
-    public void StopLoops() { loop?.Dispose(); loop = null; updates?.Dispose(); updates = null; Local.StopWatching(); }
+    private void Beat(object? s, object e) => Player.Heartbeat();
+
+    public void StopLoops()
+    {
+        loop?.Dispose(); loop = null; updates?.Dispose(); updates = null; Local.StopWatching();
+        heartbeat?.Stop();
+        if (Realtime is { } rt) { Realtime = null; _ = rt.DisposeAsync().AsTask(); }
+    }
+
+    /// <summary>«Продолжить на телефоне»: the music goes to the account's phone, if one is online and able to play.</summary>
+    public async Task<bool> ContinueOnPhoneAsync()
+    {
+        try
+        {
+            var phone = (await Player.DevicesAsync()).FirstOrDefault(d => d["platform"]?.GetValue<string>() == "android" && d["canPlay"]?.GetValue<bool>() == true);
+            if (phone is null) return false;
+            await Player.TransferAsync(phone["id"]!.GetValue<string>());
+            return true;
+        }
+        catch (Exception) { return false; }
+    }
 
     /// <summary>The smallest variant at least <paramref name="px"/> wide (the mirror keeps the signed URLs).</summary>
     public Uri? CoverUrl(string? imageId, int px)
@@ -115,6 +160,7 @@ public sealed class App : Application
     {
         StopLoops();
         Tray?.Dispose();
+        Keys?.Dispose();
         Engine.Dispose();
         Db.Dispose();
         Exit();

@@ -17,6 +17,7 @@ public sealed class Tray : IDisposable
         add("Следующий", () => app.Player.Next());
         add("🔥 Огонёк", () => app.Player.React("fire"));
         add("💧 Вода", () => app.Player.React("water"));
+        add("📱 Продолжить на телефоне", () => _ = app.ContinueOnPhoneAsync());
         menu.Items.Add(new MenuFlyoutSeparator());
         add("Выйти", () => app.Quit());
         icon = new TaskbarIcon

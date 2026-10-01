@@ -46,6 +46,7 @@ public sealed class PlayerBar : Grid
         var right = M.H(4,
             M.Glyph("", () => p.React("fire"), tip: "Огонёк"),
             M.Glyph("", () => p.React("water"), tip: "Вода"),
+            Devices(),
             M.Glyph("", () => App.Shared.Window.ToggleMini(), tip: "Мини-плеер"));
         right.HorizontalAlignment = HorizontalAlignment.Right;
         right.VerticalAlignment = VerticalAlignment.Center;
@@ -60,10 +61,47 @@ public sealed class PlayerBar : Grid
         Refresh();
     }
 
+    /// <summary>«Слушать на…»: a flyout of the account's devices online now.</summary>
+    private static Button Devices()
+    {
+        var b = M.Glyph("\uE8EA", () => { }, tip: "Слушать на…");
+        var menu = new MenuFlyout { Placement = Microsoft.UI.Xaml.Controls.Primitives.FlyoutPlacementMode.Top };
+        menu.Opening += async (_, _) =>
+        {
+            menu.Items.Clear();
+            menu.Items.Add(new MenuFlyoutItem { Text = "Ищу устройства…", IsEnabled = false });
+            var kind = new Dictionary<string, string> { ["android"] = "Телефон", ["windows"] = "Компьютер", ["web"] = "Браузер" };
+            try
+            {
+                var list = await App.Shared.Player.DevicesAsync();
+                menu.Items.Clear();
+                menu.Items.Add(new MenuFlyoutItem { Text = "Этот компьютер — играет здесь", IsEnabled = false, Icon = new FontIcon { Glyph = "\uE7F4" } });
+                foreach (var d in list.Where(d => d["current"]?.GetValue<bool>() != true))
+                {
+                    var id = d["id"]!.GetValue<string>();
+                    var platform = d["platform"]?.GetValue<string>() ?? "";
+                    var item = new MenuFlyoutItem
+                    {
+                        Text = $"{d["name"]} · {kind.GetValueOrDefault(platform, platform)}" + (d["active"]?.GetValue<bool>() == true ? " · играет" : ""),
+                        IsEnabled = d["canPlay"]?.GetValue<bool>() == true,
+                        Icon = new FontIcon { Glyph = platform == "android" ? "\uE8EA" : "\uE7F4" },
+                    };
+                    item.Click += async (_, _) => { try { await App.Shared.Player.TransferAsync(id); } catch (Exception) { } };
+                    menu.Items.Add(item);
+                }
+                if (menu.Items.Count == 1) menu.Items.Add(new MenuFlyoutItem { Text = "Других устройств онлайн нет", IsEnabled = false });
+            }
+            catch (Exception) { menu.Items.Clear(); menu.Items.Add(new MenuFlyoutItem { Text = "Сервер недоступен", IsEnabled = false }); }
+        };
+        b.Flyout = menu;
+        return b;
+    }
+
     public void Refresh()
     {
         var c = App.Shared.Player.Current;
-        title.Text = c?.Title ?? "Ничего не играет";
+        var remote = App.Shared.Player.Remote;
+        title.Text = c?.Title ?? (remote is { Playing: true } ? "Играет на другом устройстве" : "Ничего не играет");
         artist.Text = c?.Artist ?? "";
         cover.Source = App.Shared.CoverUrl(c?.CoverImageId, 96) is { } u ? new BitmapImage(u) { DecodePixelWidth = 112 } : null;
         playIcon.Glyph = App.Shared.Player.IsPlaying ? "" : "";

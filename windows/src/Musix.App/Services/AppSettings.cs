@@ -9,6 +9,8 @@ public sealed class AppSettings
     public List<string> Folders { get; set; } = [];
     public bool CloseToTray { get; set; } = true;
     public string Theme { get; set; } = "dark";
+    public bool Hotkeys { get; set; } = true;
+    public Dictionary<string, string> HotkeyMap { get; set; } = [];  // action → "Ctrl+Alt+Space"; missing = the default
 
     public static string Dir { get; } = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "MusiX");
     private static string FilePath => Path.Combine(Dir, "settings.json");
