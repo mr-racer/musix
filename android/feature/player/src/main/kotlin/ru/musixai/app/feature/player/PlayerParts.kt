@@ -1,5 +1,14 @@
 package ru.musixai.app.feature.player
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.em
+import ru.musixai.app.core.designsystem.component.Eyebrow
+import ru.musixai.app.core.player.Handoff
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
@@ -145,6 +154,58 @@ fun ActionRow(ui: PlayerUi, vm: PlayerViewModel, modifier: Modifier = Modifier) 
         ActionIcon(MusixIcons.Lyrics, "Текст", active = ui.lyricsOpen) { vm.toggleLyrics() }
         ActionIcon(MusixIcons.Sparkles, "Спросить о песне", active = ui.chatOpen) { vm.toggleChat() }
         if (p.mode != QueueMode.STREAM) ActionIcon(MusixIcons.Shuffle, "Перемешать", active = p.shuffle) { vm.shuffle() }
+        ActionIcon(MusixIcons.Devices, "Слушать на…", active = ui.devicesOpen) { vm.openDevices(!ui.devicesOpen) }
+    }
+}
+
+private val KIND = mapOf("android" to "Телефон", "windows" to "Компьютер", "web" to "Браузер")
+
+/** «Слушать на…» (phase 8 §1): the account's devices online now; a tap hands the music over. */
+@Composable
+fun DevicesCard(ui: PlayerUi, vm: PlayerViewModel, modifier: Modifier = Modifier) {
+    val c = MusixTheme.colors
+    Column(modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(c.surface).border(1.dp, c.border, RoundedCornerShape(18.dp)).padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Eyebrow("Слушать на…", Modifier.weight(1f))
+            Text("Закрыть", Modifier.pressable { vm.openDevices(false) }, style = MusixTheme.type.body.copy(fontSize = 13.sp, color = c.textMuted))
+        }
+        val list = ui.devices
+        if (list == null) { Text("Ищу устройства…", Modifier.padding(vertical = 8.dp), style = MusixTheme.type.body.copy(fontSize = 13.sp, color = c.textMuted)); return@Column }
+        DeviceRow("Этот телефон", "играет здесь", here = true, enabled = false) {}
+        val others = list.filter { !it.current }
+        for (d in others) DeviceRow(d.name, (KIND[d.platform] ?: d.platform) + if (d.active) " · играет" else "", here = false, enabled = d.canPlay) { vm.transferTo(d.id) }
+        if (others.isEmpty()) Text("Других устройств онлайн нет. Откройте MusiX в браузере или на компьютере — он появится здесь.",
+            Modifier.padding(vertical = 6.dp), style = MusixTheme.type.body.copy(fontSize = 13.sp, color = c.textMuted, lineHeight = 1.45.em))
+    }
+}
+
+@Composable
+private fun DeviceRow(name: String, sub: String, here: Boolean, enabled: Boolean, onClick: () -> Unit) {
+    val c = MusixTheme.colors
+    val tint = if (here) c.accentLight else c.text
+    Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).pressable(enabled && !here, onClick).padding(vertical = 10.dp, horizontal = 6.dp)
+        .graphicsLayer { alpha = if (enabled || here) 1f else 0.5f }, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        Icon(MusixIcons.Devices, null, Modifier.size(18.dp), tint = tint)
+        Column {
+            Text(name, style = MusixTheme.type.body.copy(fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = tint), maxLines = 1)
+            Text(sub, style = MusixTheme.type.body.copy(fontSize = 12.5.sp, color = if (here) c.accentLight.copy(alpha = 0.8f) else c.textSubtle))
+        }
+    }
+}
+
+/** «Играет на …»: the account plays elsewhere; one tap brings it to this phone. */
+@Composable
+fun ElsewhereBar(ui: PlayerUi, vm: PlayerViewModel, modifier: Modifier = Modifier) {
+    val c = MusixTheme.colors
+    if (ui.remote == null) return
+    Row(modifier.clip(RoundedCornerShape(999.dp)).background(c.accent.copy(alpha = 0.16f)).border(1.dp, c.accent.copy(alpha = 0.4f), RoundedCornerShape(999.dp))
+        .padding(start = 14.dp, end = 6.dp, top = 6.dp, bottom = 6.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        Icon(MusixIcons.Devices, null, Modifier.size(16.dp), tint = c.text)
+        Text("Играет на другом устройстве", style = MusixTheme.type.body.copy(fontSize = 13.sp, color = c.text))
+        Box(Modifier.clip(RoundedCornerShape(999.dp)).background(c.accent).pressable { vm.bringHere() }.padding(horizontal = 12.dp, vertical = 6.dp)) {
+            Text("Слушать здесь", style = MusixTheme.type.body.copy(fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold, color = Color.White))
+        }
     }
 }
 

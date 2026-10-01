@@ -1,5 +1,14 @@
 package ru.musixai.app.core.player
 
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.booleanOrNull
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.longOrNull
+import kotlinx.serialization.json.put
+import kotlinx.serialization.json.putJsonArray
+import kotlinx.serialization.json.putJsonObject
 import android.app.PendingIntent
 import android.content.Intent
 import android.net.ConnectivityManager
@@ -87,6 +96,7 @@ class PlaybackService : MediaLibraryService() {
     @Inject lateinit var outbox: Outbox
     @Inject lateinit var settings: SettingsRepository
     @Inject lateinit var guard: ru.musixai.app.core.data.AccountGuard
+    @Inject lateinit var realtime: ru.musixai.app.core.data.Realtime
 
     private lateinit var exo: ExoPlayer
     private lateinit var resolver: ManifestResolver
@@ -114,6 +124,10 @@ class PlaybackService : MediaLibraryService() {
     private var prefetchFor: List<String> = emptyList()
     private var snippetStop: Job? = null
     private var perfStart = 0L
+    // handoff (phase 8 §1): this phone owns the account's playback while it plays here
+    private var owner = false
+    private var lastPublish = 0L
+    private var publishSoon: Job? = null
 
     private data class Taste(val trackId: String, val kind: String, val locked: Boolean)
 
@@ -121,6 +135,7 @@ class PlaybackService : MediaLibraryService() {
 
     override fun onCreate() {
         super.onCreate()
+        scope.launch { realtime.events.collect(::onRealtime) }
         resolver = ManifestResolver(fetch = ::fetchManifest, network = ::network, lookahead = ::lookahead)
         // the cache is a process singleton that outlives this service: the hook stays for the process
         val app = applicationContext
@@ -161,6 +176,7 @@ class PlaybackService : MediaLibraryService() {
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaLibrarySession? = session
 
     override fun onDestroy() {
+        realtime.keep(false)
         prefetchJob?.cancel()
         stopTicker()
         finishListen(atEnd = false, skipped = false)
@@ -393,6 +409,74 @@ class PlaybackService : MediaLibraryService() {
     private fun tick() {
         val dur = exo.duration.takeIf { it != C.TIME_UNSET && it > 0 }
         listen.tick(exo.currentPosition, exo.isPlaying, dur)
+        if (owner && exo.isPlaying && android.os.SystemClock.elapsedRealtime() - lastPublish > PUBLISH_EVERY_MS) publish()
+    }
+
+    // ─── Handoff «Слушать на…» ──────────────────────────────────────────────
+
+    /** The queue window, the index and the position, enough for another device to continue. */
+    private fun publish() {
+        val item = exo.currentMediaItem ?: return
+        if (!owner || item.noListen()) return  // a quiz snippet is not a session
+        val ids = queueIds()
+        val from = (exo.currentMediaItemIndex - 50).coerceAtLeast(0)
+        val window = ids.subList(from, (from + 500).coerceAtMost(ids.size))
+        lastPublish = android.os.SystemClock.elapsedRealtime()
+        realtime.send(buildJsonObject {
+            put("type", "playback.state")
+            putJsonObject("state") {
+                putJsonArray("trackIds") { window.forEach { add(JsonPrimitive(it)) } }
+                put("index", exo.currentMediaItemIndex - from)
+                put("positionMs", exo.currentPosition.coerceAtLeast(0))
+                put("playing", exo.isPlaying)
+                put("mode", mode.wire)
+                item.mediaMetadata.extras?.getString(PlayerProtocol.EXTRA_CONTEXT)?.let { put("contextType", it) }
+            }
+        })
+    }
+
+    private fun publishSoon() {
+        publishSoon?.cancel()
+        publishSoon = scope.launch { kotlinx.coroutines.delay(400); publish() }
+    }
+
+    private fun onRealtime(msg: JsonObject) {
+        when (msg["type"]?.jsonPrimitive?.content) {
+            "ready" -> publish()
+            "playback.release" -> { owner = false; exo.pause() }
+            // never echoed to its sender: another device plays the account now (one active player)
+            "playback.state" -> if (msg["playing"]?.jsonPrimitive?.booleanOrNull == true && owner && exo.isPlaying) { owner = false; exo.pause() }
+            "playback.command" -> if (owner) when (msg["command"]?.jsonPrimitive?.content) {
+                "play" -> exo.play()
+                "pause" -> exo.pause()
+                "toggle" -> if (exo.isPlaying) exo.pause() else exo.play()
+                "next" -> { onListenerSkip(); exo.seekToNextMediaItem() }
+                "prev" -> exo.seekToPrevious()
+                "seek" -> msg["positionMs"]?.jsonPrimitive?.longOrNull?.let { listen.markInteracted(); exo.seekTo(it) }
+                "signal" -> msg["kind"]?.jsonPrimitive?.content?.let { react(it) }
+            }
+        }
+    }
+
+    /** The account's session continued here, from where it was (the state is up to 10 s old). */
+    private fun take(play: Boolean) {
+        perfStart = android.os.SystemClock.elapsedRealtime()
+        scope.launch {
+            val s = runCatching { api.call { handoff.playbackSessionApiV2PlaybackSessionGet() } }.getOrNull() ?: return@launch
+            val ids = s.state.trackIds.map { it.toString() }
+            val list = items(ids, context = s.state.contextType)
+            if (list.isEmpty()) return@launch
+            val want = ids.getOrNull(s.state.index)
+            val at = list.indexOfFirst { it.mediaId == want }
+            val lag = if (s.state.playing) (System.currentTimeMillis() - s.updatedAt.toInstant().toEpochMilli()).coerceAtLeast(0) else 0
+            mode = if (s.state.mode?.value == "stream") QueueMode.STREAM else QueueMode.LIST
+            toppedUpFrom = null
+            publishMode()
+            owner = true
+            exo.setMediaItems(list, at.coerceAtLeast(0), if (at >= 0) s.state.positionMs + lag else 0)
+            exo.prepare()
+            if (play) exo.play()
+        }
     }
 
     private fun startTicker() { main.removeCallbacks(ticker); main.postDelayed(ticker, TICK_MS) }
@@ -464,6 +548,7 @@ class PlaybackService : MediaLibraryService() {
             queueSnapshot = queueIds()
             if (item == null) return
             if (item.noListen()) { exo.volume = 1f; gain.gainDb = 0f; return }  // a quiz snippet: no taste, no refill
+            publishSoon()
             applyGain(item.mediaId)
             beginListen(item)
             refreshTaste(item.mediaId)
@@ -480,6 +565,9 @@ class PlaybackService : MediaLibraryService() {
         }
 
         override fun onIsPlayingChanged(isPlaying: Boolean) {
+            if (isPlaying) owner = true  // playing here = this phone has the account's playback
+            realtime.keep(isPlaying)
+            publishSoon()
             if (isPlaying && perfStart > 0) {  // spec §8 «stream start»: command → audio playing
                 Log.i(PERF, "stream start ${android.os.SystemClock.elapsedRealtime() - perfStart} ms (${network().wire})")
                 perfStart = 0
@@ -494,7 +582,7 @@ class PlaybackService : MediaLibraryService() {
 
         override fun onPositionDiscontinuity(old: Player.PositionInfo, new: Player.PositionInfo, reason: Int) {
             // a seek inside the same track is not listening — re-anchor, no credit
-            if (reason == Player.DISCONTINUITY_REASON_SEEK && old.mediaItemIndex == new.mediaItemIndex) listen.tick(new.positionMs, false, null)
+            if (reason == Player.DISCONTINUITY_REASON_SEEK && old.mediaItemIndex == new.mediaItemIndex) { listen.tick(new.positionMs, false, null); publishSoon() }
         }
 
         override fun onPlayerError(error: PlaybackException) {
@@ -535,7 +623,7 @@ class PlaybackService : MediaLibraryService() {
                 .add(SessionCommand(PlayerProtocol.CMD_FIRE, Bundle.EMPTY))
                 .add(SessionCommand(PlayerProtocol.CMD_WATER, Bundle.EMPTY))
             if (controller.packageName == packageName) {  // replacing the queue is for our own UI only
-                for (c in listOf(PlayerProtocol.CMD_PLAY_TRACKS, PlayerProtocol.CMD_START_STREAM, PlayerProtocol.CMD_PLAY_NEXT, PlayerProtocol.CMD_PLAY_SNIPPET)) {
+                for (c in listOf(PlayerProtocol.CMD_PLAY_TRACKS, PlayerProtocol.CMD_START_STREAM, PlayerProtocol.CMD_PLAY_NEXT, PlayerProtocol.CMD_PLAY_SNIPPET, PlayerProtocol.CMD_TAKE)) {
                     commands.add(SessionCommand(c, Bundle.EMPTY))
                 }
             }
@@ -547,6 +635,7 @@ class PlaybackService : MediaLibraryService() {
                 PlayerProtocol.CMD_FIRE -> react("fire", args.getString(PlayerProtocol.ARG_TRACK_ID))
                 PlayerProtocol.CMD_WATER -> react("water", args.getString(PlayerProtocol.ARG_TRACK_ID))
                 PlayerProtocol.CMD_START_STREAM -> startStream()
+                PlayerProtocol.CMD_TAKE -> take(args.getBoolean(PlayerProtocol.ARG_PLAY, true))
                 PlayerProtocol.CMD_PLAY_NEXT -> args.getString(PlayerProtocol.ARG_TRACK_ID)?.let(::playNext)
                 PlayerProtocol.CMD_PLAY_SNIPPET -> playSnippet(args.getString(PlayerProtocol.ARG_URL) ?: return err(),
                     args.getLong(PlayerProtocol.ARG_DURATION_MS, 15_000))
@@ -675,6 +764,7 @@ class PlaybackService : MediaLibraryService() {
         private const val PERF = "MusixPerf"
         private const val ROOT_ID = "musix.root"
         private const val TICK_MS = 500L
+        private const val PUBLISH_EVERY_MS = 10_000L
         private val RETRY_DELAYS_MS = longArrayOf(1000, 3000, 8000)
         private const val CACHE_BYTES = 1L shl 30
         private const val ARTWORK_MAX_PX = 640

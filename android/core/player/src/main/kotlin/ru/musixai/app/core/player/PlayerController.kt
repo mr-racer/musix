@@ -140,6 +140,8 @@ class PlayerController @Inject constructor(@ApplicationContext private val ctx: 
     })
 
     fun startStream() = send(PlayerProtocol.CMD_START_STREAM)
+    /** «Слушать на…» brought the music here: the service fetches the session and continues it. */
+    fun take(play: Boolean) = send(PlayerProtocol.CMD_TAKE, Bundle().apply { putBoolean(PlayerProtocol.ARG_PLAY, play) })
     fun playNext(trackId: String) = send(PlayerProtocol.CMD_PLAY_NEXT, Bundle().apply { putString(PlayerProtocol.ARG_TRACK_ID, trackId) })
     fun snippet(url: String, durationMs: Long) = send(PlayerProtocol.CMD_PLAY_SNIPPET, Bundle().apply {
         putString(PlayerProtocol.ARG_URL, url); putLong(PlayerProtocol.ARG_DURATION_MS, durationMs)

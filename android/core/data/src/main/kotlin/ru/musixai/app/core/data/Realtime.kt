@@ -25,9 +25,10 @@ import kotlin.math.min
 
 /**
  * The foreground WebSocket (`/api/v2/ws`): `sync.changed` pulls a delta at once, other
- * events (assistant stages, import progress) go to [events]. Connected only while the app
- * is visible — background freshness is the periodic SyncWorker's job. A close with 4401
- * (expired token) refreshes the session with one API call and reconnects.
+ * events (assistant stages, import progress, handoff) go to [events]. Connected while the
+ * app is visible, or while the player [keep]s it (music playing: the phone stays a
+ * «Слушать на…» target, phase 8 §1) — background freshness is the SyncWorker's job. A
+ * close with 4401 (expired token) refreshes the session with one API call and reconnects.
  */
 @Singleton
 class Realtime @Inject constructor(
@@ -43,7 +44,24 @@ class Realtime @Inject constructor(
     private var lastSeq: Long? = null
     private var syncJob: Job? = null
 
-    fun start() {
+    private var visible = false
+    private var kept = false
+
+    /** The app came to the foreground. */
+    fun start() { visible = true; update() }
+
+    /** The app went to the background: the socket stays only if the player keeps it. */
+    fun stop() { visible = false; update() }
+
+    /** The player service holds the socket open while music plays. */
+    fun keep(on: Boolean) { kept = on; update() }
+
+    /** A message to the server; dropped while reconnecting (the handoff re-sends on `ready`). */
+    fun send(msg: JsonObject): Boolean = ws?.send(msg.toString()) ?: false
+
+    private fun update() = scope.launch(kotlinx.coroutines.Dispatchers.Main.immediate) { if (visible || kept) open() else close() }
+
+    private fun open() {
         if (job?.isActive == true) return
         job = scope.launch {
             var backoff = 1_000L
@@ -60,7 +78,7 @@ class Realtime @Inject constructor(
         }
     }
 
-    fun stop() {
+    private fun close() {
         job?.cancel(); job = null
         ws?.close(1000, "background"); ws = null
     }
@@ -77,7 +95,7 @@ class Realtime @Inject constructor(
             override fun onMessage(webSocket: WebSocket, text: String) {
                 val msg = runCatching { ApiJson.parseToJsonElement(text).jsonObject }.getOrNull() ?: return
                 when (msg["type"]?.jsonPrimitive?.content) {
-                    "ready" -> { msg["seq"]?.jsonPrimitive?.content?.toLongOrNull()?.let { lastSeq = it }; pull() }
+                    "ready" -> { msg["seq"]?.jsonPrimitive?.content?.toLongOrNull()?.let { lastSeq = it }; pull(); _events.tryEmit(msg) }
                     "sync.changed" -> { msg["seq"]?.jsonPrimitive?.content?.toLongOrNull()?.let { lastSeq = it }; pull() }
                     "ping" -> Unit
                     else -> _events.tryEmit(msg)

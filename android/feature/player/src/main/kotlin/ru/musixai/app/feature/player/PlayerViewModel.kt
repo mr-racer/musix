@@ -21,6 +21,7 @@ import ru.musixai.app.core.model.Playlist
 import kotlinx.coroutines.launch
 import androidx.lifecycle.viewModelScope
 import ru.musixai.app.core.model.PlayerContext
+import ru.musixai.app.core.player.Handoff
 import ru.musixai.app.core.player.PlayerController
 import ru.musixai.app.core.player.PlayerState
 import javax.inject.Inject
@@ -38,6 +39,9 @@ data class PlayerUi(
     val chatStage: String? = null,
     val explain: Map<Int, Explain> = emptyMap(),  // lyric line → the guru's answer (v1 InlineLyricExplain)
     val explainFor: String? = null,               // … for this track only
+    val devicesOpen: Boolean = false,              // «Слушать на…»
+    val devices: List<Handoff.Device>? = null,     // null: loading
+    val remote: Handoff.Remote? = null,            // the account plays on another device
 )
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -47,6 +51,7 @@ class PlayerViewModel @Inject constructor(
     private val repo: PlayerRepository,
     private val playlists: PlaylistRepository,
     private val assistant: AssistantRepository,
+    private val handoff: Handoff,
 ) : ViewModel() {
     val allPlaylists = playlists.playlists
 
@@ -67,9 +72,9 @@ class PlayerViewModel @Inject constructor(
         }
     }
 
-    val ui: StateFlow<PlayerUi> = combine(player.state, context, envelope, local) { p, ctx, env, l ->
+    val ui: StateFlow<PlayerUi> = combine(player.state, context, envelope, local, handoff.remote) { p, ctx, env, l, remote ->
         l.copy(player = p, context = ctx?.takeIf { it.track.id == p.trackId }, envelope = env,
-            explain = if (l.explainFor == p.trackId) l.explain else emptyMap())
+            explain = if (l.explainFor == p.trackId) l.explain else emptyMap(), remote = remote?.takeIf { it.playing })
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), PlayerUi())
 
     fun toggle() = player.toggle()
@@ -83,6 +88,24 @@ class PlayerViewModel @Inject constructor(
     fun toggleQueue() = local.update { it.copy(queueOpen = !it.queueOpen) }
 
     fun openAdd(open: Boolean) = local.update { it.copy(addOpen = open) }
+
+    /** «Слушать на…»: who is online now. */
+    fun openDevices(open: Boolean) {
+        local.update { it.copy(devicesOpen = open, devices = null) }
+        if (open) viewModelScope.launch { local.update { u -> u.copy(devices = runCatching { handoff.devices() }.getOrDefault(emptyList())) } }
+    }
+
+    /** The music goes to [id] (or comes here, when [id] is this phone). */
+    fun transferTo(id: java.util.UUID) = viewModelScope.launch {
+        runCatching { handoff.transfer(id) }
+        local.update { it.copy(devicesOpen = false) }
+    }
+
+    /** «Слушать здесь»: this phone takes the music back from the device playing it. */
+    fun bringHere() = viewModelScope.launch {
+        val me = runCatching { handoff.devices() }.getOrNull()?.firstOrNull { it.current } ?: return@launch
+        runCatching { handoff.transfer(me.id) }
+    }
     fun toggleChat() = local.update { it.copy(chatOpen = !it.chatOpen) }
 
     /** The track chat (v1 AIChatDrawer): about this song; with [line], lyric explain. */

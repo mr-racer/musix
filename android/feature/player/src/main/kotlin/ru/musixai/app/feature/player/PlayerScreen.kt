@@ -116,6 +116,8 @@ fun PlayerScreen(ui: PlayerUi, vm: PlayerViewModel, onClose: () -> Unit, onArtis
             }
             Scrubber(p.positionMs, p.durationMs, ui.envelope, vm::seek, Modifier.padding(horizontal = 36.dp))
             ActionRow(ui, vm, Modifier.padding(top = 14.dp))
+            ElsewhereBar(ui, vm, Modifier.align(Alignment.CenterHorizontally).padding(top = 10.dp))
+            if (ui.devicesOpen) DevicesCard(ui, vm, Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
             if (ctx?.lossless == true) LosslessMark(Modifier.align(Alignment.CenterHorizontally).padding(top = 10.dp))
             Spacer(Modifier.height(18.dp))
             if (ui.chatOpen) TrackChat(ui, vm, Modifier.padding(horizontal = 16.dp).padding(bottom = 12.dp))

@@ -8,6 +8,7 @@ object PlayerProtocol {
     const val CMD_START_STREAM = "musix.startStream"
     const val CMD_PLAY_NEXT = "musix.playNext"
     const val CMD_PLAY_SNIPPET = "musix.playSnippet"
+    const val CMD_TAKE = "musix.take"  // handoff: continue the account's playback session here
 
     const val ARG_TRACK_IDS = "trackIds"
     const val ARG_INDEX = "index"
@@ -16,6 +17,7 @@ object PlayerProtocol {
     const val ARG_TRACK_ID = "trackId"
     const val ARG_DURATION_MS = "durationMs"
     const val ARG_URL = "url"
+    const val ARG_PLAY = "play"
 
     const val EVT_TASTE = "musix.taste"
     const val EVT_ERROR = "musix.error"

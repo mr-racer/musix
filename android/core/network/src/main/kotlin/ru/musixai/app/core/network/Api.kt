@@ -1,5 +1,6 @@
 package ru.musixai.app.core.network
 
+import app.musix.api.apis.HandoffApi
 import app.musix.api.apis.IdentityApi
 import app.musix.api.apis.ImportsApi
 import app.musix.api.apis.KnowledgeApi
@@ -51,4 +52,5 @@ class MusixApi(val client: OkHttpClient, private val sessions: SessionStore, pri
     val imports get() = ImportsApi(base, client)
     val assistant get() = AssistantApi(base, client)
     val system get() = SystemApi(base, client)
+    val handoff get() = HandoffApi(base, client)
 }

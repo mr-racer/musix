@@ -42,6 +42,7 @@ object MusixIcons {
     val Shuffle = stroke("shuffle", "M16 3h5v5", "M4 20 21 3", "M21 16v5h-5", "m15 15 6 6", "m4 4 5 5", width = 2f)
     val Fire = stroke("fire", "M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z", width = 2f)
     val Water = stroke("water", "M12 22a7 7 0 0 0 7-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5c-.5 2.5-2 4.9-4 6.5C6 11.1 5 13 5 15a7 7 0 0 0 7 7z", width = 2f)
+    val Devices = stroke("devices", "M3 5h10v14H3z", circle(8f, 14.5f, 1.5f), "M7 8.5h2", "M16 9h5v10h-5z", "M18.5 16.5h.01")  // «Слушать на…» (same paths as the web)
     val Sparkles = stroke("sparkles", "M12 2.5l1.6 4.4L18 8.5l-4.4 1.6L12 14.5l-1.6-4.4L6 8.5l4.4-1.6L12 2.5zM18.5 13l.95 2.6L22 16.5l-2.55.9L18.5 20l-.95-2.6L15 16.5l2.55-.9L18.5 13zM5.5 13l.95 2.6L9 16.5l-2.55.9L5.5 20l-.95-2.6L2 16.5l2.55-.9L5.5 13z", filled = setOf(0))
     val QueueNext = stroke("queueNext", "M3 6h12", "M3 12h12", "M3 18h8", "M18 15v6", "M15 18h6", width = 2f)
     val Play = stroke("play", "M7 4.5v15l12.5-7.5z", filled = setOf(0))
