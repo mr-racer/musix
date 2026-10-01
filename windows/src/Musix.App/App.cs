@@ -170,15 +170,14 @@ public sealed class App : Application, Microsoft.UI.Xaml.Markup.IXamlMetadataPro
         catch (Exception) { return false; }
     }
 
-    /// <summary>A cover's palette from the mirror: the dominant colour and the player accent (null when not computed).</summary>
-    public (Windows.UI.Color Dominant, Windows.UI.Color Accent)? Palette(string? imageId)
+    /// <summary>A cover's palette from the mirror (null when not computed yet).</summary>
+    public Pal? Palette(string? imageId)
     {
         if (imageId is null) return null;
         var json = Db.Conn.QuerySingleOrDefault<string?>("SELECT palette_json FROM images WHERE id = @imageId", new { imageId });
-        if (json is null || JsonNode.Parse(json) is not JsonObject p) return null;
-        var dominant = Theme.Parse(p["dominant"]?.GetValue<string>());
-        var accent = Theme.Parse(p["accent"]?[Theme.Dark ? "dark" : "light"]?.GetValue<string>());
-        return dominant is { } d ? (d, accent ?? d) : null;
+        if (json is null || JsonNode.Parse(json) is not JsonObject p || Theme.Parse(p["dominant"]?.GetValue<string>()) is not { } dominant) return null;
+        var accent = Theme.Parse(p["accent"]?[Theme.Dark ? "dark" : "light"]?.GetValue<string>()) ?? dominant;
+        return new Pal(dominant, Theme.Parse(p["vibrant"]?.GetValue<string>()) ?? dominant, accent);
     }
 
     /// <summary>The smallest variant at least <paramref name="px"/> wide (the mirror keeps the signed URLs).</summary>
@@ -204,3 +203,6 @@ public sealed class App : Application, Microsoft.UI.Xaml.Markup.IXamlMetadataPro
         Exit();
     }
 }
+
+/// <summary>A cover's colours: the dominant one, the vibrant one, and the player accent for this theme.</summary>
+public sealed record Pal(Windows.UI.Color Dominant, Windows.UI.Color Vibrant, Windows.UI.Color Accent);

@@ -59,6 +59,8 @@ public static class Theme
             E(-1.2684380046 * L + 2.6097574011 * M - 0.3413193965 * S), E(-0.0041960863 * L - 0.7034186147 * M + 1.7076147010 * S));
     }
 
+    public static SolidColorBrush WithAlphaBrush(string key, double a) => new(WithAlpha(C(key), a));
+
     public static Color WithAlpha(Color c, double a) => Color.FromArgb((byte)Math.Round(Math.Clamp(a, 0, 1) * 255), c.R, c.G, c.B);
 
     public static FontFamily Sans { get; } = new("ms-appx:///Fonts/geist_400.ttf#Geist");

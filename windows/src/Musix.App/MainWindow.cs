@@ -118,11 +118,22 @@ public sealed class MainWindow : Window
         root.Children.Add(info);
     }
 
-    /// <summary>Opens an album; its cover flies from the tile into the header (a connected animation).</summary>
-    public void OpenAlbum(string id, Image from)
+    private Gatefold? gatefold;
+
+    public void CloseAlbum() => gatefold?.Close();
+
+    /// <summary>Opens an album as v1's gatefold over the page, flown in from the cover it was opened from (if any).</summary>
+    public void OpenAlbum(string id, FrameworkElement? from)
     {
-        try { Microsoft.UI.Xaml.Media.Animation.ConnectedAnimationService.GetForCurrentView().PrepareToAnimate("cover", from); } catch (Exception) { }
-        Go(() => new AlbumView(id));
+        if (gatefold is not null) return;
+        Windows.Foundation.Rect? at = null;
+        try { if (from is { ActualWidth: > 0 }) at = from.TransformToVisual(root).TransformBounds(new Windows.Foundation.Rect(0, 0, from.ActualWidth, from.ActualHeight)); }
+        catch (Exception) { /* not in the tree any more: it just opens in place */ }
+        Gatefold? g = null;
+        g = new Gatefold(id, at, () => { root.Children.Remove(g); gatefold = null; });
+        gatefold = g;
+        Grid.SetRowSpan(g, Math.Max(1, root.RowDefinitions.Count));
+        root.Children.Add(g);
     }
 
     public void Back()

@@ -1,6 +1,8 @@
 using System.Text;
 using Dapper;
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Controls;
+using Musix.App.Ui;
 using Microsoft.UI.Xaml.Media.Imaging;
 using Musix.App.Views;
 using Musix.Core.Local;
@@ -88,8 +90,25 @@ public static class Smoke
             ("library-artists", () => { LibraryView.Tab = "artists"; win.Go(() => new LibraryView(), root: true); }, 2000),
             ("library-tracks", () => { LibraryView.Tab = "tracks"; win.Go(() => new LibraryView(), root: true); }, 2000),
             ("library-playlists", () => { LibraryView.Tab = "playlists"; win.Go(() => new LibraryView(), root: true); }, 2000),
-            ("album", () => win.Go(() => new AlbumView("al1")), 2000),
-            ("artist", () => win.Go(() => new ArtistView("ar1", "Massive Attack")), 2000),
+            ("gatefold", () => { LibraryView.Tab = "albums"; win.Go(() => new LibraryView(), root: true); win.OpenAlbum("al1", null); }, 1800),
+            ("album-deck", () =>
+            {
+                win.CloseAlbum();
+                var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 22, Padding = new Thickness(40) };
+                foreach (var a in app.Mirror.Albums()) { var t = new AlbumTile(); t.Bind(a); row.Children.Add(t); }
+                row.Loaded += (_, _) => ((AlbumTile)row.Children[0]).ShowRecord();
+                win.Go(() => row, root: true);
+            }, 1500),
+            // the cutout hero with the app icon standing in for an artist's transparent PNG
+            ("artist-burst", () => win.Go(() => new Grid
+            {
+                Children =
+                {
+                    new ArtistBurst(285),
+                    new ArtistFigure(new Uri(Path.Combine(AppContext.BaseDirectory, "Assets", "musix.png")), 285) { HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 0, 80, 0) },
+                },
+            }, root: true), 2000),
+            ("artist", () => { win.CloseAlbum(); win.Go(() => new ArtistView("ar1", "Massive Attack")); }, 2000),
             ("playlist", () => win.Go(() => new PlaylistView("p1")), 2000),
             ("local", () => win.Go(() => new LocalView(), root: true), 2000),
             ("search", () => win.Go(() => new SearchView("massive"), root: true), 2000),

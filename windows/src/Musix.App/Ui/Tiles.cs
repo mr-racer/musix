@@ -74,33 +74,95 @@ public static class Img
     public static string Clock(long ms) => ms <= 0 ? "" : $"{ms / 60000}:{ms / 1000 % 60:00}";
 }
 
-/// <summary>An album in a grid: the cover, the title, the artist and the year.</summary>
+/// <summary>
+/// An album in a grid, as v1's card (AtlasAlbumCard). On hover the record slides out from
+/// behind the sleeve and turns, and the sleeve leans back with a violet glow. A tap opens the
+/// gatefold from this cover. Playlist tiles keep the plain lift.
+/// </summary>
 public sealed class AlbumTile : StackPanel, IBind<AlbumRow>
 {
     private readonly Image image;
+    private readonly Border sleeve;
+    private readonly Grid deck;
+    private readonly Microsoft.UI.Xaml.Shapes.Rectangle glow = new() { Margin = new Thickness(-26), Opacity = 0, IsHitTestVisible = false };
     private readonly TextBlock title = M.T("", 14, weight: FontWeights.SemiBold);
     private readonly TextBlock sub = M.T("", 12.5, Theme.B("MxTextMuted"));
+    private readonly double size;
+    private Vinyl? disc;  // made on the first hover, so a grid of hundreds keeps no records
     private AlbumRow? row;
 
     public AlbumTile(double size = 180, bool playlist = false)
     {
+        this.size = size;
         Spacing = 8;
         Width = size;
-        var (frame, img) = Img.Cover(size, 14);
+        var (frame, img) = Img.Cover(size, 12);
         image = img;
-        Children.Add(frame);
+        sleeve = frame;
+        var sheen = new LinearGradientBrush { StartPoint = new Windows.Foundation.Point(0, 0.1), EndPoint = new Windows.Foundation.Point(1, 0.9) };
+        sheen.GradientStops.Add(new GradientStop { Offset = 0, Color = Windows.UI.Color.FromArgb(36, 255, 255, 255) });
+        sheen.GradientStops.Add(new GradientStop { Offset = 0.34, Color = Windows.UI.Color.FromArgb(0, 255, 255, 255) });
+        sheen.GradientStops.Add(new GradientStop { Offset = 0.68, Color = Windows.UI.Color.FromArgb(0, 0, 0, 0) });
+        sheen.GradientStops.Add(new GradientStop { Offset = 1, Color = Windows.UI.Color.FromArgb(56, 0, 0, 0) });
+        frame.Child = new Grid { Children = { img, new Microsoft.UI.Xaml.Shapes.Rectangle { Fill = sheen, IsHitTestVisible = false } } };
+        var g = new RadialGradientBrush();
+        g.GradientStops.Add(new GradientStop { Offset = 0.45, Color = Windows.UI.Color.FromArgb(82, 124, 91, 255) });
+        g.GradientStops.Add(new GradientStop { Offset = 1, Color = Windows.UI.Color.FromArgb(0, 124, 91, 255) });
+        glow.Fill = g;
+        glow.OpacityTransition = new ScalarTransition { Duration = TimeSpan.FromMilliseconds(500) };
+        deck = new Grid { Width = size, Height = size, Children = { glow, frame } };
+        Children.Add(deck);
         Children.Add(M.V(2, title, sub));
-        Img.Lift(this);
+        if (playlist) Img.Lift(this);
+        else
+        {
+            sleeve.TranslationTransition = new Vector3Transition { Duration = TimeSpan.FromMilliseconds(500) };
+            sleeve.RotationTransition = new ScalarTransition { Duration = TimeSpan.FromMilliseconds(500) };
+            sleeve.CenterPoint = new Vector3((float)size / 2, (float)size / 2, 0);
+            PointerEntered += (_, _) => Hover(true);
+            PointerExited += (_, _) => Hover(false);
+            PointerCanceled += (_, _) => Hover(false);
+        }
         Tapped += (_, _) =>
         {
             if (row is not { } r) return;
             if (playlist) App.Shared.Window.Go(() => new Views.PlaylistView(r.Id));
-            else App.Shared.Window.OpenAlbum(r.Id, image);
+            else App.Shared.Window.OpenAlbum(r.Id, sleeve);
         };
+    }
+
+    /// <summary>The hover state without a pointer (the smoke tour's screenshot).</summary>
+    internal void ShowRecord() => Hover(true);
+
+    private void Hover(bool on)
+    {
+        if (on && disc is null && row is not null)
+        {
+            var d = size * 0.92;
+            disc = new Vinyl(d, row.Cover)
+            {
+                HorizontalAlignment = HorizontalAlignment.Left, VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(size * 0.06, size * 0.04, 0, 0),
+                Translation = new Vector3(6, 0, 0), CenterPoint = new Vector3((float)d / 2, (float)d / 2, 0),
+                TranslationTransition = new Vector3Transition { Duration = TimeSpan.FromMilliseconds(500) },
+                RotationTransition = new ScalarTransition { Duration = TimeSpan.FromMilliseconds(500) },
+            };
+            deck.Children.Insert(1, disc);  // behind the sleeve
+        }
+        Canvas.SetZIndex(this, on ? 12 : 0);  // the record slides over the next tile
+        if (disc is not null)
+        {
+            disc.Translation = on ? new Vector3((float)(size * 0.92 * 0.52), 0, 0) : new Vector3(6, 0, 0);
+            disc.Rotation = on ? 10 : 0;
+            disc.Spin(on);
+        }
+        sleeve.Translation = on ? new Vector3(-7, 0, 0) : Vector3.Zero;
+        sleeve.Rotation = on ? -2 : 0;
+        glow.Opacity = on ? 1 : 0;
     }
 
     public void Bind(AlbumRow r)
     {
+        if (row?.Id != r.Id && disc is not null) { deck.Children.Remove(disc); disc = null; }  // a recycled tile: the label's colours change
         row = r;
         title.Text = r.Title;
         sub.Text = r.Year is { } y ? $"{r.Artist} · {y}" : r.Artist;
