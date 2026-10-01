@@ -48,7 +48,11 @@ public static class Smoke
         var palettes = new[] { "#7c5bff", "#d4783a", "#3aa7d4", "#c23b6e", "#5bbf6a", "#e0b341" };
         for (var i = 1; i <= 6; i++)
         {
-            var pal = $$"""{"dominant": "{{palettes[i - 1]}}", "vibrant": "{{palettes[i - 1]}}", "muted": "#6b5a50", "accent": {"dark": "hsl({{i * 50}}, 55%, 38%)", "light": "hsl({{i * 50}}, 55%, 32%)"}}""";
+            var pal = new System.Text.Json.Nodes.JsonObject
+            {
+                ["dominant"] = palettes[i - 1], ["vibrant"] = palettes[i - 1], ["muted"] = "#6b5a50",
+                ["accent"] = new System.Text.Json.Nodes.JsonObject { ["dark"] = $"hsl({i * 50}, 55%, 38%)", ["light"] = $"hsl({i * 50}, 55%, 32%)" },
+            }.ToJsonString();
             c.Execute("INSERT OR REPLACE INTO images(id, urls_json, palette_json, gen) VALUES (@id, @urls, @pal, 1)", new { id = $"img{i}", urls, pal });
         }
         c.Execute("INSERT OR REPLACE INTO artists(id, name, sort_name, image_id, gen) VALUES ('ar1', 'Massive Attack', 'massive attack', 'img1', 1), ('ar2', 'Земфира', 'земфира', 'img2', 1)");
