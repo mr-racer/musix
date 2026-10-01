@@ -55,6 +55,11 @@ public sealed class App : Application, Microsoft.UI.Xaml.Markup.IXamlMetadataPro
     private Timer? loop;
     private Timer? updates;
 
+    // WinUI takes the system controls' theme only before launch. Without it, inputs and
+    // buttons stay light on the dark brand background (seen in the CI screenshot,
+    // 2026-10-01).
+    public App() => RequestedTheme = Settings.Theme == "light" ? ApplicationTheme.Light : ApplicationTheme.Dark;
+
     protected override void OnLaunched(LaunchActivatedEventArgs args)
     {
         Resources.MergedDictionaries.Add(new XamlControlsResources());
