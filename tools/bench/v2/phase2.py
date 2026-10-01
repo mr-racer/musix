@@ -9,7 +9,7 @@ snapshot, out of git.
   /search           p95 < 250 ms   (all sections; the dense encode runs on the CPU ml here)
   listen → chunk    < 1 s          (POST a listen, then the next chunk reflects it)
 
-Usage (from v2/server): uv run python ../tools/bench/v2/phase2.py --snap 2026-09-29 --out f.json
+Usage (from server/): uv run python ../tools/bench/v2/phase2.py --snap 2026-09-29 --out f.json
 """
 
 from __future__ import annotations

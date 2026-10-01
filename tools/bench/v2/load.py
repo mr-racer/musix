@@ -1,6 +1,6 @@
 """Phase-1 exit bench (spec §10): 20 concurrent users on the synthetic 6k account, through
 nginx (the real edge). Logins go to the api port directly: nginx rate-limits /auth.
-Usage (from v2/server): uv run python ../tools/bench/v2/load.py [--seconds 20] [--out f.json]
+Usage (from server/): uv run python ../tools/bench/v2/load.py [--seconds 20] [--out f.json]
 """
 
 from __future__ import annotations

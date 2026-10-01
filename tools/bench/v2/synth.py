@@ -5,7 +5,7 @@ change_log look real; listens, playlists and signals go through their services. 
 synthetic track gets its own media_files row (a fake sha) whose rendition directory is a
 symlink to one of the dev subset's real ones, so manifests sign real files and stream
 start is real. Idempotent per account: an existing bench account is left as it is.
-Usage (from v2/server): uv run python ../tools/bench/v2/synth.py [--tracks 6000]
+Usage (from server/): uv run python ../tools/bench/v2/synth.py [--tracks 6000]
 """
 
 from __future__ import annotations

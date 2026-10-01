@@ -6,7 +6,7 @@ not ported). The planner has no «ask» rung: every miss is a confident one.
 Criteria (v1's floors): accuracy ≥ 0.75, confident wrong ≤ v1's rung + slack is not
 applicable (the planner always answers), playlist ↔ facts confusions = 0.
 
-Usage (from v2/server):
+Usage (from server/):
     uv run python ../tools/gates/routing_eval.py --base-url http://192.168.0.168:8082/v1 \\
         --model qwen3.8-27b-ud-iq3_s --out ../tools/gates/report/<date>-v2-routing.json
 """

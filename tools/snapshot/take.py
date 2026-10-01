@@ -7,7 +7,7 @@
 - derived.json: cache/transcoded and frontend/covers, listed without hashes.
 
 The snapshot never leaves this machine (the directory is chmod 700).
-Usage: uv run --project v2/server python v2/tools/snapshot/take.py [--date D] [--force]
+Usage: uv run --project server python tools/snapshot/take.py [--date D] [--force]
 """
 
 from __future__ import annotations

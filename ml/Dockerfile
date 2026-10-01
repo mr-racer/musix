@@ -1,4 +1,4 @@
-# The model host (v2/ml): Python 3.11 like v1, torch CPU in dev (the GPU is prod's).
+# The model host (ml/): Python 3.11 like v1, torch CPU in dev (the GPU is prod's).
 FROM python:3.11-slim
 COPY --from=ghcr.io/astral-sh/uv:0.11.26 /uv /bin/uv
 # ffmpeg: librosa decodes m4a/alac through it

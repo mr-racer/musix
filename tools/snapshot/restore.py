@@ -1,7 +1,7 @@
 """Restore a snapshot's Qdrant part into the DEV Qdrant and make a working copy of
 metadata.db for v1 drivers (gates, benches). Never points at prod.
 
-Usage: uv run --project v2/server python v2/tools/snapshot/restore.py <date> [qdrant_url]
+Usage: uv run --project server python tools/snapshot/restore.py <date> [qdrant_url]
 """
 
 from __future__ import annotations

@@ -144,8 +144,6 @@ bench:
 	tools/bench/run.sh $(SNAP) $(or $(MIN),5)
 
 # ── golden screenshots (design/golden) ──────────────────────────────────────
-.PHONY: golden golden-fixture
+.PHONY: golden
 golden:
 	design/golden/real.sh $(SNAP)
-golden-fixture:
-	tools/e2e-v1/run.sh --golden

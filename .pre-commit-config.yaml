@@ -5,6 +5,6 @@ repos:
     hooks:
       - id: ruff-check
         args: [--fix]
-        files: ^v2/server/
+        files: ^server/
       - id: ruff-format
-        files: ^v2/server/
+        files: ^server/

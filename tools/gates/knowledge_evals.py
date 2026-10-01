@@ -3,7 +3,7 @@ prompt on the 10 fixed passages — v1's `scripts/eval_facts_prompts.py` and
 `scripts/eval_bio_prompt.py`, same data, same scoring (copied below), with v2's copies
 of the prompts and pipeline and v2's LLM client. Equal to v1 = the port kept the logic.
 
-Usage (from v2/server; the LLM is the instance's — here the same llama-server v1 used):
+Usage (from server/; the LLM is the instance's — here the same llama-server v1 used):
     uv run python ../tools/gates/knowledge_evals.py --base-url http://192.168.0.168:8082/v1 \
         --model qwen3.8-27b-ud-iq3_s --out ../tools/gates/report/<date>-v2-knowledge.json
 """

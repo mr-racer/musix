@@ -25,7 +25,7 @@ class Settings(BaseSettings):
 
     database_url: str = "postgresql://musix:musix@localhost:18432/musix"
     qdrant_url: str = "http://localhost:18333"
-    ml_url: str = "http://127.0.0.1:18002"  # the model host (v2/ml)
+    ml_url: str = "http://127.0.0.1:18002"  # the model host (ml/)
     models_token: str | None = None  # MUSIX_MODELS_TOKEN: /api/v2/models for external RAG
     log_level: str = "INFO"
     otlp_endpoint: str | None = None

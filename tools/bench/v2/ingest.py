@@ -2,7 +2,7 @@
 seen into a fresh account, and time it until every file is indexed (lyrics online, CLAP
 audio + chunks, dense text, axes — all intelligence but the LLM enrichment, spec §9).
 
-Usage (from v2/server): uv run python ../tools/bench/v2/ingest.py "/mnt/data/music/Music/<folder>" --out f.json
+Usage (from server/): uv run python ../tools/bench/v2/ingest.py "/mnt/data/music/Music/<folder>" --out f.json
 """
 
 from __future__ import annotations
