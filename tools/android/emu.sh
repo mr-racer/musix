@@ -3,6 +3,8 @@
 # reach Docker but not /dev/kvm directly (the kvm group came after the session started).
 # The SDK and AVD are bind-mounted at their host paths; adb on the host sees the emulator
 # over the host network. Usage: emu.sh up|down|shot <file.png>|reverse
+# The renderer is ANGLE over SwiftShader (swangle): the legacy swiftshader_indirect segfaulted
+# its RenderThread (exit 139) on pages with several concurrent animations (the assistant's orb).
 set -euo pipefail
 . /mnt/data/android/env.sh
 NAME=musix-emu
@@ -19,7 +21,7 @@ case "${1:-up}" in
         -e HOME=/tmp -e ANDROID_HOME -e ANDROID_SDK_ROOT -e ANDROID_AVD_HOME \
         -v /mnt/data/android:/mnt/data/android \
         $IMAGE "$ANDROID_HOME/emulator/emulator" -avd musix_phone -no-window -no-audio -no-boot-anim \
-          -gpu ${MUSIX_EMU_GPU:-swiftshader_indirect} -no-snapshot -port 5554 -memory 4096 >/dev/null
+          -gpu ${MUSIX_EMU_GPU:-swangle_indirect} -no-snapshot -port 5554 -memory 4096 >/dev/null
     fi
     adb start-server >/dev/null
     for _ in $(seq 1 90); do

@@ -52,14 +52,18 @@ class AssistantRepository @Inject constructor(private val api: MusixApi, private
         return await(turn, onStage)
     }
 
-    private suspend fun await(turn: String, onStage: (String) -> Unit): AssistantAnswer {
+    private suspend fun await(turn: String, onStage: (String) -> Unit): AssistantAnswer =
+        parse(awaitTurn(turn) { f -> (f["human"] as? JsonPrimitive)?.content?.let(onStage) })
+
+    /** The turn's JSON once it is done (or failed), each progress frame passed on as it lands. */
+    suspend fun awaitTurn(turn: String, onFrame: (JsonObject) -> Unit): JsonObject {
         val done = CompletableDeferred<Unit>()
         val watcher = kotlinx.coroutines.coroutineScope {
             val job = launch {
                 realtime.events.collect { e ->
                     if (e["turn"]?.jsonPrimitive?.content != turn) return@collect
                     when (e["type"]?.jsonPrimitive?.content) {
-                        "assistant.stage" -> e["frame"]?.jsonObject?.get("human")?.jsonPrimitive?.content?.let(onStage)
+                        "assistant.stage" -> (e["frame"] as? JsonObject)?.let(onFrame)
                         "assistant.done" -> done.complete(Unit)
                     }
                 }
@@ -76,7 +80,7 @@ class AssistantRepository @Inject constructor(private val api: MusixApi, private
             job.cancel()
             api.getJson("/api/v2/assistant/turns/$turn").jsonObject
         }
-        return parse(watcher)
+        return watcher
     }
 
     private fun parse(t: JsonObject): AssistantAnswer {

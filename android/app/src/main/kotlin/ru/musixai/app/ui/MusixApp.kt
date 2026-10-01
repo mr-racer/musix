@@ -67,7 +67,7 @@ import ru.musixai.app.feature.imports.ImportRoute
 import ru.musixai.app.feature.upload.UploadRoute
 import ru.musixai.app.feature.quiz.QuizRoute
 import ru.musixai.app.feature.stats.StatsRoute
-import ru.musixai.app.feature.assistant.ChatRoute
+import ru.musixai.app.feature.assistant.AssistantRoute
 import ru.musixai.app.core.designsystem.component.SegmentOption
 import ru.musixai.app.core.designsystem.component.Segmented
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -215,18 +215,10 @@ private fun Routes(nav: NavHostController, openPlayer: () -> Unit, install: (ru.
     }
 }
 
-/** The «Ассистент» tab: v1's «Поиск | Чат» pair; the chat lands with the assistant block. */
+/** The «Ассистент» tab: v1's `AssistantSection` (the orb page); exact search opens from home. */
 @Composable
-private fun AssistantTab(onArtist: (String) -> Unit, onAlbum: (String) -> Unit) {
-    var chat by rememberSaveable { mutableStateOf(false) }
-    Column(Modifier.fillMaxSize().background(MusixTheme.colors.bg)) {
-        Box(Modifier.fillMaxWidth().statusBarsPadding().padding(horizontal = 20.dp, vertical = 10.dp), contentAlignment = Alignment.CenterEnd) {
-            Segmented(chat, listOf(SegmentOption(false, "🔍 Поиск"), SegmentOption(true, "💬 Чат")), { chat = it }, small = true)
-        }
-        Box(Modifier.weight(1f)) {
-            if (chat) ChatRoute() else SearchRoute(onArtist = onArtist, onAlbum = onAlbum)
-        }
-    }
+private fun AssistantTab(onArtist: (String) -> Unit, @Suppress("UNUSED_PARAMETER") onAlbum: (String) -> Unit) {
+    AssistantRoute(onArtist = onArtist)
 }
 
 @Composable
