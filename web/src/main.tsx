@@ -48,6 +48,19 @@ subscribe((e) => {
   if (e.type === "instance.status") void queryClient.invalidateQueries({ queryKey: ["instance"] });
 });
 
+// After a deploy, a tab opened before it asks for route chunks the new build no longer
+// has, and the app dies on navigation. A failed chunk load reloads into the new build,
+// once per minute so a real outage can't loop.
+window.addEventListener("vite:preloadError", (e) => {
+  try {
+    const last = Number(sessionStorage.getItem("musix.reloadedAt") ?? 0);
+    if (Date.now() - last < 60_000) return;
+    sessionStorage.setItem("musix.reloadedAt", String(Date.now()));
+  } catch { /* no storage: reload anyway */ }
+  e.preventDefault();
+  location.reload();
+});
+
 void bootstrap();
 if ("serviceWorker" in navigator && import.meta.env.PROD) void navigator.serviceWorker.register("/sw.js");
 
