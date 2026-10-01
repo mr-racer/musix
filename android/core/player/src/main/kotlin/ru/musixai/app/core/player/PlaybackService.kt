@@ -97,6 +97,11 @@ class PlaybackService : MediaLibraryService() {
     @Inject lateinit var settings: SettingsRepository
     @Inject lateinit var guard: ru.musixai.app.core.data.AccountGuard
     @Inject lateinit var realtime: ru.musixai.app.core.data.Realtime
+    @Inject lateinit var home: ru.musixai.app.core.data.HomeRepository
+    @Inject lateinit var playlistRepo: ru.musixai.app.core.data.PlaylistRepository
+    @Inject lateinit var searchRepo: ru.musixai.app.core.data.SearchRepository
+    private lateinit var browse: AutoBrowse
+    private val searches = HashMap<String, List<MediaItem>>()  // browser package → its last search
 
     private lateinit var exo: ExoPlayer
     private lateinit var resolver: ManifestResolver
@@ -136,6 +141,7 @@ class PlaybackService : MediaLibraryService() {
     override fun onCreate() {
         super.onCreate()
         scope.launch { realtime.events.collect(::onRealtime) }
+        browse = AutoBrowse(packageName, library, playlistRepo, home, searchRepo)
         resolver = ManifestResolver(fetch = ::fetchManifest, network = ::network, lookahead = ::lookahead)
         // the cache is a process singleton that outlives this service: the hook stays for the process
         val app = applicationContext
@@ -651,15 +657,73 @@ class PlaybackService : MediaLibraryService() {
 
         private fun err() = Futures.immediateFuture(SessionResult(SessionError.ERROR_BAD_VALUE))
 
-        override fun onGetLibraryRoot(session: MediaLibrarySession, browser: MediaSession.ControllerInfo, params: LibraryParams?): ListenableFuture<LibraryResult<MediaItem>> {
-            val root = MediaItem.Builder().setMediaId(ROOT_ID)
-                .setMediaMetadata(MediaMetadata.Builder().setIsBrowsable(true).setIsPlayable(false).setTitle("MusiX").build()).build()
-            return Futures.immediateFuture(LibraryResult.ofItem(root, params))
-        }
+        override fun onGetLibraryRoot(session: MediaLibrarySession, browser: MediaSession.ControllerInfo, params: LibraryParams?): ListenableFuture<LibraryResult<MediaItem>> =
+            Futures.immediateFuture(LibraryResult.ofItem(browse.root(), params))
+
+        // ─── Android Auto (phase 8 §2) ────────────────────────────────────────
 
         override fun onGetChildren(session: MediaLibrarySession, browser: MediaSession.ControllerInfo, parentId: String, page: Int, pageSize: Int,
-                                   params: LibraryParams?): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> =
-            Futures.immediateFuture(LibraryResult.ofItemList(ImmutableList.of(), params))
+                                   params: LibraryParams?): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> = async {
+            val all = browse.children(parentId)
+            val from = (page * pageSize).coerceAtMost(all.size)
+            LibraryResult.ofItemList(ImmutableList.copyOf(all.subList(from, (from + pageSize).coerceAtMost(all.size))), params)
+        }
+
+        override fun onGetItem(session: MediaLibrarySession, browser: MediaSession.ControllerInfo, mediaId: String): ListenableFuture<LibraryResult<MediaItem>> = async {
+            val (id, _) = AutoBrowse.parse(mediaId)
+            items(listOf(id)).firstOrNull()?.let { LibraryResult.ofItem(it, null) } ?: LibraryResult.ofError(SessionError.ERROR_BAD_VALUE)
+        }
+
+        override fun onSearch(session: MediaLibrarySession, browser: MediaSession.ControllerInfo, query: String, params: LibraryParams?): ListenableFuture<LibraryResult<Void>> {
+            scope.launch {
+                val found = browse.search(query)
+                searches[browser.packageName] = found
+                session.notifySearchResultChanged(browser, query, found.size, params)
+            }
+            return Futures.immediateFuture(LibraryResult.ofVoid())
+        }
+
+        override fun onGetSearchResult(session: MediaLibrarySession, browser: MediaSession.ControllerInfo, query: String, page: Int, pageSize: Int,
+                                       params: LibraryParams?): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
+            val all = searches[browser.packageName].orEmpty()
+            val from = (page * pageSize).coerceAtMost(all.size)
+            return Futures.immediateFuture(LibraryResult.ofItemList(ImmutableList.copyOf(all.subList(from, (from + pageSize).coerceAtMost(all.size))), params))
+        }
+
+        /** A pick in Auto (or any browser): «Поток» starts the wave, a vibe its tracks, a track its whole list from it. */
+        override fun onSetMediaItems(session: MediaSession, controller: MediaSession.ControllerInfo, mediaItems: MutableList<MediaItem>, startIndex: Int,
+                                     startPositionMs: Long): ListenableFuture<MediaSession.MediaItemsWithStartPosition> = async {
+            val one = mediaItems.singleOrNull()?.mediaId
+            when {
+                one == AutoBrowse.STREAM -> {
+                    mode = QueueMode.STREAM; publishMode()
+                    MediaSession.MediaItemsWithStartPosition(streamChunk(), 0, 0)
+                }
+                one != null && one.startsWith("vibe:") -> {
+                    mode = QueueMode.LIST; toppedUpFrom = null; publishMode()
+                    MediaSession.MediaItemsWithStartPosition(items(browse.ids(one), context = "vibe"), 0, 0)
+                }
+                one != null && AutoBrowse.parse(one).second != null -> {
+                    val (track, parent) = AutoBrowse.parse(one)
+                    val list = items(browse.ids(parent!!), context = parent.substringBefore(':'))
+                    mode = QueueMode.LIST; toppedUpFrom = null; publishMode()
+                    MediaSession.MediaItemsWithStartPosition(list, list.indexOfFirst { it.mediaId == track }.coerceAtLeast(0), startPositionMs.coerceAtLeast(0))
+                }
+                else -> MediaSession.MediaItemsWithStartPosition(items(mediaItems.map { AutoBrowse.parse(it.mediaId).first }), startIndex.coerceAtLeast(0), startPositionMs.coerceAtLeast(0))
+            }
+        }
+
+        /** Items a controller adds carry only ids: they get their stream URI and metadata here. */
+        override fun onAddMediaItems(session: MediaSession, controller: MediaSession.ControllerInfo, mediaItems: MutableList<MediaItem>): ListenableFuture<MutableList<MediaItem>> = async {
+            val bare = mediaItems.filter { it.localConfiguration == null }
+            if (bare.isEmpty()) mediaItems else items(mediaItems.map { AutoBrowse.parse(it.mediaId).first }).toMutableList()
+        }
+
+        private fun <T> async(block: suspend () -> T): ListenableFuture<T> {
+            val f = com.google.common.util.concurrent.SettableFuture.create<T>()
+            scope.launch { try { f.set(block()) } catch (e: Exception) { f.setException(e) } }
+            return f
+        }
     }
 
     // ─── Whole-track prefetch ───────────────────────────────────────────────

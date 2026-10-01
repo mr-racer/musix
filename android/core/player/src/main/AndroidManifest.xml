@@ -14,6 +14,11 @@
                 <action android:name="android.media.browse.MediaBrowserService" />
             </intent-filter>
         </service>
+        <!-- cover art for Android Auto's browse lists (content URIs only) -->
+        <provider
+            android:name=".ArtworkProvider"
+            android:authorities="${applicationId}.artwork"
+            android:exported="true" />
     </application>
     <!-- 1.0.0: the Wear OS companion, Auto and Assistant must be visible to the session -->
     <queries>

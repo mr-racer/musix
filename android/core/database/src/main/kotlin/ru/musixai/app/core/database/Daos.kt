@@ -66,11 +66,26 @@ interface LibraryDao {
     fun albumRows(): Flow<List<AlbumRow>>
 
     @Query("SELECT MIN(year) AS lo, MAX(year) AS hi FROM tracks WHERE year > 0") fun years(): Flow<YearRange?>
+
+    // the Android Auto browse tree (phase 8 §2): one-shot reads, newest or biggest first
+    @Query("""SELECT a.id, a.title, a.year, a.coverImageId,
+              COALESCE((SELECT name FROM artists WHERE id = a.albumArtistId), (SELECT t2.artist FROM tracks t2 WHERE t2.albumId = a.id LIMIT 1)) AS artist,
+              COUNT(t.id) AS tracks, MAX(t.addedAt) AS addedAt
+              FROM albums a JOIN tracks t ON t.albumId = a.id GROUP BY a.id ORDER BY addedAt DESC LIMIT :limit""")
+    suspend fun recentAlbums(limit: Int): List<AlbumRow>
+    @Query("""SELECT a.id, a.name, a.imageId, COUNT(ta.trackId) AS tracks FROM artists a JOIN track_artists ta ON ta.artistId = a.id
+              GROUP BY a.id ORDER BY tracks DESC LIMIT :limit""")
+    suspend fun topArtists(limit: Int): List<ArtistRow>
+    @Query("SELECT id FROM tracks WHERE albumId = :id ORDER BY discNo, trackNo, sortTitle") suspend fun albumTrackIds(id: String): List<String>
+    @Query("""SELECT t.id FROM tracks t JOIN track_artists ta ON ta.trackId = t.id WHERE ta.artistId = :id
+              ORDER BY t.year IS NULL, t.year DESC, t.albumId, t.discNo, t.trackNo""")
+    suspend fun artistTrackIds(id: String): List<String>
     @Query("SELECT * FROM albums WHERE id = :id") suspend fun album(id: String): AlbumEntity?
 }
 
 data class AlbumRow(val id: String, val title: String, val year: Int?, val coverImageId: String?, val artist: String?, val tracks: Int, val addedAt: Long)
 data class YearRange(val lo: Int?, val hi: Int?)
+data class ArtistRow(val id: String, val name: String, val imageId: String?, val tracks: Int)
 
 @Dao
 interface PlaylistDao {

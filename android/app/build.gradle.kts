@@ -80,4 +80,8 @@ dependencies {
     implementation(libs.work.runtime)
     implementation(libs.hilt.work)
     implementation(libs.lifecycle.process)
+    // instrumented checks on the emulator (Android Auto's browse tree, phase 8 §2)
+    androidTestImplementation(libs.androidx.test.runner)
+    androidTestImplementation(libs.androidx.test.junit)
+    androidTestImplementation(libs.junit)
 }

@@ -55,6 +55,13 @@ class LibraryRepository @Inject constructor(private val db: MusixDatabase) {
 
     fun signal(trackId: String): Flow<String?> = dao.signal(trackId).map { it?.kind }
 
+    // Android Auto's browse tree (phase 8 §2): straight from the mirror, offline as well
+    suspend fun recentAlbums(limit: Int = 60) = dao.recentAlbums(limit).map { ru.musixai.app.core.model.BrowseEntry(it.id, it.title, it.year, it.artist, it.tracks, it.coverImageId) }
+    suspend fun topArtists(limit: Int = 60) = dao.topArtists(limit).map { ru.musixai.app.core.model.BrowseEntry(it.id, it.name, null, null, it.tracks, it.imageId) }
+    suspend fun albumTrackIds(id: String) = dao.albumTrackIds(id)
+    suspend fun artistTrackIds(id: String) = dao.artistTrackIds(id)
+    suspend fun playlistTrackIds(id: String) = db.playlists().itemsNow(id).map { it.trackId }
+
     /** Server payloads (stream chunks, autoplay) carry tracks the mirror may not have yet. */
     suspend fun remember(tracks: List<TrackOut>, images: Map<String, ImageData>) {
         val gen = db.mirror().kv(SyncEngine.GEN)?.toLong() ?: 0
