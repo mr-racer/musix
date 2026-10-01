@@ -30,13 +30,20 @@ public static class Program
         {
             // Velopack's install/update hooks run first and may exit (spec §5)
             VelopackApp.Build().Run();
+            var smoke = Array.IndexOf(args, "--smoke");
+            if (smoke >= 0 && smoke + 1 < args.Length) Services.Smoke.Dir = Path.GetFullPath(args[smoke + 1]);
             WinRT.ComWrappersSupport.InitializeComWrappers();
             Application.Start(p =>
             {
                 var ctx = new Microsoft.UI.Dispatching.DispatcherQueueSynchronizationContext(Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread());
                 SynchronizationContext.SetSynchronizationContext(ctx);
                 var app = new App();
-                app.UnhandledException += (_, e) => Crash("xaml", e.Exception);
+                app.UnhandledException += (_, e) =>
+                {
+                    Crash("xaml", e.Exception);
+                    // the tour records the page that threw and goes on to the next one
+                    if (Services.Smoke.Dir is not null) { Services.Smoke.Failed("xaml", e.Exception); e.Handled = true; }
+                };
             });
         }
         catch (Exception e)

@@ -1,4 +1,4 @@
-using Dapper;
+using Musix.Core.Store;
 using Microsoft.UI.Text;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -24,14 +24,10 @@ public sealed class AlbumView : UserControl, IRefreshable
     public void Refresh()
     {
         body.Children.Clear();
-        var c = App.Shared.Db.Conn;
-        var a = c.QuerySingleOrDefault<(string Title, long? Year, string? Cover, string? ArtistId, string? Artist)>("""
-            SELECT a.title, a.year, a.cover_image_id, a.album_artist_id, ar.name FROM albums a LEFT JOIN artists ar ON ar.id = a.album_artist_id WHERE a.id = @id
-            """, new { id });
-        if (a.Title is null) { body.Children.Add(M.T("Альбома больше нет в библиотеке", 15, Theme.B("MxTextMuted"))); return; }
-        var tracks = c.Query<TrackRow>("""
-            SELECT id, title, artist, album, duration_ms, cover_image_id, track_no FROM tracks WHERE album_id = @id ORDER BY disc_no, track_no, sort_title
-            """, new { id }).ToList();
+        var m = App.Shared.Mirror;
+        var a = m.Album(id);
+        if (a is null) { body.Children.Add(M.T("Альбома больше нет в библиотеке", 15, Theme.B("MxTextMuted"))); return; }
+        var tracks = m.AlbumTracks(id).ToList();
         var ids = tracks.Select(t => t.Id).ToList();
         var (frame, image) = Img.Cover(232, 18);
         image.Source = Img.Source(a.Cover, 512);

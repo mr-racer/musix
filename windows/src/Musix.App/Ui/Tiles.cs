@@ -5,13 +5,10 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Imaging;
+using Musix.Core.Store;
 
 namespace Musix.App.Ui;
 
-public sealed record AlbumRow(string Id, string Title, long? Year, string? Cover, string Artist, long N, long Added);
-public sealed record ArtistRow(string Id, string Name, string? Image, long N);
-public sealed record TrackRow(string Id, string Title, string Artist, string? Album, long DurationMs, string? Cover, long? TrackNo);
-public sealed record PlaylistRow(string Id, string Name, string? Cover, long N);
 
 /// <summary>An item and its place in the list it was shown in (a tap plays the list from there).</summary>
 public sealed record At<T>(T Item, int Index);

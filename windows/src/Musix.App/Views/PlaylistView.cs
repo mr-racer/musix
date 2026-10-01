@@ -1,4 +1,4 @@
-using Dapper;
+using Musix.Core.Store;
 using Microsoft.UI.Text;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -23,14 +23,10 @@ public sealed class PlaylistView : UserControl, IRefreshable
     public void Refresh()
     {
         body.Children.Clear();
-        var c = App.Shared.Db.Conn;
-        var p = c.QuerySingleOrDefault<(string Name, string? Description, string? Cover)>(
-            "SELECT name, description, cover_image_id FROM playlists WHERE id = @id", new { id });
-        if (p.Name is null) { body.Children.Add(M.T("Плейлист удалён", 15, Theme.B("MxTextMuted"))); return; }
-        var tracks = c.Query<TrackRow>("""
-            SELECT t.id, t.title, t.artist, t.album, t.duration_ms, t.cover_image_id, NULL
-            FROM playlist_items i JOIN tracks t ON t.id = i.track_id WHERE i.playlist_id = @id ORDER BY i.position
-            """, new { id }).ToList();
+        var m = App.Shared.Mirror;
+        var p = m.Playlist(id);
+        if (p is null) { body.Children.Add(M.T("Плейлист удалён", 15, Theme.B("MxTextMuted"))); return; }
+        var tracks = m.PlaylistTracks(id).ToList();
         var ids = tracks.Select(t => t.Id).ToList();
         var (frame, image) = Img.Cover(200, 18);
         image.Source = Img.Source(p.Cover ?? tracks.FirstOrDefault()?.Cover, 512);

@@ -1,5 +1,5 @@
 using System.Text.Json.Nodes;
-using Dapper;
+using Musix.Core.Store;
 using Microsoft.UI.Text;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -21,15 +21,10 @@ public sealed class ArtistView : UserControl
         this.id = id;
         body.Padding = new Thickness(40, 36, 40, 40);
         Content = new ScrollViewer { Content = body };
-        var c = App.Shared.Db.Conn;
-        var image = c.QuerySingleOrDefault<string?>("SELECT image_id FROM artists WHERE id = @id", new { id });
-        var albums = c.Query<AlbumRow>("""
-            SELECT a.id, a.title, a.year, a.cover_image_id, @name, count(t.id), max(t.added_at)
-            FROM albums a JOIN tracks t ON t.album_id = a.id WHERE a.album_artist_id = @id GROUP BY a.id ORDER BY a.year DESC
-            """, new { id, name }).ToList();
-        var ids = c.Query<string>("""
-            SELECT t.id FROM tracks t JOIN track_artists ta ON ta.track_id = t.id WHERE ta.artist_id = @id ORDER BY t.album, t.disc_no, t.track_no
-            """, new { id }).ToList();
+        var m = App.Shared.Mirror;
+        var image = m.ArtistImage(id);
+        var albums = m.ArtistAlbums(id, name).ToList();
+        var ids = m.ArtistTrackIds(id).ToList();
         var photo = new Microsoft.UI.Xaml.Shapes.Ellipse { Width = 168, Height = 168, Fill = new ImageBrush { ImageSource = Img.Source(image, 512), Stretch = Stretch.UniformToFill } };
         var play = M.Btn(M.H(8, new FontIcon { Glyph = "", FontSize = 14 }, M.T("Слушать всё", 14, weight: FontWeights.SemiBold)),
             () => App.Shared.Player.PlayTracks(ids.OrderBy(_ => Random.Shared.Next()).ToList(), 0, "artist"), accent: true);

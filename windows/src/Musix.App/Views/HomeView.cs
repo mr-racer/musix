@@ -3,6 +3,7 @@ using Microsoft.UI.Text;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Musix.App.Ui;
+using Musix.Core.Store;
 
 namespace Musix.App.Views;
 

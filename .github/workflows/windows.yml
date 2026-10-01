@@ -56,9 +56,22 @@ jobs:
           }
           Stop-Process -Id $p.Id -Force
           "MusiX alive after 20 s"
+      # every screen with a seeded mirror: the crashes show only with rows (Services/Smoke.cs)
+      - name: Smoke tour (every page, a PNG each)
+        shell: pwsh
+        run: |
+          $p = Start-Process -FilePath out/MusiX/MusiX.exe -ArgumentList "--smoke", "$PWD/out/tour" -PassThru
+          if (-not $p.WaitForExit(120000)) { Stop-Process -Id $p.Id -Force; "tour hung" }
+          if (Test-Path out/tour/report.txt) { Get-Content out/tour/report.txt } else { "no report" }
+          $log = Join-Path $env:LOCALAPPDATA "MusiX/crash.log"
+          if (Test-Path $log) { "--- crash.log"; Get-Content $log -Tail 80 }
+          if ($p.ExitCode -ne 0) { exit 1 }
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: smoke
-          path: out/smoke.png
+          path: |
+            out/smoke.png
+            out/tour/*.png
+            out/tour/report.txt
           retention-days: 14

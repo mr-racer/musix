@@ -228,4 +228,36 @@ public sealed class CoreTests : IDisposable
         Assert.Equal("t3", player.Current?.ServerTrackId);
         Assert.Equal(["t1", "t3"], player.Queue.Select(q => q.Id));
     }
+
+    [Fact]
+    public void Every_screen_read_maps_real_rows_into_its_record()
+    {
+        // Dapper fills records by column NAME: one unaliased column threw on the first row
+        // and crashed the library screen (2026-10-01); an empty mirror hid it
+        var c = db.Conn;
+        c.Execute("INSERT INTO artists(id, name, sort_name, image_id, gen) VALUES ('ar1', 'Artist', 'artist', 'img2', 1)");
+        c.Execute("INSERT INTO albums(id, title, year, album_artist_id, cover_image_id, gen) VALUES ('al1', 'Album', 2001, 'ar1', 'img1', 1)");
+        foreach (var (id, no) in new[] { ("t1", 1), ("t2", 2) })
+        {
+            c.Execute("INSERT INTO tracks(id, title, sort_title, artist, artists_json, album_id, album, duration_ms, track_no, disc_no, cover_image_id, added_at, gen) VALUES (@id, @id, @id, 'Artist', '[]', 'al1', 'Album', 180000, @no, 1, 'img1', @no, 1)", new { id, no });
+            c.Execute("INSERT INTO track_artists(track_id, artist_id, ord) VALUES (@id, 'ar1', 0)", new { id });
+        }
+        c.Execute("INSERT INTO playlists(id, name, description, cover_image_id, item_count, created_at, updated_at, gen) VALUES ('p1', 'Mix', 'd', 'img1', 2, 0, 0, 1)");
+        c.Execute("INSERT INTO playlist_items(item_id, playlist_id, track_id, position, added_at, gen) VALUES ('i1', 'p1', 't2', 'a', 0, 1), ('i2', 'p1', 't1', 'b', 0, 1)");
+        var m = new Mirror(db);
+
+        foreach (var sort in new[] { "added", "title", "year" })
+            Assert.Equal(new AlbumRow("al1", "Album", 2001, "img1", "Artist", 2, 2), Assert.Single(m.Albums(sort)));
+        Assert.Equal(new ArtistRow("ar1", "Artist", "img2", 2), Assert.Single(m.Artists()));
+        Assert.Equal(new TrackRow("t2", "t2", "Artist", "Album", 180000, "img1", 2), m.Tracks()[0]);
+        Assert.Equal(["t2", "t1"], m.Tracks(["t2", "nope", "t1"]).Select(t => t.Id));
+        Assert.Equal(new PlaylistRow("p1", "Mix", "img1", 2), Assert.Single(m.Playlists()));
+        Assert.Equal(new AlbumHead("Album", 2001, "img1", "ar1", "Artist"), m.Album("al1"));
+        Assert.Equal(["t1", "t2"], m.AlbumTracks("al1").Select(t => t.Id));
+        Assert.Equal("img2", m.ArtistImage("ar1"));
+        Assert.Equal(2, Assert.Single(m.ArtistAlbums("ar1", "Artist")).N);
+        Assert.Equal(["t1", "t2"], m.ArtistTrackIds("ar1"));
+        Assert.Equal(new PlaylistHead("Mix", "d", "img1"), m.Playlist("p1"));
+        Assert.Equal(["t2", "t1"], m.PlaylistTracks("p1").Select(t => t.Id));
+    }
 }

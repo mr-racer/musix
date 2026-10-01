@@ -35,6 +35,7 @@ public sealed class App : Application, Microsoft.UI.Xaml.Markup.IXamlMetadataPro
 
     public AppSettings Settings { get; } = AppSettings.Load();
     public Db Db { get; private set; } = null!;
+    public Mirror Mirror { get; private set; } = null!;
     public Musix.Core.Session.Session Session { get; private set; } = null!;
     public MusixHttp Api { get; private set; } = null!;
     public SyncEngine Sync { get; private set; } = null!;
@@ -65,14 +66,22 @@ public sealed class App : Application, Microsoft.UI.Xaml.Markup.IXamlMetadataPro
         Resources.MergedDictionaries.Add(new XamlControlsResources());
         Theme.Dark = Settings.Theme != "light";
         Theme.Load(this);
-        Connect(new Uri(Settings.Server));
+        // the smoke tour gets its own throwaway store (the store is per server host)
+        Connect(new Uri(Smoke.Dir is null ? Settings.Server : "http://smoke.invalid"));
         Window = new MainWindow();
         Window.Activate();
         Tray = new Tray(this);
         Thumbs = ThumbBar.Attach(Window, this);
         Keys = new Hotkeys(Window, this);
         Keys.Apply();
-        if (Session.SignedIn) Window.ShowShell(); else Window.ShowLogin();
+        if (Smoke.Dir is not null)
+        {
+            Smoke.Seed(this);
+            Window.ShowShell();
+            Smoke.Run(this);
+        }
+        else if (Session.SignedIn) Window.ShowShell();
+        else Window.ShowLogin();
     }
 
     /// <summary>(Re)builds the server-bound services; the store is per server, so switching servers never mixes accounts.</summary>
@@ -82,6 +91,7 @@ public sealed class App : Application, Microsoft.UI.Xaml.Markup.IXamlMetadataPro
         var key = Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(server.Host)))[..12];
         Directory.CreateDirectory(AppSettings.Dir);
         Db = new Db(Path.Combine(AppSettings.Dir, $"musix-{key}.db"));
+        Mirror = new Mirror(Db);
         Session = new Musix.Core.Session.Session(http, server, new WinTokenVault(), Environment.MachineName, "2.0.0");
         Api = new MusixHttp(http, server, Session);
         Sync = new SyncEngine(Api, Db);

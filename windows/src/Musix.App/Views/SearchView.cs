@@ -3,6 +3,7 @@ using Microsoft.UI.Text;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Musix.App.Ui;
+using Musix.Core.Store;
 
 namespace Musix.App.Views;
 
@@ -96,7 +97,7 @@ public sealed class SearchView : UserControl
     {
         results.Children.Clear();
         var words = q.Replace('ё', 'е').Split(' ', StringSplitOptions.RemoveEmptyEntries);
-        var hits = Dapper.SqlMapper.Query<TrackRow>(App.Shared.Db.Conn, "SELECT id, title, artist, album, duration_ms, cover_image_id, track_no FROM tracks")
+        var hits = App.Shared.Mirror.Tracks()
             .Where(t => words.All(w => $"{t.Title} {t.Artist} {t.Album}".Replace('ё', 'е').Contains(w, StringComparison.OrdinalIgnoreCase))).Take(50).ToList();
         results.Children.Add(M.T("Сервер недоступен — ищу в библиотеке на этом ПК", 12.5, Theme.B("MxTextSubtle")));
         var ids = hits.Select(t => t.Id).ToList();
