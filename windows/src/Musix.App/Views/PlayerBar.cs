@@ -62,7 +62,7 @@ public sealed class PlayerBar : Grid
     }
 
     /// <summary>«Слушать на…»: a flyout of the account's devices online now.</summary>
-    private static Button Devices()
+    internal static Button Devices()
     {
         var b = M.Glyph("\uE8EA", () => { }, tip: "Слушать на…");
         var menu = new MenuFlyout { Placement = Microsoft.UI.Xaml.Controls.Primitives.FlyoutPlacementMode.Top };

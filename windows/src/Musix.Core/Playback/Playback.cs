@@ -58,6 +58,8 @@ public interface IPlaybackEngine
     Task<IReadOnlyList<QueueItem>> ReplaceAsync(IReadOnlyList<QueueItem> items, int startIndex);
     Task<IReadOnlyList<QueueItem>> AppendAsync(IReadOnlyList<QueueItem> items);
     void RemoveRange(Range range);
+    /// <summary>Plays the queued item at <paramref name="index"/> from its start.</summary>
+    void MoveTo(int index);
     void Play();
     void Pause();
     void Next();

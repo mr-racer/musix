@@ -176,7 +176,39 @@ public sealed class PlayerController
         await StartAsync(items, 0, QueueMode.Stream, "stream");
     }
 
+    /// <summary>This track's огонёк or вода, if one was given since it started (the player lights the button).</summary>
+    public string? Reaction { get; private set; }
+
     public void Toggle() { if (engine.IsPlaying) engine.Pause(); else engine.Play(); }
+
+    /// <summary>A tap on a queue row: that item plays from its start.</summary>
+    public void Jump(int index)
+    {
+        if (index < 0 || index >= queue.Count || index == current) return;
+        tracker.Interacted();
+        engine.MoveTo(index);
+    }
+
+    /// <summary>Takes an upcoming item out of the queue; the playing one and the past stay.</summary>
+    public void Remove(int index)
+    {
+        if (index <= current || index >= queue.Count) return;
+        queue.RemoveAt(index);
+        engine.RemoveRange(index..(index + 1));
+        Changed?.Invoke();
+    }
+
+    /// <summary>Shuffles what comes after the current item. Not in «Поток»: there the wave sets the order.</summary>
+    public async Task ShuffleUpcomingAsync()
+    {
+        if (Mode == QueueMode.Stream || current < 0 || queue.Count - current - 1 < 2) return;
+        var rest = queue.Skip(current + 1).ToArray();
+        Random.Shared.Shuffle(rest);
+        queue.RemoveRange(current + 1, rest.Length);
+        engine.RemoveRange((current + 1)..);
+        queue.AddRange(await engine.AppendAsync(rest));
+        Changed?.Invoke();
+    }
     public void Next() { tracker.End("skipped"); Signal(StreamSignal.Skip); engine.Next(); }
     public void Previous() => engine.Previous();
     public void Seek(TimeSpan to) { tracker.Interacted(); engine.Seek(to); }
@@ -186,6 +218,7 @@ public sealed class PlayerController
     {
         if (Current?.ServerTrackId is not { } id) return;
         tracker.Interacted();
+        Reaction = kind;
         var key = Guid.NewGuid().ToString();
         enqueue("signal", key, new JsonObject { ["trackId"] = id, ["kind"] = kind, ["clientEventId"] = key, ["sessionId"] = session });
         Signal(StreamSignal.Reaction);
@@ -209,6 +242,7 @@ public sealed class PlayerController
         if (index == current || index >= queue.Count) return;  // an event from before the queue landed
         if (current >= 0) tracker.End(index == current + 1 ? "completed" : "skipped");
         current = index;
+        Reaction = null;
         if (Current is { } item) { tracker.Start(item, Context); tracker.Playing(engine.IsPlaying); }
         Changed?.Invoke();
         _ = Refill();

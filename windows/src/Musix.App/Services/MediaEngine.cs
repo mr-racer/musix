@@ -24,6 +24,7 @@ public sealed class MediaEngine : IPlaybackEngine, IDisposable
     private readonly Func<string?, Uri?> cover;
     private readonly List<QueueItem> items = [];
     private readonly Dictionary<string, double> gainDb = new();
+    private readonly Dictionary<string, string> tiers = new();
     private readonly HashSet<string> retried = [];
     private double volume = 1.0;
     // MediaPlayer raises its events on worker threads; the queue's brain lives on the UI thread
@@ -95,6 +96,14 @@ public sealed class MediaEngine : IPlaybackEngine, IDisposable
         for (var i = from + len - 1; i >= from; i--) { list.Items.RemoveAt(i); items.RemoveAt(i); }
     }
 
+    public void MoveTo(int index) { if (index >= 0 && index < list.Items.Count) { list.MoveTo((uint)index); player.Play(); } }
+
+    /// <summary>Opening or buffering: the cover shows its veil.</summary>
+    public bool IsBuffering => player.PlaybackSession.PlaybackState is MediaPlaybackState.Opening or MediaPlaybackState.Buffering;
+
+    /// <summary>The rendition the manifest gave this server track (lossless, high, …), if it is queued.</summary>
+    public string? TierOf(string? trackId) => trackId is not null && tiers.TryGetValue(trackId, out var t) ? t : null;
+
     public void Play() => player.Play();
     public void Pause() => player.Pause();
     public void Next() => list.MoveNext();
@@ -129,6 +138,7 @@ public sealed class MediaEngine : IPlaybackEngine, IDisposable
             {
                 var id = it!["trackId"]!.GetValue<string>();
                 urls[id] = new Uri(it["url"]!.GetValue<string>());
+                if (it["tier"]?.GetValue<string>() is { } tier) tiers[id] = tier;
                 var g = it["gain"]?["trackDb"];
                 if (g is JsonValue v && v.TryGetValue<double>(out var db)) gainDb[id] = db;
             }

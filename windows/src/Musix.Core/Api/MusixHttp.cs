@@ -86,6 +86,15 @@ public sealed class MusixHttp
         return await ReadAsync(r, path, ct);
     }
 
+    /// <summary>A binary GET (the energy envelope); null on 404, which means "not computed yet".</summary>
+    public async Task<byte[]?> GetBytesAsync(string path, CancellationToken ct = default)
+    {
+        using var r = await SendAsync(() => new HttpRequestMessage(HttpMethod.Get, Url(path)), idempotentRequest: true, ct);
+        if (r.StatusCode == HttpStatusCode.NotFound) return null;
+        if (!r.IsSuccessStatusCode) throw new ApiError((int)r.StatusCode, $"{path}: HTTP {(int)r.StatusCode}");
+        return await r.Content.ReadAsByteArrayAsync(ct);
+    }
+
     /// <summary>A raw request (an upload chunk): the caller builds it, auth and errors are handled here.</summary>
     public async Task<JsonNode?> SendRawAsync(Func<HttpRequestMessage> build, string what, CancellationToken ct = default)
     {

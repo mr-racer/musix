@@ -1,3 +1,4 @@
+using System.Text.Json.Nodes;
 using System.Text.Json;
 using Dapper;
 using Microsoft.UI.Xaml;
@@ -167,6 +168,17 @@ public sealed class App : Application, Microsoft.UI.Xaml.Markup.IXamlMetadataPro
             return true;
         }
         catch (Exception) { return false; }
+    }
+
+    /// <summary>A cover's palette from the mirror: the dominant colour and the player accent (null when not computed).</summary>
+    public (Windows.UI.Color Dominant, Windows.UI.Color Accent)? Palette(string? imageId)
+    {
+        if (imageId is null) return null;
+        var json = Db.Conn.QuerySingleOrDefault<string?>("SELECT palette_json FROM images WHERE id = @imageId", new { imageId });
+        if (json is null || JsonNode.Parse(json) is not JsonObject p) return null;
+        var dominant = Theme.Parse(p["dominant"]?.GetValue<string>());
+        var accent = Theme.Parse(p["accent"]?[Theme.Dark ? "dark" : "light"]?.GetValue<string>());
+        return dominant is { } d ? (d, accent ?? d) : null;
     }
 
     /// <summary>The smallest variant at least <paramref name="px"/> wide (the mirror keeps the signed URLs).</summary>

@@ -52,6 +52,7 @@ internal sealed class DroppingEngine(string refuse) : IPlaybackEngine
     public Task<IReadOnlyList<QueueItem>> AppendAsync(IReadOnlyList<QueueItem> items) => Task.FromResult<IReadOnlyList<QueueItem>>(Take(items));
     private List<QueueItem> Take(IReadOnlyList<QueueItem> items) { var t = items.Where(i => i.Id != refuse).ToList(); Items.AddRange(t); return t; }
     public void RemoveRange(Range range) { }
+    public void MoveTo(int index) { CurrentIndex = index; CurrentChanged?.Invoke(index); }
     public void Play() { }
     public void Pause() { }
     public void Next() { CurrentIndex++; CurrentChanged?.Invoke(CurrentIndex); }

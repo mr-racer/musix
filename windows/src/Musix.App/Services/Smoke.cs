@@ -80,33 +80,39 @@ public static class Smoke
         Directory.CreateDirectory(dir);
         var win = app.Window;
         var wav = SilentWav(dir);
-        var pages = new (string Name, Action Open)[]
+        PlayerView? player = null;
+        var pages = new (string Name, Action Open, int Settle)[]
         {
-            ("home", () => win.Go(() => new HomeView(), root: true)),
-            ("library-albums", () => { LibraryView.Tab = "albums"; win.Go(() => new LibraryView(), root: true); }),
-            ("library-artists", () => { LibraryView.Tab = "artists"; win.Go(() => new LibraryView(), root: true); }),
-            ("library-tracks", () => { LibraryView.Tab = "tracks"; win.Go(() => new LibraryView(), root: true); }),
-            ("library-playlists", () => { LibraryView.Tab = "playlists"; win.Go(() => new LibraryView(), root: true); }),
-            ("album", () => win.Go(() => new AlbumView("al1"))),
-            ("artist", () => win.Go(() => new ArtistView("ar1", "Massive Attack"))),
-            ("playlist", () => win.Go(() => new PlaylistView("p1"))),
-            ("local", () => win.Go(() => new LocalView(), root: true)),
-            ("search", () => win.Go(() => new SearchView("massive"), root: true)),
-            ("settings", () => win.Go(() => new SettingsView(), root: true)),
+            ("home", () => win.Go(() => new HomeView(), root: true), 2000),
+            ("library-albums", () => { LibraryView.Tab = "albums"; win.Go(() => new LibraryView(), root: true); }, 2000),
+            ("library-artists", () => { LibraryView.Tab = "artists"; win.Go(() => new LibraryView(), root: true); }, 2000),
+            ("library-tracks", () => { LibraryView.Tab = "tracks"; win.Go(() => new LibraryView(), root: true); }, 2000),
+            ("library-playlists", () => { LibraryView.Tab = "playlists"; win.Go(() => new LibraryView(), root: true); }, 2000),
+            ("album", () => win.Go(() => new AlbumView("al1")), 2000),
+            ("artist", () => win.Go(() => new ArtistView("ar1", "Massive Attack")), 2000),
+            ("playlist", () => win.Go(() => new PlaylistView("p1")), 2000),
+            ("local", () => win.Go(() => new LocalView(), root: true), 2000),
+            ("search", () => win.Go(() => new SearchView("massive"), root: true), 2000),
+            ("settings", () => win.Go(() => new SettingsView(), root: true), 2000),
             ("player", () =>
             {
-                app.Player.PlayLocal([new LocalTrack(1, wav, 1, 0, null, "Teardrop", "Massive Attack", "Mezzanine", 1998, null, 30_000, 3, 1, null, null)], 0);
-                win.Go(() => new PlayerView());
-            }),
+                var names = new[] { "Teardrop", "Angel", "Inertia Creeps", "Dissolved Girl" };
+                app.Player.PlayLocal(names.Select((t, k) => new LocalTrack(k + 1, wav, 1, 0, null, t, "Massive Attack", "Mezzanine", 1998, null, 30_000, k + 1, 1, null, null)).ToList(), 0);
+                player = new PlayerView();
+                win.Go(() => player);
+            }, 2500),
+            // mid-change: the old cover receding into the stack, the new one swinging in
+            ("player-next", () => app.Player.Next(), 520),
+            ("player-lyrics", () => player?.ToggleLyrics(), 1500),
         };
         var i = 0;
-        foreach (var (name, open) in pages)
+        foreach (var (name, open, settle) in pages)
         {
             Page = name;
             try
             {
                 open();
-                await Task.Delay(2000);  // entrance animations settle
+                await Task.Delay(settle);  // entrance animations settle
                 await Shot(win.Content, Path.Combine(dir, $"{++i:00}-{name}.png"));
                 Report.AppendLine($"ok   {name}");
             }
