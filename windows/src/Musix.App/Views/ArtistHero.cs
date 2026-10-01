@@ -26,6 +26,7 @@ public sealed class ArtistBurst : Grid
     private const double R = 900;
     private readonly Grid rays = new() { Width = 2 * R, Height = 2 * R, IsHitTestVisible = false };
     private readonly Canvas sparks = new() { IsHitTestVisible = false };
+    private readonly Grid sparkLayer = new() { IsHitTestVisible = false };  // the parallax moves this; the drift moves the canvas inside
     private readonly Rectangle baseGlow = new();
     private readonly bool motion = new Windows.UI.ViewManagement.UISettings().AnimationsEnabled;
 
@@ -78,7 +79,8 @@ public sealed class ArtistBurst : Grid
             sparks.Children.Add(e);
         }
         sparks.Opacity = 0.85;
-        Children.Add(sparks);
+        sparkLayer.Children.Add(sparks);
+        Children.Add(sparkLayer);
 
         // v1's mask: no edges, it melts into the page below and toward the rail
         var down = new LinearGradientBrush { StartPoint = new Point(0, 0), EndPoint = new Point(0, 1) };
@@ -129,12 +131,12 @@ public sealed class ArtistBurst : Grid
     {
         baseGlow.Translation = new Vector3((float)(hx * 6), (float)(hy * 4), 0);
         rays.Translation = new Vector3((float)(hx * 6), (float)(hy * 4), 0);
-        sparks.Translation = new Vector3((float)(hx * 8), (float)(hy * 6), 0);
+        sparkLayer.Translation = new Vector3((float)(hx * 8), (float)(hy * 6), 0);
     }
 
     public void EnableLean()
     {
-        foreach (var e in new UIElement[] { baseGlow, rays, sparks })
+        foreach (var e in new UIElement[] { baseGlow, rays, sparkLayer })
             e.TranslationTransition = new Vector3Transition { Duration = TimeSpan.FromMilliseconds(700) };
     }
 

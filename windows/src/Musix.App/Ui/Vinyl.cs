@@ -22,22 +22,25 @@ public sealed class Vinyl : Grid
     public Vinyl(double size, string? coverImageId, double seconds = 10)
     {
         Width = Height = size;
-        RenderTransform = turn;
+        // the spin is a storyboard transform on an inner disc: this outer element stays free for
+        // the composition moves (Translation/Rotation), and WinUI refuses both on one element
+        var disc = new Grid { RenderTransform = turn };
+        Children.Add(disc);
         turn.CenterX = turn.CenterY = size / 2;
-        Children.Add(new Ellipse { Fill = Theme.Hex(0xFF0B0B0Du), Stroke = Theme.Hex(0x0DFFFFFFu), StrokeThickness = 1 });
+        disc.Children.Add(new Ellipse { Fill = Theme.Hex(0xFF0B0B0Du), Stroke = Theme.Hex(0x0DFFFFFFu), StrokeThickness = 1 });
         for (var r = 0.40; r < 0.97; r += 0.045)
-            Children.Add(new Ellipse { Width = size * r, Height = size * r, Stroke = Theme.Hex(0xFF17171Au), StrokeThickness = 1, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center });
+            disc.Children.Add(new Ellipse { Width = size * r, Height = size * r, Stroke = Theme.Hex(0xFF17171Au), StrokeThickness = 1, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center });
         var shine = new RadialGradientBrush { Center = new Point(0.34, 0.28), GradientOrigin = new Point(0.34, 0.28), RadiusX = 0.42, RadiusY = 0.42 };
         shine.GradientStops.Add(new GradientStop { Offset = 0, Color = Color.FromArgb(41, 255, 255, 255) });
         shine.GradientStops.Add(new GradientStop { Offset = 1, Color = Color.FromArgb(0, 255, 255, 255) });
-        Children.Add(new Ellipse { Fill = shine });
+        disc.Children.Add(new Ellipse { Fill = shine });
         var pal = App.Shared.Palette(coverImageId);
         var label = new RadialGradientBrush { Center = new Point(0.38, 0.32), GradientOrigin = new Point(0.38, 0.32), RadiusX = 0.7, RadiusY = 0.7 };
         label.GradientStops.Add(new GradientStop { Offset = 0, Color = pal?.Vibrant ?? Theme.Oklch(0.62, 0.16, 285) });
         label.GradientStops.Add(new GradientStop { Offset = 1, Color = pal?.Accent ?? Theme.Oklch(0.45, 0.16, 300) });
-        Children.Add(new Ellipse { Width = size * 0.34, Height = size * 0.34, Fill = label, Stroke = Theme.Hex(0x59000000u), StrokeThickness = 1, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center });
+        disc.Children.Add(new Ellipse { Width = size * 0.34, Height = size * 0.34, Fill = label, Stroke = Theme.Hex(0x59000000u), StrokeThickness = 1, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center });
         var hole = Math.Max(5, size * 0.05);
-        Children.Add(new Ellipse { Width = hole, Height = hole, Fill = Theme.Hex(0xFF08080Au), HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center });
+        disc.Children.Add(new Ellipse { Width = hole, Height = hole, Fill = Theme.Hex(0xFF08080Au), HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center });
         var a = new DoubleAnimation { From = 0, To = 360, Duration = TimeSpan.FromSeconds(seconds), EnableDependentAnimation = true };
         Storyboard.SetTarget(a, turn);
         Storyboard.SetTargetProperty(a, "Angle");

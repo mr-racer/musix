@@ -45,8 +45,12 @@ public static class Smoke
         var c = app.Db.Conn;
         var cover = new Uri(Path.Combine(AppContext.BaseDirectory, "Assets", "musix.png")).AbsoluteUri;
         var urls = $$"""{"256": "{{cover}}", "512": "{{cover}}"}""";
+        var palettes = new[] { "#7c5bff", "#d4783a", "#3aa7d4", "#c23b6e", "#5bbf6a", "#e0b341" };
         for (var i = 1; i <= 6; i++)
-            c.Execute("INSERT OR REPLACE INTO images(id, urls_json, gen) VALUES (@id, @urls, 1)", new { id = $"img{i}", urls });
+        {
+            var pal = $$"""{"dominant": "{{palettes[i - 1]}}", "vibrant": "{{palettes[i - 1]}}", "muted": "#6b5a50", "accent": {"dark": "hsl({{i * 50}}, 55%, 38%)", "light": "hsl({{i * 50}}, 55%, 32%)"}}""";
+            c.Execute("INSERT OR REPLACE INTO images(id, urls_json, palette_json, gen) VALUES (@id, @urls, @pal, 1)", new { id = $"img{i}", urls, pal });
+        }
         c.Execute("INSERT OR REPLACE INTO artists(id, name, sort_name, image_id, gen) VALUES ('ar1', 'Massive Attack', 'massive attack', 'img1', 1), ('ar2', 'Земфира', 'земфира', 'img2', 1)");
         var albums = new[] { ("al1", "Mezzanine", 1998, "ar1", "img3"), ("al2", "Protection", 1994, "ar1", "img4"), ("al3", "Вендетта", 2005, "ar2", "img5") };
         foreach (var (id, title, year, artist, img) in albums)
@@ -65,6 +69,19 @@ public static class Smoke
                 c.Execute("INSERT OR REPLACE INTO track_artists(track_id, artist_id, ord) VALUES (@id, @artist, 0)", new { id, artist });
             }
         }
+        // the home page's last `/home` answer, as the store keeps it (the tour is offline)
+        app.Db.PutKv("home.json", """
+            {"wave": {"phrase": "Громкий вокальный рок и хип-хоп уступают место атмосферному электронному свингу"},
+             "counts": {"albums": 516, "tracks": 5961},
+             "recentlyAdded": [{"id": "t1", "coverImageId": "img3"}, {"id": "t5", "coverImageId": "img4"}, {"id": "t9", "coverImageId": "img5"}],
+             "anchors": [{"id": "t1", "title": "Teardrop", "artistDisplay": "Massive Attack", "coverImageId": "img3", "artists": [{"id": "ar1", "name": "Massive Attack"}]},
+                         {"id": "t5", "title": "Karmacoma", "artistDisplay": "Massive Attack", "coverImageId": "img4", "artists": [{"id": "ar1", "name": "Massive Attack"}]},
+                         {"id": "t9", "title": "Хочешь?", "artistDisplay": "Земфира", "coverImageId": "img5", "artists": [{"id": "ar2", "name": "Земфира"}]}],
+             "vibes": [{"id": "v1", "name": "Поповый рок", "tracks": [{"id": "t1", "coverImageId": "img3"}]},
+                       {"id": "v2", "name": "Электронный хип-хоп", "tracks": [{"id": "t5", "coverImageId": "img4"}]},
+                       {"id": "v3", "name": "Детский электробит", "tracks": [{"id": "t9", "coverImageId": "img5"}]}],
+             "pulse": {"playedMs": 14820000, "dailyMs": [5400000, 9420000, 0, 0, 0, 0, 0], "topGenre": "Hip-Hop", "discoveries": 59}}
+            """);
         c.Execute("INSERT OR REPLACE INTO playlists(id, name, description, cover_image_id, item_count, created_at, updated_at, gen) VALUES ('p1', 'Для дороги', 'Смоук', 'img6', 3, 0, 0, 1)");
         c.Execute("INSERT OR REPLACE INTO playlist_items(item_id, playlist_id, track_id, position, added_at, gen) VALUES ('i1','p1','t1','a',0,1), ('i2','p1','t5','b',0,1), ('i3','p1','t9','c',0,1)");
     }
