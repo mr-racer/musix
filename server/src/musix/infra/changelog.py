@@ -39,5 +39,7 @@ async def notify(
     payload = {"account": str(account_id) if account_id else None, "kind": kind, **fields}
     await s.execute(
         sa.text("select pg_notify(:ch, :payload)"),
-        {"ch": CHANNEL, "payload": json.dumps(payload, default=str)},
+        # raw UTF-8, not \u escapes: Cyrillic is 2 bytes instead of 6, so a streamed answer
+        # (assistant FRAME_MAX is measured this way) stays under NOTIFY's 8000-byte cap
+        {"ch": CHANNEL, "payload": json.dumps(payload, default=str, ensure_ascii=False)},
     )

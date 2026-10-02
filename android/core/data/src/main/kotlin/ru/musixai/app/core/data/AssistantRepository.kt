@@ -68,7 +68,10 @@ class AssistantRepository @Inject constructor(private val api: MusixApi, private
         val watcher = kotlinx.coroutines.coroutineScope {
             val job = launch {
                 realtime.events.collect { e ->
-                    if (e["turn"]?.jsonPrimitive?.content != turn) return@collect
+                    // the socket names it `turnId` (api/realtime.py route()); reading `turn` dropped
+                    // every frame, so stages and streamed text never showed and each answer
+                    // waited for the 3 s poll (2026-10-02)
+                    if ((e["turnId"] ?: e["turn"])?.jsonPrimitive?.content != turn) return@collect
                     when (e["type"]?.jsonPrimitive?.content) {
                         "assistant.stage" -> (e["frame"] as? JsonObject)?.let(onFrame)
                         "assistant.done" -> done.complete(Unit)
