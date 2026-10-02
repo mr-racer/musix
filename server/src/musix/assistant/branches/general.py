@@ -38,6 +38,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import re
 from typing import Optional
 
 from musix.assistant.branches.base import WebBranch
@@ -486,14 +487,40 @@ def _valid_citations(raw, count: int) -> list:
 
 
 def _fallback_answer(evidence: list, lang: str) -> str:
-    """What the user sees when the model's answer failed the citation gate."""
-    head = (
-        "Не могу это пересказать своими словами, но вот что нашлось:"
-        if (lang or "").lower().startswith("ru")
-        else "I can't summarise this reliably, but here is what I found:"
-    )
-    body = "\n\n".join(f"• {e.text}" for e in evidence[:6])
-    return f"{head}\n\n{body}"
+    """What the user sees when the model's answer failed the citation gate.
+
+    Before, six raw passages were dumped under «Не могу это пересказать…»: English
+    Wikipedia text with `<sup>` markers inside a Russian answer (2026-10-02). Now it is
+    an honest line, at most two of the library's own facts (clipped), and where to read.
+    """
+    ru = (lang or "").lower().startswith("ru")
+    links: list = []
+    facts: list = []
+    for e in evidence:
+        url = getattr(e, "url", None)
+        if url:
+            if url not in links:
+                links.append(url)
+        elif len(facts) < 2 and (getattr(e, "text", "") or "").strip():
+            facts.append(_clip(e.text))
+    parts = ["Точного ответа в найденном нет — выдумывать не буду." if ru else "What I found doesn't answer this precisely, and I won't guess."]
+    if facts:
+        parts.append(("Что известно: " if ru else "What is known: ") + " ".join(facts))
+    if links:
+        parts.append(("Где почитать: " if ru else "Where to read: ") + "\n".join(links[:3]))
+    return "\n\n".join(parts)
+
+
+def _clip(text: str, limit: int = 220) -> str:
+    """A passage as one clean sentence: no markup, no footnote markers, cut at a sentence end."""
+    t = re.sub(r"<sup>.*?</sup>|<[^>]+>|\[\d+\]", "", text or "")
+    t = re.sub(r"[*_#>`]+", "", t)
+    t = " ".join(t.split())
+    if len(t) <= limit:
+        return t
+    cut = t[:limit]
+    end = max(cut.rfind(". "), cut.rfind("! "), cut.rfind("? "))
+    return (cut[: end + 1] if end > 60 else cut.rstrip() + "…")
 
 
 def _lang_name(lang: str) -> str:
