@@ -130,10 +130,11 @@ fun TrackChatSheet(ui: PlayerUi, vm: PlayerViewModel) {
                     }
                 } else {
                     val scroll = rememberScrollState()
-                    LaunchedEffect(ui.chat.size, ui.chatStage) { scroll.animateScrollTo(scroll.maxValue) }
+                    LaunchedEffect(ui.chat.size, ui.chatStage, ui.chatStream?.length?.div(80)) { scroll.animateScrollTo(scroll.maxValue) }
                     Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(scroll).padding(horizontal = 16.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                         for ((mine, text) in ui.chat) Bubble(mine, text)
-                        ui.chatStage?.let { stage ->
+                        // the reply grows in its bubble while the model writes; the stage line until the first words
+                        ui.chatStream?.let { Bubble(false, it) } ?: ui.chatStage?.let { stage ->
                             Row(Modifier.clip(RoundedCornerShape(14.dp, 14.dp, 14.dp, 4.dp)).background(c.aiBubble).padding(horizontal = 14.dp, vertical = 10.dp),
                                 verticalAlignment = Alignment.CenterVertically) {
                                 Spinner(12.dp)
@@ -189,15 +190,17 @@ private fun HeaderPill(glyph: String, onClick: () -> Unit) {
     }
 }
 
+/** A chat bubble: mine as typed, the assistant's as markdown (its lists, quotes and links; never bold). */
 @Composable
 private fun Bubble(mine: Boolean, text: String) {
     val c = MusixTheme.colors
+    val style = MusixTheme.type.body.copy(fontSize = 14.5.sp, lineHeight = 1.5.em, color = if (mine) Color.White else c.text)
     Box(Modifier.fillMaxWidth(), contentAlignment = if (mine) Alignment.CenterEnd else Alignment.CenterStart) {
-        Text(text, Modifier.widthIn(max = 300.dp)
+        val shell = Modifier.widthIn(max = 300.dp)
             .clip(if (mine) RoundedCornerShape(14.dp, 14.dp, 4.dp, 14.dp) else RoundedCornerShape(14.dp, 14.dp, 14.dp, 4.dp))
             .then(if (mine) Modifier.background(c.userBubble.brush(500f, 120f)) else Modifier.background(c.aiBubble))
-            .padding(horizontal = 13.dp, vertical = 9.dp),
-            style = MusixTheme.type.body.copy(fontSize = 14.5.sp, lineHeight = 1.5.em, color = if (mine) Color.White else c.text))
+            .padding(horizontal = 13.dp, vertical = 9.dp)
+        if (mine) Text(text, shell, style = style) else ru.musixai.app.core.designsystem.component.Markdown(text, style, shell)
     }
 }
 

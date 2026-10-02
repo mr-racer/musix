@@ -37,6 +37,7 @@ data class PlayerUi(
     val chatOpen: Boolean = false,
     val chat: List<Pair<Boolean, String>> = emptyList(),  // (mine, text)
     val chatStage: String? = null,
+    val chatStream: String? = null,               // the reply so far, while the model writes it
     val chatFor: String? = null,                  // the chat belongs to this track (v1 useTrackChat(trackId))
     val explain: Map<Int, Explain> = emptyMap(),  // lyric line → the guru's answer (v1 InlineLyricExplain)
     val explainFor: String? = null,               // … for this track only
@@ -125,8 +126,11 @@ class PlayerViewModel @Inject constructor(
         val history = local.value.chat.takeLast(6).map { (mine, text) -> (if (mine) "user" else "assistant") to text }
         local.update { it.copy(chatOpen = true, chat = it.chat + (true to (line?.let { l -> "«$l»" } ?: message)), chatStage = "Думаю…") }
         viewModelScope.launch {
-            val r = runCatching { assistant.trackChat(id, message, line, history) { s -> local.update { it.copy(chatStage = s) } } }
-            local.update { u -> u.copy(chatStage = null, chat = u.chat + (false to (r.getOrNull()?.text ?: "Не получилось ответить"))) }
+            val r = runCatching {
+                assistant.trackChat(id, message, line, history, onStage = { s -> local.update { it.copy(chatStage = s) } },
+                    onText = { t -> local.update { it.copy(chatStream = t.ifEmpty { null }) } })
+            }
+            local.update { u -> u.copy(chatStage = null, chatStream = null, chat = u.chat + (false to (r.getOrNull()?.text ?: "Не получилось ответить"))) }
         }
     }
 
@@ -137,18 +141,22 @@ class PlayerViewModel @Inject constructor(
         if (i in now) { local.update { it.copy(explain = now - i, explainFor = id) }; return }
         local.update { it.copy(explain = now + (i to Explain.Loading), explainFor = id) }
         viewModelScope.launch {
-            val r = runCatching { assistant.trackChat(id, "Объясни строчку", line, emptyList()) { } }
+            // the explanation fills in while the model writes it
+            val r = runCatching {
+                assistant.trackChat(id, "Объясни строчку", line, emptyList(), onStage = { },
+                    onText = { t -> if (t.isNotEmpty()) local.update { u -> if (u.explainFor != id || i !in u.explain) u else u.copy(explain = u.explain + (i to Explain.Done(t))) } })
+            }
             val text = r.getOrNull()?.text ?: "Гуру сейчас не ответил — попробуй ещё раз"
             local.update { u -> if (u.explainFor != id) u else u.copy(explain = u.explain + (i to Explain.Done(text))) }
         }
     }
 
     /** «+»: the current track into a playlist (offline-first, through the outbox). */
-    fun addTo(p: Playlist?, newName: String? = null) = viewModelScope.launch {
+    fun addTo(p: Playlist?, newName: String? = null, close: Boolean = true) = viewModelScope.launch {
         val id = player.state.value.trackId ?: return@launch
         val pid = p?.id ?: playlists.create(newName ?: return@launch)
         playlists.add(pid, listOf(id))
-        local.update { it.copy(addOpen = false) }
+        if (close) local.update { it.copy(addOpen = false) }
     }
 
     fun react(kind: String) {

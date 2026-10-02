@@ -149,12 +149,17 @@ fun CoverStage(
     val pressScale by animateFloatAsState(if (pressed && !flipped) 0.96f else 1f, tween(140, easing = Press), label = "press")
     var feedback by remember { mutableLongStateOf(0L) }
     var feedbackPlay by remember { mutableStateOf(true) }
+    // the tap handler below lives as long as `flipped` does: it must read the play state of
+    // the moment, not the one it was created with (it showed ⏸ on a tap that started the song)
+    val playingNow by androidx.compose.runtime.rememberUpdatedState(p.isPlaying)
     val fb = remember { Animatable(1f) }
     LaunchedEffect(feedback) { if (feedback != 0L) { fb.snapTo(0f); fb.animateTo(1f, tween(1200, easing = LinearEasing)) } }
     val veil by animateFloatAsState(if (p.buffering) 1f else 0f, tween(220), label = "veil")
 
+    val burst = rememberCombustion(ui.burst)
     Box(modifier.fillMaxWidth().aspectRatio(1f)) {
-        ui.burst?.let { (kind, nonce) -> Combustion(kind, nonce, Modifier.fillMaxSize()) }
+        // v1 CoverCombustion: the back layer behind the art, the front one over its rims (below)
+        CombustionLayer(burst, front = false, Modifier.fillMaxSize())
         // the outgoing cover leaves toward the side the finger went
         outgoing?.let { (img, from) ->
             val k = outT.value
@@ -183,7 +188,7 @@ fun CoverStage(
                         val up = waitForUpOrCancellation()
                         pressed = false
                         if (up != null && abs(drag) < 8f) {
-                            feedbackPlay = !p.isPlaying
+                            feedbackPlay = !playingNow
                             feedback = System.nanoTime()
                             onToggle()
                         }
@@ -228,6 +233,7 @@ fun CoverStage(
                 }
             }
         }
+        CombustionLayer(burst, front = true, Modifier.fillMaxSize())
         // the glassy glyph stays upright: outside the flip and the swipe
         if (fb.value < 1f) FeedbackGlyph(fb.value, feedbackPlay)
         // flank arrows (v1 `.player-side-btn--flank`), gone while the lyrics are open
@@ -419,10 +425,11 @@ private val SECTION = Regex("""^\s*[\[(][^\])]{1,40}[\])]\s*$""")
 
 @Composable
 private fun ExplainCard(text: String, dark: Boolean, muted: Boolean) {
-    Text(text, Modifier.fillMaxWidth().padding(top = 4.dp, bottom = 10.dp)
-        .clip(RoundedCornerShape(12.dp)).background(if (dark) Color(0x147C5BFF) else Color(0x0F7C5BFF))
-        .padding(horizontal = 12.dp, vertical = 9.dp),
-        style = MusixTheme.type.body.copy(fontSize = 13.sp, lineHeight = 1.5.em, color = (if (dark) Color(0xFFD8CCFF) else Color(0xFF4A3A86)).copy(alpha = if (muted) 0.7f else 1f)))
+    ru.musixai.app.core.designsystem.component.Markdown(text,
+        MusixTheme.type.body.copy(fontSize = 13.5.sp, lineHeight = 1.5.em, color = (if (dark) Color(0xFFD8CCFF) else Color(0xFF4A3A86)).copy(alpha = if (muted) 0.7f else 1f)),
+        Modifier.fillMaxWidth().padding(top = 4.dp, bottom = 10.dp)
+            .clip(RoundedCornerShape(12.dp)).background(if (dark) Color(0x147C5BFF) else Color(0x0F7C5BFF))
+            .padding(horizontal = 12.dp, vertical = 9.dp))
 }
 
 /** v1 `.player-lyrics-aura`: a flat accent wash behind the flipped cover, 700 ms fade. */

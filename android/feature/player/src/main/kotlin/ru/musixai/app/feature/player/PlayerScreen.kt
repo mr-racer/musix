@@ -78,9 +78,9 @@ fun PlayerScreen(ui: PlayerUi, vm: PlayerViewModel, onClose: () -> Unit, onArtis
             }
             val accent = hexColor(palette?.vibrant) ?: Color(0xFF7C5BFF)
             Box(Modifier.fillMaxWidth()) {
-                // the lyrics aura and the spectrum wave sit behind the cover row (v1 order)
+                // the lyrics aura sits behind the cover row (v1 order); the spectrum wave that
+                // played behind the album is gone at the owner's word (2026-10-02)
                 LyricsAura(ui.lyricsOpen, accent, Modifier.matchParentSize().padding(vertical = 0.dp))
-                Spectrum(ui.envelope, p.positionMs, p.isPlaying && !ui.lyricsOpen, accent, Modifier.matchParentSize().padding(vertical = 40.dp))
                 CoverStage(ui, flipped = ui.lyricsOpen, onToggle = vm::toggle, onNext = vm::next, onPrev = vm::previous,
                     explain = ui.explain, onExplain = vm::explainLine, modifier = Modifier.padding(horizontal = 24.dp))
             }
@@ -124,11 +124,11 @@ fun PlayerScreen(ui: PlayerUi, vm: PlayerViewModel, onClose: () -> Unit, onArtis
             Spacer(Modifier.height(18.dp))
             FactsRail(ctx, Modifier.padding(horizontal = 12.dp))
             Credits(ctx, Modifier.padding(horizontal = 16.dp, vertical = 12.dp))
-            if (ui.addOpen) AddToPlaylist(vm)
             QueueButton(p.queue.size, vm::toggleQueue, Modifier.padding(horizontal = 14.dp).padding(bottom = 24.dp))
         }
         QueueDrawer(ui.queueOpen, p, onClose = vm::toggleQueue, onJump = vm::jump, onMove = vm::move, onRemove = vm::remove)
         TrackChatSheet(ui, vm)
+        if (ui.addOpen) AddToPlaylist(vm, listOf(p.title, p.artist).filter { it.isNotBlank() }.joinToString(" — "))
     }
 }
 

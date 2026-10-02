@@ -82,6 +82,7 @@ data class SearchUi(
     val years: Set<String> = emptySet(), val picked: Set<String> = emptySet(),
     val tab: Tab = Tab.Search, val recent: List<String> = emptyList(), val filters: Boolean = false,
     val chat: List<ChatMsg> = emptyList(), val chatInput: String = "", val chatStage: String? = null, val contextId: String? = null,
+    val chatStream: String? = null,  // the answer so far, while the model writes it
 )
 
 @HiltViewModel
@@ -135,12 +136,15 @@ class SearchViewModel @Inject constructor(
         val history = _ui.value.chat.takeLast(6).map { (if (it.mine) "user" else "assistant") to it.text }
         _ui.update { it.copy(chat = it.chat + ChatMsg(true, t), chatInput = "", chatStage = "Думаю…") }
         viewModelScope.launch {
-            val r = runCatching { assistant.ask(t, history, _ui.value.contextId, player.state.value.trackId) { s -> _ui.update { u -> u.copy(chatStage = s) } } }.getOrNull()
+            val r = runCatching {
+                assistant.ask(t, history, _ui.value.contextId, player.state.value.trackId, onStage = { s -> _ui.update { u -> u.copy(chatStage = s) } },
+                    onText = { s -> _ui.update { u -> u.copy(chatStream = s.ifEmpty { null }) } })
+            }.getOrNull()
             val reply = when {
                 r == null -> ChatMsg(false, "Не получилось ответить — нет связи с сервером")
                 else -> ChatMsg(false, r.text ?: r.error ?: if (r.tracks.isEmpty()) "Ничего не нашёл" else "Вот что нашлось в библиотеке:", r.tracks, r.images)
             }
-            _ui.update { it.copy(chat = it.chat + reply, chatStage = null, contextId = r?.contextId ?: it.contextId) }
+            _ui.update { it.copy(chat = it.chat + reply, chatStage = null, chatStream = null, contextId = r?.contextId ?: it.contextId) }
         }
     }
 
@@ -244,7 +248,7 @@ private fun HeroBar(ui: SearchUi, vm: SearchViewModel) {
 private fun ChatTab(ui: SearchUi, vm: SearchViewModel) {
     val c = MusixTheme.colors
     val list = androidx.compose.foundation.lazy.rememberLazyListState()
-    androidx.compose.runtime.LaunchedEffect(ui.chat.size, ui.chatStage) { if (ui.chat.isNotEmpty()) list.animateScrollToItem(list.layoutInfo.totalItemsCount.coerceAtLeast(1) - 1) }
+    androidx.compose.runtime.LaunchedEffect(ui.chat.size, ui.chatStage, ui.chatStream?.length?.div(80)) { if (ui.chat.isNotEmpty()) list.animateScrollToItem(list.layoutInfo.totalItemsCount.coerceAtLeast(1) - 1) }
     Column(Modifier.fillMaxSize().imePadding()) {
         LazyColumn(Modifier.weight(1f), state = list, contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 18.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -265,7 +269,7 @@ private fun ChatTab(ui: SearchUi, vm: SearchViewModel) {
                 }
             }
             items(ui.chat.size) { i -> ChatBubble(ui.chat[i], vm) }
-            ui.chatStage?.let { st ->
+            ui.chatStream?.let { item { ChatBubble(ChatMsg(false, it), vm) } } ?: ui.chatStage?.let { st ->
                 item {
                     Row(Modifier.clip(RoundedCornerShape(16.dp, 16.dp, 16.dp, 5.dp)).background(c.aiBubble).padding(horizontal = 14.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
                         Spinner(12.dp); Text("  $st", style = MusixTheme.type.body.copy(fontSize = 13.sp, color = c.textMuted))
@@ -292,9 +296,10 @@ private fun ChatTab(ui: SearchUi, vm: SearchViewModel) {
 private fun ChatBubble(m: ChatMsg, vm: SearchViewModel) {
     val c = MusixTheme.colors
     Column(Modifier.fillMaxWidth(), horizontalAlignment = if (m.mine) Alignment.End else Alignment.Start, verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Text(m.text, Modifier.widthIn(max = 320.dp).clip(if (m.mine) RoundedCornerShape(16.dp, 16.dp, 5.dp, 16.dp) else RoundedCornerShape(16.dp, 16.dp, 16.dp, 5.dp))
-            .background(if (m.mine) c.accent else c.aiBubble).padding(horizontal = 15.dp, vertical = 11.dp),
-            style = MusixTheme.type.body.copy(fontSize = 15.sp, lineHeight = 1.55.em, color = if (m.mine) Color.White else c.text))
+        val shell = Modifier.widthIn(max = 320.dp).clip(if (m.mine) RoundedCornerShape(16.dp, 16.dp, 5.dp, 16.dp) else RoundedCornerShape(16.dp, 16.dp, 16.dp, 5.dp))
+            .background(if (m.mine) c.accent else c.aiBubble).padding(horizontal = 15.dp, vertical = 11.dp)
+        val style = MusixTheme.type.body.copy(fontSize = 15.sp, lineHeight = 1.55.em, color = if (m.mine) Color.White else c.text)
+        if (m.mine) Text(m.text, shell, style = style) else ru.musixai.app.core.designsystem.component.Markdown(m.text, style, shell)
         m.tracks.take(5).forEachIndexed { i, t ->
             Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(Color(0x08FFFFFF)).pressable { vm.play(m.tracks, i) }.padding(8.dp),
                 verticalAlignment = Alignment.CenterVertically) {

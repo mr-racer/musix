@@ -56,7 +56,8 @@ data class AsxTurn(
 }
 
 /** A progress frame: `route` carries the intent (~200 ms in), the rest a human line. */
-data class AsxFrame(val stage: String?, val human: String?, val intent: String?)
+/** One progress frame. On `answer_delta` [text] is the answer so far ("" withdraws a draft). */
+data class AsxFrame(val stage: String?, val human: String?, val intent: String?, val text: String? = null)
 
 /** What a pre-written turn pins (v1 `send(text, opts)`). */
 data class AsxOptions(
@@ -88,7 +89,7 @@ class AssistantTurns @Inject constructor(private val api: MusixApi, private val 
         }
         val turn = ApiJson.parseToJsonElement(api.postJson("/api/v2/assistant/turns", body.toString())).jsonObject["turnId"]!!.jsonPrimitive.content
         return parse(assistant.awaitTurn(turn) { f ->
-            onFrame(AsxFrame(f.str("stage"), f.str("human"), f.str("intent")))
+            onFrame(AsxFrame(f.str("stage"), f.str("human"), f.str("intent"), (f["text"] as? kotlinx.serialization.json.JsonPrimitive)?.content))
         })
     }
 

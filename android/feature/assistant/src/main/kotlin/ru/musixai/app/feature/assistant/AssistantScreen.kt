@@ -103,6 +103,7 @@ data class AssistantUi(
     val turn: AsxTurn? = null, val failed: Boolean = false, val contextId: String? = null, val slots: JsonObject? = null,
     val ideas: List<AsxIdea> = emptyList(), val samples: List<AsxSampleCard> = emptyList(), val history: List<AsxPast> = emptyList(),
     val openId: Long? = null, val saving: Boolean = false, val asleep: Boolean = false,
+    val stream: String? = null,  // the answer so far, while the model writes it
 ) {
     val orb: OrbState get() = when {
         asleep -> OrbState.Sleep
@@ -140,19 +141,22 @@ class AssistantViewModel @Inject constructor(
         viewModelScope.launch {
             val r = runCatching {
                 turns.send(text, opts, history, prev.slots, player.state.value.trackId) { f ->
-                    _ui.update { u -> u.copy(stage = f.human ?: u.stage, intent = f.intent ?: u.intent) }
+                    _ui.update { u ->
+                        if (f.stage == "answer_delta") u.copy(stream = f.text?.ifEmpty { null })
+                        else u.copy(stage = f.human ?: u.stage, intent = f.intent ?: u.intent)
+                    }
                 }
             }
             val t = r.getOrNull()
             if (t == null) {
                 val forbidden = r.exceptionOrNull()?.message?.contains("403") == true
-                _ui.update { it.copy(busy = false, stage = "", failed = true, intent = null, asleep = forbidden) }
+                _ui.update { it.copy(busy = false, stage = "", failed = true, intent = null, asleep = forbidden, stream = null) }
                 return@launch
             }
             _ui.update { u ->
                 val keep = !t.empty && t.clarify.isEmpty() && t.disambiguate.isEmpty()
                 val past = if (keep) AsxPast(System.currentTimeMillis(), text, t) else null
-                u.copy(busy = false, stage = "", turn = t, intent = t.intent, contextId = t.contextId, slots = t.slots ?: u.slots,
+                u.copy(busy = false, stage = "", stream = null, turn = t, intent = t.intent, contextId = t.contextId, slots = t.slots ?: u.slots,
                     history = (listOfNotNull(past) + u.history).take(12), openId = past?.id)
             }
         }
@@ -224,6 +228,8 @@ fun AssistantRoute(onArtist: (String) -> Unit, vm: AssistantViewModel = hiltView
                 Hero(ui, compact, onStar = { vm.send(it) }, onOrb = { if (compact) vm.reset() })
             }
             Composer(ui, vm)
+            // the answer appears while the model writes it; the finished card replaces it
+            if (ui.busy) ui.stream?.let { DraftAnswer(it) }
             val t = ui.turn
             if (t != null) {
                 if (t.clarify.isNotEmpty()) ClarifyRow(t.clarify) { o -> vm.send(ui.query, AsxOptions(intent = o.intent)) }
@@ -482,5 +488,14 @@ private fun SampleStar(s: AsxSampleCard, onClick: () -> Unit) {
             Text(it, Modifier.border(1.dp, Color(0x59FFB35C), RoundedCornerShape(999.dp)).padding(horizontal = 8.dp, vertical = 2.dp),
                 style = MusixTheme.type.body.copy(fontSize = 10.5.sp, color = Color(0xFFFFB35C)))
         }
+    }
+}
+
+/** The answer while it is still being written: the same voice as the finished card, no sources yet. */
+@Composable
+private fun DraftAnswer(text: String) {
+    val c = MusixTheme.colors
+    Column(Modifier.padding(top = 22.dp).fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(c.aiBubble).padding(horizontal = 18.dp, vertical = 16.dp)) {
+        ru.musixai.app.core.designsystem.component.Markdown(text, MusixTheme.type.body.copy(fontSize = 14.5.sp, lineHeight = 1.65.em, color = c.text))
     }
 }

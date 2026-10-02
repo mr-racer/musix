@@ -521,7 +521,9 @@ class PlaybackService : MediaLibraryService() {
             val st = runCatching { api.call { listening.signalStateApiV2SignalsStateGet(trackId) } }.getOrNull() ?: return@launch
             val s = st.states[trackId]
             if (exo.currentMediaItem?.mediaId != trackId) return@launch
-            taste = s?.let { Taste(trackId, it.kind.value, it.locked) }
+            // a reaction whose charge has decayed away is no reaction: a weeks-old огонёк at
+            // 0.8 % still lit the button as if just pressed (the owner, 2026-10-02)
+            taste = s?.takeIf { it.contribution.toDouble() >= SPENT_CHARGE }?.let { Taste(trackId, it.kind.value, it.locked) }
             refreshButtons()
             broadcastTaste()
         }
@@ -854,6 +856,8 @@ class PlaybackService : MediaLibraryService() {
     }
 
     companion object {
+        /** Below this the server's charge (1.0 fresh, halving every day) is spent: ~3.3 days. */
+        const val SPENT_CHARGE = 0.1
         private const val TAG = "MusixPlayback"
         private const val PERF = "MusixPerf"
         private const val ROOT_ID = "musix.root"

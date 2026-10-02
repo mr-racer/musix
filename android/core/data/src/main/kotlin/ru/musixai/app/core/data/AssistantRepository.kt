@@ -30,7 +30,8 @@ data class AssistantAnswer(val text: String?, val tracks: List<Track>, val image
  *  the WebSocket, the result from `GET /assistant/turns/{id}`; polled if the socket is down. */
 @Singleton
 class AssistantRepository @Inject constructor(private val api: MusixApi, private val realtime: Realtime) {
-    suspend fun ask(message: String, history: List<Pair<String, String>>, contextId: String?, nowPlaying: String?, onStage: (String) -> Unit): AssistantAnswer {
+    suspend fun ask(message: String, history: List<Pair<String, String>>, contextId: String?, nowPlaying: String?, onStage: (String) -> Unit,
+                    onText: (String) -> Unit = {}): AssistantAnswer {
         val body = buildJsonObject {
             put("message", message); put("lang", "ru"); put("limit", 20)
             put("history", JsonArray(history.map { (r, c) -> buildJsonObject { put("role", r); put("content", c) } }))
@@ -38,22 +39,28 @@ class AssistantRepository @Inject constructor(private val api: MusixApi, private
             nowPlaying?.let { put("nowPlayingTrackId", it) }
         }
         val turn = ApiJson.parseToJsonElement(api.postJson("/api/v2/assistant/turns", body.toString())).jsonObject["turnId"]!!.jsonPrimitive.content
-        return await(turn, onStage)
+        return await(turn, onStage, onText)
     }
 
     /** `track-chat`: questions about the playing track; `lyric_explain` explains a line. */
-    suspend fun trackChat(trackId: String, message: String, line: String?, history: List<Pair<String, String>>, onStage: (String) -> Unit): AssistantAnswer {
+    suspend fun trackChat(trackId: String, message: String, line: String?, history: List<Pair<String, String>>, onStage: (String) -> Unit,
+                          onText: (String) -> Unit = {}): AssistantAnswer {
         val body = buildJsonObject {
             put("trackId", trackId); put("message", message); put("lang", "ru"); put("mode", if (line != null) "lyric_explain" else "song")
             line?.let { put("selectedLine", it) }
             put("history", JsonArray(history.map { (r, c) -> buildJsonObject { put("role", r); put("content", c) } }))
         }
         val turn = ApiJson.parseToJsonElement(api.postJson("/api/v2/track-chat/turns", body.toString())).jsonObject["turnId"]!!.jsonPrimitive.content
-        return await(turn, onStage)
+        return await(turn, onStage, onText)
     }
 
-    private suspend fun await(turn: String, onStage: (String) -> Unit): AssistantAnswer =
-        parse(awaitTurn(turn) { f -> (f["human"] as? JsonPrimitive)?.content?.let(onStage) })
+    /** Progress frames: `answer_delta` carries the answer so far (streamed while the model
+     *  writes; "" withdraws a draft), any other stage is a caption. */
+    private suspend fun await(turn: String, onStage: (String) -> Unit, onText: (String) -> Unit): AssistantAnswer =
+        parse(awaitTurn(turn) { f ->
+            if ((f["stage"] as? JsonPrimitive)?.content == "answer_delta") onText((f["text"] as? JsonPrimitive)?.content.orEmpty())
+            else (f["human"] as? JsonPrimitive)?.content?.let(onStage)
+        })
 
     /** The turn's JSON once it is done (or failed), each progress frame passed on as it lands. */
     suspend fun awaitTurn(turn: String, onFrame: (JsonObject) -> Unit): JsonObject {
@@ -88,9 +95,8 @@ class AssistantRepository @Inject constructor(private val api: MusixApi, private
         val tracks = (t["tracks"] as? JsonObject).orEmpty().mapNotNull { (_, v) -> runCatching { ApiJson.decodeFromJsonElement(TrackOut.serializer(), v).model() }.getOrNull() }
         val images = (t["images"] as? JsonObject).orEmpty().mapNotNull { (k, v) -> runCatching { k to ApiJson.decodeFromJsonElement(ImageData.serializer(), v).model() }.getOrNull() }.toMap()
         fun str(o: JsonObject?, k: String) = (o?.get(k) as? JsonPrimitive)?.content?.takeIf { it != "null" && it.isNotBlank() }
-        // a track-chat turn answers `{message, web_search_used}`; the bubbles are plain text, so
-        // the LLM's markdown emphasis is dropped rather than shown as asterisks
-        val text = (str(r, "answer") ?: str(r, "message"))?.replace("**", "") ?: str(r?.get("search") as? JsonObject, "message") ?: str(r?.get("clarify") as? JsonObject, "question")
+        // a track-chat turn answers `{message, web_search_used}`; the bubbles render markdown
+        val text = (str(r, "answer") ?: str(r, "message")) ?: str(r?.get("search") as? JsonObject, "message") ?: str(r?.get("clarify") as? JsonObject, "question")
             ?: str(r?.get("playlist") as? JsonObject, "title") ?: str(r?.get("facts") as? JsonObject, "answer")
         return AssistantAnswer(text, tracks, images, str(r, "context_id"), str(t, "error"))
     }

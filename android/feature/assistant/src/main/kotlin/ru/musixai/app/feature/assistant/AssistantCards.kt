@@ -241,8 +241,10 @@ internal fun AnswerCard(a: AsxAnswer, query: String, onAsk: (String, ru.musixai.
                 Text(f, Modifier.padding(top = 5.dp), style = MusixTheme.type.body.copy(fontSize = 13.5.sp, lineHeight = 1.5.em, color = c.text))
             }
         }
-        Text(markdown(a.text, a.evidence.map { it.n }.toSet(), dark) { n -> open = n; showSrc = true },
-            style = MusixTheme.type.body.copy(fontSize = 14.5.sp, lineHeight = 1.65.em, color = if (unexplained) c.textMuted else c.text))
+        val known = a.evidence.map { it.n }.toSet()
+        ru.musixai.app.core.designsystem.component.Markdown(a.text,
+            MusixTheme.type.body.copy(fontSize = 14.5.sp, lineHeight = 1.65.em, color = if (unexplained) c.textMuted else c.text),
+            inline = { b, run -> citations(b, run, known, dark) { n -> open = n; showSrc = true } })
         if (a.evidence.isNotEmpty()) {
             Text("${if (showSrc) "▾" else "▸"} Источники · ${a.evidence.size}", Modifier.padding(top = 14.dp).pressable { showSrc = !showSrc; if (!showSrc) open = null },
                 style = MusixTheme.type.body.copy(fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold, color = c.textMuted))
@@ -288,31 +290,21 @@ internal fun AnswerCard(a: AsxAnswer, query: String, onAsk: (String, ru.musixai.
     }
 }
 
-/** A small markdown: paragraphs, "- " bullets, **bold**, *italic*; [n] → a tappable superscript pill (`.asx-cite`). */
-private fun markdown(text: String, known: Set<Int>, dark: Boolean, onCite: (Int) -> Unit): AnnotatedString = buildAnnotatedString {
+/** `[n]` in a run of the answer → a tappable superscript pill (`.asx-cite`); the rest of the
+ *  markdown is the shared renderer's. Returns true: the run is appended either way. */
+private fun citations(b: AnnotatedString.Builder, run: String, known: Set<Int>, dark: Boolean, onCite: (Int) -> Unit): Boolean {
     val cite = SpanStyle(fontSize = 10.sp, fontWeight = FontWeight.Bold, color = if (dark) Color(0xFFC9BAFF) else Color(0xFF5B3FD4),
         background = Color(0x297C5BFF), baselineShift = BaselineShift(0.3f))
-    val lines = text.trim().lines()
-    lines.forEachIndexed { li, raw ->
-        var line = raw
-        if (line.trimStart().startsWith("- ") || line.trimStart().startsWith("* ")) line = "•  " + line.trimStart().drop(2)
-        line = line.removePrefix("### ").removePrefix("## ").removePrefix("# ")
-        var i = 0
-        val re = Regex("""\*\*(.+?)\*\*|\*(.+?)\*|\[(\d+(?:\s*,\s*\d+)*)]""")
-        for (m in re.findAll(line)) {
-            append(line.substring(i, m.range.first))
-            when {
-                m.groupValues[1].isNotEmpty() -> withStyle(SpanStyle(fontWeight = FontWeight.Bold)) { append(m.groupValues[1]) }
-                m.groupValues[2].isNotEmpty() -> withStyle(SpanStyle(fontStyle = FontStyle.Italic)) { append(m.groupValues[2]) }
-                else -> for (n in m.groupValues[3].split(Regex("\\s*,\\s*")).mapNotNull { it.toIntOrNull() }.filter { it in known }) {
-                    withLink(LinkAnnotation.Clickable("cite$n", TextLinkStyles(cite)) { onCite(n) }) { append(" $n ") }
-                }
-            }
-            i = m.range.last + 1
+    var i = 0
+    for (m in Regex("""\[(\d+(?:\s*,\s*\d+)*)]""").findAll(run)) {
+        b.append(run.substring(i, m.range.first))
+        for (n in m.groupValues[1].split(Regex("\\s*,\\s*")).mapNotNull { it.toIntOrNull() }.filter { it in known }) {
+            b.withLink(LinkAnnotation.Clickable("cite$n", TextLinkStyles(cite)) { onCite(n) }) { append(" $n ") }
         }
-        append(line.substring(i))
-        if (li < lines.lastIndex) append("\n")
+        i = m.range.last + 1
     }
+    b.append(run.substring(i))
+    return true
 }
 
 private fun host(url: String) = runCatching { java.net.URI(url).host?.removePrefix("www.") }.getOrNull()

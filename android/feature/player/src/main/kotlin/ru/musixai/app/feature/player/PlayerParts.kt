@@ -64,34 +64,6 @@ import kotlin.random.Random
 
 /** The cover: tap = play/pause, a horizontal swipe = next/previous with v1's vinyl motion
  *  (320 ms in / 600 ms out), flank arrows, and the огонёк/вода combustion around it. */
-/** v1 `CoverCombustion` + `.cover-fx__aura`: fire licks up from the bottom rim in amber, water
- *  pours from the top in blue — an aura that swells and fades over 2.2 s, with particles. */
-@Composable
-fun Combustion(kind: String, nonce: Long, modifier: Modifier) {
-    val t = remember(nonce) { Animatable(0f) }
-    LaunchedEffect(nonce) { t.snapTo(0f); t.animateTo(1f, tween(2200)) }
-    val fire = kind == "fire"
-    val seeds = remember(nonce) { List(46) { Triple(Random.nextFloat(), Random.nextFloat(), Random.nextFloat()) } }
-    Canvas(modifier.graphicsLayer { scaleX = 1.2f; scaleY = 1.35f }) {
-        val k = t.value
-        if (k >= 1f) return@Canvas
-        val aura = when { k < 0.16f -> k / 0.16f; k < 0.58f -> 1f - (k - 0.16f) / 0.42f * 0.22f; else -> 0.78f * (1f - (k - 0.58f) / 0.42f) }
-        val cy = if (fire) size.height * 0.8f else size.height * 0.3f
-        drawRect(Brush.radialGradient(
-            0f to (if (fire) Color(0xFFFF9220) else Color(0xFF3CA8FF)).copy(alpha = 0.55f * aura),
-            0.56f to (if (fire) Color(0xFFFF4800) else Color(0xFF2874FF)).copy(alpha = 0.2f * aura),
-            0.72f to Color.Transparent, center = Offset(size.width / 2, cy), radius = size.width * 0.62f))
-        for ((a, b, s) in seeds) {
-            val life = ((k * 1.6f - a * 0.6f).coerceIn(0f, 1f))
-            if (life <= 0f || life >= 1f) continue
-            val x = size.width * (0.1f + 0.8f * b) + sin((life + s) * 9f) * 14f
-            val y = if (fire) size.height * (0.92f - life * (0.55f + 0.3f * s)) else size.height * (0.08f + life * (0.6f + 0.3f * s))
-            val r = (if (fire) 10f else 6f) * (1f - life) + 2f
-            drawCircle((if (fire) Color(0xFFFFB347) else Color(0xFF8FD3FF)).copy(alpha = 0.75f * (1f - life)), r, Offset(x, y))
-        }
-    }
-}
-
 /** The scrubber: times in the label voice, an amber fill, and the track's energy envelope
  *  (4 bands, 10 fps, from the server) drawn behind it — the spectrum wave without an
  *  AnalyserNode or RECORD_AUDIO (spec §4). */
