@@ -23,7 +23,7 @@ class Source(Model):
 
 
 class Gain(Model):
-    """dB to reach −14 LUFS; a boost never goes past −1 dBTP."""
+    """dB to reach the service level (−9.2 LUFS, the library median); a boost never goes past −1 dBTP."""
 
     track_db: float | None
     album_db: float | None

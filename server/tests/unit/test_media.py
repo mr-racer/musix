@@ -17,7 +17,7 @@ def test_tier_follows_the_request_and_the_client() -> None:
 
 
 def test_gain_attenuates_freely_and_boosts_within_the_headroom() -> None:
-    assert gains(-8.0, -0.1) == -6.0  # loud master: attenuate to −14
-    assert gains(-20.0, -10.0) == 6.0  # quiet with 9 dB of headroom: the full boost
-    assert gains(-20.0, -3.0) == 2.0  # capped at −1 dBTP
+    assert gains(-6.0, -0.1) == -3.2  # loud master: attenuate to the library's −9.2
+    assert gains(-15.0, -10.0) == 5.8  # quiet with 9 dB of headroom: the full boost
+    assert gains(-15.0, -3.0) == 2.0  # capped at −1 dBTP
     assert gains(None, None) is None

@@ -10,7 +10,8 @@ import kotlin.math.pow
 import kotlin.math.roundToInt
 
 /**
- * Loudness normalization (spec §3): the manifest's gain brings a track to −14 LUFS, and
+ * Loudness normalization (spec §3): the manifest's gain brings a track to the service level
+ * (−9.2 LUFS, the library median since 2026-10-02), and
  * the server already caps a boost at the −1 dBTP true-peak headroom. Attenuation goes
  * through the player volume; a boost cannot (volume tops out at 1.0), so it goes through
  * [GainProcessor] — PCM gain before the sink.

@@ -15,7 +15,13 @@ from pathlib import Path
 # Codecs every client decodes natively; anything else gets a lossless_compat rendition.
 NATIVE_LOSSLESS = {"flac", "mp3", "aac"}
 DOLBY_DTS = {"ac3", "eac3", "dts", "truehd", "mlp"}
-TARGET_LUFS = -14.0
+# The service's absolute loudness: the median of the owner's library (7272 files,
+# measured 2026-10-02; the middle 70% sit between −13.5 and −7.2 LUFS). It was −14
+# (the streaming norm), but this library is mastered loud: the median track lost ~5 dB,
+# and the quiet ones could not be raised to compensate (a typical true peak is +0.4 dBTP,
+# so there's no headroom). Everything played quieter. Now the loud tracks come down to
+# the library's typical level, and that level stays where it was.
+TARGET_LUFS = -9.2
 
 
 @dataclass
@@ -67,7 +73,7 @@ async def loudness(src: Path) -> Loudness:
 
 
 def gains(lufs: float | None, true_peak: float | None) -> float | None:
-    """dB to apply for −14 LUFS. Attenuation freely; a boost only within the true-peak
+    """dB to apply for TARGET_LUFS. Attenuation freely; a boost only within the true-peak
     headroom (to −1 dBTP), so normalization never clips."""
     if lufs is None:
         return None
