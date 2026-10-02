@@ -266,9 +266,15 @@ class SearchSources:
         self.searches += 1
 
         results = self._searx_raw(query, engines=engines, limit=limit, host_pinned=host_pinned)
-        if results is None:
-            logger.info("[sources] falling back to DDG direct for %r", query)
-            return searxng_client.search_ddg(query, limit=limit)
+        if not results:
+            # None (the instance or every engine it was asked failed) AND [] (it answered
+            # with nothing): from this host Brave/DDG are blocked and Bing/Google return
+            # nothing through SearXNG, so an empty answer is the usual failure, not a real
+            # "nothing exists". «кто такие Boards of Canada?» came back empty this way
+            # (2026-10-02).
+            logger.info("[sources] SearXNG had nothing for %r — Wikipedia/Bing directly", query)
+            rows = searxng_client.fallback(query, limit=limit, engines=engines)
+            return self._clean(query, {"results": rows}, engines=engines, limit=limit, host_pinned=host_pinned, asked=engines) if rows else []
         return results
 
     def _searx_raw(

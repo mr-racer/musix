@@ -87,12 +87,23 @@ def _load(leg: str, name: str, loader: Callable[[], Any]) -> Any:
     return _loaded[leg]
 
 
-def _guard(leg: str, op: str, fn: Callable[[], Any]) -> Any:
+def _guard(leg: str, op: str, fn: Callable[[], Any], small: Callable[[], Any] | None = None) -> Any:
+    """Run one encode. On a CUDA OOM, free the allocator's cache and, when [small] is given,
+    run the same work one item at a time before giving up. llama-server holds ~19 of the
+    card's 24 GB, so a batch of long passages can find no room: 144 web passages came back
+    503 and the retrieval ranked without vectors (2026-10-02)."""
     import torch
 
     try:
         return fn()
     except torch.OutOfMemoryError as e:
+        torch.cuda.empty_cache()
+        if small is not None:
+            try:
+                log.warning("%s %s: out of memory, retrying one item at a time", leg, op)
+                return small()
+            except torch.OutOfMemoryError:
+                torch.cuda.empty_cache()
         raise ModelOOM(leg, op, str(e)) from e
     except (ModelUnavailable, ModelOOM):
         raise
@@ -128,15 +139,15 @@ def embed_text(texts: list[str], is_query: bool) -> np.ndarray:
     prompts = getattr(m, "prompts", None) or {}
     name = "query" if is_query else "document"
 
-    def run() -> np.ndarray:
+    def run(bs: int = TEXT_BATCH) -> np.ndarray:
         if name in prompts:
-            out = m.encode(texts, prompt_name=name, batch_size=TEXT_BATCH, convert_to_numpy=True)
+            out = m.encode(texts, prompt_name=name, batch_size=bs, convert_to_numpy=True)
         else:  # a model without prompts: the instruction on the query side only
             batch = [QUERY_PREFIX + t for t in texts] if is_query else texts
-            out = m.encode(batch, batch_size=TEXT_BATCH, convert_to_numpy=True)
+            out = m.encode(batch, batch_size=bs, convert_to_numpy=True)
         return np.asarray(out, dtype=np.float32)
 
-    return _guard("dense", "encode", run)  # type: ignore[no-any-return]
+    return _guard("dense", "encode", run, small=lambda: run(1))  # type: ignore[no-any-return]
 
 
 # ── learned sparse ────────────────────────────────────────────────────────────
@@ -160,13 +171,13 @@ def embed_sparse(texts: list[str], is_query: bool) -> list[tuple[list[int], list
     m = _sparse_model()
     encode = m.encode_query if is_query else m.encode_document
 
-    def run() -> list[tuple[list[int], list[float]]]:
+    def run(bs: int = SPARSE_BATCH) -> list[tuple[list[int], list[float]]]:
         import torch
 
         order = sorted(range(len(texts)), key=lambda i: -len(texts[i]))  # MILCO pads per batch
         out: list[tuple[list[int], list[float]]] = [([], [])] * len(texts)
-        for s in range(0, len(order), SPARSE_BATCH):
-            idx = order[s : s + SPARSE_BATCH]
+        for s in range(0, len(order), bs):
+            idx = order[s : s + bs]
             with torch.no_grad():
                 rep = encode([texts[i] for i in idx], max_length=SPARSE_MAX_LEN, source_view=True)
             rep = rep.coalesce()
@@ -177,7 +188,7 @@ def embed_sparse(texts: list[str], is_query: bool) -> list[tuple[list[int], list
                 out[i] = (ind[1][sel].astype(int).tolist(), val[sel].tolist())
         return out
 
-    return _guard("sparse", "encode", run)  # type: ignore[no-any-return]
+    return _guard("sparse", "encode", run, small=lambda: run(1))  # type: ignore[no-any-return]
 
 
 # ── cross-encoder ─────────────────────────────────────────────────────────────

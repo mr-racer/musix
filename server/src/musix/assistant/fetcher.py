@@ -59,6 +59,27 @@ class PageFetcher:
 
     # ── one page ──────────────────────────────────────────────────────────
 
+    def _via(self, call):
+        """Direct first; the proxy only when the direct road failed on the network.
+
+        Both roads drop connections at times on this host. Sending every page through
+        the proxy made each fetch wait out its timeouts, and so did the reverse
+        (2026-10-02). A refusal (403, a bot wall) is the site's answer, not the road's:
+        it is not retried. ``call(proxies, timeout)``.
+        """
+        roads = [None, self._proxies] if self._proxies else [None]
+        last: Optional[Exception] = None
+        for i, proxies in enumerate(roads):
+            timeout = min(self.cfg.fetch_timeout, 6.0) if i == 0 and len(roads) > 1 else self.cfg.fetch_timeout
+            try:
+                return call(proxies, timeout)
+            except Exception as exc:  # noqa: BLE001 — only the network kind moves on
+                if not _network_error(exc) or i == len(roads) - 1:
+                    raise
+                last = exc
+                logger.info("[fetch] direct road failed (%s), trying the proxy", type(exc).__name__)
+        raise last  # type: ignore[misc]
+
     def fetch_sync(self, url: str, *, source: str = "web", title: str = "") -> Page:
         """Blocking fetch. Returns a Page with ``error`` set on failure."""
         key = canonical_url(url)
@@ -78,9 +99,7 @@ class PageFetcher:
 
         def by_scraping():
             nonlocal raw_html
-            html, fetcher = web_fetch.fetch_html(
-                url, timeout=self.cfg.fetch_timeout, proxies=self._proxies
-            )
+            html, fetcher = self._via(lambda px, t: web_fetch.fetch_html(url, timeout=t, proxies=px))
             if keep_html:
                 # One request, two consumers. Apple's track list is in embedded
                 # JSON that markdown extraction discards, so the body is kept for
@@ -90,19 +109,14 @@ class PageFetcher:
             return out["text"], out["meta"], fetcher
 
         def by_api():
-            got = mediawiki.fetch_html(url, timeout=self.cfg.fetch_timeout, proxies=self._proxies)
+            got = self._via(lambda px, t: mediawiki.fetch_html(url, timeout=t, proxies=px))
             if got is None:
                 return "", {}, None
             html, api_meta = got
             return web_fetch.extract_page(html, url)["text"], api_meta, "mediawiki_api"
 
         def by_feed():
-            got = reddit_feed.fetch_thread(
-                url,
-                timeout=self.cfg.fetch_timeout,
-                cooldown=self.cfg.reddit_cooldown,
-                proxies=self._proxies,
-            )
+            got = self._via(lambda px, t: reddit_feed.fetch_thread(url, timeout=t, cooldown=self.cfg.reddit_cooldown, proxies=px))
             if got is None:
                 return "", {}, None
             feed_title, markdown = got
@@ -326,3 +340,9 @@ class PageFetcher:
             "fetch_done", fetched=len(ok), failed=failed, waves=wave_no, unread=len(queue) - cursor
         )
         return ok
+
+
+def _network_error(exc: Exception) -> bool:
+    """A dropped connection or a timeout (worth another road), not a refusal."""
+    text = f"{type(exc).__name__} {exc}".lower()
+    return any(k in text for k in ("timeout", "timed out", "connect", "reset", "refused", "proxy", "handshake", "eof", "unreachable", "curl: (7)", "curl: (28)", "curl: (35)", "curl: (56)"))

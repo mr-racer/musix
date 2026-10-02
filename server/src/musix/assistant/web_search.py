@@ -392,27 +392,32 @@ def _fallback(query: str, max_results: int) -> list[dict]:
 
 
 def search_bing(query: str, max_results: int = 5) -> list[dict]:
-    """Fallback: Bing's result page, fetched directly with Chrome's TLS fingerprint.
+    """Fallback: Bing's result page, fetched directly over HTTP/2.
 
     From this host SearXNG's engines are blocked: Brave rate-limits, DuckDuckGo and
-    Startpage answer with a CAPTCHA, and its Bing engine times out on HTTP/1.1, which
-    suspends it. A direct HTTP/2 request answers in under a second (2026-10-02), so web
-    answers came back empty until this. There are two attempts, because some connections
-    to foreign hosts are dropped here.
+    Startpage answer with a CAPTCHA, and its Bing engine times out on HTTP/1.1. Bing
+    itself answers, but for many queries it serves an automated client poisoned results
+    (Starbucks drinks for «Kendrick Lamar GNX», 2026-10-02). So a hit that shares no
+    meaningful word with the query is dropped, and an empty answer lets the caller go on
+    to Wikipedia. There are two attempts, because connections here drop at times.
     """
     try:
         from bs4 import BeautifulSoup
-        from curl_cffi import requests as curl_requests
     except ImportError:
         return []
     from musix.assistant.compat import outbound
 
-    url = "https://www.bing.com/search?" + urlencode({"q": query, "count": max(10, max_results)})
+    ru = bool(re.search("[а-яё]", query, re.I))
+    url = "https://www.bing.com/search?" + urlencode({"q": query, "setlang": "ru" if ru else "en"})
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0 Safari/537.36",
+        "Accept-Language": "ru,en;q=0.8" if ru else "en-US,en;q=0.8",
+    }
     html = ""
     for attempt in (1, 2):
         try:
-            with outbound("bing"):
-                r = curl_requests.get(url, impersonate="chrome124", timeout=8, headers={"Accept-Language": "ru,en;q=0.8"})
+            with outbound("bing"), httpx.Client(http2=True, timeout=8, headers=headers, follow_redirects=True) as c:
+                r = c.get(url)
             if r.status_code == 200:
                 html = r.text
                 break
@@ -421,21 +426,36 @@ def search_bing(query: str, max_results: int = 5) -> list[dict]:
             logger.warning("[bing] attempt %d failed for query=%r: %s", attempt, query, e)
     if not html:
         return []
+    words = _keywords(query)
     out: list[dict] = []
+    poisoned = 0
     for li in BeautifulSoup(html, "lxml").select("li.b_algo"):
         a = li.select_one("h2 a")
         if a is None or not a.get("href"):
             continue
         snippet = li.select_one(".b_caption p") or li.select_one("p")
-        out.append({
+        row = {
             "title": a.get_text(" ", strip=True),
             "url": _bing_target(str(a["href"])),
             "content": snippet.get_text(" ", strip=True) if snippet else "",
-        })
+        }
+        hay = (row["title"] + " " + row["content"] + " " + row["url"]).lower()
+        if words and not any(w in hay for w in words):
+            poisoned += 1
+            continue
+        out.append(row)
         if len(out) >= max_results:
             break
-    logger.info("[bing] query=%r → %d results: %s", query, len(out), _describe_results(out))
+    logger.info("[bing] query=%r → %d results (%d off-topic dropped): %s", query, len(out), poisoned, _describe_results(out))
     return out
+
+
+_STOP = frozenset("best songs song album albums track tracks list music group band about what that this with from like more most what альбом альбома песня песни трек треки группа группы лучшие лучших самые музыка".split())
+
+
+def _keywords(query: str) -> list[str]:
+    """The words a relevant hit must mention: 3+ letters, not search filler."""
+    return [w for w in re.findall(r"[\w']{3,}", query.lower()) if w not in _STOP and not w.startswith("site")]
 
 
 def _bing_target(href: str) -> str:
@@ -507,9 +527,8 @@ def _http_get_text_raw(url: str, timeout: float = 12.0) -> str:
     except ImportError:
         curl_requests = None
     if curl_requests is not None:
-        # Direct first, then the proxy. Through the host-local proxy, ordinary sites time
-        # out; directly, Wikipedia is blocked from this host (2026-10-02). So each page
-        # takes whichever road reaches it.
+        # Direct first, then the proxy after a dropped connection: both roads drop
+        # connections at times on this host (2026-10-02).
         proxies = get_proxy()
         last: Exception | None = None
         for via in ([None, proxies] if proxies else [None]):
@@ -525,12 +544,13 @@ def _http_get_text_raw(url: str, timeout: float = 12.0) -> str:
                     # Older curl_cffi may not know this impersonation target — retry plain.
                     kwargs.pop("impersonate", None)
                     resp = curl_requests.get(url, **kwargs)
-                if via is None and proxies and resp.status_code in (403, 451):
-                    last = httpx.HTTPStatusError(f"HTTP {resp.status_code}", request=None, response=None)  # type: ignore[arg-type]
-                    continue  # blocked here; the proxy may reach it
                 resp.raise_for_status()
                 return resp.text
-            except Exception as e:  # noqa: BLE001
+            except Exception as e:  # noqa: BLE001 — a refusal is the site's answer; only a dropped road moves on
+                from musix.assistant.fetcher import _network_error
+
+                if not _network_error(e):
+                    raise
                 last = e
         raise last if last else RuntimeError("fetch failed")
     headers = {

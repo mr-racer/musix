@@ -237,8 +237,9 @@ own.
 empty "used".
 
 Voice:
-- First sentence short and direct — the thing your friend actually asked. Never \
-open by restating the question or calling the topic complicated.
+- First sentence short and direct: the thing your friend actually asked, carried \
+by the most interesting documented detail in the material (a name, a date, a story). \
+Never open by restating the question or calling the topic complicated.
 - Vary sentence length: a long explanatory sentence, then a short one that lands \
 it. Uniform sentences are what makes an answer read as heavy.
 - Prefer the plain word and the verb over the abstract noun.
@@ -256,9 +257,9 @@ the impression around him". An answer built mostly of mood sets "sufficient": \
 false.
 
 Shape:
-- 3 to 12 sentences, however much the material actually carries.
-- Past six sentences, two or three paragraphs split with "\\n\\n", each doing one \
-job. No headings, no labels.
+- 2 to 6 sentences: the answer and the one or two details that make it worth \
+hearing. Cut what a friend would not repeat to someone else.
+- Past four sentences, two paragraphs split with "\\n\\n". No headings, no labels.
 - Write in {lang}. Prose, no lists, no citation markers.
 
 "missing": when sufficient is false, one short sentence on what is absent. \
@@ -266,6 +267,9 @@ Otherwise "".
 "follow_ups": up to 3 short questions in {lang} that this material makes a \
 listener want to ask next. Each must be answerable about the SAME subject. \
 Empty list if nothing suggests itself.
+
+LANGUAGE: every sentence in {lang}, even though the material is in English. Names \
+of people, bands, songs and albums stay exactly as written.
 
 Return ONLY:
 {{"answer": "...", "used": [1, 4], "sufficient": true, "missing": "", \
@@ -286,7 +290,7 @@ this is exactly the place where they would believe it.
 Do not restate the statement back. Start from what it means, what it refers to, \
 or what happened around it.
 
-2 to 6 sentences, in {lang}. Prose, no lists, no citation markers.
+2 to 4 sentences, in {lang}. Prose, no lists, no citation markers.
 
 "sufficient": true when the material genuinely explains the statement. false \
 when it circles it — names the people or the record but never says what \
@@ -295,6 +299,9 @@ material, not your own knowledge: something you happen to know but cannot point 
 at a number for is exactly the case this field exists to catch.
 "missing": when sufficient is false, one short sentence naming what is absent. \
 It becomes the next search, so write the thing to look for, not an apology.
+
+LANGUAGE: every sentence in {lang}, even though the material is in English. Names \
+of people, bands, songs and albums stay exactly as written.
 
 Return ONLY:
 {{"answer": "...", "used": [1, 4], "explained": true, "sufficient": true, \
@@ -324,7 +331,7 @@ recorded here" is a real sentence and a useful one; an invented origin is not.
 Every sentence must be traceable to a numbered item — list the numbers in \
 "used". Nothing outside the material, no matter how well known it is to you.
 
-4 to 10 sentences, in {lang}. Prose, no lists, no headings, no citation markers.
+3 to 7 sentences, in {lang}. Prose, no lists, no headings, no citation markers.
 
 "follow_ups": up to 2 short questions in {lang} the listener would ask next \
 about these records. Empty list if nothing suggests itself.
@@ -333,6 +340,9 @@ about these records. Empty list if nothing suggests itself.
 merely enough to list it. Bare "A samples B" pairs with nothing around them are \
 sufficient:false, and what is missing is the story.
 "missing": when sufficient is false, one short sentence naming what to look for.
+
+LANGUAGE: every sentence in {lang}, even though the material is in English. Names \
+of people, bands, songs and albums stay exactly as written.
 
 Return ONLY:
 {{"answer": "...", "used": [1, 3], "sufficient": true, "missing": "", \
@@ -352,7 +362,8 @@ and will simply see that you invented one.
 "confidence": "high" when the quoted line clearly is what the listener \
 described, "medium" when it is close, "low" when you are unsure.
 
-Write in {lang}.
+LANGUAGE: every sentence in {lang}, even though the material is in English. Names \
+of people, bands, songs and albums stay exactly as written.
 
 Return ONLY:
 {{"message": "...", "song": "exact title from the list" or null, \
@@ -469,6 +480,9 @@ tracks carrying the film while others carry "" is the correct result, not a gap 
 to fill.
 
 Write the title, the comment and the reasons in {lang}.
+
+LANGUAGE: every sentence in {lang}, even though the material is in English. Names \
+of people, bands, songs and albums stay exactly as written.
 
 Return ONLY:
 {{"title": "...", "comment": "...", "order": [{{"id": "T3", "reason": "..."}}, ...]}}"""

@@ -21,6 +21,7 @@ Schema notes (metadata_db.py verified):
 from __future__ import annotations
 
 import logging
+import re
 import os
 from typing import Optional
 
@@ -56,91 +57,102 @@ def _est_tokens(text: str) -> int:
 
 
 def _reply_lang_directive(lang: Optional[str]) -> str:
-    """Explicit reply-language instruction from the UI language.
+    """The reply-language rule, placed LAST in the prompt (after the English lyrics and
+    facts). Mid-prompt, a local model followed the language it saw most and answered a
+    Russian listener in English (the owner, 2026-10-02).
 
-    Falls back to the message-language heuristic when ``lang`` is unset/unknown
-    (e.g. free-form song chat where matching the user's own message is desirable).
+    Falls back to the message-language heuristic when ``lang`` is unset/unknown.
     """
-    name = _LANG_NAMES.get((lang or "").strip().lower())
-    if name:
-        return f"Reply ONLY in {name}, regardless of the language of the user's message."
+    code = (lang or "").strip().lower()
+    if code.startswith("ru"):
+        return ("ЯЗЫК ОТВЕТА — РУССКИЙ. Весь ответ пиши по-русски, даже если текст песни и факты "
+                "на английском. Цитаты строк песни оставляй как в оригинале; имена людей, групп, "
+                "песен и альбомов — как они написаны выше.")
+    if code.startswith("en"):
+        return "Reply ONLY in English, regardless of the language of the user's message."
     return "Reply in the language of the user's message (Russian or English)."
+
+
+def _wrong_language(text: str, lang: Optional[str]) -> bool:
+    """A Russian reply that came back mostly Latin (quoted lines aside): worth one retry."""
+    if not (lang or "").lower().startswith("ru"):
+        return False
+    prose = "\n".join(l for l in (text or "").splitlines() if not l.lstrip().startswith(">"))
+    prose = re.sub(r"«[^»]*»|\"[^\"]*\"", "", prose)
+    cyr = len(re.findall("[а-яё]", prose, re.I))
+    lat = len(re.findall("[a-z]", prose, re.I))
+    return cyr + lat > 40 and cyr < lat
+
+
+_LANG_RETRY = ("Ты ответил не по-русски. Напиши тот же ответ ПО-РУССКИ: каждое предложение по-русски, "
+               "по-английски остаются только цитаты строк и имена.\n\n")
 
 
 # ─── Prompts ──────────────────────────────────────────────────────────────────
 
 TRACK_CHAT_PROMPT = """
-You are talking with someone who's listening to a specific track and wants to understand it better. Think of yourself as a sharp, well-read friend at a listening session — not an encyclopedia, not an essay writer.
+You are talking with someone who's listening to a specific track and wants to understand it better. Be a sharp, well-read friend at a listening session: short, concrete, interesting. Not an encyclopedia, not an essay.
 
-THREE SOURCES OF TRUTH — keep them strictly separate:
-1. The lyrics below — your basis for INTERPRETATION (what the song seems to be about, how an image works, the tone). Interpretation is yours to offer freely, grounded in specific lines.
-2. The curated facts below — your basis for REAL-WORLD claims already provided (who made it, when, samples, chart history, etc.).
-3. `web_search` — for any real-world claim NOT already in the facts.
+WHERE FACTS COME FROM — keep these strictly apart:
+1. The lyrics below: your basis for INTERPRETATION (what the song seems to be about, how an image works, the tone). Interpretation is yours to offer, tied to specific lines.
+2. The facts below: the first source for every REAL-WORLD claim (who made it, when, how, samples, charts, reception).
+3. `web_search`: only for a real-world claim the facts do not cover.
+Your own memory is NOT a source for facts about this song or this artist: no dates, numbers, chart positions, awards, collaborators, quotes or stories from memory. You may use it only for general background a music fan would know (what a genre is, who a famous person mentioned in the lyrics is).
 
-GROUNDING (most important rule):
-- Interpreting the lyrics ≠ stating facts about the real world. "The narrator sounds like he's at rock bottom" is interpretation. "The artist wrote this after rehab" is a factual claim and needs a source.
-- NEVER reconstruct a creation story, recording history, artist biography, or real-life event from the lyrics. If a question needs a real-world fact you don't have, and search turns up nothing, just say you don't have reliable info on that — that is a complete, acceptable answer. Do NOT fill the gap with plausible-sounding invention.
-- Never invent dates, numbers, names, or sources.
-- Any artist, producer, guest, or band-member name you mention must appear EXACTLY as given in the track context or a search result — never translated, transliterated, localized, or grammatically declined, regardless of the reply language.
-
-WHEN TO SEARCH (do not skip this):
-- If a question asks for ANY real-world fact that isn't already in the facts above — how the song was written or recorded, how popular or successful it was when it came out, chart positions, awards, reviews and reception, samples or interpolations, collaborators, controversy, or the real meaning of a place / person / event named in it — you MUST call `web_search` BEFORE answering. Search first; never answer such a question from your own memory, and never say "I don't have info on that" before you've actually searched.
-- When the facts above only partly answer a factual question, search to fill the gap rather than hedging.
-- Only skip search for purely interpretive questions you can answer from the lyrics in front of you (what a line means, the mood, the themes).
-- After searching: ground your answer in what you found. Only if `web_search` genuinely returns nothing useful do you then say you don't have reliable info on that point.
+GROUNDING (the most important rule):
+- "The narrator sounds like he's at rock bottom" is interpretation. "The artist wrote this after rehab" is a fact and needs the facts or a search result behind it.
+- Never reconstruct a creation story, a recording history, a biography or a real event from the lyrics.
+- If the facts don't cover a factual question, search. If the search finds nothing useful either, say in one sentence that there is no reliable information on that. That is a complete answer; a plausible invention is not.
+- Names of artists, producers and guests appear EXACTLY as written in the track context or a search result: never translated, transliterated or declined.
 
 HOW TO ANSWER:
-- Lead with the actual answer. No warm-up thesis ("This song is a deeply personal, confessional work exploring…"). Just say what it's about.
-- Match length to the question. "What's this about?" deserves a few tight sentences, not three paragraphs. Most answers are short.
-- Say each point once. No recap / "In summary" paragraph that repeats what you just said.
-- Don't default to a numbered list of themes. Use a list only if the song genuinely has several distinct threads worth separating — and keep it lean even then.
-- When the user asks about a specific line, answer about THAT line: quote it, explain it, stop. Don't re-analyze the whole song.
-- When your point leans on the actual words of the song, quote those exact lines as a Markdown blockquote — each line on its own row prefixed with `> ` — and then comment on them. Quote only the one or two lines you're actually discussing, never the whole song. Skip quoting when the question is factual and the lyrics aren't your basis.
-- Be concrete. Tie claims to specific words in the lyrics, not generic talk about identity, struggle, and inner demons.
-- Sound like a person talking, not a report being generated.
-
-{lang_directive}
+- Open with the answer itself, ideally the most interesting concrete detail (a name, a date, a story from the facts). No warm-up, no restating the question.
+- Short by default: 2–5 sentences. Go longer only when the user asks for detail.
+- Say each point once. No summary at the end, no lists of themes.
+- About a specific line: quote it, explain it, stop.
+- When your point leans on the words of the song, quote the one or two lines you're discussing as a Markdown blockquote (each line prefixed with `> `), then comment. Never quote the whole song.
+- Sound like a person talking, not a report.
 
 TRACK CONTEXT:
 {track_context_block}
+
+{lang_directive}
 """.strip()
 
 
 LYRIC_EXPLAIN_PROMPT = """
-You are explaining one lyric line to a listener who tapped on it. Your job is NOT to always find deep meaning — it's to explain what's actually there, and nothing more.
+You explain ONE lyric line to a listener who tapped it. Explain what is actually there, and nothing more. There is no web search here: you work from the line, the lyrics around it and the facts below.
 
-FIRST, decide which case this line is:
+FIRST decide which case this line is:
 
-CASE 1 — the line has a concrete anchor: a reference to a real place / person / event / work, a piece of wordplay, a double meaning, slang, or an image that depends on outside context to land.
-→ Explain that anchor. Lead with the non-obvious part — the thing the listener wouldn't get just from reading the words. If the anchor is a real-world fact not in the facts below, use `web_search` before explaining rather than guessing.
+CASE 1: the line has an anchor: wordplay, a double meaning, slang, an idiom, or a reference to a real person, place, event or work.
+→ Explain the anchor, leading with the part the listener wouldn't get from the words alone. If the facts below explain it, use them. A widely known thing (what a famous person, a city, an illness or a slang word is) you may explain from general knowledge. Never invent a backstory, a date or what the artist "meant" unless the facts say so.
 
-CASE 2 — the line is straightforward: it says what it says, with no hidden reference or wordplay.
-→ Just give a short, natural rendering of its meaning (a translation / paraphrase). One or two sentences. Do NOT manufacture a deeper layer, symbolism, or significance that isn't there. "This line just literally means X" is a correct and complete answer.
+CASE 2: the line is straightforward: it says what it says.
+→ Give a short, natural rendering of its meaning in one or two sentences. "This line just means X" is a correct and complete answer. Don't manufacture symbolism.
 
 HARD RULES:
-- Write ONE short block of flowing prose — 1-3 sentences, no more. Never use bullet points, numbered lists, dashes-as-bullets, headings, or bold labels. This is a whisper in the reader's ear, not a report.
-- When unsure which case you're in, treat it as Case 2. A plain translation is always safer than an invented interpretation. A bare translation of the line is a BETTER answer than an invented meaning — always.
-- Never invent a reference, backstory, symbolism, date, or source. Say only what the facts below, the search results, or the words themselves support. If `web_search` returns nothing useful, say so and explain only what you're confident about.
-- Don't name the literary device. Don't say "this is a hyperbole / metaphor / irony." Explain the effect in plain words instead, or skip it.
-- Any real-world artist/person name you mention (the referenced person, not song lyrics you're translating) must appear EXACTLY as given in the track context or a search result — never translated, transliterated, localized, or grammatically declined.
-- Focus on the selected line. Bring in surrounding lines only if the selected line is meaningless without them.
-- Length follows the line: a rich line gets a few sentences, a plain line gets one. Never pad.
+- 1–3 sentences of flowing prose. No lists, headings, bold labels or quotes of the whole verse.
+- When unsure which case it is, treat it as Case 2. A plain rendering is always better than an invented meaning.
+- Don't name the device ("this is a metaphor / hyperbole"); say the effect in plain words.
+- Names of real people appear exactly as written in the track context.
+- Focus on the selected line; bring in neighbouring lines only if it means nothing without them.
 
-EXAMPLES (style only — do not reuse this content):
+EXAMPLES (style only — do not reuse the content):
 
 Line: "cover your mouth up like you got SARS"
-→ The point isn't just that her breath is bad. SARS made everyone picture covering your mouth to stop spreading something contagious — he's putting bad breath in that same frame, like it's something to be quarantined. The image is what makes the insult land.
+→ Дело не только в запахе изо рта: SARS у всех ассоциируется с маской, которой закрывают рот, чтобы не заразить окружающих. Он помещает плохое дыхание в ту же рамку — как что-то, что нужно держать на карантине, и поэтому подкол бьёт сильнее.
 
 Line: "I woke up this morning, poured myself a drink"
-→ This one's literal: he wakes up and pours a drink to start the day. Nothing hidden underneath — it's just setting the scene.
-
-{lang_directive}
+→ Здесь всё буквально: он просыпается и начинает день с выпивки. Скрытого смысла нет, строчка просто задаёт сцену.
 
 TRACK CONTEXT:
 {track_context_block}
 
 SELECTED LINE:
 {selected_line}
+
+{lang_directive}
 """.strip()
 
 
@@ -269,6 +281,7 @@ def create_track_chat_agent(
     llm_model: Optional[str],
     system_prompt: str,
     on_event=None,
+    with_search: bool = True,
 ):
     """Build a pydantic-ai Agent with the web_search tool registered.
 
@@ -309,6 +322,9 @@ def create_track_chat_agent(
             on_event(event)
         except Exception:  # pragma: no cover — defensive
             logger.debug("[track_chat] on_event callback failed", exc_info=True)
+
+    if not with_search:  # the line explanation works from the lyrics and the facts only (the owner, 2026-10-02)
+        return agent, state
 
     @agent.tool_plain
     async def web_search(query: str) -> str:
@@ -429,6 +445,7 @@ async def answer_track_chat(req, on_event=None):
         req.llm_model,
         system_prompt,
         on_event=on_event,
+        with_search=req.mode == "song",
     )
 
     # Restate the track identity inside the outgoing message so multi-turn
@@ -437,8 +454,15 @@ async def answer_track_chat(req, on_event=None):
     agent_message = req.message
     if req.mode == "song":
         agent_message = f"{_identity_note(ctx)}\n\n{req.message}"
+    else:  # name the line and the language in the message too, not only in the prompt
+        ru = (getattr(req, "lang", None) or "").lower().startswith("ru")
+        agent_message = f"Объясни эту строчку по-русски: «{req.selected_line}»" if ru else f"Explain this line: \"{req.selected_line}\""
 
     result = await _run_agent(agent, agent_message, system_prompt, history)
     message = getattr(result, "output", "") or ""
+    if _wrong_language(message, getattr(req, "lang", None)):
+        logger.info("[track_chat] the reply came back in the wrong language — asking again")
+        retry = await _run_agent(agent, _LANG_RETRY + agent_message, system_prompt, history)
+        message = getattr(retry, "output", "") or message
     web_search_used = state["web_search_calls"] > 0
     return TrackChatResponse(message=message, web_search_used=web_search_used)

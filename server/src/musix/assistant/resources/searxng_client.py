@@ -131,6 +131,60 @@ def query(
     }
 
 
+def fallback(q: str, limit: int = 10, engines: str | None = None) -> list[dict]:
+    """SearXNG did not answer, or every engine it was pinned to failed.
+
+    From this host its engines are mostly blocked, and the old fallback (the `ddgs`
+    library) walked a dozen more blocked engines and waited out their timeouts: 15–35 s
+    per query (the Queen playlist, 2026-10-02). Now:
+    - a Wikipedia-pinned query asks Wikipedia's own search API (SearXNG's engine only
+      answers an exact title);
+    - any other query goes to Bing directly;
+    - `ddgs` runs only when both come back empty, with a short timeout; Wikipedia's
+      API is the last resort for a general query.
+    """
+    if engines and "wikipedia" in engines:
+        rows = search_wikipedia(q, limit)
+        if rows:
+            return rows
+    from musix.assistant.web_search import search_bing
+
+    rows = [{**r, "engine": "bing"} for r in search_bing(q, limit)]
+    return rows or search_ddg(q, limit) or (search_wikipedia(q, limit) if not (engines and "wikipedia" in engines) else [])
+
+
+def search_wikipedia(q: str, limit: int = 10) -> list[dict]:
+    """Wikipedia's search API: Russian for a Cyrillic query, English otherwise. Never raises."""
+    import re
+
+    from musix.assistant.compat import get_proxy, outbound
+
+    lang = "ru" if re.search("[а-яё]", q, re.I) else "en"
+    params = {"action": "query", "list": "search", "srsearch": q, "srlimit": min(limit, 10), "format": "json", "srprop": "snippet"}
+    for proxies in (None, get_proxy()):
+        try:
+            from curl_cffi import requests as curl_requests
+
+            with outbound("wikipedia"):
+                r = curl_requests.get(f"https://{lang}.wikipedia.org/w/api.php", params=params, timeout=6, impersonate="chrome124",
+                                      proxies=proxies)
+            hits = (r.json().get("query") or {}).get("search") or []
+            return [
+                {
+                    "url": f"https://{lang}.wikipedia.org/wiki/" + h["title"].replace(" ", "_"),
+                    "title": h["title"],
+                    "content": re.sub(r"<[^>]+>", "", h.get("snippet") or ""),
+                    "engine": "wikipedia",
+                }
+                for h in hits
+            ]
+        except Exception as exc:  # noqa: BLE001 — the other road, then nothing
+            logger.info("[searxng] wikipedia api %s: %s", "via proxy" if proxies else "direct", exc)
+            if not proxies and not get_proxy():
+                break
+    return []
+
+
 def search_ddg(q: str, limit: int = 10) -> list[dict]:
     """DuckDuckGo directly, for when the SearXNG instance itself is down.
 
@@ -148,7 +202,7 @@ def search_ddg(q: str, limit: int = 10) -> list[dict]:
     from musix.assistant.compat import outbound
 
     try:
-        with outbound("duckduckgo"), DDGS() as ddgs:
+        with outbound("duckduckgo"), DDGS(timeout=5) as ddgs:
             rows = list(ddgs.text(q, max_results=limit))
     except Exception as exc:  # noqa: BLE001
         logger.warning("[searxng] DDG fallback failed: %s: %s", type(exc).__name__, exc)
