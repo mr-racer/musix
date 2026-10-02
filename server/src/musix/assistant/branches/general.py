@@ -366,11 +366,15 @@ class GeneralBranch(WebBranch):
             system = ANSWER_SYSTEM.format(lang=lang)
             user = f"Question: {message}\n\nMaterial:\n{_render(evidence)}"
 
+        sink = self.agent.sink
         raw = await self.agent.llm.ask_json(
             [{"role": "system", "content": system}, {"role": "user", "content": user}],
             required=("answer",),
+            # the "answer" field shows while the model writes it (the owner, 2026-10-02)
+            on_delta=lambda so_far: (lambda t: t and sink.stream(t))(partial_json_string(so_far, "answer")),
         )
         if raw is None:
+            sink.stream("", force=True)
             return "", [], False, "", []
 
         answer = as_str(raw.get("answer"), 4000)
@@ -404,7 +408,10 @@ class GeneralBranch(WebBranch):
         # — a paragraph nobody can trace is worse than no paragraph.
         if answer and not used:
             logger.info("[general] answer discarded: no valid citations")
+            sink.stream("", force=True)  # the draft the listener saw is gone too
             return "", [], sufficient, missing, follow_ups
+        if not sufficient:
+            sink.stream("", force=True)  # another search follows: the draft makes way for it
         return answer, used, sufficient, missing, follow_ups
 
 
@@ -484,6 +491,39 @@ def _valid_citations(raw, count: int) -> list:
         if 1 <= n <= count and n not in out:
             out.append(n)
     return out
+
+
+def partial_json_string(text: str, key: str) -> str:
+    """The value of string field [key] in a JSON object still being written: what has
+    arrived so far, unescaped. "" until the field opens."""
+    m = re.search(r'"' + re.escape(key) + r'"\s*:\s*"', text or "")
+    if not m:
+        return ""
+    out: list = []
+    i, n = m.end(), len(text)
+    while i < n:
+        c = text[i]
+        if c == '"':
+            break
+        if c == "\\":
+            if i + 1 >= n:
+                break
+            e = text[i + 1]
+            if e == "u":
+                if i + 6 > n:
+                    break
+                try:
+                    out.append(chr(int(text[i + 2 : i + 6], 16)))
+                except ValueError:
+                    pass
+                i += 6
+                continue
+            out.append({"n": "\n", "t": "\t", "r": "", '"': '"', "\\": "\\", "/": "/"}.get(e, e))
+            i += 2
+            continue
+        out.append(c)
+        i += 1
+    return "".join(out)
 
 
 def _fallback_answer(evidence: list, lang: str) -> str:

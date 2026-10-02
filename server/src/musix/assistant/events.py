@@ -37,6 +37,23 @@ class AgentSink:
         except RuntimeError:
             self._loop = None
 
+    def stream(self, text: str, *, human: str = "Пишу ответ", force: bool = False) -> None:
+        """The answer so far, while the model writes it: forwarded, never recorded.
+
+        Every frame carries the whole text so far, so a lost NOTIFY costs nothing and
+        the client just shows the latest. Frames are paced to one per 150 ms (each is a
+        NOTIFY); the final result replaces the text in any case."""
+        import time
+
+        now = time.monotonic()
+        if self.forward is None or (not force and now - getattr(self, "_streamed_at", 0.0) < 0.15):
+            return
+        self._streamed_at = now
+        try:
+            self.forward({"type": "status", "stage": "answer_delta", "human": human, "text": text[-2800:]})
+        except Exception:  # noqa: BLE001 — a broken UI must not stop a run
+            logger.debug("[events] stream forward failed", exc_info=True)
+
     def put(self, stage: str, **fields: Any) -> None:
         """Record one event and pass it on. Safe from any thread."""
         frame = {"type": "status", "stage": stage, **fields}

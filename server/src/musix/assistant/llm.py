@@ -182,8 +182,10 @@ class LLMClient:
         *,
         temperature: Optional[float] = None,
         max_tokens: Optional[int] = None,
+        on_delta=None,
     ) -> str:
-        """Raw completion text. Returns "" on any transport or server error."""
+        """Raw completion text. Returns "" on any transport or server error.
+        ``on_delta(text so far)``: the completion is streamed as it is written."""
         # v2: the instance's client (musix.infra.llm): settings, the key and
         # llm_cache resolve in one place.
         from musix.assistant.compat import get_llm
@@ -197,6 +199,7 @@ class LLMClient:
                 temperature=(self.cfg.llm_temperature if temperature is None else temperature),
                 max_tokens=max_tokens or self.cfg.llm_max_tokens,
                 request_timeout=self.cfg.llm_timeout,
+                on_delta=on_delta,
             )
         except Exception as exc:  # noqa: BLE001 — an unreachable LLM is a state
             self.last_error = f"{type(exc).__name__}: {exc}"
@@ -215,6 +218,7 @@ class LLMClient:
         required: tuple = (),
         temperature: Optional[float] = None,
         max_tokens: Optional[int] = None,
+        on_delta=None,
     ) -> Optional[dict]:
         """One JSON object, or None.
 
@@ -222,7 +226,7 @@ class LLMClient:
         treated as a failed parse and gets the single repair round, because a
         half-filled object is the shape that causes silent nonsense downstream.
         """
-        text = await self.chat(messages, temperature=temperature, max_tokens=max_tokens)
+        text = await self.chat(messages, temperature=temperature, max_tokens=max_tokens, on_delta=on_delta)
         obj = extract_json_object(text)
         if obj is not None and all(k in obj for k in required):
             return obj

@@ -271,9 +271,24 @@ def _to_message_history(history) -> list:
     return out
 
 
-async def _run_agent(agent, message: str, system_prompt: str, history: list):
-    """Run a pydantic-ai agent. Extracted as a function for ease of mocking in tests."""
-    return await agent.run(message, message_history=history or None)
+async def _run_agent(agent, message: str, system_prompt: str, history: list, on_text=None):
+    """Run a pydantic-ai agent. Extracted as a function for ease of mocking in tests.
+
+    With [on_text], the reply is streamed: `on_text(text so far)` as the model writes,
+    tool calls (the song chat's web search) running in between as usual. If streaming
+    fails mid-way, the turn falls back to a plain run rather than losing the answer."""
+    if on_text is None:
+        return await agent.run(message, message_history=history or None)
+    from types import SimpleNamespace
+
+    try:
+        async with agent.run_stream(message, message_history=history or None) as result:
+            async for text in result.stream_text(debounce_by=0.15):
+                on_text(text)
+            return SimpleNamespace(output=await result.get_output())
+    except Exception:  # noqa: BLE001 — the answer matters more than the stream
+        logger.warning("[track_chat] streaming failed — answering without it", exc_info=True)
+        return await agent.run(message, message_history=history or None)
 
 
 def create_track_chat_agent(
@@ -458,7 +473,11 @@ async def answer_track_chat(req, on_event=None):
         ru = (getattr(req, "lang", None) or "").lower().startswith("ru")
         agent_message = f"Объясни эту строчку по-русски: «{req.selected_line}»" if ru else f"Explain this line: \"{req.selected_line}\""
 
-    result = await _run_agent(agent, agent_message, system_prompt, history)
+    def stream(text: str) -> None:
+        if on_event is not None and text:
+            on_event({"type": "status", "stage": "answer_delta", "human": "Пишу ответ", "text": text[-2800:]})
+
+    result = await _run_agent(agent, agent_message, system_prompt, history, on_text=stream if on_event else None)
     message = getattr(result, "output", "") or ""
     if _wrong_language(message, getattr(req, "lang", None)):
         logger.info("[track_chat] the reply came back in the wrong language — asking again")
