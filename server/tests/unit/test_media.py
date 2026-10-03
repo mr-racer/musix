@@ -9,11 +9,13 @@ def test_tier_follows_the_request_and_the_client() -> None:
     assert (
         choose_tier("economy", {"lossless", "high"}, "flac", "android") == "high"
     )  # not built yet
-    # ALAC: the web cannot decode it, Android can; Dolby/DTS is never served as-is
+    # ALAC: only Windows decodes it (Android played it silent); Dolby/DTS is never as-is
     alac = {"lossless", "high", "lossless_compat"}
     assert choose_tier("lossless", alac, "alac", "web") == "lossless_compat"
-    assert choose_tier("lossless", alac, "alac", "android") == "lossless"
-    assert choose_tier("lossless", alac, "eac3", "android") == "lossless_compat"
+    assert choose_tier("lossless", alac, "alac", "android") == "lossless_compat"
+    assert choose_tier("lossless", alac, "alac", "windows") == "lossless"
+    assert choose_tier("lossless", alac, "eac3", "windows") == "lossless_compat"
+    assert choose_tier("lossless", {"lossless", "high"}, "alac", "android") == "high"
 
 
 def test_gain_attenuates_freely_and_boosts_within_the_headroom() -> None:

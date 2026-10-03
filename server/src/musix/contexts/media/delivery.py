@@ -73,9 +73,11 @@ def choose_tier(requested: str, available: set[str], codec: str | None, platform
         "high": ["high", "lossless", "economy"],
         "economy": ["economy", "high", "lossless"],
     }[requested]
-    needs_compat = audio.compat_kind(codec) is not None and (
-        platform == "web" or codec in audio.DOLBY_DTS
-    )
+    # Only Windows (Media Foundation) decodes ALAC itself. Android's MediaCodec often has no
+    # ALAC decoder, and ExoPlayer then "plays" in silence with no error, so the fallback
+    # never fires (the owner, 2026-10-03): Android gets the FLAC copy, like the web.
+    native = codec == "alac" and platform == "windows"
+    needs_compat = audio.compat_kind(codec) is not None and not native
     for t in order:
         if t == "lossless" and needs_compat:
             if "lossless_compat" in available:
