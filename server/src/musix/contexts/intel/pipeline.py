@@ -5,6 +5,7 @@ same file costs a payload update, not a second pass.
     intel:start ─┬─ indexed already → owners only
                  ├─ intel:lyrics (net) → intel:embed (ml: text + CLAP + axes + upsert)
                  └─ intel:envelope (media: ffmpeg → 4-band RMS at 10 Hz)
+                 └─ intel:spectrum (media: ffmpeg → 16-band RMS at 10 Hz)
 """
 
 from __future__ import annotations
@@ -235,6 +236,19 @@ async def envelope_step(sm: SM, mf_id: uuid.UUID) -> None:
     async with sm() as s:
         await s.execute(
             sa.update(media_files).where(M.id == mf_id).values(envelope=envelope.pack(env))
+        )
+        await s.commit()
+
+
+async def spectrum_step(sm: SM, mf_id: uuid.UUID) -> None:
+    async with sm() as s:
+        path = await s.scalar(sa.select(M.path).where(M.id == mf_id, M.spectrum.is_(None)))
+    if path is None:
+        return
+    spec = envelope.spectrum(await envelope.decode(path, sr=envelope.SPEC_SR))
+    async with sm() as s:
+        await s.execute(
+            sa.update(media_files).where(M.id == mf_id).values(spectrum=envelope.pack(spec))
         )
         await s.commit()
 

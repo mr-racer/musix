@@ -655,7 +655,7 @@
           "focusFact": {
             "anyOf": [
               {
-                "maxLength": 600,
+                "maxLength": 10000,
                 "type": "string"
               },
               {
@@ -718,7 +718,7 @@
             "type": "integer"
           },
           "message": {
-            "maxLength": 1000,
+            "maxLength": 10000,
             "minLength": 1,
             "title": "Message",
             "type": "string"
@@ -1040,7 +1040,7 @@
       "ChatTurn": {
         "properties": {
           "content": {
-            "maxLength": 8000,
+            "maxLength": 12000,
             "title": "Content",
             "type": "string"
           },
@@ -1504,7 +1504,7 @@
         "type": "object"
       },
       "Gain": {
-        "description": "dB to reach −14 LUFS; a boost never goes past −1 dBTP.",
+        "description": "dB to reach the service level (−9.2 LUFS, the library median); a boost never goes\npast −1 dBTP.",
         "properties": {
           "albumDb": {
             "anyOf": [
@@ -14108,7 +14108,7 @@
     },
     "/api/v2/tracks/{track_id}/envelope": {
       "get": {
-        "description": "The energy envelope the players draw the spectrum wave from (phase 4 spec §4):\nzlib of uint8 frames × 4 bands, 10 frames/s (contexts/intel/envelope). Immutable per\nmedia file, so it is cached for a year under the file's sha.",
+        "description": "The energy envelope (phase 4 spec §4): zlib of uint8 frames × 4 bands, 10 frames/s\n(contexts/intel/envelope). Kept for the apps already installed; the players now draw\nthe spectrum.",
         "operationId": "get_envelope_api_v2_tracks__track_id__envelope_get",
         "parameters": [
           {
@@ -14455,6 +14455,114 @@
         "summary": "Add Signal",
         "tags": [
           "listening"
+        ]
+      }
+    },
+    "/api/v2/tracks/{track_id}/spectrum": {
+      "get": {
+        "description": "The spectrum the players draw above the seek line (design refresh spec §6.2): zlib of\nuint8 frames × 16 log-spaced bands, 40 Hz – 12 kHz, 10 frames/s; lows first.",
+        "operationId": "get_spectrum_api_v2_tracks__track_id__spectrum_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "track_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Track Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/octet-stream": {}
+            },
+            "description": "zlib(uint8 frames × 16 bands), 10 fps"
+          },
+          "304": {
+            "description": "Not modified"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Validation failed"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Rate limited"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Spectrum",
+        "tags": [
+          "library"
         ]
       }
     },

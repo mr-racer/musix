@@ -88,7 +88,43 @@ async def regen_images() -> dict[str, int]:
     return n
 
 
+async def backdrops() -> dict[str, int]:
+    """Backdrops for the images stored before them. Made from a stored variant (256 px is
+    more than the 192 px backdrop needs), so no originals are required.
+    `procrastinate defer media:backdrops {}`."""
+    import asyncio
+
+    import sqlalchemy as sa
+
+    from musix.contexts.library.models import images
+    from musix.contexts.media import images as img
+
+    media = Path(settings().media_dir)
+    n = {"seen": 0, "made": 0, "missing": 0}
+    sm = sessionmaker()
+    async with sm() as s:
+        rows = (await s.execute(sa.select(images.c.id, images.c.variants))).all()
+    for row in rows:
+        have: dict[str, str] = dict(row.variants or {})
+        if "bg" in have:
+            continue
+        n["seen"] += 1
+        d = media / "i" / row.id[:2] / row.id
+        name = next((have[k] for k in ("256", "512", "96", "1024") if k in have), None)
+        if name is None or not await asyncio.to_thread((d / name).exists):
+            n["missing"] += 1
+            continue
+        data = await asyncio.to_thread((d / name).read_bytes)
+        have["bg"] = await asyncio.to_thread(img.backdrop, data, d)
+        async with sm() as s:
+            await s.execute(sa.update(images).where(images.c.id == row.id).values(variants=have))
+            await s.commit()
+        n["made"] += 1
+    return n
+
+
 def register(app: procrastinate.App) -> None:
+    app.task(name="media:backdrops", queue="media")(backdrops)
     app.task(name="media:process", queue="media")(process)
     app.task(name="media:import_images", queue="media")(import_images)
     app.task(name="media:regen_images", queue="media")(regen_images)

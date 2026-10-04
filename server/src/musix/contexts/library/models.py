@@ -30,6 +30,7 @@ media_files = sa.Table(
     sa.Column("axes", JSONB),
     sa.Column("sonic_tags", JSONB),
     sa.Column("envelope", sa.LargeBinary),
+    sa.Column("spectrum", sa.LargeBinary),
     sa.Column("intel_state", sa.Text, nullable=False, server_default="pending"),
     sa.Column("intel_error", sa.Text),
     sa.Column("state", sa.Text, nullable=False, server_default="hashed"),

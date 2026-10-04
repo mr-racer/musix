@@ -12,6 +12,9 @@ from typing import Any
 import numpy as np
 
 SIZES = (96, 256, 512, 1024)
+# The backdrop (design/code/color-and-backdrop.md): size, blur sigma at that size, saturation,
+# and the highlight knee. The executable reference is design/reference/player-kino/bake_assets.py.
+BG_SIZE, BG_BLUR, BG_SAT, BG_KNEE, BG_SLOPE = 192, 4.6, 1.4, 0.30, 0.18
 B83 = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz#$%*+,-.:;=?@[]^_{|}~"
 
 
@@ -36,7 +39,39 @@ def variants(data: bytes, out_dir: Path) -> tuple[int, int, dict[str, str]]:
         paths[str(size)] = p.name
         if size >= max(src.width, src.height):
             break
+    paths["bg"] = backdrop(data, out_dir)
     return src.width, src.height, paths
+
+
+def tame(a: np.ndarray) -> np.ndarray:
+    """The backdrop's colour recipe on float RGB in [0, 1]: more saturation, then highlights
+    tamed (luma above the knee grows `BG_SLOPE` times as fast, the hue is kept). A light
+    cover becomes a mid-tone colour field, so light text stays readable on it and nothing
+    has to be laid over the picture."""
+    grey = (a @ np.array([0.299, 0.587, 0.114], np.float32))[..., None]
+    a = np.clip(grey + (a - grey) * BG_SAT, 0.0, 1.0)
+    luma = a @ np.array([0.2126, 0.7152, 0.0722], np.float32)
+    out = np.where(luma > BG_KNEE, BG_KNEE + (luma - BG_KNEE) * BG_SLOPE, luma)
+    tamed: np.ndarray = np.clip(a * (out / np.maximum(luma, 1e-4))[..., None], 0.0, 1.0)
+    return tamed
+
+
+def backdrop(data: bytes, out_dir: Path) -> str:
+    """`bg.webp`: the pre-blurred, tamed picture the players stretch behind a cover-lit
+    surface; the client blurs nothing. Made from the original or from any stored variant."""
+    import pyvips
+
+    img = pyvips.Image.thumbnail_buffer(data, BG_SIZE, height=BG_SIZE, size="down")
+    if img.bands == 1:
+        img = img.colourspace("srgb")
+    if img.bands == 4:
+        img = img.flatten(background=[0, 0, 0])
+    img = img.gaussblur(BG_BLUR * max(img.width, img.height) / BG_SIZE)
+    px = tame(np.asarray(img.numpy()[:, :, :3], dtype=np.float32) / 255)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    out = pyvips.Image.new_from_array((px * 255 + 0.5).astype(np.uint8), interpretation="srgb")
+    out.webpsave(str(out_dir / "bg.webp"), Q=80, strip=True)
+    return "bg.webp"
 
 
 def complete(have: dict[str, str] | None, width: int | None, height: int | None) -> bool:
@@ -44,6 +79,11 @@ def complete(have: dict[str, str] | None, width: int | None, height: int | None)
     side = max(width or 0, height or 0)
     want = next((str(s) for s in SIZES if s >= side), str(SIZES[-1]))
     return want in (have or {})
+
+
+def whole(have: dict[str, str] | None, width: int | None, height: int | None) -> bool:
+    """Complete, and with the backdrop."""
+    return complete(have, width, height) and "bg" in (have or {})
 
 
 def pixels(data: bytes, size: int) -> np.ndarray:

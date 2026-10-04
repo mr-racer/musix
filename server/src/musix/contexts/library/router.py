@@ -142,6 +142,28 @@ async def get_tracks(
     )
 
 
+async def _bands(kind: str, track_id: uuid.UUID, p: Auth, s: Session, request: Request) -> Response:
+    """The packed bands of a track (`envelope` or `spectrum`). Immutable per media file, so
+    they are cached for a year under the file's sha. A track without them yet gets a 404 and
+    a low-priority job (migrated files, and files older than the spectrum, have none)."""
+    row = await service.envelope(s, p.account_id, track_id, kind)
+    if row is None:
+        mf = await service.media_file_of(s, p.account_id, track_id)
+        if mf is not None:
+            await (
+                _queue(request)
+                .configure_task(f"intel:{kind}", queueing_lock=f"intel:{kind}:{mf}", priority=-5)
+                .defer_async(media_file_id=str(mf))
+            )
+        raise NotFound(f"no {kind} for this track yet")
+    sha, blob = row
+    tag = f'"{sha}"' if kind == "envelope" else f'"{sha}-{kind}"'
+    headers = {"ETag": tag, "Cache-Control": "private, max-age=31536000, immutable"}
+    if request.headers.get("if-none-match") == tag:
+        return Response(status_code=304, headers=headers)
+    return Response(blob, media_type="application/octet-stream", headers=headers)
+
+
 @router.get(
     "/tracks/{track_id}/envelope",
     response_class=Response,
@@ -154,23 +176,24 @@ async def get_tracks(
     },
 )
 async def get_envelope(track_id: uuid.UUID, p: Auth, s: Session, request: Request) -> Response:
-    """The energy envelope the players draw the spectrum wave from (phase 4 spec §4):
-    zlib of uint8 frames × 4 bands, 10 frames/s (contexts/intel/envelope). Immutable per
-    media file, so it is cached for a year under the file's sha."""
-    row = await service.envelope(s, p.account_id, track_id)
-    if row is None:
-        # computed on first ask (migrated files have none yet), at the backfill's low priority
-        mf = await service.media_file_of(s, p.account_id, track_id)
-        if mf is not None:
-            await (
-                _queue(request)
-                .configure_task("intel:envelope", queueing_lock=f"intel:envelope:{mf}", priority=-5)
-                .defer_async(media_file_id=str(mf))
-            )
-        raise NotFound("no envelope for this track yet")
-    sha, blob = row
-    tag = f'"{sha}"'
-    headers = {"ETag": tag, "Cache-Control": "private, max-age=31536000, immutable"}
-    if request.headers.get("if-none-match") == tag:
-        return Response(status_code=304, headers=headers)
-    return Response(blob, media_type="application/octet-stream", headers=headers)
+    """The energy envelope (phase 4 spec §4): zlib of uint8 frames × 4 bands, 10 frames/s
+    (contexts/intel/envelope). Kept for the apps already installed; the players now draw
+    the spectrum."""
+    return await _bands("envelope", track_id, p, s, request)
+
+
+@router.get(
+    "/tracks/{track_id}/spectrum",
+    response_class=Response,
+    responses={
+        200: {
+            "content": {"application/octet-stream": {}},
+            "description": "zlib(uint8 frames × 16 bands), 10 fps",
+        },
+        **etag.NOT_MODIFIED,
+    },
+)
+async def get_spectrum(track_id: uuid.UUID, p: Auth, s: Session, request: Request) -> Response:
+    """The spectrum the players draw above the seek line (design refresh spec §6.2): zlib of
+    uint8 frames × 16 log-spaced bands, 40 Hz – 12 kHz, 10 frames/s; lows first."""
+    return await _bands("spectrum", track_id, p, s, request)

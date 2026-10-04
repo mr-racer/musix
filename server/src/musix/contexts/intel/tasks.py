@@ -36,6 +36,7 @@ async def start(media_file_id: str) -> None:
         return
     await _defer("intel:lyrics", media_file_id)
     await _defer("intel:envelope", media_file_id)
+    await _defer("intel:spectrum", media_file_id)
 
 
 async def lyrics(media_file_id: str) -> None:
@@ -59,6 +60,10 @@ async def embed(media_file_id: str) -> None:
 
 async def envelope(media_file_id: str) -> None:
     await pipeline.envelope_step(sessionmaker(), uuid.UUID(media_file_id))
+
+
+async def spectrum(media_file_id: str) -> None:
+    await pipeline.spectrum_step(sessionmaker(), uuid.UUID(media_file_id))
 
 
 async def backfill(account_id: str | None = None) -> int:
@@ -93,6 +98,22 @@ async def envelope_backfill() -> int:
     return len(ids)
 
 
+async def spectrum_backfill() -> int:
+    """Spectra for files that have none: one low-priority job each, like the envelopes.
+    `procrastinate defer intel:spectrum_backfill {}`."""
+    from musix.workers.app import app
+
+    q = sa.select(media_files.c.id).where(media_files.c.spectrum.is_(None))
+    async with sessionmaker()() as s:
+        ids: list[uuid.UUID] = list(await s.scalars(q))
+    for mf in ids:
+        task = app.configure_task(
+            "intel:spectrum", queueing_lock=f"intel:spectrum:{mf}", priority=-10
+        )
+        await task.defer_async(media_file_id=str(mf))
+    return len(ids)
+
+
 async def reown(media_file_ids: list[str]) -> int:
     """Re-derive the vector `owners` of files whose tracks changed hands in bulk (an
     account delete): membership is a payload write, never a re-index."""
@@ -117,3 +138,5 @@ def register(app: procrastinate.App) -> None:
     app.task(name="intel:envelope", queue="media", retry=2)(envelope)
     app.task(name="intel:backfill", queue="default")(backfill)
     app.task(name="intel:envelope_backfill", queue="default")(envelope_backfill)
+    app.task(name="intel:spectrum", queue="media", retry=2)(spectrum)
+    app.task(name="intel:spectrum_backfill", queue="default")(spectrum_backfill)

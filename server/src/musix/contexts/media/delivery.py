@@ -31,7 +31,7 @@ def sign(secret: bytes, path: str, ttl: int, now: float | None = None) -> str:
     return f"{path}?e={exp}&s={sig}"
 
 
-def image_url(base: str, secret: bytes, image_id: str | None, size: int = 512) -> str | None:
+def image_url(base: str, secret: bytes, image_id: str | None, size: int | str = 512) -> str | None:
     """Content-addressed, so a long expiry is safe (and cacheable as immutable)."""
     if not image_id:
         return None
@@ -55,9 +55,10 @@ async def load_images(
             height=r.height,
             blurhash=r.blurhash,
             palette=r.palette,
+            # the sizes, and `bg`: the pre-blurred backdrop of a cover-lit surface
             urls={
                 str(px): url
-                for px in IMAGE_SIZES
+                for px in (*IMAGE_SIZES, "bg")
                 if str(px) in (r.variants or {}) and (url := image_url(base, secret, r.id, px))
             },
         )

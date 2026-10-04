@@ -58,8 +58,9 @@ async def store_image(s: AsyncSession, media_dir: Path, data: bytes, kind: str) 
     iid = img.image_id(data)
     q = sa.select(images.c.width, images.c.height, images.c.variants)
     row = (await s.execute(q.where(images.c.id == iid))).first()
-    if row is not None and not img.complete(row.variants, row.width, row.height):
-        # made under the old rule (capped below the source): the same bytes, the full set
+    if row is not None and not img.whole(row.variants, row.width, row.height):
+        # made under an older rule (capped below the source, or before the backdrop): the
+        # same bytes, the full set
         out = media_dir / "i" / iid[:2] / iid
         _, _, paths = await asyncio.to_thread(img.variants, data, out)
         await s.execute(sa.update(images).where(images.c.id == iid).values(variants=paths))

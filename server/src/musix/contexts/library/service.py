@@ -168,12 +168,13 @@ async def own_track_ids(
 
 
 async def envelope(
-    s: AsyncSession, account_id: uuid.UUID, track_id: uuid.UUID
+    s: AsyncSession, account_id: uuid.UUID, track_id: uuid.UUID, kind: str = "envelope"
 ) -> tuple[str, bytes] | None:
-    """(media sha, packed envelope) of a live track of this account, or None."""
+    """(media sha, packed bands) of a live track of this account, or None. `kind` names the
+    column: the 4-band `envelope` or the 16-band `spectrum`."""
     row = (
         await s.execute(
-            sa.select(media_files.c.sha256, media_files.c.envelope)
+            sa.select(media_files.c.sha256, media_files.c[kind].label("blob"))
             .join(tracks, tracks.c.media_file_id == media_files.c.id)
             .where(
                 tracks.c.id == track_id,
@@ -182,9 +183,9 @@ async def envelope(
             )
         )
     ).first()
-    if row is None or row.envelope is None:
+    if row is None or row.blob is None:
         return None
-    return row.sha256, bytes(row.envelope)
+    return row.sha256, bytes(row.blob)
 
 
 async def media_file_of(
