@@ -1,0 +1,30 @@
+/* Огонёк / вода: v1's cover combustion. Two absolutely positioned canvases overflow the
+   cover's box. The BACK layer renders behind the art (flame walls and mist rising past its
+   top and side edges), the FRONT layer licks over the rim. Particles are drawn by
+   <Combustion/> with soft pre-rendered sprites; here are only the layers and the aura. */
+.fx { position: absolute; inset: -45% -18% -14% -18%; pointer-events: none; }
+.back { z-index: -1; }
+.front { z-index: 3; }
+.canvas {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  /* a 4-edge feather: particles dissolve before they reach the canvas boundary */
+  -webkit-mask-image: linear-gradient(180deg, transparent 0, #000 10%, #000 92%, transparent 100%), linear-gradient(90deg, transparent 0, #000 7%, #000 93%, transparent 100%);
+  -webkit-mask-composite: source-in;
+  mask-image: linear-gradient(180deg, transparent 0, #000 10%, #000 92%, transparent 100%), linear-gradient(90deg, transparent 0, #000 7%, #000 93%, transparent 100%);
+  mask-composite: intersect;
+}
+.aura { position: absolute; inset: 0; border-radius: 30px; filter: blur(28px); opacity: 0; will-change: opacity, transform; animation: aura 2200ms ease-out forwards; }
+.fire .aura { background: radial-gradient(58% 56% at 50% 80%, rgba(255,146,32,0.55), rgba(255,72,0,0.20) 56%, transparent 72%); }
+/* water pours from the top, so its glow leads from above */
+.water .aura { background: radial-gradient(58% 56% at 50% 30%, rgba(60,168,255,0.42), rgba(40,116,255,0.16) 56%, transparent 72%); }
+@keyframes aura {
+  0% { opacity: 0; transform: scale(0.9); }
+  16% { opacity: 1; transform: scale(1.02); }
+  58% { opacity: 0.78; transform: scale(1); }
+  100% { opacity: 0; transform: scale(1.05); }
+}
+@media (prefers-reduced-motion: reduce) {
+  /* the script skips the particle loop too; a gentle aura pulse still acknowledges the gesture */
+  .canvas { display: none; }
+  .aura { animation-duration: 1400ms; }
+}

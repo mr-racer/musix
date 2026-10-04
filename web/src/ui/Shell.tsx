@@ -15,15 +15,16 @@ const TABS: Tab[] = [
   { to: "/admin", label: "Админка", short: "Админ", icon: "Shield", owner: true },
 ];
 
-/** v1's desktop shell (a floating nav pill at the left, settings at the bottom) and its
- *  phone tab bar; the mini player sits above the content's bottom edge. */
+/** v1's desktop shell (a floating glass nav island at the left, settings at the bottom) and
+ *  its phone tab bar; the mini player sits above the content's bottom edge. On the player,
+ *  a dark cover-lit surface in both app themes, the whole shell takes the dark tokens. */
 export function Shell() {
   const role = useAuth((s) => s.role);
   const path = useRouterState({ select: (s) => s.location.pathname });
   const tabs = TABS.filter((t) => !t.owner || role === "owner");
   const active = (to: string) => (to === "/" ? path === "/" : path === to || path.startsWith(to + "/"));
   return (
-    <div className={css.shell}>
+    <div className={css.shell} data-mx-theme={path === "/player" ? "dark" : undefined}>
       <Link to="/" className={css.brand} aria-label="MusiX — главная">
         <BrandMark size={30} />
       </Link>
@@ -38,7 +39,7 @@ export function Shell() {
       <Link to="/settings" className={css.settings} aria-label="Настройки">
         <Icon name="Settings" size={18} />
       </Link>
-      <main className={css.main}>
+      <main className={path === "/player" ? css.mainStage : css.main}>
         <Outlet />
       </main>
       <MiniPlayer />

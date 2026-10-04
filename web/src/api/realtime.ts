@@ -13,6 +13,8 @@ export type Event =
   | { type: "playback.take"; play: boolean; by: string }
   | { type: "playback.release"; to: string }
   | { type: "playback.command"; command: "play" | "pause" | "toggle" | "next" | "prev" | "seek" | "signal"; positionMs?: number; kind?: "fire" | "water"; by: string }
+  | { type: "assistant.stage"; turnId: string; frame: { stage?: string; text?: string; human?: string } }
+  | { type: "assistant.done"; turnId: string; status: string }
   | { type: "error"; for: string; detail: string }
   | { type: "ping" };
 
