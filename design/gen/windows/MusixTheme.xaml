@@ -38,6 +38,8 @@
         <GradientStop Color="#FA0E0E13" Offset="1.000"/>
       </LinearGradientBrush>
       <Color x:Key="MxTabBarInactive">#85EEEEF3</Color>
+      <Color x:Key="MxFloat">#FF16161C</Color>
+      <Color x:Key="MxPlate">#13FFFFFF</Color>
     </ResourceDictionary>
     <ResourceDictionary x:Key="Light">
       <Color x:Key="MxBg">#FFF2F1F6</Color>
@@ -75,6 +77,8 @@
         <GradientStop Color="#FAF4F3F9" Offset="1.000"/>
       </LinearGradientBrush>
       <Color x:Key="MxTabBarInactive">#80161620</Color>
+      <Color x:Key="MxFloat">#FFFFFFFF</Color>
+      <Color x:Key="MxPlate">#0D0A0A12</Color>
     </ResourceDictionary>
   </ResourceDictionary.ThemeDictionaries>
   <x:Double x:Key="MxRadius6">6</x:Double>
@@ -85,6 +89,17 @@
   <x:Double x:Key="MxRadius14">14</x:Double>
   <x:Double x:Key="MxRadius16">16</x:Double>
   <x:Double x:Key="MxRadius18">18</x:Double>
+  <x:Double x:Key="MxTypeCap">11</x:Double>
+  <x:Double x:Key="MxTypeSm">13</x:Double>
+  <x:Double x:Key="MxTypeBody">15</x:Double>
+  <x:Double x:Key="MxTypeLead">18</x:Double>
+  <x:Double x:Key="MxTypeH">24</x:Double>
+  <x:Double x:Key="MxSpace1">4</x:Double>
+  <x:Double x:Key="MxSpace2">8</x:Double>
+  <x:Double x:Key="MxSpace3">12</x:Double>
+  <x:Double x:Key="MxSpace4">16</x:Double>
+  <x:Double x:Key="MxSpace5">24</x:Double>
+  <x:Double x:Key="MxSpace6">32</x:Double>
   <x:String x:Key="MxFontSans">Geist</x:String>
   <x:String x:Key="MxFontText">Noto Sans</x:String>
   <x:String x:Key="MxFontDisplay">Playfair Display</x:String>

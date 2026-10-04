@@ -6,6 +6,7 @@ import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 
 /** A CSS linear-gradient: angle in degrees (CSS convention) and its color stops. */
 @Immutable
@@ -39,6 +40,8 @@ data class MusixColors(
     val redBg: Color,
     val tabBarBg: MusixGradient,
     val tabBarInactive: Color,
+    val float: Color,
+    val plate: Color,
 )
 
 val DarkMusixColors = MusixColors(
@@ -68,6 +71,8 @@ val DarkMusixColors = MusixColors(
     redBg = Color(0x24DB2B33),
     tabBarBg = MusixGradient(180.0f, listOf(Color(0xF716161C), Color(0xFA0E0E13))),
     tabBarInactive = Color(0x85EEEEF3),
+    float = Color(0xFF16161C),
+    plate = Color(0x13FFFFFF),
 )
 
 val LightMusixColors = MusixColors(
@@ -97,6 +102,8 @@ val LightMusixColors = MusixColors(
     redBg = Color(0x17DB2B33),
     tabBarBg = MusixGradient(180.0f, listOf(Color(0xF7FFFFFF), Color(0xFAF4F3F9))),
     tabBarInactive = Color(0x80161620),
+    float = Color(0xFFFFFFFF),
+    plate = Color(0x0D0A0A12),
 )
 
 val LocalMusixColors = staticCompositionLocalOf { DarkMusixColors }
@@ -132,6 +139,23 @@ object MusixShape {
     val Blur14 = 14.dp
     val Blur18 = 18.dp
     val Blur22 = 22.dp
+}
+
+object MusixScale {
+    val Cap = 11.sp
+    val Sm = 13.sp
+    val Body = 15.sp
+    val Lead = 18.sp
+    val H = 24.sp
+}
+
+object MusixSpace {
+    val S1 = 4.dp
+    val S2 = 8.dp
+    val S3 = 12.dp
+    val S4 = 16.dp
+    val S5 = 24.dp
+    val S6 = 32.dp
 }
 
 object MusixFonts {

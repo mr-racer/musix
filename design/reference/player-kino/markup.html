@@ -1,0 +1,183 @@
+<div class="page" id="page" data-device="web">
+  <header class="top">
+    <div>
+      <h1>Пробы дизайна MusiX</h1>
+      <p>Шестая итерация: «Кино 3». Факты в компактной плашке, название стоит по верхнему краю обложки. Обложки и треки из вашей фонотеки.</p>
+    </div>
+    <div class="switches">
+      <div class="seg" id="devices" role="group" aria-label="Устройство">
+        <button type="button" data-device="web" aria-pressed="true">Веб</button>
+        <button type="button" data-device="phone" aria-pressed="false">Телефон</button>
+      </div>
+    </div>
+  </header>
+
+  <section class="stage" id="stage" data-dir="k3" data-playing="true" data-flip="false" data-sheet="" aria-label="Макет плеера">
+    <div class="bg" aria-hidden="true">
+      <div class="bg-cover" id="bgA"></div>
+      <div class="bg-cover out" id="bgB"></div>
+      <div class="tint"></div>
+      <div class="grain"></div>
+      <div class="shade"></div>
+    </div>
+
+    <div class="frame">
+      <nav class="island glass" id="island" aria-label="Разделы" style="--i:1">
+        <span class="blob" aria-hidden="true"></span>
+        <button type="button"><span class="ms" aria-hidden="true">home</span><span>Дом</span></button>
+        <button type="button" aria-current="page"><span class="ms" aria-hidden="true">play_circle</span><span>Плеер</span></button>
+        <button type="button"><span class="ms" aria-hidden="true">library_music</span><span>Библ</span></button>
+        <button type="button"><span class="ms" aria-hidden="true">auto_awesome</span><span>ИИ</span></button>
+        <button type="button"><span class="ms" aria-hidden="true">sports_esports</span><span>Игра</span></button>
+      </nav>
+
+      <div class="topbar">
+        <button type="button" class="ic" aria-label="Свернуть плеер"><span class="ms" aria-hidden="true">expand_more</span></button>
+      </div>
+
+      <div class="deck">
+        <p class="hint" id="hint">Нажми на обложку, чтобы поставить на паузу</p>
+        <div class="cover-row" id="coverRow">
+          <div class="wave ribbon l" aria-hidden="true"></div>
+          <div class="wave ribbon r" aria-hidden="true"></div>
+          <button type="button" class="ic step prev js-prev" aria-label="Предыдущий трек"><span class="ms" aria-hidden="true">chevron_left</span></button>
+          <div class="cover" id="cover" role="button" tabindex="0" aria-label="Пауза или воспроизведение">
+            <div class="tilt" id="tilt">
+              <div class="flipper">
+                <div class="face front"><img id="coverImg" alt=""><span class="glare"></span></div>
+                <div class="face back" id="lyrics"></div>
+              </div>
+            </div>
+            <span class="pause-glass glass" aria-hidden="true"><span class="ms">pause</span></span>
+          </div>
+          <button type="button" class="ic step next js-next" aria-label="Следующий трек"><span class="ms" aria-hidden="true">chevron_right</span></button>
+        </div>
+        <div class="meta" id="meta">
+          <h2 class="title" id="title"></h2>
+          <p class="artist"><button type="button" class="lnk" data-go="artist" title="Страница артиста"><span class="lt" id="artist"></span><span class="ms" aria-hidden="true">chevron_right</span></button></p>
+          <p class="album"><button type="button" class="lnk" data-go="album" title="Страница альбома"><span class="lt" id="album"></span><span class="ms" aria-hidden="true">chevron_right</span></button></p>
+          <p class="vibe"><span id="vibe"></span></p>
+        </div>
+        <div class="scrub">
+          <span id="tcur">0:00</span>
+          <div class="bar" id="bar" role="slider" tabindex="0" aria-label="Позиция в треке" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><canvas class="spec" id="spec" aria-hidden="true"></canvas><i></i></div>
+          <span id="tdur">0:00</span>
+        </div>
+        <div class="controls" id="controls" role="toolbar" aria-label="Действия с треком">
+          <div class="cg">
+            <button type="button" class="ic kstep js-prev" aria-label="Предыдущий трек"><span class="ms" aria-hidden="true">chevron_left</span></button>
+            <button type="button" class="ic kstep js-next" aria-label="Следующий трек"><span class="ms" aria-hidden="true">chevron_right</span></button>
+            <button type="button" class="ic" id="fire" aria-pressed="false" aria-label="Огонёк" title="Огонёк"><span class="ms" aria-hidden="true">local_fire_department</span></button>
+            <button type="button" class="ic" id="drop" aria-pressed="false" aria-label="Вода" title="Вода"><span class="ms" aria-hidden="true">water_drop</span></button>
+            <button type="button" class="ic" id="shuf" aria-pressed="false" aria-label="Перемешать" title="Перемешать"><span class="ms" aria-hidden="true">shuffle</span></button>
+          </div>
+          <div class="cg">
+            <button type="button" class="ic lbl" id="flip" aria-pressed="false" aria-label="Текст песни" title="Текст на обороте обложки"><span class="ms" aria-hidden="true">lyrics</span><span class="lb">Текст</span></button>
+            <button type="button" class="ic lbl" id="aiBtn" data-open="ai" aria-pressed="false" aria-label="Ассистент" title="Ассистент"><span class="ms" aria-hidden="true">auto_awesome</span><span class="lb">Ассистент</span></button>
+            <button type="button" class="ic lbl qbtn" id="qBtn" data-open="queue" aria-pressed="false" aria-label="Очередь" title="Очередь"><span class="ms" aria-hidden="true">queue_music</span><span class="lb">Очередь</span></button>
+            <span class="badge" title="Качество потока">Lossless</span>
+          </div>
+        </div>
+      </div>
+
+      <aside class="rail" aria-label="О песне и очередь">
+        <div class="about" id="about">
+          <div class="sheet-head">
+            <b>О песне</b>
+            <button type="button" class="ic" data-open="" aria-label="Закрыть"><span class="ms" aria-hidden="true">close</span></button>
+          </div>
+          <div class="facts" id="facts">
+            <div class="f-top">
+              <div class="f-l">
+                <div class="seg sm" id="scope" role="group" aria-label="Факты">
+                  <button type="button" data-scope="song" aria-pressed="true">Песня</button>
+                  <button type="button" data-scope="artist" aria-pressed="false">Артист</button>
+                </div>
+                <span class="ftag" id="ftag"></span>
+              </div>
+              <div class="f-r">
+                <button type="button" class="asklink" data-open="ai" title="Спросить ассистента о песне"><span class="ms" aria-hidden="true">auto_awesome</span>Спросить</button>
+                <div class="pager">
+                  <button type="button" class="ic" id="fprev" aria-label="Предыдущий факт"><span class="ms" aria-hidden="true">chevron_left</span></button>
+                  <span id="fpos">1 / 2</span>
+                  <button type="button" class="ic" id="fnext" aria-label="Следующий факт"><span class="ms" aria-hidden="true">chevron_right</span></button>
+                </div>
+              </div>
+            </div>
+            <p class="fact" id="fact" title="Нажмите, чтобы развернуть или свернуть"></p>
+          </div>
+          <dl class="credits" id="credits"></dl>
+        </div>
+
+        <button type="button" class="upnext" id="nextUp" data-open="queue" aria-label="Открыть очередь">
+          <span class="nx-l">Далее</span>
+          <img id="nxImg" alt="">
+          <span class="tt"><b id="nxTitle"></b><small id="nxArtist"></small></span>
+          <span class="ms" aria-hidden="true">chevron_right</span>
+        </button>
+
+        <details class="queue" id="queue" open>
+          <summary><span class="q-count"></span><span class="ms" aria-hidden="true">expand_more</span></summary>
+          <div class="sheet-head">
+            <b class="q-count"></b>
+            <button type="button" class="ic" data-open="" aria-label="Закрыть"><span class="ms" aria-hidden="true">close</span></button>
+          </div>
+          <div class="rows" id="rows"></div>
+        </details>
+      </aside>
+
+      <button type="button" class="scrim" id="scrim" data-open="" tabindex="-1" aria-label="Закрыть окно"></button>
+
+      <div class="ai" id="ai" role="group" aria-label="Ассистент">
+        <div class="ai-head">
+          <div><b>Ассистент</b><small>Та же поверхность в плеере, на главной и в поиске по тексту</small></div>
+          <button type="button" class="ic" data-open="" aria-label="Закрыть ассистента"><span class="ms" aria-hidden="true">close</span></button>
+        </div>
+        <div class="ai-talk">
+          <p class="ai-hint" id="aiHint">Спросите о песне или артисте. Или напишите строчку, и я найду трек в вашей фонотеке.</p>
+          <p class="q" id="q"></p>
+          <p class="a" id="a" aria-live="polite"></p>
+          <div class="rows" id="sugg"></div>
+        </div>
+        <div class="chips" id="chips"></div>
+        <form class="ask" id="ask">
+          <input id="askInput" type="text" autocomplete="off" aria-label="Вопрос ассистенту" placeholder="О песне или строчка из неё">
+          <button type="submit" class="ic" aria-label="Отправить"><span class="ms" aria-hidden="true">arrow_upward</span></button>
+        </form>
+      </div>
+
+      <div class="peeks">
+        <button type="button" class="peek" data-open="about" aria-label="Открыть факты, титры и семплы">
+          <span class="pk-i"><span class="ms" aria-hidden="true">auto_awesome</span></span>
+          <span class="pk-t"><small>О песне</small><b id="pkFact"></b></span>
+          <span class="ms" aria-hidden="true">chevron_right</span>
+        </button>
+        <button type="button" class="peek" data-open="queue" aria-label="Открыть очередь">
+          <img id="pkImg" alt="">
+          <span class="pk-t"><small>Далее</small><b id="pkNext"></b></span>
+          <span class="ms" aria-hidden="true">queue_music</span>
+        </button>
+      </div>
+    </div>
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  </section>
+
+  <section class="notes" aria-label="Что изменилось">
+    <div>
+      <h2>Что изменилось</h2>
+      <ul>
+        <li>Факты стоят в компактной плашке: одна строка управления над текстом, текст не длиннее трёх строк и раскрывается нажатием.</li>
+        <li>Название песни начинается ровно от верхнего края обложки.</li>
+        <li>На телефоне стрелки «предыдущий / следующий» вернулись на края обложки.</li>
+      </ul>
+    </div>
+    <div>
+      <h2>Зафиксировано</h2>
+      <ul>
+        <li>Шрифт фактов и вайба: Noto Sans.</li>
+        <li>Волна над полоской показывает спектр: слева низкие частоты, справа высокие. В макете звука нет, спектр сымитирован.</li>
+        <li>Стекло только у острова навигации и иконки паузы. На телефоне экран без прокрутки и без волны.</li>
+      </ul>
+    </div>
+  </section>
+</div>

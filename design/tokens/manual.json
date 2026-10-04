@@ -1,22 +1,159 @@
 {
   "font": {
-    "sans":    {"$type": "fontFamily", "$value": ["Geist", "Inter", "system-ui", "sans-serif"], "$description": "body and UI (styles.css :root)"},
-    "text":    {"$type": "fontFamily", "$value": ["Noto Sans", "Times New Roman", "serif"], "$description": ".serif"},
-    "display": {"$type": "fontFamily", "$value": ["Playfair Display", "Georgia", "serif"], "$description": ".vibe-serif, island titles"},
-    "serifDisplay": {"$type": "fontFamily", "$value": ["Lora", "Georgia", "serif"], "$description": "artist atlas italic headings (styles.css:1471)"},
-    "mono":    {"$type": "fontFamily", "$value": ["JetBrains Mono", "monospace"], "$description": "numbers and code"}
+    "sans": {
+      "$type": "fontFamily",
+      "$value": [
+        "Geist",
+        "Inter",
+        "system-ui",
+        "sans-serif"
+      ],
+      "$description": "body and UI (styles.css :root)"
+    },
+    "text": {
+      "$type": "fontFamily",
+      "$value": [
+        "Noto Sans",
+        "system-ui",
+        "sans-serif"
+      ],
+      "$description": "reading text: facts, the vibe line (italic), assistant answers (design/code/typography.md)"
+    },
+    "display": {
+      "$type": "fontFamily",
+      "$value": [
+        "Playfair Display",
+        "Georgia",
+        "serif"
+      ],
+      "$description": ".vibe-serif, island titles"
+    },
+    "serifDisplay": {
+      "$type": "fontFamily",
+      "$value": [
+        "Lora",
+        "Georgia",
+        "serif"
+      ],
+      "$description": "artist atlas italic headings (styles.css:1471)"
+    },
+    "mono": {
+      "$type": "fontFamily",
+      "$value": [
+        "JetBrains Mono",
+        "monospace"
+      ],
+      "$description": "numbers and code"
+    }
   },
   "motion": {
-    "vinylIn":  {"$type": "duration", "$value": "320ms", "$description": "player vinyl swipe, first leg (phase 0 spec §6)"},
-    "vinylOut": {"$type": "duration", "$value": "600ms", "$description": "player vinyl swipe, second leg"},
-    "toast":    {"$type": "duration", "$value": "220ms", "$description": "toast in/out"}
+    "vinylIn": {
+      "$type": "duration",
+      "$value": "320ms",
+      "$description": "player vinyl swipe, first leg (phase 0 spec §6)"
+    },
+    "vinylOut": {
+      "$type": "duration",
+      "$value": "600ms",
+      "$description": "player vinyl swipe, second leg"
+    },
+    "toast": {
+      "$type": "duration",
+      "$value": "220ms",
+      "$description": "toast in/out"
+    }
   },
   "color": {
-    "tabBarBg": {"$type": "gradient", "$value": {
-      "dark":  "linear-gradient(180deg, rgba(22,22,28,0.97), rgba(14,14,19,0.98))",
-      "light": "linear-gradient(180deg, rgba(255,255,255,0.97), rgba(244,243,249,0.98))"},
-      "$description": "main.jsx BottomTabBar (inline style)"},
-    "tabBarInactive": {"$type": "color", "$value": {"dark": "rgba(238,238,243,0.52)", "light": "rgba(22,22,32,0.5)"},
-      "$description": "main.jsx BottomTabBar (inline style)"}
+    "tabBarBg": {
+      "$type": "gradient",
+      "$value": {
+        "dark": "linear-gradient(180deg, rgba(22,22,28,0.97), rgba(14,14,19,0.98))",
+        "light": "linear-gradient(180deg, rgba(255,255,255,0.97), rgba(244,243,249,0.98))"
+      },
+      "$description": "main.jsx BottomTabBar (inline style)"
+    },
+    "tabBarInactive": {
+      "$type": "color",
+      "$value": {
+        "dark": "rgba(238,238,243,0.52)",
+        "light": "rgba(22,22,32,0.5)"
+      },
+      "$description": "main.jsx BottomTabBar (inline style)"
+    },
+    "float": {
+      "$type": "color",
+      "$value": {
+        "dark": "#16161c",
+        "light": "#ffffff"
+      },
+      "$description": "solid surface of windows, sheets and toasts (design/code/surfaces.md)"
+    },
+    "plate": {
+      "$type": "color",
+      "$value": {
+        "dark": "rgba(255,255,255,0.075)",
+        "light": "rgba(10,10,18,0.05)"
+      },
+      "$description": "quiet plate: the facts block, sample chips"
+    }
+  },
+  "type": {
+    "cap": {
+      "$type": "dimension",
+      "$value": "11px",
+      "$description": "uppercase labels of credits groups, counters"
+    },
+    "sm": {
+      "$type": "dimension",
+      "$value": "13px",
+      "$description": "secondary lines, chips, control labels"
+    },
+    "body": {
+      "$type": "dimension",
+      "$value": "15px",
+      "$description": "body, facts, rows"
+    },
+    "lead": {
+      "$type": "dimension",
+      "$value": "18px",
+      "$description": "artist line, lead text"
+    },
+    "h": {
+      "$type": "dimension",
+      "$value": "24px",
+      "$description": "section and screen titles"
+    }
+  },
+  "space": {
+    "s1": {
+      "$type": "dimension",
+      "$value": "4px",
+      "$description": "4-px grid"
+    },
+    "s2": {
+      "$type": "dimension",
+      "$value": "8px",
+      "$description": "4-px grid"
+    },
+    "s3": {
+      "$type": "dimension",
+      "$value": "12px",
+      "$description": "4-px grid"
+    },
+    "s4": {
+      "$type": "dimension",
+      "$value": "16px",
+      "$description": "4-px grid"
+    },
+    "s5": {
+      "$type": "dimension",
+      "$value": "24px",
+      "$description": "4-px grid"
+    },
+    "s6": {
+      "$type": "dimension",
+      "$value": "32px",
+      "$description": "4-px grid"
+    }
   }
 }

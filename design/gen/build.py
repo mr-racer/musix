@@ -65,7 +65,8 @@ def argb(value: str) -> str:
 
 # ── token loading ────────────────────────────────────────────────────────────
 def load() -> dict[str, Any]:
-    t: dict[str, Any] = {"color": {}, "motion": {"easing": {}, "duration": {}}, "radius": {}, "blur": {}, "font": {}}
+    t: dict[str, Any] = {"color": {}, "motion": {"easing": {}, "duration": {}}, "radius": {}, "blur": {}, "font": {},
+                         "type": {}, "space": {}}
     t["color"].update(json.loads((TOKENS / "color.json").read_text())["color"])
     t["motion"].update(json.loads((TOKENS / "motion.json").read_text())["motion"])
     shape = json.loads((TOKENS / "shape.json").read_text())
@@ -74,6 +75,7 @@ def load() -> dict[str, Any]:
     t["color"].update(manual["color"])
     t["font"] = manual["font"]
     t["motion"]["duration"].update(manual["motion"])
+    t["type"], t["space"] = manual.get("type", {}), manual.get("space", {})
     return t
 
 
@@ -100,9 +102,12 @@ def css(t: dict[str, Any]) -> str:
     out += [f"  --mx-dur-{kebab(k)}: {v['$value']};" for k, v in t["motion"]["duration"].items()]
     out += [f"  --mx-radius-{k[1:]}: {v['$value']};" for k, v in t["radius"].items()]
     out += [f"  --mx-blur-{k[1:]}: {v['$value']};" for k, v in t["blur"].items()]
+    out += [f"  --mx-type-{k}: {v['$value']};" for k, v in t["type"].items()]
+    out += [f"  --mx-space-{k[1:]}: {v['$value']};" for k, v in t["space"].items()]
     out.append("}")
     for theme in ("dark", "light"):
-        out.append(f':root[data-theme="{theme}"] {{')
+        scope = ', [data-mx-theme="dark"]' if theme == "dark" else ""  # a dark surface in a light app
+        out.append(f':root[data-theme="{theme}"]{scope} {{')
         out += [f"  --mx-{kebab(k)}: {themed(v, theme)};" for k, v in t["color"].items()]
         out.append("}")
     return "\n".join(out) + "\n"
@@ -129,7 +134,8 @@ def kotlin(t: dict[str, Any]) -> str:
            "import androidx.compose.runtime.Immutable",
            "import androidx.compose.runtime.staticCompositionLocalOf",
            "import androidx.compose.ui.graphics.Color",
-           "import androidx.compose.ui.unit.dp", "",
+           "import androidx.compose.ui.unit.dp",
+           "import androidx.compose.ui.unit.sp", "",
            "/** A CSS linear-gradient: angle in degrees (CSS convention) and its color stops. */",
            "@Immutable", "data class MusixGradient(val angleDeg: Float, val colors: List<Color>)", "",
            "@Immutable", "data class MusixColors(", *fields, ")", "",
@@ -143,6 +149,10 @@ def kotlin(t: dict[str, Any]) -> str:
     out += ["}", "", "object MusixShape {"]
     out += [f"    val Radius{k[1:]} = {v['$value'].removesuffix('px')}.dp" for k, v in t["radius"].items()]
     out += [f"    val Blur{k[1:]} = {v['$value'].removesuffix('px')}.dp" for k, v in t["blur"].items()]
+    out += ["}", "", "object MusixScale {"]
+    out += [f"    val {pascal(k)} = {v['$value'].removesuffix('px')}.sp" for k, v in t["type"].items()]
+    out += ["}", "", "object MusixSpace {"]
+    out += [f"    val {pascal(k)} = {v['$value'].removesuffix('px')}.dp" for k, v in t["space"].items()]
     out += ["}", "", "object MusixFonts {"]
     out += [f'    const val {pascal(k)} = "{v["$value"][0]}"' for k, v in t["font"].items()]
     out.append("}")
@@ -174,6 +184,8 @@ def xaml(t: dict[str, Any]) -> str:
            "  <ResourceDictionary.ThemeDictionaries>", *theme_dict("dark"), *theme_dict("light"),
            "  </ResourceDictionary.ThemeDictionaries>"]
     out += [f'  <x:Double x:Key="MxRadius{k[1:]}">{v["$value"].removesuffix("px")}</x:Double>' for k, v in t["radius"].items()]
+    out += [f'  <x:Double x:Key="MxType{pascal(k)}">{v["$value"].removesuffix("px")}</x:Double>' for k, v in t["type"].items()]
+    out += [f'  <x:Double x:Key="MxSpace{k[1:]}">{v["$value"].removesuffix("px")}</x:Double>' for k, v in t["space"].items()]
     out += [f'  <x:String x:Key="MxFont{pascal(k)}">{v["$value"][0]}</x:String>' for k, v in t["font"].items()]
     out.append("</ResourceDictionary>")
     return "\n".join(out) + "\n"
