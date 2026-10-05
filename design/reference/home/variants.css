@@ -1,0 +1,157 @@
+/* ── А. Как в v1, доведённый: v1's composition, brought to the design code ─────────── */
+.va{grid-template-columns:minmax(0,1640px);justify-content:center;grid-template-rows:auto minmax(0,1fr) auto;row-gap:var(--s5);padding:20px 0 26px}
+.a-top{display:flex;align-items:center;justify-content:space-between;min-height:34px}
+.word{font:300 30px/1 var(--f-sans);letter-spacing:-.03em}
+.word i{font-style:italic;font-weight:500;color:var(--brand)}
+.a-grid{align-self:center;display:grid;grid-template-columns:minmax(0,1.25fr) minmax(340px,.75fr);gap:clamp(32px,6cqw,120px);align-items:start}
+.a-hero{display:grid;gap:clamp(16px,2.2cqh,26px);justify-items:start;min-width:0}
+.eyebrow{display:flex;align-items:center;gap:8px;font:600 var(--t-cap)/1.2 var(--f-sans);letter-spacing:.2em;text-transform:uppercase;color:color-mix(in srgb,var(--acc) 60%,var(--text))}
+.eyebrow.dot{color:var(--subtle)}
+.eyebrow.dot::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--acc);box-shadow:0 0 8px var(--acc)}
+.a-phrase{margin:0;max-width:27ch;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:4;overflow:hidden;padding-bottom:.08em;font:600 clamp(26px,2.45cqw,46px)/1.12 var(--f-sans);letter-spacing:-.028em;text-wrap:balance}
+.a-orbrow{display:flex;align-items:center;gap:26px}
+.va .orb{--orb:clamp(92px,7cqw,128px)}
+.a-orbtitle{font:600 var(--t-sm)/1.2 var(--f-sans);letter-spacing:.2em;text-transform:uppercase}
+.a-orbsub{margin-top:6px;font:400 var(--t-sm)/1.4 var(--f-sans);color:var(--muted)}
+.pill{display:inline-flex;align-items:center;gap:6px;margin-top:12px;padding:8px 14px;border-radius:999px;font:600 10.5px/1 var(--f-sans);letter-spacing:.16em;text-transform:uppercase;color:var(--muted);background:linear-gradient(180deg,#2c2c34,#1c1c23);box-shadow:inset 0 1px 0 rgba(255,255,255,.13),inset 0 -1px 0 rgba(0,0,0,.5),0 2px 5px rgba(0,0,0,.5);transition:transform .25s var(--spring),color .2s var(--ease)}
+.pill:hover{color:var(--text)}
+.pill:active{transform:scale(.96)}
+.pill .i{transition:rotate .3s var(--ease)}
+.pill[aria-expanded="true"] .i:last-child{rotate:180deg}
+.a-anchors{display:flex;align-items:center;gap:13px}
+.a-vibes{display:grid;gap:10px}
+.a-vibes .cap i{font-style:normal;font-weight:400;letter-spacing:0;text-transform:none}
+.chips{display:flex;flex-wrap:wrap;gap:10px}
+.a-paths{display:grid;gap:34px;padding-top:clamp(20px,4.4cqh,48px);min-width:0}
+.a-paths p{margin:6px 0 12px;font:400 var(--t-sm)/1.4 var(--f-sans);color:var(--muted)}
+/* the library: no card around it. The newest covers lie fanned and spread under the pointer */
+.a-lib{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:var(--s5);margin-top:10px;padding:6px 0;text-align:left;border-top:1px solid var(--line)}
+.a-lib b{display:flex;align-items:center;gap:6px;font:600 var(--t-lead)/1.2 var(--f-sans)}
+.a-lib b .i{transition:transform .3s var(--spring)}
+.a-lib:hover b .i{transform:translateX(6px)}
+.a-lib small{display:block;margin-top:6px;font:400 12px/1.2 var(--f-mono);font-variant-numeric:tabular-nums;color:var(--subtle)}
+.fan{position:relative;width:170px;height:84px}
+.fan .cv{position:absolute;top:8px;width:68px;--r:8px;box-shadow:0 10px 22px -8px rgba(0,0,0,.7);transition:transform .45s var(--spring)}
+.fan .cv:nth-child(1){left:8px;transform:rotate(-7deg)}
+.fan .cv:nth-child(2){left:50px;transform:rotate(2deg) translateY(-3px)}
+.fan .cv:nth-child(3){left:94px;transform:rotate(9deg)}
+.a-lib:hover .fan .cv:nth-child(1){transform:rotate(-13deg) translate(-10px,-4px)}
+.a-lib:hover .fan .cv:nth-child(2){transform:rotate(0deg) translateY(-10px) scale(1.06)}
+.a-lib:hover .fan .cv:nth-child(3){transform:rotate(14deg) translate(10px,-4px)}
+.a-bottom{display:grid;grid-template-columns:repeat(3,minmax(0,1fr)) auto;gap:clamp(24px,4cqw,72px);align-items:end}
+
+/* ── Б. Афиша: the player's language. The taste as a cover, the phrase as the title ─── */
+.vb{--cw:clamp(250px,min(29cqw,43cqh),620px);--col:clamp(600px,44cqw,900px);--shift:clamp(0px,(100cqw - 160px - var(--cw) - 32px - var(--col))/2,40px);
+  grid-template-columns:minmax(0,1fr) auto minmax(0,var(--col)) minmax(0,1fr);
+  grid-template-rows:auto minmax(8px,1fr) auto minmax(8px,1fr) auto;
+  grid-template-areas:"head head head head" ". . . ." ". tile text ." ". . text ." "band band band band";padding:18px 0 22px}
+.b-head{grid-area:head;display:flex;justify-content:flex-end;align-items:center;gap:var(--s3)}
+.b-head .find{width:min(340px,100%)}
+/* the tile: the four anchors as one cover. It tilts and glares like the player's cover; the
+   glass play is the second of the two places where glass lives */
+.tile{grid-area:tile;position:relative;left:calc(var(--shift)*-1);width:var(--cw);aspect-ratio:1;margin-right:var(--s6);perspective:1100px;border-radius:10px;-webkit-tap-highlight-color:transparent}
+.tile .tilt{position:absolute;inset:0;border-radius:10px;overflow:hidden;display:grid;grid-template-columns:1fr 1fr;box-shadow:0 30px 70px -24px rgba(0,0,0,.75),0 0 0 1px rgba(255,255,255,.07);transform:rotateX(var(--rx,0deg)) rotateY(var(--ry,0deg)) scale(var(--press,1));transition:transform .25s var(--ease)}
+.tile .cv{--r:0;width:100%;transition:filter .6s var(--ease),transform .6s var(--ease)}
+.stage[data-playing="false"] .tile .cv{filter:saturate(.85) brightness(.82)}
+.tile .glare{position:absolute;inset:0;pointer-events:none;background:radial-gradient(circle at var(--gx,50%) var(--gy,0%),rgba(255,255,255,.12),transparent 46%);opacity:var(--go,0);transition:opacity .4s var(--ease)}
+.glass{position:absolute;left:50%;top:50%;z-index:3;width:34%;aspect-ratio:1;translate:-50% -50%;border-radius:50%;display:grid;place-items:center;pointer-events:none;border:1px solid var(--glass-bd);background:var(--glass-bg);-webkit-backdrop-filter:var(--glass-bf);backdrop-filter:var(--glass-bf);box-shadow:var(--glass-sh);transition:opacity .3s var(--ease),scale .5s var(--spring)}
+.stage[data-playing="true"] .glass{opacity:0;scale:.7}
+.stage[data-playing="true"] .tile:hover .glass{opacity:1;scale:1}
+.b-col{grid-area:text;position:relative;left:calc(var(--shift)*-1);align-self:start;min-width:0;display:flex;flex-direction:column;align-items:flex-start;text-shadow:0 1px 14px rgba(8,8,11,.4)}
+/* four lines at most: the phrase is written by a model and may run long */
+.b-phrase{margin:10px 0 0;font:700 clamp(28px,2.85cqw,68px)/1.04 var(--f-sans);letter-spacing:-.035em;text-wrap:balance;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:4;overflow:hidden;padding-bottom:.08em}
+.b-wave{margin-top:var(--s3);font:400 var(--t-lead)/1.3 var(--f-sans);color:var(--muted)}
+.b-groups{display:flex;flex-wrap:wrap;gap:var(--s3) var(--s6);margin-top:var(--s4)}
+.b-groups>div{display:grid;gap:5px;align-content:start}
+.b-groups .v{font:400 var(--t-body)/1.35 var(--f-sans)}
+.plate{width:100%;max-width:640px;margin-top:var(--s4);display:grid;gap:var(--s1);padding:6px 10px 12px 14px;border-radius:16px;background:var(--plate);text-shadow:none}
+.plate .ptop{display:flex;align-items:center;justify-content:space-between;gap:var(--s3);height:32px}
+.plate .ptop>span{display:flex;align-items:center;gap:var(--s3);min-width:0}
+.plate .tag{font:500 var(--t-sm)/1 var(--f-sans);color:var(--acc);white-space:nowrap}
+.plate .asklink{display:inline-flex;align-items:center;gap:6px;padding:6px 10px 6px 6px;border-radius:999px;color:var(--acc);font:500 var(--t-sm)/1 var(--f-sans);transition:background .2s var(--ease),transform .25s var(--spring)}
+.plate .asklink:hover{background:rgba(255,255,255,.08)}
+.plate .asklink:active{transform:scale(.96)}
+.plate .pager{display:inline-flex;align-items:center;gap:var(--s1);font:400 12px/1 var(--f-mono);font-variant-numeric:tabular-nums;color:var(--subtle)}
+.plate .pager .ic{width:32px;height:32px}
+.plate .pbox{display:grid}
+.plate .pbox>*{grid-area:1 / 1}
+.plate p{margin:0;font:400 var(--t-body)/1.5 var(--f-text);text-wrap:pretty}
+.plate p[data-sizer]{visibility:hidden}
+.b-band{grid-area:band;display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:end;gap:clamp(24px,3cqw,56px);text-shadow:0 1px 14px rgba(8,8,11,.4)}
+.b-band .pulse{justify-items:start;text-align:left;grid-template-columns:auto auto;align-items:end;column-gap:var(--s4)}
+.b-band .pulse .cap{grid-column:1 / -1}
+.b-band .pulse .val{font-size:26px}
+.b-band .pulse .bars{height:44px;gap:7px}
+.b-band .pulse .bars i{width:10px;height:calc(5px + var(--h) * 26px);border-radius:5px}
+.b-band .pulse .meta{grid-column:1 / -1}
+.strip{display:grid;gap:8px;min-width:0}
+.strip .rowx{display:flex;gap:10px;overflow:hidden;-webkit-mask-image:linear-gradient(to right,#000 82%,transparent);mask-image:linear-gradient(to right,#000 82%,transparent);padding:8px 0 2px}
+.strip .rowx button{flex:none;border-radius:9px;transition:transform .3s var(--spring)}
+.strip .rowx button:hover{transform:translateY(-6px) scale(1.08)}
+.strip .rowx button:active{transform:scale(.96)}
+.strip .cv{width:clamp(46px,3.3cqw,84px);--r:9px;box-shadow:0 8px 18px -8px rgba(0,0,0,.7)}
+.b-lib{display:grid;gap:5px;text-align:right;justify-items:end}
+.b-lib .lnk{font:600 var(--t-lead)/1.2 var(--f-sans)}
+.b-lib small{font:400 12px/1.2 var(--f-mono);font-variant-numeric:tabular-nums;color:var(--subtle)}
+
+/* ── В. Полки: a launch pad. More of the library on the first screen, still no panels ─ */
+.vc{--tile:clamp(112px,8.6cqw,184px);grid-template-columns:minmax(0,1640px);justify-content:center;grid-template-rows:auto auto auto minmax(0,auto);align-content:space-between;row-gap:clamp(14px,2.4cqh,34px);padding:18px 0 22px}
+.c-head{display:grid;grid-template-columns:minmax(0,1fr) minmax(260px,420px);gap:var(--s6);align-items:end}
+.c-phrase{margin:8px 0 0;max-width:34ch;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;overflow:hidden;padding-bottom:.08em;font:600 clamp(24px,2.15cqw,40px)/1.12 var(--f-sans);letter-spacing:-.025em;text-wrap:balance}
+.c-wave{display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;gap:var(--s6)}
+.c-wave .left{display:flex;align-items:center;gap:var(--s5)}
+.vc .orb{--orb:clamp(76px,5.6cqw,104px)}
+.c-wave .t b{display:block;font:600 var(--t-lead)/1.2 var(--f-sans)}
+.c-wave .t small{display:block;margin-top:4px;font:400 var(--t-sm)/1.4 var(--f-sans);color:var(--muted)}
+.c-wave .t .lnk{margin-top:8px;font:500 var(--t-sm)/1 var(--f-sans);color:var(--muted)}
+.vstacks{display:flex;justify-content:flex-end;gap:clamp(20px,3cqw,56px);min-width:0}
+/* a вайбик: its covers as a little pile that spreads under the pointer */
+.vstack{display:grid;grid-template-columns:auto minmax(0,auto);align-items:center;gap:var(--s4);text-align:left;border-radius:14px;transition:transform .3s var(--spring)}
+.vstack:active{transform:scale(.97)}
+.vstack .pile{position:relative;width:86px;height:64px}
+.vstack .pile .cv{position:absolute;left:0;top:4px;width:56px;--r:9px;box-shadow:0 8px 18px -8px rgba(0,0,0,.7);transition:transform .45s var(--spring)}
+.vstack .pile .cv:nth-child(1){transform:translateX(28px) rotate(8deg) scale(.86);opacity:.7}
+.vstack .pile .cv:nth-child(2){transform:translateX(14px) rotate(4deg) scale(.93);opacity:.85}
+.vstack:hover .pile .cv:nth-child(1){transform:translateX(40px) rotate(14deg) scale(.9);opacity:1}
+.vstack:hover .pile .cv:nth-child(2){transform:translateX(20px) rotate(6deg) scale(.96);opacity:1}
+.vstack:hover .pile .cv:nth-child(3){transform:translateX(-4px) rotate(-5deg) scale(1.04)}
+.vstack b{display:block;font:500 var(--t-body)/1.2 var(--f-sans)}
+.vstack small{display:block;margin-top:3px;font:400 var(--t-sm)/1.2 var(--f-sans);color:var(--muted)}
+.shelf{display:grid;gap:var(--s3);min-width:0}
+.shelf .sh{display:flex;align-items:baseline;justify-content:space-between;gap:var(--s4)}
+.shelf .sh .lnk{font:500 var(--t-sm)/1 var(--f-sans);color:var(--muted)}
+.shelf .rowx{display:grid;grid-template-columns:repeat(auto-fill,minmax(var(--tile),1fr));grid-template-rows:auto;grid-auto-rows:0;column-gap:var(--s4);overflow:hidden;padding:8px 0 2px;margin-top:-8px}
+.card{display:grid;gap:var(--s2);text-align:left;min-width:0}
+.card .art{position:relative;border-radius:10px;transition:transform .35s var(--spring)}
+.card .art .cv{width:100%;box-shadow:0 18px 36px -18px rgba(0,0,0,.8)}
+.card:hover .art{transform:translateY(-6px)}
+.card:active .art{transform:scale(.97)}
+.card .art .pl{position:absolute;right:8px;bottom:8px;width:36px;height:36px;border-radius:50%;display:grid;place-items:center;background:var(--text);color:#111;opacity:0;transform:scale(.6);transition:opacity .2s var(--ease),transform .35s var(--spring)}
+.card:hover .art .pl{opacity:1;transform:none}
+.card b{font:500 var(--t-body)/1.2 var(--f-sans);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.card small{font:400 var(--t-sm)/1.2 var(--f-sans);color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.c-foot{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,.85fr) minmax(0,1fr) auto;gap:clamp(24px,3.4cqw,64px);align-items:start;min-height:0}
+.c-foot .added{--tile:clamp(64px,4.6cqw,96px)}
+.c-foot .added .rowx{column-gap:var(--s3)}
+.c-foot .added .art .cv{box-shadow:0 10px 22px -12px rgba(0,0,0,.8)}
+.plist{display:grid;gap:2px}
+.plist button{display:grid;grid-template-columns:32px minmax(0,1fr) auto;align-items:center;gap:var(--s3);padding:5px 8px 5px 5px;margin-left:-5px;border-radius:12px;text-align:left;transition:background .2s var(--ease),transform .25s var(--spring)}
+.plist button:hover{background:rgba(255,255,255,.07)}
+.plist button:active{transform:scale(.98)}
+.plist .t{width:32px;height:32px;border-radius:8px;display:grid;place-items:center;background:rgba(255,255,255,.08);color:var(--muted)}
+.plist b{font:400 var(--t-body)/1.2 var(--f-sans);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.plist small{font:400 12px/1 var(--f-mono);font-variant-numeric:tabular-nums;color:var(--subtle)}
+.c-discs{display:grid;gap:var(--s4)}
+.c-discs .disc p{-webkit-line-clamp:2}
+/* a short screen: the last row gives way first */
+@container stage (max-height: 800px){
+  .c-foot .added,.c-foot .cap+.plist button:nth-child(n+4){display:none}
+  .c-foot{grid-template-columns:minmax(0,.8fr) minmax(0,1fr) auto}
+  .a-anchors{display:none}
+  .vb .plate{display:none}          /* «В твоей музыке» waits for a taller screen */
+  .vb{--cw:clamp(220px,min(27cqw,40cqh),620px)}
+}
+@media (prefers-reduced-motion:reduce){
+  .screen>*,.pulse .bars i,.qs,.tune{animation:none}
+  .orb .ring{animation:none}
+}
