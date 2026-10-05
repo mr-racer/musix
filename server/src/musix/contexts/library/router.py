@@ -1,9 +1,11 @@
+import contextlib
 import uuid
 from pathlib import Path
 from typing import Annotated, Any
 
 import sqlalchemy as sa
 from fastapi import APIRouter, Header, Query, Request, Response
+from procrastinate.exceptions import AlreadyEnqueued
 
 from musix.api import etag
 from musix.api.deps import Auth, Owner, Session
@@ -150,11 +152,16 @@ async def _bands(kind: str, track_id: uuid.UUID, p: Auth, s: Session, request: R
     if row is None:
         mf = await service.media_file_of(s, p.account_id, track_id)
         if mf is not None:
-            await (
-                _queue(request)
-                .configure_task(f"intel:{kind}", queueing_lock=f"intel:{kind}:{mf}", priority=-5)
-                .defer_async(media_file_id=str(mf))
-            )
+            # already waiting (a backfill, or the previous ask 4 s ago) is the state we want:
+            # the queue refuses a second job under the same lock, and that is not an error
+            with contextlib.suppress(AlreadyEnqueued):
+                await (
+                    _queue(request)
+                    .configure_task(
+                        f"intel:{kind}", queueing_lock=f"intel:{kind}:{mf}", priority=-5
+                    )
+                    .defer_async(media_file_id=str(mf))
+                )
         raise NotFound(f"no {kind} for this track yet")
     sha, blob = row
     tag = f'"{sha}"' if kind == "envelope" else f'"{sha}-{kind}"'

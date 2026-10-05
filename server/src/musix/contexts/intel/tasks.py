@@ -3,10 +3,12 @@ host: its executor serialises anyway, so a small concurrency), `media` (ffmpeg).
 
 from __future__ import annotations
 
+import contextlib
 import uuid
 
 import procrastinate
 import sqlalchemy as sa
+from procrastinate.exceptions import AlreadyEnqueued
 from qdrant_client.http.exceptions import UnexpectedResponse
 
 from musix.contexts.intel import pipeline
@@ -94,7 +96,8 @@ async def envelope_backfill() -> int:
         task = app.configure_task(
             "intel:envelope", queueing_lock=f"intel:envelope:{mf}", priority=-10
         )
-        await task.defer_async(media_file_id=str(mf))
+        with contextlib.suppress(AlreadyEnqueued):  # a listener asked for it meanwhile
+            await task.defer_async(media_file_id=str(mf))
     return len(ids)
 
 
@@ -110,7 +113,8 @@ async def spectrum_backfill() -> int:
         task = app.configure_task(
             "intel:spectrum", queueing_lock=f"intel:spectrum:{mf}", priority=-10
         )
-        await task.defer_async(media_file_id=str(mf))
+        with contextlib.suppress(AlreadyEnqueued):  # a listener asked for it meanwhile
+            await task.defer_async(media_file_id=str(mf))
     return len(ids)
 
 
