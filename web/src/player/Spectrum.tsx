@@ -7,7 +7,9 @@ import { usePlayer } from "./engine";
  *  line, lows on the left, highs on the right. It is drawn from the server's precomputed
  *  16-band envelope (zlib of uint8 frames × 16 bands at 10 fps), in step with the playhead,
  *  never from an AnalyserNode. One small canvas, at most 30 frames a second, and only while
- *  the music plays: paused, it decays to the line and the loop stops. 404 = not computed yet
+ *  the music plays: paused, it decays to the line and the loop stops. The fade at both ends
+ *  is drawn into the canvas (a CSS mask would cost a pass on every frame), and the accent is
+ *  re-read twice a second, not per frame. 404 = not computed yet
  *  (the server queues it): nothing is drawn meanwhile. */
 const BANDS = 16;
 const FLOOR = 0.3; // of the 60 dB range: quieter than that reads as silence
@@ -39,6 +41,7 @@ export function Spectrum({ trackId, className }: { trackId: string; className?: 
     const level = new Float32Array(BANDS);
     const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
     let w = 0, h = 0, raf = 0, last = 0;
+    let acc = "", seen = 0, fill: CanvasGradient | null = null, fade: CanvasGradient | null = null;
     // the playhead between the store's updates (it moves about 4 times a second)
     let base = usePlayer.getState().positionMs, at = performance.now();
 
@@ -47,6 +50,7 @@ export function Spectrum({ trackId, className }: { trackId: string; className?: 
       w = Math.round(r.width * d);
       h = Math.round(r.height * d);
       if (cv.width !== w || cv.height !== h) { cv.width = w; cv.height = h; }
+      fill = fade = null;
     };
     const trace = (close: boolean) => {
       let px = 0, py = h - level[0]! * h * 0.94;
@@ -63,15 +67,28 @@ export function Spectrum({ trackId, className }: { trackId: string; className?: 
     const draw = () => {
       if (!w || !h) return;
       ctx.clearRect(0, 0, w, h);
-      const acc = getComputedStyle(cv).color; // the stage's accent
-      const fill = ctx.createLinearGradient(0, 0, 0, h);
-      fill.addColorStop(0, acc);
-      fill.addColorStop(1, "transparent");
+      if (!acc || ++seen >= 15) { // the stage's accent; it eases over 0.6 s on a track change
+        const now = getComputedStyle(cv).color;
+        if (now !== acc) { acc = now; fill = null; }
+        seen = 0;
+      }
+      if (!fill) {
+        fill = ctx.createLinearGradient(0, 0, 0, h);
+        fill.addColorStop(0, acc);
+        fill.addColorStop(1, "transparent");
+      }
+      if (!fade) {
+        fade = ctx.createLinearGradient(0, 0, w, 0);
+        fade.addColorStop(0, "transparent"); fade.addColorStop(0.05, "#000"); fade.addColorStop(0.95, "#000"); fade.addColorStop(1, "transparent");
+      }
       ctx.globalAlpha = 0.62;
       trace(true); ctx.fillStyle = fill; ctx.fill();
       ctx.globalAlpha = 0.9;
       trace(false); ctx.strokeStyle = acc; ctx.lineWidth = Math.max(1, h / 40); ctx.stroke();
       ctx.globalAlpha = 1;
+      ctx.globalCompositeOperation = "destination-in"; // both ends fade out
+      ctx.fillStyle = fade; ctx.fillRect(0, 0, w, h);
+      ctx.globalCompositeOperation = "source-over";
     };
     /** One step towards the bands under the playhead; returns the highest level. */
     const step = (playing: boolean, now: number): number => {

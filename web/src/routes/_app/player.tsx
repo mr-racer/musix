@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useShallow } from "zustand/react/shallow";
 import { mediaUrl, type Schemas } from "../../api/client";
 import { db, rowToTrack } from "../../api/db";
 import { contextQuery } from "../../api/queries";
@@ -49,6 +50,15 @@ type Sheet = "queue" | "ai" | "about" | null;
 /** A vibe line the model wrapped in quotes loses them; quotes inside the line stay. */
 const unquote = (t: string) => t.trim().replace(/^["'«“„](.*)["'»”]$/s, "$1").trim();
 const reduced = () => window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
+const SPRING = "cubic-bezier(.34,1.56,.64,1)"; // --mx-ease-spring, for the Web Animations below
+
+/** The probe's icon bounce: the glyph of a button that was just switched on swells, leans
+ *  and springs back. */
+function pop(button: HTMLElement): void {
+  const glyph = button.querySelector("svg");
+  if (!glyph || reduced()) return;
+  glyph.animate([{ transform: "scale(1)" }, { transform: "scale(1.45) rotate(-8deg)" }, { transform: "scale(1)" }], { duration: 520, easing: SPRING });
+}
 
 /** A cover flight is on its way to this track: the stage skips its vinyl swap for it. */
 let flightFor: string | null = null;
@@ -65,6 +75,7 @@ function fly(from: Element | null | undefined, imageId: string | null | undefine
   if (!a.width || !b.width) return;
   flightFor = trackId;
   const k = a.width / b.width, r = parseFloat(getComputedStyle(to).getPropertyValue("--r-cover")) || 10;
+  const r0 = parseFloat(getComputedStyle(from).borderTopLeftRadius) || parseFloat(getComputedStyle(from.parentElement ?? from).borderTopLeftRadius) || 8;
   const g = document.createElement("img");
   g.src = src;
   g.alt = "";
@@ -75,7 +86,7 @@ function fly(from: Element | null | undefined, imageId: string | null | undefine
   document.body.appendChild(g);
   const dim = to.animate([{ opacity: 1, transform: "scale(1)" }, { opacity: 0.3, transform: "scale(.94)" }], { duration: 300, easing: "cubic-bezier(.22,.9,.3,1)", fill: "forwards" });
   g.animate(
-    [{ transform: `translate(${a.left - b.left}px, ${a.top - b.top}px) scale(${k})`, borderRadius: `${8 / k}px` }, { transform: "none", borderRadius: `${r}px` }],
+    [{ transform: `translate(${a.left - b.left}px, ${a.top - b.top}px) scale(${k})`, borderRadius: `${r0 / k}px` }, { transform: "none", borderRadius: `${r}px` }],
     { duration: 560, easing: "cubic-bezier(.2,.8,.2,1)", fill: "both" },
   ).onfinish = () => { dim.cancel(); g.remove(); };
 }
@@ -94,7 +105,12 @@ function useNarrow(ref: React.RefObject<HTMLElement | null>): boolean {
 }
 
 function Playing({ trackId }: { trackId: string }) {
-  const s = usePlayer();
+  // everything but the playhead: it moves 4 times a second, and only the seek line and the
+  // lyrics follow it (<Scrub/>, <LyricsBack/>); the screen itself re-renders on real changes
+  const s = usePlayer(useShallow((x) => ({
+    queue: x.queue, index: x.index, mode: x.mode, playing: x.playing, buffering: x.buffering,
+    tier: x.tier, codec: x.codec, taste: x.taste, error: x.error,
+  })));
   const item = s.queue[s.index]!;
   const next = s.queue[s.index + 1];
   const ctx = useQuery(contextQuery(trackId)).data;
@@ -108,7 +124,6 @@ function Playing({ trackId }: { trackId: string }) {
   const img = image(item.coverImageId);
   const k = ctx?.knowledge;
   const lossless = s.tier === "lossless" || s.tier === "lossless_compat";
-  const progress = s.durationMs ? Math.min(1, s.positionMs / s.durationMs) : 0;
   const upcoming = s.queue.length - s.index - 1;
 
   useEffect(() => {
@@ -116,6 +131,12 @@ function Playing({ trackId }: { trackId: string }) {
     document.addEventListener("keydown", esc);
     return () => document.removeEventListener("keydown", esc);
   }, []);
+  const accent = img?.palette?.accent.dark ?? "#c9c287";
+  useEffect(() => {
+    const root = document.documentElement;
+    root.style.setProperty("--mx-island-acc", accent); // the nav island's blob is outside the stage
+    return () => { root.style.removeProperty("--mx-island-acc"); };
+  }, [accent]);
   useEffect(() => {
     if (!fx) return;
     const t = setTimeout(() => setFx(null), 2800); // the burn dies within 2.7 s
@@ -148,7 +169,7 @@ function Playing({ trackId }: { trackId: string }) {
 
   return (
     <div className={css.stage} ref={stage} data-mx-theme="dark" data-playing={s.playing}
-      style={{ ["--pl-acc" as string]: img?.palette?.accent.dark ?? "#c9c287", ["--pl-acc2" as string]: img?.palette?.dominant ?? "#5664b3" }}>
+      style={{ ["--pl-acc" as string]: accent, ["--pl-acc2" as string]: img?.palette?.dominant ?? "#5664b3" }}>
       <Backdrop url={img?.urls.bg ? mediaUrl(img.urls.bg) : null} fallback={imageUrl(item.coverImageId, 96)} />
 
       <div className={css.frame}>
@@ -161,7 +182,7 @@ function Playing({ trackId }: { trackId: string }) {
         <div className={css.coverRow}>
           <button type="button" className={`${css.ic} ${css.edge}`} onClick={() => void player.prev()} aria-label="Предыдущий трек"><Icon name="ChevronLeft" /></button>
           <CoverStage item={item} index={s.index} flipped={flipped} playing={s.playing} buffering={s.buffering} fx={fx}
-            back={<LyricsBack title={item.title} lyrics={ctx?.lyrics ?? null} positionMs={s.positionMs} onSeek={(ms) => player.seek(ms)} />} />
+            back={<LyricsBack title={item.title} lyrics={ctx?.lyrics ?? null} onSeek={(ms) => player.seek(ms)} />} />
           <button type="button" className={`${css.ic} ${css.edge}`} onClick={() => void player.next()} aria-label="Следующий трек"><Icon name="ChevronRight" /></button>
         </div>
 
@@ -188,21 +209,15 @@ function Playing({ trackId }: { trackId: string }) {
           {s.error && <p className={css.error} role="status">{s.error}</p>}
         </div>
 
-        <div className={css.scrub}>
-          <span>{clock(s.positionMs)}</span>
-          <SeekLine className={css.bar} progress={progress} durationMs={s.durationMs} onSeek={(f) => player.seek(f * s.durationMs)}>
-            {!narrow && <Spectrum trackId={trackId} className={css.spectrum} />}
-          </SeekLine>
-          <span>{clock(s.durationMs)}</span>
-        </div>
+        <Scrub>{!narrow && <Spectrum trackId={trackId} className={css.spectrum} />}</Scrub>
 
         <div className={css.controls} role="toolbar" aria-label="Действия с треком">
           <div className={css.group}>
             <button type="button" className={`${css.ic} ${css.step} ${css.desk}`} onClick={() => void player.prev()} aria-label="Предыдущий трек"><Icon name="ChevronLeft" /></button>
             <button type="button" className={`${css.ic} ${css.step} ${css.desk}`} onClick={() => void player.next()} aria-label="Следующий трек"><Icon name="ChevronRight" /></button>
-            <button type="button" className={css.ic + (s.taste?.kind === "fire" ? " " + css.fire : "")} disabled={s.taste?.locked} onClick={() => react("fire")} aria-label="Огонёк" title="Огонёк: больше такого"><Icon name="Fire" /></button>
-            <button type="button" className={css.ic + (s.taste?.kind === "water" ? " " + css.water : "")} disabled={s.taste?.locked} onClick={() => react("water")} aria-label="Вода" title="Вода: меньше такого"><Icon name="Water" /></button>
-            <button type="button" className={css.ic} onClick={() => player.shuffleUpcoming()} disabled={s.mode === "stream"} aria-label="Перемешать очередь" title={s.mode === "stream" ? "В «Потоке» порядок ведёт волна" : "Перемешать очередь"}><Icon name="Shuffle" /></button>
+            <button type="button" className={css.ic + (s.taste?.kind === "fire" ? " " + css.fire : "")} disabled={s.taste?.locked} onClick={(e) => { pop(e.currentTarget); react("fire"); }} aria-label="Огонёк" title="Огонёк: больше такого"><Icon name="Fire" /></button>
+            <button type="button" className={css.ic + (s.taste?.kind === "water" ? " " + css.water : "")} disabled={s.taste?.locked} onClick={(e) => { pop(e.currentTarget); react("water"); }} aria-label="Вода" title="Вода: меньше такого"><Icon name="Water" /></button>
+            <button type="button" className={css.ic} onClick={(e) => { pop(e.currentTarget); player.shuffleUpcoming(); }} disabled={s.mode === "stream"} aria-label="Перемешать очередь" title={s.mode === "stream" ? "В «Потоке» порядок ведёт волна" : "Перемешать очередь"}><Icon name="Shuffle" /></button>
           </div>
           <div className={css.group}>
             <button type="button" className={css.ic + (flipped ? " " + css.on : "")} onClick={() => setFlipped((f) => !f)} aria-label="Текст песни" aria-pressed={flipped} title="Текст на обороте обложки"><Icon name="Lyrics" /></button>
@@ -255,6 +270,21 @@ function Playing({ trackId }: { trackId: string }) {
           <div className={css.winBody}>{about}</div>
         </aside>
       )}
+    </div>
+  );
+}
+
+/** The seek line with its two clocks: the only part of the screen that follows the playhead. */
+function Scrub({ children }: { children?: React.ReactNode }) {
+  const positionMs = usePlayer((x) => x.positionMs);
+  const durationMs = usePlayer((x) => x.durationMs);
+  return (
+    <div className={css.scrub}>
+      <span>{clock(positionMs)}</span>
+      <SeekLine className={css.bar} progress={durationMs ? Math.min(1, positionMs / durationMs) : 0} durationMs={durationMs} onSeek={(f) => player.seek(f * durationMs)}>
+        {children}
+      </SeekLine>
+      <span>{clock(durationMs)}</span>
     </div>
   );
 }
@@ -458,9 +488,10 @@ function parseLrc(lrc: string): { ms: number; text: string }[] {
 
 /** v1 `LyricsBackFace`: the lyrics on the back of the flipped cover. Synced lyrics mark
  *  the line being sung and a click on a line seeks there; the page never scrolls itself. */
-function LyricsBack({ title, lyrics, positionMs, onSeek }: { title: string; lyrics: Schemas["LyricsOut"] | null; positionMs: number; onSeek: (ms: number) => void }) {
+function LyricsBack({ title, lyrics, onSeek }: { title: string; lyrics: Schemas["LyricsOut"] | null; onSeek: (ms: number) => void }) {
   const lines = useMemo(() => (lyrics?.syncedLrc ? parseLrc(lyrics.syncedLrc) : null), [lyrics]);
-  const cur = lines ? lines.findLastIndex((l) => l.ms <= positionMs + 250) : -1;
+  // the line being sung: a re-render only when it changes, not on every playhead tick
+  const cur = usePlayer((x) => (lines ? lines.findLastIndex((l) => l.ms <= x.positionMs + 250) : -1));
   return (
     <div className={css.back}>
       <div className={css.backHead}>{title} · Текст</div>
@@ -473,65 +504,106 @@ function LyricsBack({ title, lyrics, positionMs, onSeek }: { title: string; lyri
   );
 }
 
-type Swap = { cover: string | null | undefined; dir: "next" | "prev"; n: number };
-
-/** v1's cover stage:
- *  - a tilt and a shine under the pointer;
- *  - a press on click (play / pause): paused, the art blurs under a glass pause icon;
- *  - a veil while buffering;
- *  - the flip to the lyrics face;
- *  - the vinyl-stack change: the old cover recedes door-style into the stack, then the new
- *    one bounces in from the side (mirrored for «назад»); a cover flight replaces it;
- *  - огонёк / вода burn around it. */
+/** The cover stage of the approved probe:
+ *  - it tilts towards the cursor (8° at most) under a faint glare, and gives under a press;
+ *  - a click plays / pauses: paused, the art blurs under a glass pause icon;
+ *  - a veil while buffering; the flip to the lyrics face;
+ *  - the vinyl change: the old cover swings away like a door, the new one lands with a
+ *    bounce (mirrored for «назад»); a cover flight replaces it;
+ *  - огонёк / вода burn around it.
+ *  The tilt, the glare and the press are CSS variables written at most once a frame, and only
+ *  while the pointer is over the cover: no React state, nothing repaints at rest. */
 function CoverStage({ item, index, flipped, playing, buffering, fx, back }: {
   item: { trackId: string; coverImageId?: string | null; title: string; album?: string | null };
   index: number; flipped: boolean; playing: boolean; buffering: boolean;
   fx: { kind: "fire" | "water"; n: number } | null; back: React.ReactNode;
 }) {
-  const [tilt, setTilt] = useState<{ x: number; y: number } | null>(null);
-  const [swap, setSwap] = useState<Swap | null>(null);
+  const art = useRef<HTMLDivElement>(null);
+  const tilt = useRef<HTMLDivElement>(null);
   const last = useRef({ id: item.trackId, cover: item.coverImageId, index });
-  useEffect(() => {
+
+  // before paint, so the new cover never shows in place ahead of its landing
+  useLayoutEffect(() => {
     const l = last.current;
     if (l.id === item.trackId) return;
     last.current = { id: item.trackId, cover: item.coverImageId, index };
     if (flightFor === item.trackId) { flightFor = null; return; }
-    if (flipped || reduced()) return;
-    setSwap((s) => ({ cover: l.cover, dir: index >= l.index ? "next" : "prev", n: (s?.n ?? 0) + 1 }));
+    const box = art.current, card = tilt.current;
+    if (!box || !card || flipped || reduced()) return;
+    const sign = index >= l.index ? 1 : -1;
+    const old = imageUrl(l.cover, 760); // the variant the cover was showing: already in the cache
+    if (old) {
+      const g = document.createElement("img");
+      g.src = old;
+      g.alt = "";
+      g.className = css.ghost!;
+      g.style.transformOrigin = sign > 0 ? "left center" : "right center";
+      box.appendChild(g);
+      g.animate(
+        [{ transform: "rotateY(0deg)", opacity: 1 }, { transform: `rotateY(${-68 * sign}deg) translateX(${-30 * sign}%) scale(.9)`, opacity: 0 }],
+        { duration: 420, easing: "cubic-bezier(.5,0,.75,.3)", fill: "forwards" },
+      ).onfinish = () => g.remove();
+    }
+    card.animate(
+      [{ transform: `translateX(${46 * sign}%) rotate(${5 * sign}deg) scale(.86)`, opacity: 0 }, { transform: "none", opacity: 1 }],
+      { duration: 600, delay: 90, easing: SPRING, fill: "backwards" },
+    );
   }, [item.trackId, item.coverImageId, index, flipped]);
+
+  // the tilt and the glare follow the cursor
   useEffect(() => {
-    if (!swap) return;
-    const t = setTimeout(() => setSwap(null), 940);  // the entry ends at 320 + 600 ms
-    return () => clearTimeout(t);
-  }, [swap]);
+    const box = art.current, card = tilt.current;
+    if (!box || !card) return;
+    const rest = () => {
+      card.style.setProperty("--rx", "0deg");
+      card.style.setProperty("--ry", "0deg");
+      box.style.setProperty("--go", "0");
+    };
+    if (flipped || reduced() || !window.matchMedia("(hover: hover)").matches) { rest(); return; }
+    let rect: DOMRect | null = null, raf = 0, px = 0.5, py = 0.5;
+    const enter = () => { rect = box.getBoundingClientRect(); };
+    const move = (e: PointerEvent) => {
+      rect ??= box.getBoundingClientRect();
+      px = (e.clientX - rect.left) / rect.width;
+      py = (e.clientY - rect.top) / rect.height;
+      raf ||= requestAnimationFrame(() => {
+        raf = 0;
+        card.style.setProperty("--ry", `${((px - 0.5) * 8).toFixed(2)}deg`);
+        card.style.setProperty("--rx", `${((0.5 - py) * 8).toFixed(2)}deg`);
+        box.style.setProperty("--gx", `${(px * 100).toFixed(0)}%`);
+        box.style.setProperty("--gy", `${(py * 100).toFixed(0)}%`);
+        box.style.setProperty("--go", "1");
+      });
+    };
+    const leave = () => { rect = null; cancelAnimationFrame(raf); raf = 0; rest(); };
+    box.addEventListener("pointerenter", enter);
+    box.addEventListener("pointermove", move);
+    box.addEventListener("pointerleave", leave);
+    return () => {
+      box.removeEventListener("pointerenter", enter);
+      box.removeEventListener("pointermove", move);
+      box.removeEventListener("pointerleave", leave);
+      cancelAnimationFrame(raf);
+    };
+  }, [flipped]);
+
+  const press = (v: string) => tilt.current?.style.setProperty("--press", v);
   return (
-    <div className={css.art} data-player-cover
-      onMouseMove={(e) => {
-        if (flipped) return;
-        const r = e.currentTarget.getBoundingClientRect();
-        setTilt({ x: (e.clientY - r.top) / r.height - 0.5, y: (e.clientX - r.left) / r.width - 0.5 });
-      }}
-      onMouseLeave={() => setTilt(null)}>
+    <div className={css.art} ref={art} data-player-cover data-paused={playing ? undefined : ""} data-flipped={flipped ? "" : undefined}
+      onPointerDown={() => { if (!flipped) press(".96"); }} onPointerUp={() => press("1")} onPointerLeave={() => press("1")} onPointerCancel={() => press("1")}>
       {fx && <Combustion key={fx.n} kind={fx.kind} />}
-      {swap && (
-        <div key={"out" + swap.n} className={swap.dir === "next" ? css.outNext : css.outPrev} aria-hidden>
-          <Cover id={swap.cover} size={380} radius={10} className={css.cover} />
-        </div>
-      )}
-      <div key={"in" + (swap?.n ?? 0)} className={swap ? (swap.dir === "next" ? css.inNext : css.inPrev) : css.entry}>
-      <div className={css.tilt} style={{ transform: flipped || !tilt ? "none" : `rotateY(${tilt.y * 8}deg) rotateX(${-tilt.x * 8}deg)` }}>
+      <div className={css.tilt} ref={tilt}>
         <div className={css.flipper + (flipped ? " " + css.isFlipped : "")}>
           <button type="button" className={css.front + (playing ? "" : " " + css.paused)} tabIndex={flipped ? -1 : 0}
             onClick={() => player.toggle()} aria-label={playing ? "Пауза" : "Играть"}>
             <Cover id={item.coverImageId} size={380} radius={10} eager alt={item.album ?? item.title} className={css.cover} />
             <span className={css.veil + (buffering ? " " + css.veilOn : "")} aria-hidden><span className={css.spinner} /></span>
-            {tilt && <span className={css.shine} style={{ ["--a" as string]: `${135 + tilt.y * 20}deg`, ["--p" as string]: `${48 + tilt.y * 8}%` }} />}
-            <span className={css.pauseGlass} aria-hidden><Icon name="Pause" size={44} /></span>
+            <span className={css.glare} aria-hidden />
           </button>
           <div className={css.backFace} aria-hidden={!flipped}>{back}</div>
         </div>
       </div>
-      </div>
+      <span className={css.pauseGlass} aria-hidden><Icon name="Pause" size={44} /></span>
     </div>
   );
 }

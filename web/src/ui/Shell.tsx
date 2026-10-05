@@ -1,4 +1,5 @@
 import { Link, Outlet, useRouterState } from "@tanstack/react-router";
+import { useRef } from "react";
 import { useAuth } from "../api/auth";
 import { MiniPlayer } from "../player/MiniPlayer";
 import { BrandMark } from "./Brand";
@@ -23,12 +24,17 @@ export function Shell() {
   const path = useRouterState({ select: (s) => s.location.pathname });
   const tabs = TABS.filter((t) => !t.owner || role === "owner");
   const active = (to: string) => (to === "/" ? path === "/" : path === to || path.startsWith(to + "/"));
+  // the island's blob springs to the open section; on a page outside the sections it fades where it stood
+  const on = tabs.findIndex((t) => active(t.to));
+  const stood = useRef(0);
+  if (on >= 0) stood.current = on;
   return (
     <div className={css.shell} data-mx-theme={path === "/player" ? "dark" : undefined}>
       <Link to="/" className={css.brand} aria-label="MusiX — главная">
         <BrandMark size={30} />
       </Link>
       <nav className={css.rail} aria-label="Разделы">
+        <span className={css.blob} aria-hidden data-off={on < 0 ? "" : undefined} style={{ ["--i" as string]: stood.current }} />
         {tabs.map((t) => (
           <Link key={t.to} to={t.to} className={active(t.to) ? css.railOn : css.railItem} aria-current={active(t.to) ? "page" : undefined}>
             <Icon name={t.icon} size={18} />

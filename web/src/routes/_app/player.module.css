@@ -53,28 +53,19 @@
 .step { background: rgba(255,255,255,.1); color: var(--text); }
 .fire { color: #ff7a18 !important; opacity: 1 !important; }
 .water { color: #38bdf8 !important; opacity: 1 !important; }
+/* a reaction that is on has a filled glyph (the probe's FILL 1) */
+.fire svg path, .water svg path { fill: currentColor; }
 
-/* the cover stage (v1 .player-art-*) */
+/* the cover stage, as in the approved probe. The tilt, the glare and the press are CSS
+   variables the script writes at most once a frame, only while the pointer is over the cover */
 .coverRow { grid-area: cover; align-self: start; position: relative; --cw: clamp(260px, min(31cqw, 52dvh), 380px); width: var(--cw); }
-.art { width: 100%; aspect-ratio: 1; perspective: 1400px; position: relative; transform-style: preserve-3d; }
-/* v1 vinyl-stack change: out first (420 ms, ease-in), in 320 ms later (600 ms, a bounce) */
-.entry, .inNext, .inPrev { position: relative; width: 100%; height: 100%; transform-style: preserve-3d; }
-.inNext { animation: inNext 600ms cubic-bezier(0.34, 1.56, 0.64, 1) 320ms both; }
-.inPrev { animation: inPrev 600ms cubic-bezier(0.34, 1.56, 0.64, 1) 320ms both; }
-.outNext, .outPrev { position: absolute; inset: 0; z-index: 5; pointer-events: none; transform-style: preserve-3d; border-radius: var(--r-cover); overflow: hidden; }
-.outNext { animation: outNext 420ms cubic-bezier(0.5, 0, 0.75, 0) forwards; }
-.outPrev { animation: outPrev 420ms cubic-bezier(0.5, 0, 0.75, 0) forwards; }
-@keyframes outNext { to { transform: translate3d(18%, -3%, -480px) rotateY(-78deg) scale(0.55); opacity: 0; } }
-@keyframes outPrev { to { transform: translate3d(-18%, -3%, -480px) rotateY(78deg) scale(0.55); opacity: 0; } }
-@keyframes inNext { 0% { transform: translate3d(60%, 0, 120px) rotateY(-72deg) scale(0.6); opacity: 0; } 20% { opacity: 1; } 100% { transform: none; opacity: 1; } }
-@keyframes inPrev { 0% { transform: translate3d(-60%, 0, 120px) rotateY(72deg) scale(0.6); opacity: 0; } 20% { opacity: 1; } 100% { transform: none; opacity: 1; } }
-.tilt { width: 100%; height: 100%; transition: transform 0.25s ease-out; transform-style: preserve-3d; }
-.flipper { position: relative; width: 100%; height: 100%; transform-style: preserve-3d; transition: transform 0.72s cubic-bezier(.34,1.3,.5,1); }
+.art { width: 100%; aspect-ratio: 1; perspective: 1100px; position: relative; border-radius: var(--r-cover); user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent; }
+.tilt, .flipper { position: absolute; inset: 0; transform-style: preserve-3d; }
+.tilt { transform: rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)) scale(var(--press, 1)); transition: transform .25s var(--mx-ease-standard); }
+.flipper { transition: transform .72s cubic-bezier(.34,1.3,.5,1); }
 .isFlipped { transform: rotateY(180deg); }
 .front, .backFace { position: absolute; inset: 0; border-radius: var(--r-cover); overflow: hidden; backface-visibility: hidden; -webkit-backface-visibility: hidden;
   box-shadow: 0 30px 70px -24px rgba(0,0,0,.75), 0 0 0 1px rgba(255,255,255,.07); }
-.front { transition: transform 0.35s var(--mx-ease-spring); }
-.front:active { transform: scale(0.96); }
 .cover { width: 100% !important; height: 100% !important; transition: filter .6s var(--mx-ease-standard); }
 .paused .cover { filter: blur(4px) brightness(.72) saturate(.9); }
 .backFace { transform: rotateY(180deg); background: linear-gradient(160deg, color-mix(in srgb, var(--pl-acc) 22%, #15151b), #101015 70%); }
@@ -82,7 +73,10 @@
 .veilOn { opacity: 1; }
 .spinner { width: 34px; height: 34px; border-radius: 50%; border: 3px solid rgba(255,255,255,0.25); border-top-color: #fff; animation: spin 0.9s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
-.shine { position: absolute; inset: 0; pointer-events: none; background: linear-gradient(var(--a), rgba(255,255,255,0) 30%, rgba(255,255,255,0.11) var(--p), rgba(255,255,255,0) 65%); }
+/* the glare follows the cursor and is barely visible: 12 % */
+.glare { position: absolute; inset: 0; pointer-events: none; background: radial-gradient(circle at var(--gx, 50%) var(--gy, 0%), rgba(255,255,255,.12), transparent 46%); opacity: var(--go, 0); transition: opacity .4s var(--mx-ease-standard); }
+/* the vinyl change: the old cover, swinging away like a door (animated by the script) */
+.ghost { position: absolute; inset: 0; z-index: 2; width: 100%; height: 100%; object-fit: cover; border-radius: var(--r-cover); pointer-events: none; }
 /* the pause icon: one of the two places where glass lives (design/code/surfaces.md) */
 .pauseGlass { position: absolute; left: 50%; top: 50%; z-index: 3; width: 36%; aspect-ratio: 1; translate: -50% -50%; border-radius: 50%; display: grid; place-items: center; pointer-events: none;
   border: 1px solid rgba(255,255,255,.13);
@@ -90,17 +84,18 @@
   -webkit-backdrop-filter: blur(28px) saturate(1.7); backdrop-filter: blur(28px) saturate(1.7);
   box-shadow: inset 0 1px 0 rgba(255,255,255,.25), inset 0 -1px 0 rgba(255,255,255,.07), 0 18px 42px rgba(0,0,0,.45);
   opacity: 0; scale: .7; visibility: hidden; transition: opacity .3s var(--mx-ease-standard), scale .5s var(--mx-ease-spring), visibility 0s linear .3s; }
-.paused .pauseGlass { opacity: 1; scale: 1; visibility: visible; transition: opacity .3s var(--mx-ease-standard), scale .5s var(--mx-ease-spring), visibility 0s; }
-.back { position: absolute; inset: 0; overflow-y: auto; padding: 20px 22px; font-family: var(--mx-font-sans); font-size: 15px; font-weight: 500; line-height: 1.6; color: var(--subtle); text-align: left; white-space: pre-wrap; }
+.art[data-paused]:not([data-flipped]) .pauseGlass { opacity: 1; scale: 1; visibility: visible; transition: opacity .3s var(--mx-ease-standard), scale .5s var(--mx-ease-spring), visibility 0s; }
+.back { position: absolute; inset: 0; overflow-y: auto; overflow-x: hidden; padding: 20px 22px; font-family: var(--mx-font-sans); font-size: 15px; font-weight: 500; line-height: 1.6; color: var(--subtle); text-align: left; white-space: pre-wrap; }
 .backHead { font-size: 11px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: var(--subtle); margin-bottom: 12px; }
 .backEmpty { font-family: var(--mx-font-text); font-style: italic; font-weight: 400; }
 .gap { height: 16px; }
-.line, .lineOn { display: block; width: 100%; text-align: left; font: inherit; line-height: 1.6; color: inherit; transition: color .4s var(--mx-ease-standard); }
+.line, .lineOn { display: block; width: 100%; text-align: left; font: inherit; line-height: 1.6; color: inherit; transform-origin: left center; transition: color .4s var(--mx-ease-standard), transform .4s var(--mx-ease-standard); }
 .line:hover { color: var(--muted); }
-.lineOn { color: var(--text); }
+.lineOn { color: var(--text); transform: scale(1.04); }
 
 /* the text column */
-.meta { grid-area: meta; align-self: start; min-width: 0; display: grid; justify-items: start; text-align: left; }
+.meta { grid-area: meta; align-self: start; min-width: 0; display: grid; justify-items: start; text-align: left; animation: metaIn .48s var(--mx-ease-standard) .12s backwards; }
+@keyframes metaIn { from { opacity: 0; transform: translateY(10px); } }
 .title { font-family: var(--mx-font-sans); font-weight: 700; font-size: clamp(34px, 5.2cqw, 62px); line-height: .98; letter-spacing: -.035em; text-wrap: balance; margin-top: -.13em; }
 .long { font-size: clamp(28px, 3.9cqw, 46px); line-height: 1.02; margin-top: -.15em; }
 /* the title's capitals start exactly at the cover's top edge */
@@ -145,8 +140,9 @@
 .factTop { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--mx-space-1) var(--mx-space-3); min-height: 32px; }
 .factTop > span { display: flex; align-items: center; gap: var(--mx-space-3); min-width: 0; }
 .seg { display: inline-flex; padding: 2px; border-radius: 999px; background: rgba(255,255,255,.06); box-shadow: inset 0 1px 0 rgba(255,255,255,.07), inset 0 -1px 0 rgba(0,0,0,.35); }
-.seg button { padding: 5px 10px; border-radius: 999px; font-size: 12px; font-weight: 500; line-height: 1; color: var(--muted); white-space: nowrap; transition: background .2s var(--mx-ease-standard), color .2s var(--mx-ease-standard); }
+.seg button { padding: 5px 10px; border-radius: 999px; font-size: 12px; font-weight: 500; line-height: 1; color: var(--muted); white-space: nowrap; transition: background .2s var(--mx-ease-standard), color .2s var(--mx-ease-standard), transform .25s var(--mx-ease-spring); }
 .seg button:hover { color: var(--text); }
+.seg button:active { transform: scale(.96); }
 .seg button[aria-pressed="true"] { background: rgba(255,255,255,.13); color: var(--text); box-shadow: inset 0 1px 0 rgba(255,255,255,.14); }
 .tag { font-size: var(--mx-type-sm); font-weight: 500; color: var(--pl-acc); white-space: nowrap; }
 .open { font-size: 12px; color: var(--subtle); white-space: nowrap; }
@@ -158,7 +154,7 @@
 .fact { font-family: var(--mx-font-text); font-size: var(--mx-type-body); line-height: 1.5; text-wrap: pretty; cursor: pointer;
   display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; animation: rise .32s var(--mx-ease-standard); }
 .factOpen { -webkit-line-clamp: unset; }
-.empty { font-family: var(--mx-font-text); font-style: italic; font-size: var(--mx-type-body); line-height: 1.5; color: var(--muted); }
+.empty { font-family: var(--mx-font-text); font-style: italic; font-size: var(--mx-type-body); line-height: 1.5; color: var(--muted); animation: rise .32s var(--mx-ease-standard); }
 @keyframes rise { from { opacity: 0; transform: translateY(6px); } }
 
 /* the bottom: a note line, the seek line with the spectrum above it, the controls */
@@ -169,10 +165,11 @@
 .bar { position: relative; height: 20px; cursor: pointer; touch-action: none; border-radius: 4px; }
 .bar::before, .bar > i { content: ""; position: absolute; left: 0; top: 8px; width: 100%; height: 4px; border-radius: 2px; }
 .bar::before { background: rgba(255,255,255,.16); }
-.bar > i { background: var(--pl-acc); transform-origin: left center; transform: scaleX(var(--p)); transition: transform .25s linear; }
+/* no transition: the playhead moves a pixel or so 4 times a second, and a transition would keep the
+   compositor animating 60 frames a second for it */
+.bar > i { background: var(--pl-acc); transform-origin: left center; transform: scaleX(var(--p)); }
 /* the spectrum: lows on the left, highs on the right; its colour is the accent */
-.spectrum { position: absolute; left: 0; right: 0; bottom: 11px; width: 100%; height: 44px; pointer-events: none; color: var(--pl-acc);
-  -webkit-mask-image: linear-gradient(to right, transparent, #000 5%, #000 95%, transparent); mask-image: linear-gradient(to right, transparent, #000 5%, #000 95%, transparent); }
+.spectrum { position: absolute; left: 0; right: 0; bottom: 11px; width: 100%; height: 44px; pointer-events: none; color: var(--pl-acc); }
 .controls { grid-area: ctrl; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--mx-space-2); margin-top: var(--mx-space-3); }
 .group { display: flex; align-items: center; gap: var(--mx-space-2); }
 .addWrap { position: relative; display: inline-flex; }
@@ -180,7 +177,8 @@
 .volume { display: inline-flex; align-items: center; gap: 8px; color: var(--muted); margin-left: 4px; }
 .volume input { width: 84px; accent-color: var(--pl-acc); }
 .badge { display: inline-flex; align-items: center; gap: 6px; margin-left: var(--mx-space-2); padding: 5px 9px; border: 1px solid var(--line-2); border-radius: 7px; font-family: var(--mx-font-mono); font-size: 12px; line-height: 1; color: var(--muted); }
-.upnext { grid-area: next; align-self: center; margin-top: var(--mx-space-3); display: inline-grid; grid-template-columns: auto 32px minmax(0, auto) auto; align-items: center; gap: var(--mx-space-3); text-align: left; border-radius: 14px; max-width: 320px; }
+.upnext { grid-area: next; align-self: center; margin-top: var(--mx-space-3); display: inline-grid; grid-template-columns: auto 32px minmax(0, auto) auto; align-items: center; gap: var(--mx-space-3); text-align: left; border-radius: 14px; max-width: 320px; transition: transform .25s var(--mx-ease-standard); }
+.upnext:active { transform: scale(.99); }
 .upnext > small { font-size: var(--mx-type-sm); font-weight: 500; color: var(--muted); }
 .upnext b { font-size: var(--mx-type-body); font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .upnext svg { color: var(--subtle); transition: transform .25s var(--mx-ease-standard), color .2s var(--mx-ease-standard); }
@@ -219,7 +217,8 @@
 
 /* the queue rows (in the queue window) */
 .rows { list-style: none; display: flex; flex-direction: column; gap: 2px; }
-.row, .rowOn, .rowPast { display: flex; align-items: center; border-radius: 14px; position: relative; }
+.row, .rowOn, .rowPast { display: flex; align-items: center; border-radius: 14px; position: relative; transition: background .2s var(--mx-ease-standard), transform .25s var(--mx-ease-standard); }
+.row:active, .rowPast:active { transform: scale(.99); }
 .row:hover, .rowPast:hover { background: rgba(255,255,255,.06); }
 .rowPast { opacity: .5; }
 .rowOn { background: color-mix(in srgb, var(--pl-acc) 15%, transparent); }
@@ -275,9 +274,14 @@
   .peek > svg { color: var(--subtle); }
   .scrim { background: rgba(0,0,0,.42); }
   .win { top: auto; left: 8px; right: 8px; bottom: calc(80px + env(safe-area-inset-bottom, 0px)); width: auto; max-height: 72dvh; grid-template-rows: auto minmax(0, 1fr) auto auto; overflow: hidden;
-    transform: translateY(calc(100% + 120px)); }
-  .winOpen { transform: none; }
+    transform: translateY(calc(100% + 120px)); transition: transform .5s var(--mx-ease-swift), visibility 0s linear .5s; }
+  .winOpen { transform: none; transition: transform .5s var(--mx-ease-swift), visibility 0s; }
   .facts { background: none; padding: 0; margin-top: 0; max-width: none; }
   .fact { -webkit-line-clamp: unset; cursor: default; }
   .credits { margin-top: 0; display: grid; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .eq i, .typing::after, .meta, .fact, .empty, .bgCover { animation: none; }
+  .stage, .flipper, .tilt, .win, .pauseGlass, .line, .lineOn { transition-duration: .01s; }
 }

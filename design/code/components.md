@@ -15,5 +15,5 @@ Measurements are the approved probe's (`design/reference/player-kino/styles.css`
 | **Toast** | a float pill at the bottom centre, 220 ms in and out |
 | **Peek row** (phone) | 52 px row with a hairline above: an icon or a cover, a small label, one line of content, a chevron. Opens a sheet |
 | **Segmented** | a pill group in an inset groove; the small size is 12 px text with 5 × 10 padding |
-| **Icon button** | 40 px circle, the project's icons at 22 px; hover: white 8 %; press: scale 0.9 |
+| **Icon button** | 40 px circle, the project's icons at 22 px; hover: white 8 %; press: scale 0.9 on a spring. Switched on: the accent (огонёк orange, вода blue), a filled glyph for the reactions, and the icon bounce (motion-and-performance.md) |
 | **Badge** | mono 12 in a hairline box, radius 7 (Lossless) |
