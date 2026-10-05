@@ -144,11 +144,17 @@ async def get_tracks(
     )
 
 
+SPECTRUM_MAGIC = b"MXS2"  # = intel.envelope.SPEC_MAGIC (numpy stays out of the API's imports)
+
+
 async def _bands(kind: str, track_id: uuid.UUID, p: Auth, s: Session, request: Request) -> Response:
     """The packed bands of a track (`envelope` or `spectrum`). Immutable per media file, so
     they are cached for a year under the file's sha. A track without them yet gets a 404 and
-    a low-priority job (migrated files, and files older than the spectrum, have none)."""
+    a low-priority job (migrated files, and files older than the spectrum, have none). A
+    spectrum of the first format (no `MXS2` magic) counts as missing: it is recomputed."""
     row = await service.envelope(s, p.account_id, track_id, kind)
+    if row is not None and kind == "spectrum" and row[1][:4] != SPECTRUM_MAGIC:
+        row = None
     if row is None:
         mf = await service.media_file_of(s, p.account_id, track_id)
         if mf is not None:
@@ -164,7 +170,7 @@ async def _bands(kind: str, track_id: uuid.UUID, p: Auth, s: Session, request: R
                 )
         raise NotFound(f"no {kind} for this track yet")
     sha, blob = row
-    tag = f'"{sha}"' if kind == "envelope" else f'"{sha}-{kind}"'
+    tag = f'"{sha}"' if kind == "envelope" else f'"{sha}-{kind}2"'
     headers = {"ETag": tag, "Cache-Control": "private, max-age=31536000, immutable"}
     if request.headers.get("if-none-match") == tag:
         return Response(status_code=304, headers=headers)

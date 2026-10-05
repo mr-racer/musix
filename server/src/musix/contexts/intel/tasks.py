@@ -102,11 +102,11 @@ async def envelope_backfill() -> int:
 
 
 async def spectrum_backfill() -> int:
-    """Spectra for files that have none: one low-priority job each, like the envelopes.
-    `procrastinate defer intel:spectrum_backfill {}`."""
+    """Spectra for files that have none, or one of the first format: one low-priority job
+    each, like the envelopes. `procrastinate defer intel:spectrum_backfill {}`."""
     from musix.workers.app import app
 
-    q = sa.select(media_files.c.id).where(media_files.c.spectrum.is_(None))
+    q = sa.select(media_files.c.id).where(pipeline.SPECTRUM_STALE)
     async with sessionmaker()() as s:
         ids: list[uuid.UUID] = list(await s.scalars(q))
     for mf in ids:

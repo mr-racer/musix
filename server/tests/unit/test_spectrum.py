@@ -14,16 +14,26 @@ def _band_of(hz: float) -> int:
     return next(i for i, (lo, hi) in enumerate(E.SPEC_BANDS_HZ) if lo <= hz < hi)
 
 
-def test_shape_is_ten_frames_a_second_in_sixteen_bands() -> None:
+def test_shape_is_thirty_frames_a_second_in_sixteen_bands() -> None:
     spec = E.spectrum(_tone(440))
     assert spec.dtype == np.uint8
-    assert spec.shape == (21, 16)  # 2 s at 10 fps, plus the padded edge frame
-    assert E.unpack(E.pack(spec), bands=E.SPEC_BANDS).shape == spec.shape
+    assert spec.shape == (61, 16)  # 2 s at 30 fps, plus the padded edge frame
+
+
+def test_the_blob_describes_itself_and_round_trips() -> None:
+    from musix.contexts.library.router import SPECTRUM_MAGIC
+
+    rng = np.random.default_rng(3)
+    spec = rng.integers(0, 256, (300, 16), dtype=np.uint8)  # wraps both ways in the deltas
+    blob = E.pack_spectrum(spec)
+    assert blob[:4] == E.SPEC_MAGIC == SPECTRUM_MAGIC
+    assert (blob[4], blob[5]) == (30, 16)
+    assert np.array_equal(E.unpack_spectrum(blob), spec)
 
 
 def test_a_tone_lights_its_own_band_lows_first() -> None:
     for hz in (60.0, 440.0, 3_000.0, 9_000.0):
-        frame = E.spectrum(_tone(hz))[10]
+        frame = E.spectrum(_tone(hz))[30]
         assert int(frame.argmax()) == _band_of(hz)
     assert _band_of(60.0) < _band_of(440.0) < _band_of(3_000.0) < _band_of(9_000.0)
 

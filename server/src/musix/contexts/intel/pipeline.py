@@ -240,15 +240,23 @@ async def envelope_step(sm: SM, mf_id: uuid.UUID) -> None:
         await s.commit()
 
 
+# no spectrum, or one of the first format (10 frames a second, no magic): to be computed
+SPECTRUM_STALE = sa.or_(
+    M.spectrum.is_(None), sa.func.substring(M.spectrum, 1, 4) != envelope.SPEC_MAGIC
+)
+
+
 async def spectrum_step(sm: SM, mf_id: uuid.UUID) -> None:
     async with sm() as s:
-        path = await s.scalar(sa.select(M.path).where(M.id == mf_id, M.spectrum.is_(None)))
+        path = await s.scalar(sa.select(M.path).where(M.id == mf_id, SPECTRUM_STALE))
     if path is None:
         return
     spec = envelope.spectrum(await envelope.decode(path, sr=envelope.SPEC_SR))
     async with sm() as s:
         await s.execute(
-            sa.update(media_files).where(M.id == mf_id).values(spectrum=envelope.pack(spec))
+            sa.update(media_files)
+            .where(M.id == mf_id)
+            .values(spectrum=envelope.pack_spectrum(spec))
         )
         await s.commit()
 
