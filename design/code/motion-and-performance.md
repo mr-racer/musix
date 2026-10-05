@@ -13,6 +13,8 @@
 | Nav island | the blob springs between tabs; a sheen crosses the glass on hover | 550 ms |
 | Text on a track change | the title block rises 10 px; a fact rises 6 px when it is paged | 480 ms after 120 ms; 320 ms |
 | Icon bounce | the glyph of a button that was just switched on (огонёк, вода, shuffle) swells to 1.45, leans 8° and springs back; the glyph of a reaction that is on is filled | 520 ms, `spring` |
+| Samples spoiler | the hidden chips rise 10 px and fade in, 60 ms apart; the row's height eases (380 ms, `swift`); folding: the chips fade in 160 ms, then the row draws in | 440 ms, `spring` |
+| Title question | the question mark hops under the pointer: up a third of its height with a 12° lean, lands, a small second hop | 620 ms |
 | Press | every control gives under the finger and springs back: icon buttons 0.9, island tabs 0.94, chips and segments 0.96, rows 0.99 | 250 ms, `spring` |
 | Backdrop | two static layers cross-fade | 900 ms |
 
@@ -34,6 +36,10 @@ Nothing else. In particular: no pulsing or flashing with the beat, no drifting b
 - Animate `transform` and `opacity` only.
 - One-shot moves are Web Animations on the element (`el.animate`), not a remount: a remount
   reloads the picture and replays every child's entry.
+- A picture that travels or leaves (the cover flight, the leaving cover of a track change)
+  is a canvas painted from the pixels already on screen, never a new `<img>` with the same
+  address: a new element has to load again, and until it has there is nothing to show (the
+  cover vanished for three frames on every arrow press).
 - What follows the pointer is a CSS variable written at most once a frame, and only while the
   pointer is over the element. Never React state.
 - A screen does not re-render with the playhead: only the seek line and the lyrics subscribe

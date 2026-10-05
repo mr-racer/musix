@@ -135,6 +135,24 @@
 @supports (text-box: trim-start cap alphabetic) {
   .title, .long { margin-top: 0; text-box: trim-start cap alphabetic; }
 }
+/* «что означает название»: a small raised question mark in the accent, hung off the title's last
+   word. Raised and coloured, it reads as a control, not as the title's punctuation; outside the
+   flow, it never changes how the title wraps. No plate around it (the owner's word): it hops
+   under the pointer instead. The hit area is the button, the hop is the glyph inside, so the
+   target does not move away from the pointer. */
+.titleTail { position: relative; white-space: nowrap; }
+.titleAsk { position: absolute; left: 100%; top: .22em; padding: .06em .16em .2em; font: inherit; font-size: max(17px, .5em); font-weight: 700; line-height: 1; letter-spacing: 0;
+  color: var(--pl-acc); text-shadow: 0 1px 10px rgba(8,8,11,.45); border-radius: 8px; user-select: none; -webkit-user-select: none; }
+.titleAsk > span { display: block; transform-origin: 50% 85%; }
+.titleAsk:hover > span, .titleAsk:focus-visible > span { animation: hop .62s var(--mx-ease-standard); }
+.titleAsk:active > span { transform: scale(.86); }
+@keyframes hop {
+  0% { transform: none; }
+  28% { transform: translateY(-34%) rotate(-12deg) scale(1.12); }
+  52% { transform: translateY(0) rotate(0) scale(.96); }
+  72% { transform: translateY(-12%) rotate(5deg); }
+  100% { transform: none; }
+}
 .artist { margin-top: var(--mx-space-3); font-size: 20px; line-height: 1.2; color: var(--muted); }
 .album { margin-top: var(--mx-space-1); font-size: var(--mx-type-sm); line-height: 1.3; color: var(--subtle); }
 .vibe { margin-top: var(--mx-space-3); max-width: 40ch; font-family: var(--mx-font-text); font-style: italic; font-size: var(--mx-type-body); line-height: 1.45; color: var(--muted); text-wrap: balance; }
@@ -170,6 +188,12 @@
 .more:hover { background: rgba(255,255,255,.08); color: var(--text); }
 .more:active { transform: scale(.96); }
 .more svg { transition: rotate .3s var(--mx-ease-standard); }
+/* the chips behind «Ещё N»: each rises in after the one before it, and fades when folded */
+.slot, .slotIn, .slotOut { display: inline-flex; min-width: 0; max-width: 100%; }
+.slotIn { animation: slotIn .44s var(--mx-ease-spring) calc(var(--n, 0) * 60ms + 80ms) backwards; }
+.slotOut { animation: slotOut .16s var(--mx-ease-standard) forwards; }
+@keyframes slotIn { from { opacity: 0; transform: translateY(10px) scale(.94); } }
+@keyframes slotOut { to { opacity: 0; transform: translateY(-4px) scale(.97); } }
 .more[aria-expanded="true"] svg { rotate: 180deg; }
 .chipText b { font-size: 14px; font-weight: 500; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .chipText small { font-size: 12px; line-height: 1.2; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -348,6 +372,6 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .eq i, .typing::after, .meta, .fact, .empty, .bgCover { animation: none; }
+  .eq i, .typing::after, .meta, .fact, .empty, .bgCover, .slotIn, .slotOut, .titleAsk > span { animation: none !important; }
   .stage, .flipper, .tilt, .win, .pauseGlass, .line, .lineOn { transition-duration: .01s; }
 }

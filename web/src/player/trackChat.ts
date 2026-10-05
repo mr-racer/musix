@@ -29,13 +29,27 @@ export function clearChat(): void {
 /** v1 `InlineLyricExplain`: what a click on a lyric line asks. */
 export const LINE_QUESTION = "Объясни эту строчку";
 
-/** Asks about the track; with `line`, about that lyric line (the server's `lyric_explain`). */
-export async function ask(trackId: string, message: string, line?: string): Promise<void> {
+/** The spark by the title. The window shows TITLE_QUESTION; the model gets `titlePrompt`,
+ *  which also says what a good answer is: about the name itself, short, in plain prose. */
+export const TITLE_QUESTION = "Что означает название этой песни?";
+export const titlePrompt = (title: string) =>
+  `Что означает название этой песни — «${title}»? Объясни именно название: что за ним стоит, есть ли в нём отсылка, ` +
+  "игра слов или второй смысл и как оно связано с текстом песни. " +
+  // without this the model invented an origin for a title it knew nothing about (checked on six songs, 2026-10-05)
+  "Опирайся на известные факты о песне и на её текст и ничего не выдумывай: если происхождение названия неизвестно, " +
+  "так и скажи и объясни его смысл по тексту. " +
+  "Ответь коротко: 2–4 предложения простым языком, одним абзацем, без списков, заголовков и выделений. " +
+  "Строчки из песни приводи в кавычках прямо в предложении, а не отдельной цитатой.";
+
+/** Asks about the track. `line`: about that lyric line (the server's `lyric_explain`).
+ *  `shown`: what the window shows as the question when the model is sent a longer one. */
+export async function ask(trackId: string, message: string, opts: { line?: string; shown?: string } = {}): Promise<void> {
+  const { line, shown } = opts;
   const st = useTrackChat.getState();
   if (st.stage !== null) return;
   const prior = st.trackId === trackId ? st.messages : [];
   const history = prior.slice(-6).map((m) => ({ role: m.mine ? ("user" as const) : ("assistant" as const), content: m.text }));
-  useTrackChat.setState({ trackId, messages: [...prior, { mine: true, text: message, line }], stage: "Думаю…", stream: null });
+  useTrackChat.setState({ trackId, messages: [...prior, { mine: true, text: shown ?? message, line }], stage: "Думаю…", stream: null });
   let text: string | null = null;
   try {
     const turn = await ok(api.POST("/api/v2/track-chat/turns", {

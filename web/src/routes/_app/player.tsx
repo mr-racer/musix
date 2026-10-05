@@ -13,7 +13,7 @@ import { Combustion } from "../../player/Combustion";
 import { DevicePicker, ElsewhereBar } from "../../player/DevicePicker";
 import { fromTrack, player, usePlayer } from "../../player/engine";
 import { SeekLine, Spectrum, spectrumQuery } from "../../player/Spectrum";
-import { ask, clearChat, LINE_QUESTION, PROMPTS, useTrackChat } from "../../player/trackChat";
+import { ask, clearChat, LINE_QUESTION, PROMPTS, TITLE_QUESTION, titlePrompt, useTrackChat } from "../../player/trackChat";
 import { AddToPlaylist } from "../../ui/AddToPlaylist";
 import { Cover } from "../../ui/Cover";
 import { Icon, LosslessMark } from "../../ui/icons";
@@ -55,7 +55,7 @@ const SPRING = "cubic-bezier(.34,1.56,.64,1)"; // --mx-ease-spring, for the Web 
 /** The probe's icon bounce: the glyph of a button that was just switched on swells, leans
  *  and springs back. */
 function pop(button: HTMLElement): void {
-  const glyph = button.querySelector("svg");
+  const glyph = button.querySelector("svg") ?? button.firstElementChild;
   if (!glyph || reduced()) return;
   glyph.animate([{ transform: "scale(1)" }, { transform: "scale(1.45) rotate(-8deg)" }, { transform: "scale(1)" }], { duration: 520, easing: SPRING });
 }
@@ -245,7 +245,15 @@ function Playing({ trackId }: { trackId: string }) {
   /** A click on a lyric line: the assistant's window opens with the line quoted and explains it. */
   const askLine = (line: string) => {
     setSheet("ai");
-    void ask(trackId, LINE_QUESTION, line); // does nothing while an answer is being written
+    void ask(trackId, LINE_QUESTION, { line }); // does nothing while an answer is being written
+  };
+  /** The spark by the title: the window opens and explains the song's name. The window shows
+   *  the short question; the model gets the longer one that asks for a short, plain answer. */
+  const askTitle = () => {
+    setSheet("ai");
+    const chat = useTrackChat.getState();
+    if (chat.trackId === trackId && chat.messages.some((m) => m.mine && m.text === TITLE_QUESTION)) return; // asked already: the answer is there
+    void ask(trackId, titlePrompt(item.title), { shown: TITLE_QUESTION });
   };
   const losslessBadge = lossless && (
     <span className={css.badge} title={[s.codec?.toUpperCase(), ctx?.audio.sampleRate && `${ctx.audio.sampleRate / 1000} кГц`, ctx?.audio.bitDepth && `${ctx.audio.bitDepth} бит`].filter(Boolean).join(" · ")}>
@@ -286,7 +294,14 @@ function Playing({ trackId }: { trackId: string }) {
 
         <div className={css.col} data-above>
         <div className={css.meta} key={trackId}>
-          <h1 className={css.title + (item.title.length > 15 ? " " + css.long : "")}>{item.title}</h1>
+          {/* the question mark hangs off the last word, outside the flow: it never changes how the title wraps */}
+          <h1 className={css.title + (item.title.length > 15 ? " " + css.long : "")} aria-label={item.title}>
+            {item.title.slice(0, item.title.lastIndexOf(" ") + 1)}
+            <span className={css.titleTail}>
+              {item.title.slice(item.title.lastIndexOf(" ") + 1)}
+              <button type="button" className={css.titleAsk} onClick={(e) => { pop(e.currentTarget); askTitle(); }} aria-label="Что означает название песни" title="Что означает название?"><span aria-hidden>?</span></button>
+            </span>
+          </h1>
           <p className={css.artist}>
             {item.artistId
               ? <Link to="/artist/$id" params={{ id: item.artistId }} className={css.lnk} title="Страница артиста"><span>{item.artist}</span><Icon name="ChevronRight" size={18} /></Link>
@@ -503,19 +518,43 @@ function Credits({ k, genre }: { k: Schemas["TrackKnowledge"]; genre: string | n
 }
 
 /** Samples one way. Those in the library come first (they play at once); more than two
- *  fold behind «Ещё N». */
+ *  fold behind «Ещё N». Opening, the hidden chips rise in one after another while the row
+ *  grows; closing, they fade and the row draws in: the plate below slides, it does not jump. */
 function Samples({ label, list }: { label: string; list: Schemas["RelationOut"][] }) {
-  const [open, setOpen] = useState(false);
+  const [phase, setPhase] = useState<"closed" | "open" | "closing">("closed");
   const sorted = useMemo(() => [...list].sort((a, b) => Number(!!b.trackId) - Number(!!a.trackId)), [list]);
   const rest = sorted.length - 2;
+  const row = useRef<HTMLElement>(null);
+  const height = useRef<number | null>(null);
+  useLayoutEffect(() => {
+    const el = row.current;
+    if (!el) return;
+    const h = el.offsetHeight, was = height.current;
+    height.current = h;
+    if (was === null || was === h || reduced()) return;
+    el.style.overflow = "clip"; // the new chips are uncovered as the row grows
+    el.animate([{ height: `${was}px` }, { height: `${h}px` }], { duration: 380, easing: "cubic-bezier(.16,1,.3,1)" }).onfinish = () => { el.style.overflow = ""; };
+  }, [phase]);
+  const toggle = () => {
+    if (phase === "closed") setPhase("open");
+    else if (phase === "open" && reduced()) setPhase("closed");
+    else if (phase === "open") {
+      setPhase("closing");
+      setTimeout(() => setPhase("closed"), 170); // the chips' fade
+    }
+  };
   return (
     <div>
       <dt>{label}</dt>
-      <dd className={css.chips}>
-        {(open ? sorted : sorted.slice(0, 2)).map((r, i) => <Sample key={(r.trackId ?? r.text) + ":" + i} r={r} />)}
+      <dd className={css.chips} ref={row}>
+        {(phase === "closed" ? sorted.slice(0, 2) : sorted).map((r, i) => (
+          <span key={(r.trackId ?? r.text) + ":" + i} className={i < 2 ? css.slot : phase === "closing" ? css.slotOut : css.slotIn} style={{ ["--n" as string]: i - 2 }}>
+            <Sample r={r} />
+          </span>
+        ))}
         {rest > 0 && (
-          <button type="button" className={css.more} aria-expanded={open} onClick={() => setOpen((o) => !o)}>
-            {open ? "Свернуть" : `Ещё ${rest}`}<Icon name="ChevronDown" size={16} />
+          <button type="button" className={css.more} aria-expanded={phase === "open"} onClick={toggle}>
+            {phase === "open" ? "Свернуть" : `Ещё ${rest}`}<Icon name="ChevronDown" size={16} />
           </button>
         )}
       </dd>
@@ -593,7 +632,7 @@ function Answer({ text, typing }: { text: string; typing?: boolean }) {
   const blocks = useMemo(() => {
     const out: ({ list: string[] } | { p: string })[] = [];
     for (const raw of text.replace(/\*\*|__|`/g, "").split(/\n+/)) {
-      const line = raw.replace(/^#+\s*/, "").trim();
+      const line = raw.replace(/^(?:#+|>)\s*/, "").trim(); // no headings, no quote marks: plain blocks
       if (!line) continue;
       const item = line.match(/^(?:[-*•]|\d+[.)])\s+(.*)$/);
       const last = out.at(-1);
@@ -679,21 +718,37 @@ function CoverStage({ item, index, flipped, playing, buffering, fx, back }: {
   const art = useRef<HTMLDivElement>(null);
   const tilt = useRef<HTMLDivElement>(null);
   const last = useRef({ id: item.trackId, cover: item.coverImageId, index });
+  const shot = useRef<HTMLCanvasElement | null>(null);
+
+  // The leaving cover is a copy of the pixels on screen, taken the moment the store changes
+  // track: that is before React swaps the picture, so the old one is still in the DOM. A new
+  // <img> with the same address would have to load again, and for the three or four frames
+  // that takes there would be no cover at all (the owner's «исчезновение обложки»).
+  useEffect(() => usePlayer.subscribe((s, p) => {
+    if (s.queue[s.index]?.trackId === p.queue[p.index]?.trackId) return;
+    shot.current = null;
+    const box = art.current, pic = box?.querySelector<HTMLImageElement>("button img");
+    if (!box || !pic?.complete || !pic.naturalWidth) return;
+    const side = Math.round(box.clientWidth * Math.min(window.devicePixelRatio || 1, 2));
+    const cut = Math.min(pic.naturalWidth, pic.naturalHeight);
+    const g = document.createElement("canvas");
+    g.width = g.height = side;
+    g.getContext("2d")?.drawImage(pic, (pic.naturalWidth - cut) / 2, (pic.naturalHeight - cut) / 2, cut, cut, 0, 0, side, side);
+    shot.current = g;
+  }), []);
 
   // before paint, so the new cover never shows in place ahead of its landing
   useLayoutEffect(() => {
     const l = last.current;
     if (l.id === item.trackId) return;
     last.current = { id: item.trackId, cover: item.coverImageId, index };
+    const g = shot.current;
+    shot.current = null;
     if (flightFor === item.trackId) { flightFor = null; return; }
     const box = art.current, card = tilt.current;
     if (!box || !card || flipped || reduced()) return;
     const sign = index >= l.index ? 1 : -1;
-    const old = imageUrl(l.cover, 760); // the variant the cover was showing: already in the cache
-    if (old) {
-      const g = document.createElement("img");
-      g.src = old;
-      g.alt = "";
+    if (g) {
       g.className = css.leaving!;
       g.style.transformOrigin = sign > 0 ? "left center" : "right center";
       box.appendChild(g);
