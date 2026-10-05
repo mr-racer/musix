@@ -15,7 +15,12 @@
 5. **The signature moves stay.** Click the cover to pause, the cover flip to lyrics, the
    vinyl track change, the tilt, огонёк and вода on the cover, the nav island's glass.
    None of them is dropped silently; a replacement needs the owner's yes.
-6. **Efficient by construction.** A screen at rest costs almost nothing, also on a desktop.
+6. **Beauty first, and no waste.** The owner's rule of 2026-10-05: smoothness and beauty are
+   not traded for a few per cent of the processor («лучше чуть больше кушать ресурсов, но
+   выглядеть красиво»), and every animation runs at the screen's frame rate, 60 a second at
+   least. What stays from the first rule («the first probe heated my computer»): nothing
+   loops or repaints a large layer for no visible gain, and a screen at rest is quiet. Cost
+   is measured and reported, never used as the reason to coarsen a move.
    See `motion-and-performance.md`.
 7. **The phone is one screen.** No scrolling in the player. New functionality goes into
    sheets, not under the fold.
@@ -42,5 +47,14 @@
     - A plain element with no entry, no exit and no answer to the pointer (the first «В
       плейлист» menu) is unfinished work, not a neutral default.
 
-    Bounded by rule 6: one-shot moves on `transform` and `opacity`, nothing looping at rest.
-    The catalogue of moves and their timings is `motion-and-performance.md`.
+    One-shot moves on `transform` and `opacity` where that gives the same picture; nothing
+    looping at rest. The catalogue of moves and their timings is `motion-and-performance.md`.
+11. **Finished to the small things.** The owner: «в стиле качественного и проработанного до
+    мелочей дизайна, это очень важно, и привносим какие-то прикольные мелочи и идеи». A
+    screen is not done when its layout is right. Every state has been looked at (empty,
+    loading, long text, one item, a thousand), every edge aligns with something, every
+    number sits in tabular figures, and the screen carries a few small delights of its own
+    that nobody asked for by name. A proposal lists them, so the owner can keep or drop each.
+12. **Composed at every size.** 14, 16 and 32 inches (`roadmap.md` has the viewports). A
+    screen does not merely fit: at each size the group sits where the eye expects it, the
+    type and the cover keep their proportions, and nothing is left stranded in a corner.

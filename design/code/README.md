@@ -2,7 +2,10 @@
 
 Read this before any UI work on any client. These files state the rules the owner set on
 2026-10-04, when the player «Кино» was designed
-(`docs/superpowers/specs/2026-10-04-design-refresh-player-design.md`).
+(`docs/superpowers/specs/2026-10-04-design-refresh-player-design.md`), and everything he has
+ruled since. Since 2026-10-05 the whole desktop web is being redone in this language:
+`roadmap.md` is the plan, `preferences.md` the record of what he likes and refuses.
+The Windows app is parked; the Android app follows the web later.
 
 ## What wins on a conflict
 
@@ -23,6 +26,8 @@ are taken from the mock where they fit the client's stack.
 
 | File | It answers |
 |---|---|
+| `roadmap.md` | The web redesign: every screen, window and transition that exists, the order of work, the routine for one screen, the three screen sizes. |
+| `preferences.md` | The owner's reactions, dated, in his words. Read before proposing; add to it after every round. |
 | `principles.md` | What the design is after and what it refuses. |
 | `typography.md` | Which family where, the type scale, labels, links. |
 | `color-and-backdrop.md` | Tokens, cover-lit backgrounds, the contrast floor. |
@@ -33,7 +38,7 @@ are taken from the mock where they fit the client's stack.
 | `screens/player.md` | The player surface. |
 
 Tokens live in `design/tokens/*.json`; `make design` regenerates `design/gen/` for the web
-(`--mx-*` custom properties), Android (`MusixTheme.kt`) and Windows.
+(`--mx-*` custom properties), Android (`MusixTheme.kt`) and Windows (parked: its output is generated but nothing depends on it).
 
 ## Approved screens
 

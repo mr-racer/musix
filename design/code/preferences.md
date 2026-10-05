@@ -1,0 +1,88 @@
+# What the owner likes — a running record
+
+Read before proposing anything. Every reaction of the owner to a mock or to a built screen
+is added here the same day, in his words where they are short. Newest block at the bottom.
+A later entry overrides an earlier one. Rules that follow from several entries move into
+the other files; this one keeps the evidence.
+
+## 2026-10-04 — the player probes
+
+**Wants**
+- v1's signature moves kept: click the cover to pause, the flip to lyrics, the vinyl track
+  change, the blurred cover as the background.
+- An open, spatial layout. «Не хочется блоковость вообще в целом развивать». A «high-end
+  удобный дизайн».
+- The fuller colour of the cover-lit background («Эфир»); the cinematic title-card layout
+  («Кино 3 / Афиша» — «самое крутое»).
+- Credits as quiet labelled groups («плашки с информацией о жанре, продюсере — прикольно»).
+- Artist, album and producers visibly as links.
+- Samples both ways, playable at once when in the library. Producers over song authors
+  («общий продюсер — это часто схожий звук»).
+- The assistant on demand, in its own window with question templates. One surface for all
+  AI answers.
+- On the phone: one screen, no scrolling, new things in sheets; previous / next on the cover.
+
+**Does not want**
+- Glass panels around columns; liquid glass everywhere («много liquid glass — это не очень
+  хорошо»): glass only in key places.
+- Background flashing with the beat, a strong cursor glare: «слишком отвлекающим».
+- An overloaded screen: an assistant input and chips always visible; a tall facts block
+  («дизбалансит экран по перегрузу текста»).
+- Serif for facts and the vibe line («без лютого пафоса»): Noto Sans.
+- The title sticking out above the cover's top edge.
+- A wave on the phone («отжирает место»).
+
+## 2026-10-05 — the built player, four rounds
+
+**Wants**
+- The mock's motion kept one to one: «нельзя терять анимации и баунсы иконок».
+- The spectrum lively, at 60 frames a second at least, two to three times taller, but «не
+  на всё свободное место — просто побольше»; shrinking only when there is no room.
+- On a 32″ screen (2560 × 1440) the cover and the text in the middle, not at the left.
+- More than two samples folded away, the library's first; the fold opening with an effect.
+- The volume as an icon, the slider on hover.
+- A click on a lyric line asks the assistant about it.
+- By the title, a control that explains the song's name: **a question mark without a
+  circle, hopping on hover** (he turned down a round plate with a spark). In the assistant
+  the question reads as a nice request, not as a prompt.
+- A cover added to a playlist shrinks, flies into the playlist and is taken in.
+- **Physicality everywhere** («надо везде такую физичность добавлять»). Named as right: the
+  hopping question mark, the chevron sliding on hover over the artist or album, the cover
+  blurring and growing a little on pause («прям мне понравилось»).
+
+**Does not want**
+- Anything jumping: the block moving when facts are paged; the cover standing at a different
+  height from song to song; the cover vanishing for a moment on previous / next.
+- A plain element with no entry and exit: the first «В плейлист» menu was «простенькая, не
+  физическая».
+- The queue's thumbnail turning into a one-colour square while its copy flies («это баг»).
+- A list that scrolls sideways.
+- Sound, picture and text out of step when a track is chosen.
+
+## 2026-10-05 — the brief for the whole web
+
+- The whole web app is redone in this language; the Windows app is parked («очень сырое, на
+  нём вряд ли получится сделать крутые эффекты»); the Android app suits him for now.
+- «Не жертвуем плавностью и красотой ради экономии процентов процессора — лучше чуть больше
+  кушать ресурсов, но выглядеть красиво»; «все анимации в 60 фпс всегда».
+- The layout must be adaptive and look organic at 14, 16 and 32 inches.
+- Design «качественный и проработанный до мелочей»; «привносим какие-то прикольные мелочи
+  и идеи».
+- The home starts from v1's home, with the design code laid over it.
+- Per screen: two or three variants (the old one refined, the new language, an alternative),
+  his feedback, then the build.
+
+## 2026-10-05 — answers on the plan
+
+- Into the web, from v1 and the Android app: **the assistant's page, the quiz, the
+  statistics**.
+- **One surface for the AI: the assistant** (and what the player has stays there). «Удаляем
+  старые чатовые поверхности»: today's search screen with its modes goes. The server must
+  be checked first: the assistant has to do what the old chat did, as well or better (find
+  by lyrics, find by sound, build a playlist). The year and sound filters: «забиваем, в
+  ассистент можно не тащить».
+- **The search on the home searches the library**, fast, without AI («не по тексту, а по
+  библиотеке»). An AI entry may be added to the home as well.
+- **Dark theme first**; the light one in a single pass at the end.
+- **Service screens** (settings, upload, import, sign-in, first run, admin): one variant in
+  the new language, no alternatives.

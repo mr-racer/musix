@@ -54,7 +54,11 @@ Nothing else. In particular: no pulsing or flashing with the beat, no drifting b
 
 ## Budgets
 
-- Web player, headless Chrome with software GL, 1280×900, 8 s: at most **10 % of one core**
+Since 2026-10-05 these are a watch, not a limit (principles.md, rule 6): a number above
+them is reported with what it buys, and the owner decides. Every animation is checked for
+its frame rate first: 60 a second at least.
+
+- Web player, headless Chrome with software GL, 1280×900, 8 s: about **10 % of one core**
   playing, and nothing above the app's own idle when paused. Measured 2026-10-05 with the
   spectrum at 60 frames a second and 104 px: 9.5 % playing (3.8 % of it is the app and the
   audio on any page), 3 % paused (the library page idles at the same 3 %). The approved
