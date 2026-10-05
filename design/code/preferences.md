@@ -86,3 +86,43 @@ the other files; this one keeps the evidence.
 - **Dark theme first**; the light one in a single pass at the end.
 - **Service screens** (settings, upload, import, sign-in, first run, admin): one variant in
   the new language, no alternatives.
+
+## 2026-10-06 — the home, first three variants
+
+**Verdicts**
+- «А · Как в v1»: «точно мимо».
+- «Б · Афиша»: likes the minimalism, that it is not overloaded. Does not accept that it
+  repeats the player: «ты делаешь копию плеера дословно — это плохо. Экраны должны быть
+  уникальными, и не быть под копирку».
+- «В · Полки»: good as new design and does not cross the player, but «жутко перегружен»,
+  and «порядок элементов на экране совершенно хаотичный». He likes an airy screen.
+
+**What the home is for, in his words**
+- Starting his wave. The button must be more physical, «с эффектом стекла может быть, а то
+  сейчас простая». With it, the wave's style settings, redrawn «более приятными дизайну».
+- Starting the picked sets (вайбики): the piles of «Полки» can be taken as they are.
+- Search of the library, perhaps with an explicit switch between plain search and the AI
+  assistant; plain search by default.
+- Albums offered here, as v1's library showed them, «если грамотно подать».
+- Playlists he would keep, but without pictures they look poor: find a way to present
+  them that does not fall out of the design, or leave them out.
+- The week's statistics stay, adapted to the new design, perhaps with one more small metric.
+
+**Not for the home**
+- History and «Продолжить»: «никто не будет слушать что он только что слушал».
+- «Недавно добавлено»: fine, but it belongs to the library.
+
+**Rules that follow** (moved to principles.md when the home is approved)
+- Every screen has its own composition. The shared language is type, colour, surfaces and
+  motion, never a layout copied from another screen.
+- Airy first: what is not needed on a screen leaves it, and what stays has an order the
+  eye can follow.
+
+**Round 2, shown the same day** (`design/reference/home/`, awaiting his reaction)
+- «Афиша» redrawn as a poster: a headline, one object, the small print. «Полки» cut to four
+  rows in an even rhythm. Both are built from the same pieces: the glass ball of the wave,
+  the tuner on the screen, search with the «Библиотека / ИИ» switch, albums as sleeves with
+  records, playlists as names or as mosaics of their own tracks, the week with days in a row.
+- Open, for him to decide: which composition; whether the glass ball is the physical button
+  he meant (it would be the third place with glass); playlists as names, as mosaics, or not
+  at all; whether the mini player stays a full-width line.

@@ -1,9 +1,12 @@
 """Bake the home mock's data from a real account (album art is not committed).
 
-usage: python bake.py HOME.json DISCOVERIES.json COVERS_DIR OUT.json
+usage: python bake.py HOME.json DISCOVERIES.json COVERS_DIR OUT.json [ALBUMS.tsv PLAYLIST_COVERS.tsv PRESETS.json]
   HOME.json         GET /api/v2/home
   DISCOVERIES.json  GET /api/v2/assistant/discoveries?limit=6
-  COVERS_DIR        <image id>.webp for every cover the two answers mention
+  COVERS_DIR        <image id>.webp for every cover mentioned
+  ALBUMS.tsv        why|id|title|artist|year|cover id|tracks|plays|last played   (why: fav, forgot, new)
+  PLAYLIST_COVERS.tsv  name|cover ids of its tracks, comma-separated
+  PRESETS.json      GET /api/v2/stream/presets
 
 Out: the texts the home shows, every cover as a 240 px JPEG data URI with its palette, and
 `bg`: the home's backdrop, the player's recipe (192 px, blur, saturation, tamed highlights)
@@ -71,6 +74,26 @@ if tiles:
     soft = ImageEnhance.Color(m.filter(ImageFilter.GaussianBlur(14))).enhance(1.4)
     data["bg"] = uri(tame(soft), 70)
     data["mosaic"] = uri(Image.merge("RGB", m.split()).resize((192, 192)), 80)
+# round two (2026-10-06): albums to offer, playlists with a cover made of their own tracks, the wave's presets
+extra = sys.argv[5:8]
+if len(extra) == 3:
+    WHY = {"fav": "любимый", "forgot": "давно не включал", "new": "ещё не слушал"}
+    groups = {"fav": [], "forgot": [], "new": []}
+    for line in pathlib.Path(extra[0]).read_text().splitlines():
+        why, aid, title, artist, year, cid, n, plays, last = line.split("|")
+        if cover(cid):
+            groups[why].append({"title": title, "artist": artist, "year": year, "n": int(n), "plays": int(plays), "why": WHY[why], "c": cid})
+    albums = []          # one of each kind in turn: the shelf mixes the forgotten, the unheard and the loved
+    for i in range(7):
+        for k in ("forgot", "new", "fav"):
+            if i < len(groups[k]): albums.append(groups[k][i])
+    data["albums"] = albums[:14]
+    covers_of = {}
+    for line in pathlib.Path(extra[1]).read_text().splitlines():
+        name, ids = line.split("|", 1)
+        covers_of[name] = [c for c in (cover(i) for i in ids.split(",")[:4]) if c]
+    data["playlists"] = [{"name": p["name"], "count": p.get("itemCount", 0), "covers": covers_of.get(p["name"], [])} for p in home.get("playlists", [])]
+    data["presets"] = [{"row": p["row"], "id": p["id"], "label": p["labelRu"]} for p in json.loads(pathlib.Path(extra[2]).read_text())]
 data["images"] = {k: v for k, v in images.items() if k in used}
 pathlib.Path(out_path).write_text(json.dumps(data, ensure_ascii=False))
 print(f"{out_path}: {len(data['images'])} covers, {len(data['recent'])} recent, {len(cards)} cards, {pathlib.Path(out_path).stat().st_size // 1024} KB")

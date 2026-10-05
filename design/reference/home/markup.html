@@ -1,14 +1,13 @@
-<div class="page" id="page" data-v="a">
+<div class="page" id="page" data-v="b">
   <header class="top">
     <div>
-      <h1>Главная MusiX</h1>
-      <p>Три варианта главной на твоих данных, в общей рамке: остров с новыми разделами, мини-плеер, быстрый поиск по библиотеке. Сцена имеет размер настоящего экрана и уменьшена под окно; всё нажимается.</p>
+      <h1>Главная MusiX · второй круг</h1>
+      <p>Два варианта после твоих замечаний, на твоих данных и в общей рамке. «Афиша» перерисована и больше не повторяет плеер; «Полки» разгружены и выстроены по порядку. Сцена имеет размер настоящего экрана и уменьшена под окно; всё нажимается.</p>
     </div>
     <div class="switches">
       <div class="seg" id="variants" role="group" aria-label="Вариант">
-        <button type="button" data-v="a" aria-pressed="true">А · Как в v1</button>
-        <button type="button" data-v="b" aria-pressed="false">Б · Афиша</button>
-        <button type="button" data-v="c" aria-pressed="false">В · Полки</button>
+        <button type="button" data-v="b" aria-pressed="true">Афиша</button>
+        <button type="button" data-v="c" aria-pressed="false">Полки</button>
       </div>
       <div class="seg" id="sizes" role="group" aria-label="Размер экрана">
         <button type="button" data-w="1512" data-h="982" aria-pressed="false">14″</button>
@@ -20,7 +19,7 @@
   </header>
 
   <div class="viewport" id="viewport">
-    <div class="stage" id="stage" data-v="a" data-playing="false">
+    <div class="stage" id="stage" data-v="b" data-playing="false" data-fam="mix">
       <div class="bg" aria-hidden="true"><div class="bg-img" id="bgImg"></div><div class="tint"></div><div class="grain"></div><div class="shade"></div></div>
 
       <!-- the frame -->
@@ -35,96 +34,47 @@
       </nav>
       <button type="button" class="settings" aria-label="Настройки" data-go="Настройки"><span data-i="Settings:18"></span></button>
 
-      <!-- А -->
-      <section class="screen va" aria-label="Главная, вариант А">
-        <header class="a-top"><div class="word">Musi<i>X</i></div><span></span></header>
-        <div class="a-grid">
-          <div class="a-hero">
-            <div class="eyebrow"><span data-i="Bars:14"></span>Твой вайб</div>
-            <h2 class="a-phrase" data-phrase></h2>
-            <div class="a-orbrow">
-              <button type="button" class="orb js-play" aria-label="Включить поток"><span class="ring"></span><span class="core"><span data-when="idle" data-i="Play:24"></span><span data-when="playing" data-i="Pause:24"></span></span></button>
-              <div>
-                <div class="a-orbtitle"><span data-when="idle">Включить поток</span><span data-when="playing">Волна играет</span></div>
-                <div class="a-orbsub"><span data-when="idle">Волна под твой вкус, подстраивается под реакции</span><span data-when="playing">Нажми на шар, чтобы поставить на паузу</span></div>
-                <button type="button" class="pill js-tune" aria-expanded="false"><span data-i="Settings:13"></span>Настроить волну<span data-i="ChevronDown:12"></span></button>
-              </div>
-            </div>
-            <div class="a-anchors"><span class="cap">Якоря вкуса</span><span class="stack" data-anchors></span></div>
-            <div class="a-vibes"><span class="cap">Вайбики · <i>то, что держит тебя сейчас</i></span><div class="chips" data-vibes></div></div>
+      <!-- Афиша: a headline, one object, the small print -->
+      <section class="screen vb" aria-label="Главная, вариант «Афиша»">
+        <div class="b-head" data-find></div>
+        <div class="b-hero">
+          <div class="b-say">
+            <div><span class="cap">Твой вайб</span><h2 class="b-phrase" data-phrase></h2></div>
+            <div class="b-vibes"><span class="cap">Вайбики</span><div class="vrow" data-vstacks></div></div>
           </div>
-          <div class="a-paths">
-            <div>
-              <div class="eyebrow"><span data-i="Search:13"></span>Найти в библиотеке</div>
-              <p>Артист, альбом или песня: сразу, из твоей фонотеки</p>
-              <label class="find"><span data-i="Search:16"></span><input type="text" id="findA" placeholder="что включить?" autocomplete="off" aria-label="Найти в библиотеке"><kbd>/</kbd><button type="button" class="ask" aria-label="Спросить ассистента" title="Спросить ассистента"><span data-i="Sparkles:17"></span></button></label>
-            </div>
-            <div>
-              <div class="eyebrow dot">Фонотека</div>
-              <button type="button" class="a-lib" data-go="Библиотека">
-                <span><b>Библиотека<span data-i="ChevronRight:18"></span></b><small data-counts></small></span>
-                <span class="fan" data-fan aria-hidden="true"></span>
-              </button>
-            </div>
-          </div>
-        </div>
-        <footer class="a-bottom"><div style="display:contents" data-discs="3"></div><div class="pulse" data-pulse></div></footer>
-      </section>
-
-      <!-- Б -->
-      <section class="screen vb" aria-label="Главная, вариант Б">
-        <div class="b-head">
-          <label class="find"><span data-i="Search:16"></span><input type="text" id="findB" placeholder="Найти в библиотеке" autocomplete="off" aria-label="Найти в библиотеке"><kbd>/</kbd><button type="button" class="ask" aria-label="Спросить ассистента" title="Спросить ассистента"><span data-i="Sparkles:17"></span></button></label>
-        </div>
-        <button type="button" class="tile js-play" id="tile" aria-label="Включить поток">
-          <span class="tilt" id="tileTilt"><span data-mosaic style="display:contents"></span><span class="glare"></span></span>
-          <span class="glass" aria-hidden="true"><span data-when="idle" data-i="Play:44"></span><span data-when="playing" data-i="Pause:44"></span></span>
-        </button>
-        <div class="b-col">
-          <span class="cap">Твой вайб</span>
-          <h2 class="b-phrase" data-phrase></h2>
-          <div class="b-wave"><span data-when="idle">Поток под твой вкус.</span><span data-when="playing">Волна играет.</span> <button type="button" class="lnk js-tune" aria-expanded="false"><span>Настроить волну</span><span data-i="ChevronRight:18"></span></button></div>
-          <div class="b-groups">
-            <div><span class="cap">Якоря вкуса</span><span class="v" data-anchor-links></span></div>
-            <div><span class="cap">Вайбики</span><div class="chips" data-vibes></div></div>
-          </div>
-          <div class="plate">
-            <div class="ptop">
-              <span><span class="cap" style="color:var(--muted)">В твоей музыке</span><span class="tag" id="factTag"></span></span>
-              <span><button type="button" class="asklink" id="factAsk"><span data-i="Sparkles:18"></span>Спросить</button><span class="pager"><button type="button" class="ic" id="factPrev" aria-label="Предыдущее"><span data-i="ChevronLeft:18"></span></button><span id="factPos"></span><button type="button" class="ic" id="factNext" aria-label="Следующее"><span data-i="ChevronRight:18"></span></button></span></span>
-            </div>
-            <div class="pbox" id="factBox"></div>
+          <div class="b-wave">
+            <span data-wave style="display:contents"></span>
+            <div class="label"><b>Моя волна</b><small><span data-when="idle">Музыка под твой вкус, без остановки</span><span data-when="playing">Играет. Настрой меняется на ходу</span></small></div>
+            <span data-tuner style="display:contents"></span>
           </div>
         </div>
         <div class="b-band">
-          <div class="pulse" data-pulse="compact"></div>
-          <div class="strip"><span class="cap">Недавно играло</span><div class="rowx" data-recent-strip></div></div>
-          <div class="b-lib"><button type="button" class="lnk" data-go="Библиотека"><span>Библиотека</span><span data-i="ChevronRight:18"></span></button><small data-counts></small></div>
+          <div class="week" data-week></div>
+          <div class="b-albums"><div class="cap"><span>Альбом целиком</span><i id="albCap"></i></div><div class="rowx" data-albums data-trim></div></div>
+          <div class="b-lists"><span class="cap">Плейлисты</span><div class="names" data-plnames></div></div>
         </div>
       </section>
 
-      <!-- В -->
-      <section class="screen vc" aria-label="Главная, вариант В">
+      <!-- Полки: who you are, start, an album, your own -->
+      <section class="screen vc" aria-label="Главная, вариант «Полки»">
         <div class="c-head">
           <div><span class="cap">Твой вайб</span><h2 class="c-phrase" data-phrase></h2></div>
-          <label class="find"><span data-i="Search:16"></span><input type="text" id="findC" placeholder="Найти в библиотеке" autocomplete="off" aria-label="Найти в библиотеке"><kbd>/</kbd><button type="button" class="ask" aria-label="Спросить ассистента" title="Спросить ассистента"><span data-i="Sparkles:17"></span></button></label>
+          <span data-find style="display:contents"></span>
         </div>
         <div class="c-wave">
           <div class="left">
-            <button type="button" class="orb js-play" aria-label="Включить поток"><span class="ring"></span><span class="core"><span data-when="idle" data-i="Play:22"></span><span data-when="playing" data-i="Pause:22"></span></span></button>
-            <div class="t"><b><span data-when="idle">Включить поток</span><span data-when="playing">Волна играет</span></b><small>Волна под твой вкус, подстраивается под реакции</small><button type="button" class="lnk js-tune" aria-expanded="false"><span>Настроить волну</span><span data-i="ChevronRight:16"></span></button></div>
+            <span data-wave style="display:contents"></span>
+            <div class="t"><b>Моя волна<small><span data-when="idle">Музыка под твой вкус, без остановки</span><span data-when="playing">Играет. Настрой меняется на ходу</span></small></b><span data-tuner style="display:contents"></span></div>
           </div>
           <div class="vstacks" data-vstacks></div>
         </div>
-        <div class="shelf">
-          <div class="sh"><span class="cap">Продолжить</span><button type="button" class="lnk" data-go="Библиотека, недавнее"><span>Вся история</span><span data-i="ChevronRight:16"></span></button></div>
-          <div class="rowx" data-shelf="recent"></div>
+        <div class="shelf c-albums">
+          <div class="sh"><span class="cap">Альбом целиком</span><button type="button" class="lnk" data-go="Библиотека, альбомы"><span>Все альбомы</span><span data-i="ChevronRight:16"></span></button></div>
+          <div class="rowx" data-albums data-trim></div>
         </div>
         <div class="c-foot">
-          <div class="shelf added"><div class="sh"><span class="cap">Недавно добавлено</span></div><div class="rowx" data-shelf="added"></div></div>
-          <div><span class="cap">Плейлисты</span><div class="plist" data-playlists style="margin-top:var(--s2)"></div></div>
-          <div><span class="cap">В твоей музыке</span><div class="c-discs" data-discs="2" style="margin-top:var(--s3)"></div></div>
-          <div class="pulse" data-pulse></div>
+          <div class="c-lists"><span class="cap">Плейлисты</span><div class="rowx" data-plmos data-trim></div></div>
+          <div class="week" data-week></div>
         </div>
       </section>
 
@@ -142,11 +92,7 @@
         </div>
       </div>
 
-      <div class="qs" id="qs" role="listbox" aria-label="Найдено в библиотеке"></div>
-      <div class="tune" id="tune" role="group" aria-label="Настройка волны">
-        <div><span>Что</span><button type="button" aria-pressed="false">Знакомое</button><button type="button" aria-pressed="true">Микс</button><button type="button" aria-pressed="false">Новое для меня</button></div>
-        <div><span>Звук</span><button type="button" aria-pressed="false">Спокойнее</button><button type="button" aria-pressed="false">Энергичнее</button><button type="button" aria-pressed="false">Темнее</button><button type="button" aria-pressed="false">Акустика</button></div>
-      </div>
+      <div class="qs" id="qs" role="listbox" aria-label="Найдено"></div>
       <div class="toast" id="toast" role="status"></div>
     </div>
   </div>
@@ -154,44 +100,37 @@
   <div class="sizeTag" id="sizeTag"></div>
 
   <section class="notes">
-    <div data-for="a"><h2>А · Как в v1, доведённый</h2><ul>
-      <li>Композиция главной v1 без изменений: слева вайб, шар «Потока», якоря и вайбики; справа поиск и фонотека; внизу открытия и пульс недели.</li>
-      <li>Что приведено к дизайн-коду: фраза гротеском вместо шрифта с засечками, шкала кеглей и отступов плеера, цифры моноширинные.</li>
-      <li>Ушли стеклянные карточки: библиотека теперь строка с веером обложек, открытия лежат прямо на фоне.</li>
-      <li>Фон: цветные поля из палитры якорей, как аврора v1, но неподвижные.</li>
+    <div data-for="b"><h2>Афиша</h2><ul>
+      <li>Теперь это афиша, а не второй плеер: заголовок (фраза о твоём вкусе), один предмет (стеклянный шар волны) и «мелкий шрифт» внизу.</li>
+      <li>Обложки-мозаики и колонки с титрами больше нет; ничего на экране не повторяет композицию плеера.</li>
+      <li>Внизу одна строка: неделя, альбомы конвертами, плейлисты просто именами, без картинок.</li>
+      <li>Название альбома пишется в строке над лентой, когда наводишь на конверт.</li>
     </ul></div>
-    <div data-for="b"><h2>Б · Афиша</h2><ul>
-      <li>Главная в языке плеера: твой вкус как «обложка» из четырёх якорей, фраза-вайб как название, под ней титры (якоря, вайбики) и плашка «В твоей музыке».</li>
-      <li>Обложка-мозаика ведёт себя как обложка в плеере: наклон, блик, нажатие; в центре стеклянная кнопка запуска волны.</li>
-      <li>Фон освещён теми же четырьмя обложками. Группа стоит по центру экрана на любом размере.</li>
-      <li>Внизу одна строка: пульс недели, недавно игравшее, вход в библиотеку.</li>
+    <div data-for="c"><h2>Полки</h2><ul>
+      <li>Порядок сверху вниз: кто ты и поиск, затем пуск (волна, её настрой, вайбики), затем одна полка альбомов, внизу своё (плейлисты и неделя).</li>
+      <li>Ушли «Продолжить», «Недавно добавлено» и открытия. Полка осталась одна.</li>
+      <li>У плейлиста обложка собрана из обложек его же треков; под курсором четыре плитки расходятся.</li>
+      <li>Середина стоит по центру экрана, шапка и низ прижаты к краям: на большом экране воздух остаётся между группами, а не внутри них.</li>
     </ul></div>
-    <div data-for="c"><h2>В · Полки</h2><ul>
-      <li>Главная как стартовая площадка: больше музыки на первом экране, по-прежнему без панелей.</li>
-      <li>Вайбики превращаются в стопки обложек, «Продолжить» и «Недавно добавлено» лежат полками, плейлисты и открытия рядом.</li>
-      <li>На большом экране полки показывают больше обложек, на маленьком нижний ряд ужимается первым.</li>
+    <div data-for="b c"><h2>Что на главной и почему</h2><ul>
+      <li><b>Волна</b>: стеклянный шар. Блик идёт за курсором, шар приподнимается, проминается под нажатием, от нажатия расходится кольцо. Когда волна играет, жидкость внутри течёт быстрее, а шар дышит в такт басу.</li>
+      <li><b>Настрой волны</b> прямо на экране, без меню: «что играть» одним выбором из четырёх (ползунок перелетает на пружине), звук двумя переключателями. Настрой виден в самом шаре: «Любимое» делает цвета ярче, «Давно не слушал» выцветает, «Незнакомое» уводит в чужие цвета; «Спокойное» замедляет течение, «Бодрое» разгоняет.</li>
+      <li><b>Вайбики</b>: стопки обложек, как были в «Полках».</li>
+      <li><b>Поиск</b> с явным переключателем «Библиотека / ИИ». По умолчанию ищет по библиотеке, сразу. В режиме ИИ поле подсвечивается, предлагает примеры и отдаёт слова ассистенту.</li>
+      <li><b>Альбом целиком</b>: конверт с пластинкой, под курсором пластинка выезжает. Три причины показать альбом: давно не включал, ещё не слушал, любимый.</li>
+      <li><b>Неделя</b>: одно число, семь столбиков и строка мелких показаний. Наведи на столбик, число покажет этот день. Новая метрика: сколько дней подряд ты слушаешь.</li>
+      <li><b>Имена в фразе живые</b>: нажимаются и ведут к артисту.</li>
     </ul></div>
-    <div data-for="a b c"><h2>Мелочи и идеи</h2><ul>
-      <li><b>Шар «Потока»</b> под курсором оживает: кольцо начинает вращаться, блик на нём следует за курсором, при нажатии шар проминается. Когда волна играет, кольцо крутится быстрее.</li>
-      <li><b>Якоря вкуса</b> лежат стопкой и расходятся веером под курсором; каждая обложка приподнимается.</li>
-      <li><b>Вайбик</b>: маленькая круглая обложка в чипе проворачивается как пластинка.</li>
-      <li><b>Пульс недели</b>: столбики вырастают при входе, сегодняшний в цвете.</li>
-      <li><b>Открытие</b> под курсором приподнимается и показывает, что по клику его объяснит ассистент.</li>
-      <li data-for="a"><b>Веер обложек</b> у библиотеки раскрывается под курсором, стрелка уезжает вперёд.</li>
-      <li data-for="b"><b>Недавно игравшее</b>: обложки подпрыгивают под курсором; клик включает трек.</li>
-      <li data-for="c"><b>Стопка вайбика</b> расходится под курсором; на обложке полки появляется кнопка «играть».</li>
+    <div data-for="b c"><h2>Что в макете условно</h2><ul>
+      <li>Цифры недели примерные: в тестовой базе почти нет прослушиваний. Остальное настоящее: фраза, вайбики, пресеты волны, альбомы, плейлисты.</li>
+      <li>Для «Альбом целиком» и для «дней подряд» на сервере нужны небольшие доработки (подбор альбомов по трём причинам, счётчик дней). Обложки плейлистов собираются на клиенте из того, что уже есть.</li>
+      <li>Стекло у шара волны станет третьим местом со стеклом в приложении (сейчас остров и пауза на обложке). Запишу в дизайн-код, если шар тебе подходит.</li>
     </ul></div>
-    <div data-for="a b c"><h2>Рамка: общее для всех вариантов</h2><ul>
-      <li><b>Остров</b>: Главная, Плеер, Библиотека, ИИ, Игра. Поиска как раздела больше нет.</li>
-      <li><b>Быстрый поиск</b> ищет по библиотеке сразу, без ИИ. Открывается из поля или клавишей «/», стрелки и Enter работают. Последняя строка отдаёт запрос ассистенту; искра в поле открывает ассистента.</li>
-      <li><b>Мини-плеер</b> это нижняя строка самого плеера: линия перемотки со спектром и управление. При переходе в плеер она остаётся на месте, а маленькая обложка вырастает в большую.</li>
-      <li><b>Смена страниц</b>: содержимое поднимается и проявляется, индикатор острова перелетает на пружине.</li>
-    </ul></div>
-    <div data-for="a b c"><h2>Вопросы к тебе</h2><ul>
-      <li>Какой вариант ближе? Что взять из остальных?</li>
-      <li>Мини-плеер строкой во всю ширину или компактной плашкой у края?</li>
-      <li>Ассистенту хватит искры в поле поиска, или нужен свой заметный вход на главной?</li>
-      <li>Открытия по клику объясняет ассистент или они включают трек, как сейчас?</li>
+    <div data-for="b c"><h2>Вопросы к тебе</h2><ul>
+      <li>Какая композиция ближе: «Афиша» или «Полки»? Что перенести из другой?</li>
+      <li>Шар волны: то, что ты имел в виду под физичной кнопкой со стеклом?</li>
+      <li>Плейлисты: именами (как в «Афише»), мозаикой (как в «Полках») или убрать с главной?</li>
+      <li>Мини-плеер пока прежний, строкой во всю ширину. Оставляем?</li>
     </ul></div>
   </section>
 </div>
