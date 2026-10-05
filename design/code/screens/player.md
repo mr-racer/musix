@@ -5,9 +5,16 @@ The screen is ported as it is there.
 
 ## Desktop
 
-One grid: nav island · cover (`clamp(300px, 31cqw, 380px)`) · text column. The cover and
-the text column form one group, centred vertically; the cover's top edge is the group's
-top. The seek line and the controls are at the bottom.
+One grid: nav island · cover · text column. The cover is 31 % of the stage's width, at most
+46 % of the screen's height and 520 px; the text column is at most 760 px. The two form one
+group. While the stage is narrow the group fills it edge to edge, as in the probe; on a
+wide screen the room left over is split on both sides and the group stands in the middle of
+the screen (the owner's 2560×1440, 2026-10-05). The cover's top edge is the group's top.
+
+The cover alone decides the group's height: it stands at the same place for every song.
+The text column runs down past the cover's bottom edge when a song has more to say, and
+moves the group up only when it needs more than the room under the cover. The seek line and
+the controls are at the bottom.
 
 Text column, top to bottom:
 
@@ -18,10 +25,16 @@ Text column, top to bottom:
 5. The facts plate.
 
 Bottom: the spectrum over the seek line. Controls on the left: previous, next, огонёк,
-вода, shuffle. On the right: lyrics, add to playlist, devices, volume, the Lossless badge.
-At the far right: «Далее» with the next track; it opens the queue window.
+вода, shuffle. On the right: lyrics, add to playlist, devices, volume (its icon; the slider
+on hover), the Lossless badge. At the far right: «Далее» with the next track; it opens the
+queue window.
 
-«Спросить» in the facts plate opens the assistant window.
+«Спросить» in the facts plate opens the assistant window. So does a click on a lyric line
+on the back of the cover: the window opens with the line quoted and explains it.
+
+A track change: the neighbours' covers, backdrops and spectra are fetched ahead, so the
+arrows change the picture and the curve at once. While the next track buffers the engine
+reports "not playing" for a moment: that is not a pause, and the paused look must not flash.
 
 ## Phone
 

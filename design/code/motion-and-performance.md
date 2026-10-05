@@ -20,7 +20,8 @@ Easings and durations are tokens (`--mx-ease-*`, `MusixMotion`).
 
 ## What may move at rest
 
-- The spectrum above the seek line: one small canvas, at most 30 frames a second, only
+- The spectrum above the seek line: one small canvas, at the screen's frame rate (the owner
+  asked for 60 at least, 2026-10-05), only
   while the music plays. Not on the phone.
 - The EQ bars of the current row, when the queue is visible.
 - The seek line (a transform, updated 4 times a second, with no transition: a transition
@@ -46,9 +47,10 @@ Nothing else. In particular: no pulsing or flashing with the beat, no drifting b
 ## Budgets
 
 - Web player, headless Chrome with software GL, 1280×900, 8 s: at most **10 % of one core**
-  playing, and nothing above the app's own idle when paused. Measured 2026-10-05: 7.4 %
-  playing (3.9 % of it is the app and the audio on any page, 3.5 % the spectrum), 3 % paused
-  (the library page idles at the same 3 %). The approved probe, which has no audio and no
-  app around it: 8 % and 0 %. The first probe: 120–228 %.
-- No layout shift when a fact is paged or a window opens.
+  playing, and nothing above the app's own idle when paused. Measured 2026-10-05 with the
+  spectrum at 60 frames a second and 104 px: 9.5 % playing (3.8 % of it is the app and the
+  audio on any page), 3 % paused (the library page idles at the same 3 %). The approved
+  probe, which has no audio and no app around it: 8 % and 0 %. The first probe: 120–228 %.
+- No layout shift when a fact is paged or a window opens, and the cover stands at the same
+  place for every song (a track change must not move it).
 - Android: the phase 4 frame budgets.
