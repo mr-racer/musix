@@ -157,9 +157,9 @@ function Gatefold({ id, cover, from, onClose }: Open & { onClose: () => void }) 
                 <div className={css.actions}>
                   <button type="button" className={css.playAll} onClick={() => play(0)} disabled={!tracks.length}><Icon name="Play" size={13} /> Играть всё</button>
                   <button type="button" className={css.ghost} onClick={() => { void player.playTracks([...items].sort(() => Math.random() - 0.5)); close(); }} disabled={!tracks.length}><Icon name="Shuffle" size={13} /> Вперемешку</button>
-                  <span className={css.addWrap}>
+                  <span className={css.addWrap} data-pop-anchor>
                     <button type="button" className={css.ghost} onClick={() => setAdding((a) => (a ? null : tracks.map((t) => t.id)))} disabled={!tracks.length}><Icon name="Plus" size={13} /> В плейлист</button>
-                    {adding && adding.length > 1 && <AddToPlaylist trackIds={adding} onDone={() => setAdding(null)} />}
+                    <AddToPlaylist open={!!adding && adding.length > 1} trackIds={adding ?? []} onDone={() => setAdding(null)} />
                   </span>
                 </div>
               </div>
@@ -175,7 +175,7 @@ function Gatefold({ id, cover, from, onClose }: Open & { onClose: () => void }) 
                     </span>
                     <span className={css.dur}>{clock(t.durationMs ?? 0)}</span>
                     <button type="button" className={css.rowBtn} title="Играть следующим" onClick={(e) => { e.stopPropagation(); player.playNext([items[i]!]); }}><Icon name="QueueNext" size={15} /></button>
-                    <span className={css.addWrap}>
+                    <span className={css.addWrap} data-pop-anchor>
                       <button type="button" className={css.rowBtn} title="Добавить в плейлист" onClick={(e) => { e.stopPropagation(); setAdding((a) => (a?.[0] === t.id && a.length === 1 ? null : [t.id])); }}><Icon name="Plus" size={15} /></button>
                       {adding?.length === 1 && adding[0] === t.id && <span onClick={(e) => e.stopPropagation()}><AddToPlaylist trackIds={adding} onDone={() => setAdding(null)} /></span>}
                     </span>

@@ -13,6 +13,8 @@
 | Nav island | the blob springs between tabs; a sheen crosses the glass on hover | 550 ms |
 | Text on a track change | the title block rises 10 px; a fact rises 6 px when it is paged | 480 ms after 120 ms; 320 ms |
 | Icon bounce | the glyph of a button that was just switched on (огонёк, вода, shuffle) swells to 1.45, leans 8° and springs back; the glyph of a reaction that is on is filled | 520 ms, `spring` |
+| Menu | grows out of its button from 0.8 with a fade; its rows rise 9 px, 28 ms apart; leaving, it shrinks to 0.88 and fades | 360 ms, `spring`; out 190 ms |
+| Cover into a playlist | the cover's copy lifts 14 px and swells to 1.04, then shrinks along an arc into the playlist's thumbnail (across and down are eased differently); the thumbnail swells to 1.3 and springs back as the copy shrinks into it and fades; the cover on the stage gives to 0.965 | 640 ms flight, 180 ms in, 480 ms `spring` |
 | Samples spoiler | the hidden chips rise 10 px and fade in, 60 ms apart; the row's height eases (380 ms, `swift`); folding: the chips fade in 160 ms, then the row draws in | 440 ms, `spring` |
 | Title question | the question mark hops under the pointer: up a third of its height with a 12° lean, lands, a small second hop | 620 ms |
 | Press | every control gives under the finger and springs back: icon buttons 0.9, island tabs 0.94, chips and segments 0.96, rows 0.99 | 250 ms, `spring` |

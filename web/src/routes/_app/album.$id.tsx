@@ -40,9 +40,9 @@ function Album() {
           <div className={css.actions}>
             <button type="button" className={css.cta} onClick={() => void player.playTracks(items)}><Icon name="Play" size={14} /> Слушать</button>
             <button type="button" className={css.ghost} onClick={shuffle}><Icon name="Shuffle" size={14} /> Вперемешку</button>
-            <span className={css.addWrap}>
+            <span className={css.addWrap} data-pop-anchor>
               <button type="button" className={css.ghost} onClick={() => setAdding((v) => !v)} aria-expanded={adding}><Icon name="Plus" size={14} /> В плейлист</button>
-              {adding && <AddToPlaylist trackIds={tracks.map((t) => t.id)} onDone={() => setAdding(false)} />}
+              <AddToPlaylist open={adding} trackIds={tracks.map((t) => t.id)} onDone={() => setAdding(false)} />
             </span>
           </div>
         </div>

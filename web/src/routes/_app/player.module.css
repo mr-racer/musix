@@ -245,7 +245,12 @@
 .controls { flex: 1; min-width: 0; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--mx-space-2); }
 .group { display: flex; align-items: center; gap: var(--mx-space-2); }
 .addWrap { position: relative; display: inline-flex; }
-.addWrap > [role="dialog"] { bottom: 50px; left: 50%; transform: translateX(-50%); text-align: left; }
+/* above its button, centred on it; `translate`, because `transform` is the menu's own entry */
+.addWrap > [role="dialog"] { bottom: 50px; left: 50%; translate: -50% 0; --mx-pop-origin: 50% 100%; }
+/* the plus turns into a cross while its menu is open */
+.addWrap > .ic svg { transition: rotate .35s var(--mx-ease-spring); }
+.addWrap > .ic[aria-expanded="true"] { color: var(--text); }
+.addWrap > .ic[aria-expanded="true"] svg { rotate: 135deg; }
 /* the volume: its icon alone; the slider slides out to the left on hover or focus, and stays
    while it is dragged. A width change, but of one small row, for a third of a second */
 .volume { display: inline-flex; align-items: center; }
@@ -337,6 +342,8 @@
   .topbar { grid-area: top; display: flex; align-items: center; justify-content: space-between; margin: 0 -8px; min-height: 40px; }
   .topbar > span { display: flex; align-items: center; }
   .coverRow { justify-self: center; margin-right: 0; left: 0; }
+  /* the plus is in the top bar here: its menu drops down from it, along the right edge */
+  .addWrap > [role="dialog"] { bottom: auto; top: 46px; left: auto; right: -44px; translate: none; --mx-pop-origin: calc(100% - 64px) 0; }
   .col { grid-area: meta; margin-top: var(--mx-space-4); left: 0; }
   .bottom { grid-area: ctrl; }
   .title { font-size: 30px; }

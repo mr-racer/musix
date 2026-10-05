@@ -276,20 +276,39 @@ class Engine {
     return out.items.filter((i) => i.track).map((i) => ({ ...fromTrack(i.track!, "stream"), source: i.pool, reason: i.reason?.text ?? null }));
   }
 
+  /** The newest `load` wins. Each one takes a number; after every wait it checks that it is
+   *  still the newest and gives up otherwise. Without it two picks in a row raced: the screen
+   *  showed the second song while the first one's address arrived later and took the sound
+   *  (the owner's report, 2026-10-05). */
+  private loads = 0;
+  /** From a load's start until the new source is in the element: the old element's last
+   *  `timeupdate` must not write its position under the new track. */
+  private switching = false;
+
   private async load(index: number, positionMs = 0): Promise<void> {
     const item = get().queue[index];
     if (!item) return;
+    const mine = ++this.loads;
+    const stale = () => mine !== this.loads;
     this.graph();
+    this.switching = true;
     set({ index, positionMs, durationMs: item.durationMs ?? 0, buffering: true, taste: null, error: null });
+    // The old track stops now, not when the new one's address has arrived: over a slow link it
+    // went on sounding, and moving the seek line and the spectrum, under the new cover.
+    this.el.pause();
     this.attempts = 0;
     try {
       await this.resolve(this.ahead());
     } catch {
+      if (stale()) return;
+      this.switching = false;
       set({ buffering: false, error: "Нет связи с сервером" });
       return;
     }
+    if (stale()) return;
     const src = this.urlOf(item.trackId);
     if (!src) {
+      this.switching = false;
       this.onUnplayable(item);
       return;
     }
@@ -302,11 +321,13 @@ class Engine {
       if (positionMs) this.el.currentTime = positionMs / 1000;
     }
     this.held = null;
+    this.switching = false;
     const idle = this.els[1 - this.cur]!; // the one that just finished (or the stale preload)
     idle.removeAttribute("src");
     idle.load();
     set({ tier: src.tier, codec: src.codec });
     await this.applyGain(this.el, item.trackId);
+    if (stale()) return;
     this.acc.begin({ trackId: item.trackId, durationMs: item.durationMs ?? null, source: item.source ?? "manual", contextType: item.contextType, contextId: item.contextId ?? null }, positionMs);
     this.played.push(item.trackId);
     this.mediaSession(item);
@@ -456,6 +477,7 @@ class Engine {
   }
 
   private onTime(): void {
+    if (this.switching) return;
     const a = this.el;
     const pos = a.currentTime * 1000;
     const dur = Number.isFinite(a.duration) ? a.duration * 1000 : get().durationMs;
@@ -498,7 +520,7 @@ class Engine {
   private async recover(): Promise<void> {
     const item = get().queue[get().index];
     if (!item) return;
-    const pos = this.el.currentTime * 1000;
+    const pos = this.el.currentTime * 1000, during = this.loads;
     this.attempts++;
     const e = this.manifests.get(item.trackId);
     if (this.attempts === 1) this.manifests.delete(item.trackId);
@@ -510,6 +532,7 @@ class Engine {
       set({ error: "Нет связи с сервером", buffering: false });
       return;
     }
+    if (during !== this.loads) return; // another track was chosen while the address was on its way
     const src = this.urlOf(item.trackId);
     if (!src) return this.onUnplayable(item);
     this.el.src = src.url;

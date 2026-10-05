@@ -1,7 +1,37 @@
-.menu { composes: glass from "./relief.module.css"; position: absolute; z-index: 50; width: 300px; padding: 12px; border-radius: 16px; display: flex; flex-direction: column; gap: 8px; }
-.head { font-size: 11px; font-weight: 500; letter-spacing: 0.2em; text-transform: uppercase; color: var(--mx-text-subtle); padding: 4px 6px; }
-.list { list-style: none; max-height: 260px; overflow-y: auto; display: flex; flex-direction: column; }
-.row { width: 100%; display: flex; justify-content: space-between; gap: 10px; padding: 9px 10px; border-radius: 10px; text-align: left; font-size: 14px; }
-.row:hover { background: var(--mx-accent-bg); }
-.count { color: var(--mx-text-subtle); font-variant-numeric: tabular-nums; }
-.new { display: flex; gap: 8px; }
+/* «В плейлист» (design/code/components.md). A float surface, solid (surfaces.md: glass is for
+   two places only). Physical (principles.md): it grows out of its button on a spring and goes
+   back into it; the rows rise in one after another and give under a press; the mark of an add
+   pops in. `--mx-pop-origin` is where the button is, set by whoever positions the menu. */
+.menu {
+  position: absolute; z-index: 50; width: 300px; padding: 10px; border-radius: 20px; display: flex; flex-direction: column; gap: 6px;
+  background: var(--mx-float); border: 1px solid var(--mx-border-strong); box-shadow: 0 24px 60px rgba(0,0,0,0.5); color: var(--mx-text); text-align: left; text-shadow: none;
+  transform-origin: var(--mx-pop-origin, 0 0); animation: popIn 0.36s var(--mx-ease-spring) both;
+}
+:root[data-theme="light"] .menu { box-shadow: 0 18px 44px rgba(40,30,60,0.16); }
+:root [data-mx-theme="dark"] .menu { box-shadow: 0 24px 60px rgba(0,0,0,0.5); }
+.out { animation: popOut 0.19s cubic-bezier(0.5, 0, 0.9, 0.5) both; pointer-events: none; }
+@keyframes popIn { from { opacity: 0; transform: scale(0.8); } }
+@keyframes popOut { to { opacity: 0; transform: scale(0.88); } }
+
+.head { font-size: 11px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: var(--mx-text-subtle); padding: 6px 8px 2px; }
+.list { list-style: none; max-height: 264px; overflow-x: hidden; overflow-y: auto; display: flex; flex-direction: column; gap: 2px; }
+.list li { animation: rowIn 0.38s var(--mx-ease-spring) calc(var(--n, 0) * 28ms + 60ms) backwards; }
+@keyframes rowIn { from { opacity: 0; transform: translateY(9px); } }
+.row {
+  width: 100%; display: grid; grid-template-columns: 32px minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 6px 10px 6px 6px; border-radius: 12px; text-align: left; font-size: 14px;
+  transition: background 0.2s var(--mx-ease-standard), transform 0.25s var(--mx-ease-spring);
+}
+.row:hover:not(:disabled) { background: color-mix(in srgb, var(--mx-text) 7%, transparent); }
+.row:active:not(:disabled) { transform: scale(0.97); }
+.row:disabled { cursor: default; }
+/* the playlist's own cover, or a tile: this is where a flying cover goes in */
+.thumb { width: 32px; height: 32px; border-radius: 8px; display: grid; place-items: center; overflow: hidden; background: color-mix(in srgb, var(--mx-text) 8%, transparent); color: var(--mx-text-muted); }
+.name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.count { font-family: var(--mx-font-mono); font-size: 12px; color: var(--mx-text-subtle); font-variant-numeric: tabular-nums; }
+.check { color: var(--pl-acc, var(--mx-accent-light)); animation: checkIn 0.44s var(--mx-ease-spring); }
+@keyframes checkIn { from { opacity: 0; transform: scale(0.3) rotate(-24deg); } }
+.new { display: flex; gap: 8px; margin-top: 2px; padding-top: 8px; border-top: 1px solid var(--mx-border); animation: rowIn 0.38s var(--mx-ease-spring) 0.2s backwards; }
+.new input { min-width: 0; flex: 1; }
+@media (prefers-reduced-motion: reduce) {
+  .menu, .out, .list li, .new, .check { animation: none; }
+}

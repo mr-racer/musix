@@ -84,8 +84,9 @@ function preload(...urls: (string | null | undefined)[]): void {
  *  Over a real link the cover's big picture is not there yet when the flight starts, so the
  *  clone is painted from the thumbnail's own pixels first (it is on screen), takes the big
  *  picture when that has decoded, and stays on the cover until the stage's own has arrived: the
- *  clone never flies blank and never lands on the previous track's cover. The thumbnail is
- *  hidden meanwhile, as in the approved probe: it is the thumbnail itself that lifts off.
+ *  clone never flies blank and never lands on the previous track's cover. The thumbnail
+ *  stays as it is: hidden, its placeholder colour showed in the row, and the owner read the
+ *  one-colour square as a bug (2026-10-05).
  *  `go` starts the track; the flight's end is measured after it, on the new track's layout. */
 function fly(from: HTMLImageElement | null | undefined, imageId: string | null | undefined, trackId: string, go: () => void): void {
   const to = document.querySelector<HTMLElement>("[data-player-cover]");
@@ -109,18 +110,17 @@ function fly(from: HTMLImageElement | null | undefined, imageId: string | null |
   const hi = new Image();
   hi.src = big;
   void hi.decode().then(() => paint(hi)).catch(() => undefined);
-  // first exactly over the thumbnail, which is hidden under it
+  // first exactly over the thumbnail
   Object.assign(g.style, {
     position: "fixed", left: `${a.left}px`, top: `${a.top}px`, width: `${a.width}px`, height: `${a.height}px`,
     transformOrigin: "0 0", zIndex: "60", pointerEvents: "none", borderRadius: `${r0}px`, boxShadow: "0 30px 70px -24px rgba(0,0,0,.75)",
   });
   document.body.appendChild(g);
-  from.style.visibility = "hidden";
   go();
   // the landing place is measured once the new track is laid out: the cover may have moved
   requestAnimationFrame(() => {
     const b = to.getBoundingClientRect();
-    if (!b.width) { g.remove(); from.style.visibility = ""; return; }
+    if (!b.width) { g.remove(); return; }
     const k = a.width / b.width, r = parseFloat(getComputedStyle(to).getPropertyValue("--r-cover")) || 10;
     Object.assign(g.style, { left: `${b.left}px`, top: `${b.top}px`, width: `${b.width}px`, height: `${b.height}px`, borderRadius: `${r}px` });
     const dim = to.animate([{ opacity: 1, transform: "scale(1)" }, { opacity: 0.3, transform: "scale(.94)" }], { duration: 300, easing: "cubic-bezier(.22,.9,.3,1)", fill: "forwards" });
@@ -129,7 +129,6 @@ function fly(from: HTMLImageElement | null | undefined, imageId: string | null |
       { duration: 560, easing: "cubic-bezier(.2,.8,.2,1)", fill: "both" },
     ).onfinish = () => {
       dim.cancel();
-      from.style.visibility = "";
       const landed = performance.now();
       const settle = () => {
         const pic = to.querySelector<HTMLImageElement>("button img");
@@ -193,8 +192,27 @@ function Playing({ trackId }: { trackId: string }) {
       const bg = image(id)?.urls.bg;
       preload(imageUrl(id, 760), bg ? mediaUrl(bg) : null);
     }
-    if (!narrow) for (const id of [nextId, prevId]) if (id) void qc.prefetchQuery(spectrumQuery(id));
+    for (const id of [nextId, prevId]) {
+      if (!id) continue;
+      void qc.prefetchQuery(contextQuery(id)); // the credits, the facts, the lyrics: a few lines of text
+      if (!narrow) void qc.prefetchQuery(spectrumQuery(id));
+    }
   }, [nextId, prevId, nextCover, prevCover, narrow, qc]);
+  /** Everything a track's screen needs, fetched before it is chosen: called for the rows of
+   *  the open queue and for a row under the pointer. A pick then shows the whole song at once. */
+  const warm = (q: { trackId: string; coverImageId?: string | null }) => {
+    void qc.prefetchQuery(contextQuery(q.trackId));
+    if (!narrow) void qc.prefetchQuery(spectrumQuery(q.trackId));
+    const bg = image(q.coverImageId)?.urls.bg;
+    preload(imageUrl(q.coverImageId, 760), bg ? mediaUrl(bg) : null);
+  };
+  const warmRef = useRef(warm);
+  warmRef.current = warm;
+  const queueOpen = sheet === "queue", ahead = s.queue.slice(s.index + 1, s.index + 9).map((q) => q.trackId).join();
+  useEffect(() => {
+    if (!queueOpen) return;
+    for (const q of usePlayer.getState().queue.slice(usePlayer.getState().index + 1, usePlayer.getState().index + 9)) warmRef.current(q);
+  }, [queueOpen, ahead]);
 
   // the spectrum's height: well above the line, but never into what lies over it. The room
   // is measured, because the content block is centred and its height is the song's
@@ -261,9 +279,9 @@ function Playing({ trackId }: { trackId: string }) {
     </span>
   );
   const add = (
-    <span className={css.addWrap}>
+    <span className={css.addWrap} data-pop-anchor>
       <button type="button" className={css.ic} onClick={() => setAdding((v) => !v)} aria-label="В плейлист" aria-expanded={adding} title="В плейлист"><Icon name="Plus" /></button>
-      {adding && <AddToPlaylist trackIds={[trackId]} onDone={() => setAdding(false)} />}
+      <AddToPlaylist open={adding} trackIds={[trackId]} onDone={() => setAdding(false)} from={() => document.querySelector<HTMLImageElement>("[data-player-cover] button img")} />
     </span>
   );
   const about = (
@@ -279,11 +297,13 @@ function Playing({ trackId }: { trackId: string }) {
       <Backdrop url={img?.urls.bg ? mediaUrl(img.urls.bg) : null} fallback={imageUrl(item.coverImageId, 96)} />
 
       <div className={css.frame}>
-        <div className={css.topbar}>
-          <button type="button" className={css.ic} onClick={() => router.history.back()} aria-label="Свернуть плеер"><Icon name="ChevronDown" /></button>
-          {losslessBadge}
-          <span>{add}<DevicePicker /></span>
-        </div>
+        {narrow && (
+          <div className={css.topbar}>
+            <button type="button" className={css.ic} onClick={() => router.history.back()} aria-label="Свернуть плеер"><Icon name="ChevronDown" /></button>
+            {losslessBadge}
+            <span>{add}<DevicePicker /></span>
+          </div>
+        )}
 
         <div className={css.coverRow} data-above data-flipped={flipped ? "" : undefined}>
           <button type="button" className={`${css.ic} ${css.edge}`} onClick={() => void player.prev()} aria-label="Предыдущий трек"><Icon name="ChevronLeft" /></button>
@@ -375,7 +395,7 @@ function Playing({ trackId }: { trackId: string }) {
           <b>{s.mode === "stream" ? "Поток" : "Очередь"}, {upcoming} {plural(upcoming, "трек", "трека", "треков")} впереди</b>
           <button type="button" className={css.ic} onClick={() => setSheet(null)} aria-label="Закрыть"><Icon name="Close" size={18} /></button>
         </div>
-        <div className={css.winBody}><Queue onPick={narrow ? () => setSheet(null) : undefined} /></div>
+        <div className={css.winBody}><Queue onPick={narrow ? () => setSheet(null) : undefined} onNear={warm} /></div>
       </aside>
       <Assistant trackId={trackId} open={sheet === "ai"} onClose={() => setSheet(null)} />
       {narrow && (
@@ -821,7 +841,7 @@ function CoverStage({ item, index, flipped, playing, buffering, fx, back }: {
   );
 }
 
-function Queue({ onPick }: { onPick?: () => void }) {
+function Queue({ onPick, onNear }: { onPick?: () => void; onNear?: (q: { trackId: string; coverImageId?: string | null }) => void }) {
   const queue = usePlayer((s) => s.queue);
   const index = usePlayer((s) => s.index);
   const [drag, setDrag] = useState<number | null>(null);
@@ -831,7 +851,7 @@ function Queue({ onPick }: { onPick?: () => void }) {
         <li key={q.trackId + ":" + i} className={i === index ? css.rowOn : i < index ? css.rowPast : css.row}
           draggable={i > index} onDragStart={() => setDrag(i)} onDragOver={(e) => i > index && e.preventDefault()}
           onDrop={() => { if (drag !== null) player.move(drag, i); setDrag(null); }}>
-          <button type="button" className={css.rowMain} onClick={(e) => {
+          <button type="button" className={css.rowMain} onPointerEnter={() => { if (i !== index) onNear?.(q); }} onClick={(e) => {
             if (i === index) return;
             fly(e.currentTarget.querySelector<HTMLImageElement>("img"), q.coverImageId, q.trackId, () => {
               void player.jump(i);
