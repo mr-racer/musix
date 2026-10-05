@@ -31,13 +31,25 @@
   linear-gradient(180deg, rgba(8,8,11,.42) 0%, rgba(8,8,11,.12) 38%, rgba(8,8,11,.84) 100%),
   linear-gradient(to left, rgba(8,8,11,.4), transparent 40%); }
 
-/* one grid, no wrappers around columns: the cover, the text column, the bottom */
+/* one grid, open on the background: the cover, the text column, the bottom.
+   The cover and the text travel as one group. While the stage is narrow they fill it edge to
+   edge; on a wide screen the room left over is split on both sides, so the group sits in the
+   middle of the screen instead of clinging to the left (the owner's 2560×1440, 2026-10-05).
+   The cover keeps its share of the stage (31 %) up to 520 px.
+   The cover alone sets the content row, and the two flexible rows around it are equal, so the
+   cover stands at the same height for every song. The text column spans the content row and
+   the flexible row under it: a song with more text runs down into that room without moving
+   anything, and only when it needs more than its half does the block rise, by exactly the
+   excess. (Centred on the text, the cover sat 82 px higher on one song than on the next:
+   every track change jumped, and a cover flight landed where the cover no longer was.) */
 .frame {
+  --cw: clamp(260px, min(31cqw, 46dvh), 520px);
+  --shift: clamp(0px, (100cqw - var(--cw) - 860px) / 2, 40px); /* 860 = the text column, the gap and the paddings */
   position: relative; z-index: 1; min-height: 100dvh; display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  grid-template-rows: minmax(8px, 1fr) auto auto auto minmax(8px, 1fr) auto auto auto;
-  grid-template-areas: ". . ." "cover meta meta" "cover cred cred" "cover story story" ". . ." "note note note" "scrub scrub scrub" "ctrl ctrl next";
-  column-gap: var(--mx-space-6); padding: 32px 40px 28px 28px;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 760px) minmax(0, 1fr);
+  grid-template-rows: minmax(8px, 1fr) auto minmax(8px, 1fr) auto auto auto;
+  grid-template-areas: ". . . ." ". cover text ." ". . text ." "note note note note" "scrub scrub scrub scrub" "bottom bottom bottom bottom";
+  padding: 32px 40px 28px 28px;
 }
 .topbar, .peeks, .coverRow .edge { display: none; }
 /* text over the picture keeps a soft dark halo; bright covers are tamed in the image itself */
@@ -58,7 +70,10 @@
 
 /* the cover stage, as in the approved probe. The tilt, the glare and the press are CSS
    variables the script writes at most once a frame, only while the pointer is over the cover */
-.coverRow { grid-area: cover; align-self: start; position: relative; --cw: clamp(260px, min(31cqw, 52dvh), 380px); width: var(--cw); }
+/* `--shift`: the stage begins 92 px in from the screen's left edge (the nav island) and its paddings
+   differ, so its own middle is 40 px right of the screen's. Where there is slack, the group
+   gives those 40 px back and stands in the middle of the screen. */
+.coverRow { grid-area: cover; align-self: start; position: relative; left: calc(var(--shift) * -1); width: var(--cw); margin-right: var(--mx-space-6); }
 .art { width: 100%; aspect-ratio: 1; perspective: 1100px; position: relative; border-radius: var(--r-cover); user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent; }
 .tilt, .flipper { position: absolute; inset: 0; transform-style: preserve-3d; }
 .tilt { transform: rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)) scale(var(--press, 1)); transition: transform .25s var(--mx-ease-standard); }
@@ -66,8 +81,9 @@
 .isFlipped { transform: rotateY(180deg); }
 .front, .backFace { position: absolute; inset: 0; border-radius: var(--r-cover); overflow: hidden; backface-visibility: hidden; -webkit-backface-visibility: hidden;
   box-shadow: 0 30px 70px -24px rgba(0,0,0,.75), 0 0 0 1px rgba(255,255,255,.07); }
-.cover { width: 100% !important; height: 100% !important; transition: filter .6s var(--mx-ease-standard); }
-.paused .cover { filter: blur(4px) brightness(.72) saturate(.9); }
+.cover { width: 100% !important; height: 100% !important; transition: filter .6s var(--mx-ease-standard), transform .6s var(--mx-ease-standard); }
+/* a little larger while blurred: the blur's soft edge would otherwise frame the cover in black */
+.paused .cover { filter: blur(4px) brightness(.72) saturate(.9); transform: scale(1.06); }
 .backFace { transform: rotateY(180deg); background: linear-gradient(160deg, color-mix(in srgb, var(--pl-acc) 22%, #15151b), #101015 70%); }
 .veil { position: absolute; inset: 0; display: grid; place-items: center; background: rgba(0,0,0,0.35); opacity: 0; transition: opacity 0.3s ease; pointer-events: none; }
 .veilOn { opacity: 1; }
@@ -76,7 +92,9 @@
 /* the glare follows the cursor and is barely visible: 12 % */
 .glare { position: absolute; inset: 0; pointer-events: none; background: radial-gradient(circle at var(--gx, 50%) var(--gy, 0%), rgba(255,255,255,.12), transparent 46%); opacity: var(--go, 0); transition: opacity .4s var(--mx-ease-standard); }
 /* the vinyl change: the old cover, swinging away like a door (animated by the script) */
-.ghost { position: absolute; inset: 0; z-index: 2; width: 100%; height: 100%; object-fit: cover; border-radius: var(--r-cover); pointer-events: none; }
+/* not `.ghost`: that name is the idle screen's button here, and a shared name gave the leaving
+   cover that button's padding and dark fill, a black frame around the picture */
+.leaving { position: absolute; inset: 0; z-index: 2; width: 100%; height: 100%; padding: 0; object-fit: cover; border-radius: var(--r-cover); pointer-events: none; }
 /* the pause icon: one of the two places where glass lives (design/code/surfaces.md) */
 .pauseGlass { position: absolute; left: 50%; top: 50%; z-index: 3; width: 36%; aspect-ratio: 1; translate: -50% -50%; border-radius: 50%; display: grid; place-items: center; pointer-events: none;
   border: 1px solid rgba(255,255,255,.13);
@@ -89,15 +107,30 @@
 .backHead { font-size: 11px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: var(--subtle); margin-bottom: 12px; }
 .backEmpty { font-family: var(--mx-font-text); font-style: italic; font-weight: 400; }
 .gap { height: 16px; }
-.line, .lineOn { display: block; width: 100%; text-align: left; font: inherit; line-height: 1.6; color: inherit; transform-origin: left center; transition: color .4s var(--mx-ease-standard), transform .4s var(--mx-ease-standard); }
-.line:hover { color: var(--muted); }
+/* a lyric line: a click asks the assistant about it. A spark shows at its end under the
+   pointer and stays, in the accent, on the line that was asked about */
+.lrow { position: relative; }
+.line { display: block; width: 100%; text-align: left; font: inherit; line-height: 1.6; color: inherit; white-space: pre-wrap; transform-origin: left center; transition: color .25s var(--mx-ease-standard), transform .4s var(--mx-ease-standard); }
+.line svg { display: inline-block; margin-left: 6px; vertical-align: -1px; opacity: 0; color: var(--pl-acc); transition: opacity .2s var(--mx-ease-standard), transform .25s var(--mx-ease-spring); }
+.line:hover, .line:focus-visible { color: var(--text); }
+.line:hover svg, .line:focus-visible svg { opacity: .75; }
+.line:active svg { transform: scale(1.3) rotate(-8deg); }
 .lineOn { color: var(--text); transform: scale(1.04); }
+.lineAsked { color: var(--pl-acc); }
+.lineAsked:hover, .lineAsked:focus-visible { color: var(--pl-acc); }
+.lineAsked svg { opacity: 1; }
+/* synced lyrics: «играть с этой строчки» in the left margin, under the pointer only */
+.from { position: absolute; left: -19px; top: 0; width: 18px; height: 24px; display: grid; place-items: center; color: var(--subtle); opacity: 0; transition: opacity .2s var(--mx-ease-standard), color .2s var(--mx-ease-standard); }
+.lrow:hover .from, .from:focus-visible { opacity: 1; }
+.from:hover { color: var(--text); }
+@media (hover: none) { .from { display: none; } }
 
 /* the text column */
-.meta { grid-area: meta; align-self: start; min-width: 0; display: grid; justify-items: start; text-align: left; animation: metaIn .48s var(--mx-ease-standard) .12s backwards; }
+.col { grid-area: text; align-self: start; position: relative; left: calc(var(--shift) * -1); min-width: 0; display: flex; flex-direction: column; align-items: flex-start; }
+.meta { min-width: 0; max-width: 100%; display: grid; justify-items: start; text-align: left; animation: metaIn .48s var(--mx-ease-standard) .12s backwards; }
 @keyframes metaIn { from { opacity: 0; transform: translateY(10px); } }
-.title { font-family: var(--mx-font-sans); font-weight: 700; font-size: clamp(34px, 5.2cqw, 62px); line-height: .98; letter-spacing: -.035em; text-wrap: balance; margin-top: -.13em; }
-.long { font-size: clamp(28px, 3.9cqw, 46px); line-height: 1.02; margin-top: -.15em; }
+.title { font-family: var(--mx-font-sans); font-weight: 700; font-size: clamp(34px, 5.2cqw, 72px); line-height: .98; letter-spacing: -.035em; text-wrap: balance; margin-top: -.13em; }
+.long { font-size: clamp(28px, 3.9cqw, 52px); line-height: 1.02; margin-top: -.15em; }
 /* the title's capitals start exactly at the cover's top edge */
 @supports (text-box: trim-start cap alphabetic) {
   .title, .long { margin-top: 0; text-box: trim-start cap alphabetic; }
@@ -115,7 +148,7 @@
 .lnk:hover svg { opacity: 1; transform: translateX(3px); }
 
 /* credits: producers, genre, samples */
-.credits { grid-area: cred; align-self: start; margin-top: var(--mx-space-4); display: flex; flex-wrap: wrap; gap: var(--mx-space-3) var(--mx-space-6); text-align: left; }
+.credits { max-width: 100%; margin-top: var(--mx-space-4); display: flex; flex-wrap: wrap; gap: var(--mx-space-3) var(--mx-space-6); text-align: left; }
 .credits > div { display: grid; gap: 3px; align-content: start; }
 .credits dt { font-size: var(--mx-type-cap); font-weight: 600; line-height: 1.2; letter-spacing: .14em; text-transform: uppercase; color: var(--subtle); }
 .credits dd { font-size: var(--mx-type-body); line-height: 1.35; }
@@ -131,21 +164,30 @@
 .chipArt::after { content: ""; position: absolute; inset: 0; background: rgba(8,8,11,.36); }
 .chipArt svg { z-index: 1; }
 .chipText { display: grid; gap: 2px; min-width: 0; }
+/* «Ещё N»: the samples beyond two */
+.more { align-self: center; display: inline-flex; align-items: center; gap: 4px; padding: 8px 10px 8px 12px; border-radius: 999px; font-size: var(--mx-type-sm); font-weight: 500; line-height: 1; color: var(--muted); text-shadow: none;
+  transition: background .2s var(--mx-ease-standard), color .2s var(--mx-ease-standard), transform .25s var(--mx-ease-spring); }
+.more:hover { background: rgba(255,255,255,.08); color: var(--text); }
+.more:active { transform: scale(.96); }
+.more svg { transition: rotate .3s var(--mx-ease-standard); }
+.more[aria-expanded="true"] svg { rotate: 180deg; }
 .chipText b { font-size: 14px; font-weight: 500; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .chipText small { font-size: 12px; line-height: 1.2; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 /* the facts: one compact plate. A control row, then the text, clamped to three lines */
-.facts { grid-area: story; align-self: start; justify-self: start; width: 100%; max-width: 640px; margin-top: var(--mx-space-4); display: grid; gap: var(--mx-space-1);
+.facts { width: 100%; max-width: 640px; margin-top: var(--mx-space-4); display: grid; gap: var(--mx-space-1);
   padding: 6px 10px 12px 14px; border-radius: 16px; background: var(--plate); text-align: left; }
-.factTop { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--mx-space-1) var(--mx-space-3); min-height: 32px; }
+.factTop { display: flex; align-items: center; justify-content: space-between; gap: var(--mx-space-3); height: 32px; }
 .factTop > span { display: flex; align-items: center; gap: var(--mx-space-3); min-width: 0; }
+.factTop > span:first-child { overflow: hidden; }
+.factTop > span:last-child { flex: none; }
 .seg { display: inline-flex; padding: 2px; border-radius: 999px; background: rgba(255,255,255,.06); box-shadow: inset 0 1px 0 rgba(255,255,255,.07), inset 0 -1px 0 rgba(0,0,0,.35); }
 .seg button { padding: 5px 10px; border-radius: 999px; font-size: 12px; font-weight: 500; line-height: 1; color: var(--muted); white-space: nowrap; transition: background .2s var(--mx-ease-standard), color .2s var(--mx-ease-standard), transform .25s var(--mx-ease-spring); }
 .seg button:hover { color: var(--text); }
 .seg button:active { transform: scale(.96); }
 .seg button[aria-pressed="true"] { background: rgba(255,255,255,.13); color: var(--text); box-shadow: inset 0 1px 0 rgba(255,255,255,.14); }
 .tag { font-size: var(--mx-type-sm); font-weight: 500; color: var(--pl-acc); white-space: nowrap; }
-.open { font-size: 12px; color: var(--subtle); white-space: nowrap; }
+.open { font-size: 12px; color: var(--subtle); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .askLink { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px 6px 6px; border-radius: 999px; color: var(--pl-acc); font-size: var(--mx-type-sm); font-weight: 500; line-height: 1; transition: background .2s var(--mx-ease-standard), transform .25s var(--mx-ease-spring); }
 .askLink:hover { background: rgba(255,255,255,.08); }
 .askLink:active { transform: scale(.96); }
@@ -154,6 +196,11 @@
 .fact { font-family: var(--mx-font-text); font-size: var(--mx-type-body); line-height: 1.5; text-wrap: pretty; cursor: pointer;
   display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; animation: rise .32s var(--mx-ease-standard); }
 .factOpen { -webkit-line-clamp: unset; }
+/* every fact of the track lies in one cell, only the current one visible: the plate has the
+   height of the tallest, and paging moves nothing (the owner's «всё скачет», 2026-10-05) */
+.factBox { display: grid; }
+.factBox > * { grid-area: 1 / 1; }
+.fact[data-sizer] { visibility: hidden; pointer-events: none; animation: none; }
 .empty { font-family: var(--mx-font-text); font-style: italic; font-size: var(--mx-type-body); line-height: 1.5; color: var(--muted); animation: rise .32s var(--mx-ease-standard); }
 @keyframes rise { from { opacity: 0; transform: translateY(6px); } }
 
@@ -169,15 +216,22 @@
    compositor animating 60 frames a second for it */
 .bar > i { background: var(--pl-acc); transform-origin: left center; transform: scaleX(var(--p)); }
 /* the spectrum: lows on the left, highs on the right; its colour is the accent */
-.spectrum { position: absolute; left: 0; right: 0; bottom: 11px; width: 100%; height: 44px; pointer-events: none; color: var(--pl-acc); }
-.controls { grid-area: ctrl; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--mx-space-2); margin-top: var(--mx-space-3); }
+.spectrum { position: absolute; left: 0; right: 0; bottom: 11px; width: 100%; height: var(--spec-h, 44px); pointer-events: none; color: var(--pl-acc); }
+.bottom { grid-area: bottom; display: flex; align-items: center; gap: var(--mx-space-5); margin-top: var(--mx-space-3); min-width: 0; }
+.controls { flex: 1; min-width: 0; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--mx-space-2); }
 .group { display: flex; align-items: center; gap: var(--mx-space-2); }
 .addWrap { position: relative; display: inline-flex; }
 .addWrap > [role="dialog"] { bottom: 50px; left: 50%; transform: translateX(-50%); text-align: left; }
-.volume { display: inline-flex; align-items: center; gap: 8px; color: var(--muted); margin-left: 4px; }
-.volume input { width: 84px; accent-color: var(--pl-acc); }
+/* the volume: its icon alone; the slider slides out to the left on hover or focus, and stays
+   while it is dragged. A width change, but of one small row, for a third of a second */
+.volume { display: inline-flex; align-items: center; }
+.volume input { width: 0; margin: 0; opacity: 0; accent-color: var(--pl-acc); cursor: pointer;
+  transition: width .3s var(--mx-ease-swift), margin .3s var(--mx-ease-swift), opacity .2s var(--mx-ease-standard); }
+.volume:hover input, .volume:has(:focus-visible) input, .volume input:active { width: 92px; margin: 0 2px 0 8px; opacity: 1; }
+.muted { position: relative; color: var(--subtle); }
+.muted::after { content: ""; position: absolute; left: 50%; top: 50%; width: 24px; height: 2px; border-radius: 1px; background: currentColor; translate: -50% -50%; rotate: -45deg; }
 .badge { display: inline-flex; align-items: center; gap: 6px; margin-left: var(--mx-space-2); padding: 5px 9px; border: 1px solid var(--line-2); border-radius: 7px; font-family: var(--mx-font-mono); font-size: 12px; line-height: 1; color: var(--muted); }
-.upnext { grid-area: next; align-self: center; margin-top: var(--mx-space-3); display: inline-grid; grid-template-columns: auto 32px minmax(0, auto) auto; align-items: center; gap: var(--mx-space-3); text-align: left; border-radius: 14px; max-width: 320px; transition: transform .25s var(--mx-ease-standard); }
+.upnext { flex: none; display: inline-grid; grid-template-columns: auto 32px minmax(0, auto) auto; align-items: center; gap: var(--mx-space-3); text-align: left; border-radius: 14px; max-width: 320px; transition: transform .25s var(--mx-ease-standard); }
 .upnext:active { transform: scale(.99); }
 .upnext > small { font-size: var(--mx-type-sm); font-weight: 500; color: var(--muted); }
 .upnext b { font-size: var(--mx-type-body); font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -195,9 +249,15 @@
 .winHead b { display: block; font-size: var(--mx-type-body); font-weight: 600; line-height: 1.2; }
 .winHead small { display: block; margin-top: 3px; font-size: 12px; line-height: 1.35; color: var(--muted); }
 .winHead .ic { width: 36px; height: 36px; }
-.winBody { min-height: 0; overflow: auto; display: grid; align-content: start; gap: var(--mx-space-3); }
+/* one column that cannot grow past the window: a long title is cut with an ellipsis, it never
+   widens the list into a sideways scroll */
+.winBody { min-height: 0; overflow-x: hidden; overflow-y: auto; display: grid; grid-template-columns: minmax(0, 1fr); align-content: start; gap: var(--mx-space-3); }
 .hint { font-family: var(--mx-font-text); font-style: italic; font-size: var(--mx-type-body); line-height: 1.5; color: var(--muted); }
 .mine { justify-self: end; max-width: 85%; padding: 10px 14px; border-radius: 18px 18px 6px 18px; background: color-mix(in srgb, var(--pl-acc) 22%, rgba(255,255,255,.07)); font-size: 14px; line-height: 1.4; }
+/* a question about a lyric line: the line itself, as a quote */
+.quote { display: grid; gap: 4px; padding: 2px 0 2px 12px; border-left: 2px solid var(--pl-acc); }
+.quote small { font-size: var(--mx-type-cap); font-weight: 600; line-height: 1.2; letter-spacing: .14em; text-transform: uppercase; color: var(--subtle); }
+.quote p { font-family: var(--mx-font-text); font-style: italic; font-size: var(--mx-type-body); line-height: 1.45; }
 .answer { font-family: var(--mx-font-text); font-size: var(--mx-type-body); line-height: 1.6; display: grid; gap: var(--mx-space-2); }
 .answer ul { padding-left: 18px; display: grid; gap: 4px; }
 .typing::after { content: ""; display: inline-block; width: 7px; height: 1em; margin-left: 2px; vertical-align: -2px; background: var(--pl-acc); animation: blink 1s steps(2) infinite; }
@@ -216,7 +276,7 @@
 .ask .ic svg { transform: rotate(-90deg); }
 
 /* the queue rows (in the queue window) */
-.rows { list-style: none; display: flex; flex-direction: column; gap: 2px; }
+.rows { list-style: none; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .row, .rowOn, .rowPast { display: flex; align-items: center; border-radius: 14px; position: relative; transition: background .2s var(--mx-ease-standard), transform .25s var(--mx-ease-standard); }
 .row:active, .rowPast:active { transform: scale(.99); }
 .row:hover, .rowPast:hover { background: rgba(255,255,255,.06); }
@@ -247,13 +307,14 @@
 /* the shell keeps 72px under the page for its tab bar: the stage is the screen minus that (a container cannot restyle itself, hence the media query) */
 @media (max-width: 760px) { .stage { min-height: calc(100dvh - 72px - env(safe-area-inset-bottom, 0px)); } }
 @container stage (max-width: 780px) {
-  .frame { min-height: calc(100dvh - 72px - env(safe-area-inset-bottom, 0px)); grid-template-columns: minmax(0, 1fr);
+  .frame { --cw: min(100%, max(180px, calc(100dvh - 520px))); min-height: calc(100dvh - 72px - env(safe-area-inset-bottom, 0px)); grid-template-columns: minmax(0, 1fr);
     grid-template-rows: auto auto auto auto auto auto minmax(0, 1fr) auto;
     grid-template-areas: "top" "cover" "meta" "note" "scrub" "ctrl" "." "peeks"; padding: 8px 16px 14px; }
   .topbar { grid-area: top; display: flex; align-items: center; justify-content: space-between; margin: 0 -8px; min-height: 40px; }
   .topbar > span { display: flex; align-items: center; }
-  .coverRow { justify-self: center; --cw: min(100%, max(180px, calc(100dvh - 520px))); }
-  .meta { margin-top: var(--mx-space-4); }
+  .coverRow { justify-self: center; margin-right: 0; left: 0; }
+  .col { grid-area: meta; margin-top: var(--mx-space-4); left: 0; }
+  .bottom { grid-area: ctrl; }
   .title { font-size: 30px; }
   .long { font-size: 26px; }
   .scrub { margin-top: var(--mx-space-3); }
@@ -262,6 +323,11 @@
   .coverRow .edge { display: inline-grid; position: absolute; top: 50%; translate: 0 -50%; z-index: 6; background: rgba(13,13,16,.44); color: var(--text); }
   .coverRow .edge:first-of-type { left: 8px; }
   .coverRow .edge:last-of-type { right: 8px; }
+  /* over the lyrics they would cover the lines */
+  .coverRow .edge { transition: opacity .25s var(--mx-ease-standard), background .2s var(--mx-ease-standard), color .2s var(--mx-ease-standard), transform .25s var(--mx-ease-spring); }
+  .coverRow[data-flipped] .edge { opacity: 0; pointer-events: none; }
+  /* a very short phone: the vibe line gives its three lines back, so the screen still fits */
+  @media (max-height: 700px) { .vibe { display: none; } }
   .controls { gap: 6px; }
   .group { gap: 6px; }
   .peeks { grid-area: peeks; display: grid; margin-top: var(--mx-space-3); }

@@ -1,2 +1,6 @@
 .cover { width: var(--size); height: var(--size); border-radius: var(--r); background: var(--tint); overflow: hidden; flex-shrink: 0; display: block; position: relative; }
 .cover img { width: 100%; height: 100%; object-fit: cover; }
+/* a picture that arrives after its placeholder fades in over it */
+.cover img.fresh { opacity: 0; transition: opacity .28s var(--mx-ease-standard); }
+.cover img.fresh[data-ready] { opacity: 1; }
+@media (prefers-reduced-motion: reduce) { .cover img.fresh { transition: none; } }

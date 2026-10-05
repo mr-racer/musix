@@ -4,7 +4,7 @@ import { refresh, useAuth } from "./auth";
 
 /** Every API call: the bearer from memory; a 401 triggers the single-flight refresh and
  *  one retry. The request body is buffered first so the retry can resend it. */
-async function authed(input: Request): Promise<Response> {
+export async function authed(input: Request): Promise<Response> {
   const body = input.method === "GET" || input.method === "HEAD" ? undefined : await input.clone().arrayBuffer();
   const send = (token: string | null) => {
     const headers = new Headers(input.headers);

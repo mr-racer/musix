@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useShallow } from "zustand/react/shallow";
@@ -12,8 +12,8 @@ import { useLive } from "../../lib/live";
 import { Combustion } from "../../player/Combustion";
 import { DevicePicker, ElsewhereBar } from "../../player/DevicePicker";
 import { fromTrack, player, usePlayer } from "../../player/engine";
-import { SeekLine, Spectrum } from "../../player/Spectrum";
-import { ask, clearChat, PROMPTS, useTrackChat } from "../../player/trackChat";
+import { SeekLine, Spectrum, spectrumQuery } from "../../player/Spectrum";
+import { ask, clearChat, LINE_QUESTION, PROMPTS, useTrackChat } from "../../player/trackChat";
 import { AddToPlaylist } from "../../ui/AddToPlaylist";
 import { Cover } from "../../ui/Cover";
 import { Icon, LosslessMark } from "../../ui/icons";
@@ -63,33 +63,86 @@ function pop(button: HTMLElement): void {
 /** A cover flight is on its way to this track: the stage skips its vinyl swap for it. */
 let flightFor: string | null = null;
 
+/** Pictures fetched ahead of need (the neighbours' covers and backdrops). The elements are
+ *  kept so the browser does not drop a load nobody seems to wait for. */
+const warm = new Map<string, HTMLImageElement>();
+function preload(...urls: (string | null | undefined)[]): void {
+  for (const u of urls) {
+    if (!u || warm.has(u)) continue;
+    const im = new Image();
+    im.decoding = "async";
+    im.src = u;
+    warm.set(u, im);
+    if (warm.size > 24) warm.delete(warm.keys().next().value!);
+  }
+}
+
 /** The shared-element flight: a thumbnail (a queue row, a sample chip) grows into the cover.
  *  The clone sits at the cover's final size and starts scaled down onto the thumbnail, so
  *  its corners read as the thumbnail's at the start and the cover's at the end, and never
- *  round on the way. */
-function fly(from: Element | null | undefined, imageId: string | null | undefined, trackId: string): void {
+ *  round on the way.
+ *  Over a real link the cover's big picture is not there yet when the flight starts, so the
+ *  clone is painted from the thumbnail's own pixels first (it is on screen), takes the big
+ *  picture when that has decoded, and stays on the cover until the stage's own has arrived: the
+ *  clone never flies blank and never lands on the previous track's cover. The thumbnail is
+ *  hidden meanwhile, as in the approved probe: it is the thumbnail itself that lifts off.
+ *  `go` starts the track; the flight's end is measured after it, on the new track's layout. */
+function fly(from: HTMLImageElement | null | undefined, imageId: string | null | undefined, trackId: string, go: () => void): void {
   const to = document.querySelector<HTMLElement>("[data-player-cover]");
-  const src = imageUrl(imageId, 800);
-  if (!from || !to || !src || reduced()) return;
-  const a = from.getBoundingClientRect(), b = to.getBoundingClientRect();
-  if (!a.width || !b.width) return;
+  const big = imageUrl(imageId, 760); // the variant the stage's cover shows
+  const a = from?.getBoundingClientRect();
+  if (!from || !a?.width || !to || !big || reduced()) return go();
   flightFor = trackId;
-  const k = a.width / b.width, r = parseFloat(getComputedStyle(to).getPropertyValue("--r-cover")) || 10;
+  const want = new URL(big, location.href).href;
   const r0 = parseFloat(getComputedStyle(from).borderTopLeftRadius) || parseFloat(getComputedStyle(from.parentElement ?? from).borderTopLeftRadius) || 8;
-  const g = document.createElement("img");
-  g.src = src;
-  g.alt = "";
+  // a canvas, painted from the thumbnail's own pixels: visible in its first frame whatever
+  // the network and the cache do. The big picture is drawn into it once it has decoded
+  const g = document.createElement("canvas");
+  const paint = (pic: HTMLImageElement) => {
+    if (!pic.naturalWidth) return;
+    g.width = pic.naturalWidth;
+    g.height = pic.naturalHeight;
+    g.getContext("2d")?.drawImage(pic, 0, 0);
+  };
+  g.style.background = getComputedStyle(from.parentElement ?? from).backgroundColor; // the cover's placeholder colour
+  paint(from);
+  const hi = new Image();
+  hi.src = big;
+  void hi.decode().then(() => paint(hi)).catch(() => undefined);
+  // first exactly over the thumbnail, which is hidden under it
   Object.assign(g.style, {
-    position: "fixed", left: `${b.left}px`, top: `${b.top}px`, width: `${b.width}px`, height: `${b.height}px`, objectFit: "cover",
-    transformOrigin: "0 0", zIndex: "60", pointerEvents: "none", borderRadius: `${r}px`, boxShadow: "0 30px 70px -24px rgba(0,0,0,.75)",
+    position: "fixed", left: `${a.left}px`, top: `${a.top}px`, width: `${a.width}px`, height: `${a.height}px`,
+    transformOrigin: "0 0", zIndex: "60", pointerEvents: "none", borderRadius: `${r0}px`, boxShadow: "0 30px 70px -24px rgba(0,0,0,.75)",
   });
   document.body.appendChild(g);
-  const dim = to.animate([{ opacity: 1, transform: "scale(1)" }, { opacity: 0.3, transform: "scale(.94)" }], { duration: 300, easing: "cubic-bezier(.22,.9,.3,1)", fill: "forwards" });
-  g.animate(
-    [{ transform: `translate(${a.left - b.left}px, ${a.top - b.top}px) scale(${k})`, borderRadius: `${r0 / k}px` }, { transform: "none", borderRadius: `${r}px` }],
-    { duration: 560, easing: "cubic-bezier(.2,.8,.2,1)", fill: "both" },
-  ).onfinish = () => { dim.cancel(); g.remove(); };
+  from.style.visibility = "hidden";
+  go();
+  // the landing place is measured once the new track is laid out: the cover may have moved
+  requestAnimationFrame(() => {
+    const b = to.getBoundingClientRect();
+    if (!b.width) { g.remove(); from.style.visibility = ""; return; }
+    const k = a.width / b.width, r = parseFloat(getComputedStyle(to).getPropertyValue("--r-cover")) || 10;
+    Object.assign(g.style, { left: `${b.left}px`, top: `${b.top}px`, width: `${b.width}px`, height: `${b.height}px`, borderRadius: `${r}px` });
+    const dim = to.animate([{ opacity: 1, transform: "scale(1)" }, { opacity: 0.3, transform: "scale(.94)" }], { duration: 300, easing: "cubic-bezier(.22,.9,.3,1)", fill: "forwards" });
+    g.animate(
+      [{ transform: `translate(${a.left - b.left}px, ${a.top - b.top}px) scale(${k})`, borderRadius: `${r0 / k}px` }, { transform: "none", borderRadius: `${r}px` }],
+      { duration: 560, easing: "cubic-bezier(.2,.8,.2,1)", fill: "both" },
+    ).onfinish = () => {
+      dim.cancel();
+      from.style.visibility = "";
+      const landed = performance.now();
+      const settle = () => {
+        const pic = to.querySelector<HTMLImageElement>("button img");
+        if ((pic?.complete && pic.naturalWidth > 0 && pic.currentSrc === want) || performance.now() - landed > 2000) g.remove();
+        else requestAnimationFrame(settle);
+      };
+      settle();
+    };
+  });
 }
+
+/** The spectrum's height when there is room for it (the first version was 44). */
+const SPEC_MAX = 104;
 
 /** Whether the stage is at phone width (the same 780 px the styles switch at). */
 function useNarrow(ref: React.RefObject<HTMLElement | null>): boolean {
@@ -125,6 +178,46 @@ function Playing({ trackId }: { trackId: string }) {
   const k = ctx?.knowledge;
   const lossless = s.tier === "lossless" || s.tier === "lossless_compat";
   const upcoming = s.queue.length - s.index - 1;
+  const before = s.queue[s.index - 1];
+  const qc = useQueryClient();
+  // between two tracks the engine pauses the old element before the new one plays: that is
+  // buffering, not a pause, and must not flash the paused look (the blurred, dimmed cover)
+  const paused = !s.playing && !s.buffering;
+  const asked = useTrackChat((c) => (c.trackId === trackId ? c.messages.findLast((m) => m.line)?.line ?? null : null));
+
+  // the neighbours' pictures and spectra, ahead of a skip: over a real link they would
+  // otherwise arrive after the change (the cover swapping late, the curve rising late)
+  const nextId = next?.trackId, prevId = before?.trackId, nextCover = next?.coverImageId, prevCover = before?.coverImageId;
+  useEffect(() => {
+    for (const id of [nextCover, prevCover]) {
+      const bg = image(id)?.urls.bg;
+      preload(imageUrl(id, 760), bg ? mediaUrl(bg) : null);
+    }
+    if (!narrow) for (const id of [nextId, prevId]) if (id) void qc.prefetchQuery(spectrumQuery(id));
+  }, [nextId, prevId, nextCover, prevCover, narrow, qc]);
+
+  // the spectrum's height: well above the line, but never into what lies over it. The room
+  // is measured, because the content block is centred and its height is the song's
+  useLayoutEffect(() => {
+    const st = stage.current;
+    if (!st || narrow) return;
+    const measure = () => {
+      const bar = st.querySelector<HTMLElement>('[role="slider"]');
+      if (!bar) return;
+      let floor = 0;
+      for (const el of st.querySelectorAll<HTMLElement>("[data-above]")) {
+        const r = el.getBoundingClientRect();
+        if (r.height > 0) floor = Math.max(floor, r.bottom);
+      }
+      const room = Math.floor(bar.getBoundingClientRect().top + 9 - floor - 16);
+      st.style.setProperty("--spec-h", `${room < 24 ? 0 : Math.min(SPEC_MAX, room)}px`);
+    };
+    const ro = new ResizeObserver(measure);
+    ro.observe(st);
+    for (const el of st.querySelectorAll("[data-above]")) ro.observe(el);
+    measure();
+    return () => ro.disconnect();
+  }, [narrow, trackId]);
 
   useEffect(() => {
     const esc = (e: KeyboardEvent) => { if (e.key === "Escape") setSheet(null); };
@@ -149,6 +242,11 @@ function Playing({ trackId }: { trackId: string }) {
     void player.react(kind);
   };
   const toggle = (which: Exclude<Sheet, null>) => setSheet((cur) => (cur === which ? null : which));
+  /** A click on a lyric line: the assistant's window opens with the line quoted and explains it. */
+  const askLine = (line: string) => {
+    setSheet("ai");
+    void ask(trackId, LINE_QUESTION, line); // does nothing while an answer is being written
+  };
   const losslessBadge = lossless && (
     <span className={css.badge} title={[s.codec?.toUpperCase(), ctx?.audio.sampleRate && `${ctx.audio.sampleRate / 1000} кГц`, ctx?.audio.bitDepth && `${ctx.audio.bitDepth} бит`].filter(Boolean).join(" · ")}>
       <LosslessMark height={10} /> Lossless
@@ -162,13 +260,13 @@ function Playing({ trackId }: { trackId: string }) {
   );
   const about = (
     <>
-      {k && <Credits k={k} genre={ctx?.track.genre ?? null} />}
-      <Facts key={trackId} k={k} onAsk={narrow ? undefined : () => setSheet("ai")} />
+      {k && <Credits key={"credits:" + trackId} k={k} genre={ctx?.track.genre ?? null} />}
+      <Facts key={"facts:" + trackId} k={k} onAsk={narrow ? undefined : () => setSheet("ai")} />
     </>
   );
 
   return (
-    <div className={css.stage} ref={stage} data-mx-theme="dark" data-playing={s.playing}
+    <div className={css.stage} ref={stage} data-mx-theme="dark" data-playing={!paused}
       style={{ ["--pl-acc" as string]: accent, ["--pl-acc2" as string]: img?.palette?.dominant ?? "#5664b3" }}>
       <Backdrop url={img?.urls.bg ? mediaUrl(img.urls.bg) : null} fallback={imageUrl(item.coverImageId, 96)} />
 
@@ -179,13 +277,14 @@ function Playing({ trackId }: { trackId: string }) {
           <span>{add}<DevicePicker /></span>
         </div>
 
-        <div className={css.coverRow}>
+        <div className={css.coverRow} data-above data-flipped={flipped ? "" : undefined}>
           <button type="button" className={`${css.ic} ${css.edge}`} onClick={() => void player.prev()} aria-label="Предыдущий трек"><Icon name="ChevronLeft" /></button>
-          <CoverStage item={item} index={s.index} flipped={flipped} playing={s.playing} buffering={s.buffering} fx={fx}
-            back={<LyricsBack title={item.title} lyrics={ctx?.lyrics ?? null} onSeek={(ms) => player.seek(ms)} />} />
+          <CoverStage item={item} index={s.index} flipped={flipped} playing={!paused} buffering={s.buffering} fx={fx}
+            back={<LyricsBack title={item.title} lyrics={ctx?.lyrics ?? null} shown={flipped} asked={asked} onSeek={(ms) => player.seek(ms)} onAsk={askLine} />} />
           <button type="button" className={`${css.ic} ${css.edge}`} onClick={() => void player.next()} aria-label="Следующий трек"><Icon name="ChevronRight" /></button>
         </div>
 
+        <div className={css.col} data-above>
         <div className={css.meta} key={trackId}>
           <h1 className={css.title + (item.title.length > 15 ? " " + css.long : "")}>{item.title}</h1>
           <p className={css.artist}>
@@ -203,14 +302,16 @@ function Playing({ trackId }: { trackId: string }) {
         </div>
 
         {!narrow && about}
+        </div>
 
-        <div className={css.note}>
+        <div className={css.note} data-above>
           <ElsewhereBar />
           {s.error && <p className={css.error} role="status">{s.error}</p>}
         </div>
 
         <Scrub>{!narrow && <Spectrum trackId={trackId} className={css.spectrum} />}</Scrub>
 
+        <div className={css.bottom}>
         <div className={css.controls} role="toolbar" aria-label="Действия с треком">
           <div className={css.group}>
             <button type="button" className={`${css.ic} ${css.step} ${css.desk}`} onClick={() => void player.prev()} aria-label="Предыдущий трек"><Icon name="ChevronLeft" /></button>
@@ -235,6 +336,7 @@ function Playing({ trackId }: { trackId: string }) {
             <Icon name="ChevronRight" size={18} />
           </button>
         )}
+        </div>
 
         <div className={css.peeks}>
           <button type="button" className={css.peek} onClick={() => toggle("about")} aria-label="Открыть факты, титры и семплы">
@@ -311,13 +413,20 @@ function Backdrop({ url, fallback }: { url: string | null; fallback: string | nu
   );
 }
 
+/** The volume: only its icon at rest. The slider slides out to the left of it on hover
+ *  or keyboard focus (the icon stays where the pointer is); a click on the icon mutes. */
 function Volume() {
   const [v, setV] = useState(() => player.volume());
+  const loud = useRef(v || 1);
+  const set = (x: number) => { setV(x); player.setVolume(x); };
   return (
-    <label className={css.volume} title="Громкость">
-      <Icon name="Volume" size={18} />
-      <input type="range" min={0} max={1} step={0.01} value={v} aria-label="Громкость" onChange={(e) => { const x = Number(e.target.value); setV(x); player.setVolume(x); }} />
-    </label>
+    <span className={css.volume}>
+      <input type="range" min={0} max={1} step={0.01} value={v} aria-label="Громкость" onChange={(e) => set(Number(e.target.value))} />
+      <button type="button" className={css.ic + (v === 0 ? " " + css.muted : "")} title="Громкость" aria-label={v === 0 ? "Включить звук" : "Выключить звук"}
+        onClick={() => { if (v > 0) { loud.current = v; set(0); } else set(loud.current); }}>
+        <Icon name="Volume" />
+      </button>
+    </span>
   );
 }
 
@@ -331,6 +440,7 @@ function Facts({ k, onAsk }: { k: Schemas["TrackKnowledge"] | null | undefined; 
   const f = facts[Math.min(i, facts.length - 1)];
   const cls = f ? factClass(f.labels) : null;
   const page = (d: number) => { setI((n) => (Math.min(n, facts.length - 1) + d + facts.length) % facts.length); setOpen(false); };
+  const all = useMemo(() => [...(k?.songFacts ?? []), ...(k?.artistFacts ?? [])].map((x) => x.text), [k]);
   return (
     <div className={css.facts}>
       <div className={css.factTop}>
@@ -352,9 +462,14 @@ function Facts({ k, onAsk }: { k: Schemas["TrackKnowledge"] | null | undefined; 
           </span>
         </span>
       </div>
-      {f
-        ? <p key={side + i} className={css.fact + (open ? " " + css.factOpen : "")} onClick={() => setOpen((o) => !o)} title="Нажмите, чтобы развернуть или свернуть">{f.text}</p>
-        : <p className={css.empty}>{side === "song" ? "О песне пока ничего не известно. Факты собираются в фоне и появятся здесь." : "Об артисте пока ничего не известно."}</p>}
+      <div className={css.factBox}>
+        {/* every fact of the track, invisible, in the same cell: the plate is as tall as the
+            tallest of them, so paging and «Песня / Артист» never move the layout */}
+        {all.map((text, n) => <p key={n} className={css.fact} data-sizer aria-hidden>{text}</p>)}
+        {f
+          ? <p key={side + i} className={css.fact + (open ? " " + css.factOpen : "")} onClick={() => setOpen((o) => !o)} title="Нажмите, чтобы развернуть или свернуть">{f.text}</p>
+          : <p className={css.empty}>{side === "song" ? "О песне пока ничего не известно. Факты собираются в фоне и появятся здесь." : "Об артисте пока ничего не известно."}</p>}
+      </div>
     </div>
   );
 }
@@ -381,9 +496,30 @@ function Credits({ k, genre }: { k: Schemas["TrackKnowledge"]; genre: string | n
         </div>
       )}
       {genre && <div><dt>Жанр</dt><dd>{genre}</dd></div>}
-      {k.samples.length > 0 && <div><dt>Семплирует</dt><dd className={css.chips}>{k.samples.map((r, i) => <Sample key={i} r={r} />)}</dd></div>}
-      {k.sampledBy.length > 0 && <div><dt>Её семплировали</dt><dd className={css.chips}>{k.sampledBy.map((r, i) => <Sample key={i} r={r} />)}</dd></div>}
+      {k.samples.length > 0 && <Samples label="Семплирует" list={k.samples} />}
+      {k.sampledBy.length > 0 && <Samples label="Её семплировали" list={k.sampledBy} />}
     </dl>
+  );
+}
+
+/** Samples one way. Those in the library come first (they play at once); more than two
+ *  fold behind «Ещё N». */
+function Samples({ label, list }: { label: string; list: Schemas["RelationOut"][] }) {
+  const [open, setOpen] = useState(false);
+  const sorted = useMemo(() => [...list].sort((a, b) => Number(!!b.trackId) - Number(!!a.trackId)), [list]);
+  const rest = sorted.length - 2;
+  return (
+    <div>
+      <dt>{label}</dt>
+      <dd className={css.chips}>
+        {(open ? sorted : sorted.slice(0, 2)).map((r, i) => <Sample key={(r.trackId ?? r.text) + ":" + i} r={r} />)}
+        {rest > 0 && (
+          <button type="button" className={css.more} aria-expanded={open} onClick={() => setOpen((o) => !o)}>
+            {open ? "Свернуть" : `Ещё ${rest}`}<Icon name="ChevronDown" size={16} />
+          </button>
+        )}
+      </dd>
+    </div>
   );
 }
 
@@ -397,9 +533,10 @@ function Sample({ r }: { r: Schemas["RelationOut"] }) {
   if (!row) return <span className={css.chipOff} title="Этого трека нет в фонотеке"><span className={css.chipText}><b>{r.text}</b><small>нет в фонотеке</small></span></span>;
   const play = () => {
     const item = fromTrack(rowToTrack(row), "queue");
-    fly(art.current, item.coverImageId, item.trackId);
-    player.playNext([item]);
-    void player.next();
+    fly(art.current?.querySelector<HTMLImageElement>("img"), item.coverImageId, item.trackId, () => {
+      player.playNext([item]);
+      void player.next();
+    });
   };
   return (
     <button type="button" className={css.chip} onClick={play} aria-label={`Слушать: ${row.title}, ${row.artist}`}>
@@ -435,7 +572,9 @@ function Assistant({ trackId, open, onClose }: { trackId: string; open: boolean;
       </div>
       <div className={css.winBody} ref={body} aria-live="polite">
         {messages.length === 0 && !busy && <p className={css.hint}>Спросите о песне или артисте: о чём она, как появилась, что в ней спрятано.</p>}
-        {messages.map((m, i) => (m.mine ? <p key={i} className={css.mine}>{m.text}</p> : <Answer key={i} text={m.text} />))}
+        {messages.map((m, i) => (!m.mine ? <Answer key={i} text={m.text} />
+          : m.line ? <blockquote key={i} className={css.quote}><small>Строчка из текста</small><p>{m.line}</p></blockquote>
+          : <p key={i} className={css.mine}>{m.text}</p>))}
         {busy && (chat.stream ? <Answer text={chat.stream} typing /> : <p className={css.stageLine}>{chat.stage}</p>)}
       </div>
       <div className={css.prompts}>
@@ -486,20 +625,39 @@ function parseLrc(lrc: string): { ms: number; text: string }[] {
   return out.sort((a, b) => a.ms - b.ms);
 }
 
-/** v1 `LyricsBackFace`: the lyrics on the back of the flipped cover. Synced lyrics mark
- *  the line being sung and a click on a line seeks there; the page never scrolls itself. */
-function LyricsBack({ title, lyrics, onSeek }: { title: string; lyrics: Schemas["LyricsOut"] | null; onSeek: (ms: number) => void }) {
+/** The lyrics on the back of the flipped cover (v1 `LyricsBackFace` + `InlineLyricExplain`).
+ *  A click on a line asks the assistant about it: the line shows a spark under the pointer
+ *  and keeps it, in the accent, once asked. Synced lyrics mark the line being sung, and a
+ *  small play mark in the margin starts the song from a line. The page never scrolls itself. */
+function LyricsBack({ title, lyrics, shown, asked, onSeek, onAsk }: {
+  title: string; lyrics: Schemas["LyricsOut"] | null; shown: boolean; asked: string | null;
+  onSeek: (ms: number) => void; onAsk: (line: string) => void;
+}) {
   const lines = useMemo(() => (lyrics?.syncedLrc ? parseLrc(lyrics.syncedLrc) : null), [lyrics]);
   // the line being sung: a re-render only when it changes, not on every playhead tick
   const cur = usePlayer((x) => (lines ? lines.findLastIndex((l) => l.ms <= x.positionMs + 250) : -1));
+  const tab = shown ? 0 : -1;
+  const row = (raw: string, i: number, sung: boolean, ms?: number) => {
+    const text = raw.trim();
+    if (!text) return <div key={i} className={css.gap} />;
+    return (
+      <div key={i} className={css.lrow}>
+        {ms !== undefined && (
+          <button type="button" className={css.from} tabIndex={tab} onClick={() => onSeek(ms)} aria-label="Играть с этой строчки" title="Играть с этой строчки"><Icon name="Play" size={11} /></button>
+        )}
+        <button type="button" tabIndex={tab} title="Спросить ассистента об этой строчке" onClick={() => onAsk(text)}
+          className={css.line + (sung ? " " + css.lineOn : "") + (asked === text ? " " + css.lineAsked : "")}>
+          {text}<Icon name="Sparkles" size={13} />
+        </button>
+      </div>
+    );
+  };
   return (
     <div className={css.back}>
       <div className={css.backHead}>{title} · Текст</div>
       {!lyrics ? <p className={css.backEmpty}>тексты ещё не добавлены</p>
-        : lines ? lines.map((l, i) => (
-            <button key={i} type="button" className={i === cur ? css.lineOn : css.line} onClick={() => onSeek(l.ms)}>{l.text || " "}</button>
-          ))
-        : lyrics.text.split("\n").map((l, i) => (l.trim() ? <p key={i}>{l}</p> : <div key={i} className={css.gap} />))}
+        : lines ? lines.map((l, i) => row(l.text, i, i === cur, l.ms))
+        : lyrics.text.split("\n").map((l, i) => row(l, i, false))}
     </div>
   );
 }
@@ -536,7 +694,7 @@ function CoverStage({ item, index, flipped, playing, buffering, fx, back }: {
       const g = document.createElement("img");
       g.src = old;
       g.alt = "";
-      g.className = css.ghost!;
+      g.className = css.leaving!;
       g.style.transformOrigin = sign > 0 ? "left center" : "right center";
       box.appendChild(g);
       g.animate(
@@ -596,7 +754,7 @@ function CoverStage({ item, index, flipped, playing, buffering, fx, back }: {
         <div className={css.flipper + (flipped ? " " + css.isFlipped : "")}>
           <button type="button" className={css.front + (playing ? "" : " " + css.paused)} tabIndex={flipped ? -1 : 0}
             onClick={() => player.toggle()} aria-label={playing ? "Пауза" : "Играть"}>
-            <Cover id={item.coverImageId} size={380} radius={10} eager alt={item.album ?? item.title} className={css.cover} />
+            <Cover id={item.coverImageId} size={380} radius={10} fresh alt={item.album ?? item.title} className={css.cover} />
             <span className={css.veil + (buffering ? " " + css.veilOn : "")} aria-hidden><span className={css.spinner} /></span>
             <span className={css.glare} aria-hidden />
           </button>
@@ -620,9 +778,10 @@ function Queue({ onPick }: { onPick?: () => void }) {
           onDrop={() => { if (drag !== null) player.move(drag, i); setDrag(null); }}>
           <button type="button" className={css.rowMain} onClick={(e) => {
             if (i === index) return;
-            fly(e.currentTarget.querySelector("img"), q.coverImageId, q.trackId);
-            void player.jump(i);
-            onPick?.();
+            fly(e.currentTarget.querySelector<HTMLImageElement>("img"), q.coverImageId, q.trackId, () => {
+              void player.jump(i);
+              onPick?.();
+            });
           }}>
             <span className={css.num}>{i === index ? <span className={css.eq} aria-hidden><i /><i /><i /></span> : i - index > 0 ? i - index : ""}</span>
             <Cover id={q.coverImageId} size={44} radius={10} />

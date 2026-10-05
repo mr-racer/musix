@@ -5,7 +5,7 @@ import { subscribe } from "../api/realtime";
 /** The chat about the playing track (v1 `AIChatDrawer`): `POST /track-chat/turns`, progress
  *  frames over the socket (`answer_delta` carries the answer so far, any other frame is a
  *  caption), then the result of `GET /assistant/turns/{id}`. One conversation per track. */
-export type ChatMessage = { mine: boolean; text: string };
+export type ChatMessage = { mine: boolean; text: string; line?: string }; // `line`: the lyric line the question is about
 interface ChatState {
   trackId: string | null;
   messages: ChatMessage[];
@@ -26,15 +26,21 @@ export function clearChat(): void {
   if (useTrackChat.getState().stage === null) useTrackChat.setState({ messages: [], stream: null });
 }
 
-export async function ask(trackId: string, message: string): Promise<void> {
+/** v1 `InlineLyricExplain`: what a click on a lyric line asks. */
+export const LINE_QUESTION = "Объясни эту строчку";
+
+/** Asks about the track; with `line`, about that lyric line (the server's `lyric_explain`). */
+export async function ask(trackId: string, message: string, line?: string): Promise<void> {
   const st = useTrackChat.getState();
   if (st.stage !== null) return;
   const prior = st.trackId === trackId ? st.messages : [];
   const history = prior.slice(-6).map((m) => ({ role: m.mine ? ("user" as const) : ("assistant" as const), content: m.text }));
-  useTrackChat.setState({ trackId, messages: [...prior, { mine: true, text: message }], stage: "Думаю…", stream: null });
+  useTrackChat.setState({ trackId, messages: [...prior, { mine: true, text: message, line }], stage: "Думаю…", stream: null });
   let text: string | null = null;
   try {
-    const turn = await ok(api.POST("/api/v2/track-chat/turns", { body: { trackId, mode: "song", message, history, lang: "ru" } }));
+    const turn = await ok(api.POST("/api/v2/track-chat/turns", {
+      body: { trackId, mode: line ? "lyric_explain" : "song", selectedLine: line ?? null, message, history, lang: "ru" },
+    }));
     text = await answer(turn.turnId);
   } catch {
     text = null;
