@@ -23,7 +23,7 @@ from pydantic import BaseModel
 from sqlalchemy.dialects.postgresql import distinct_on
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from musix.contexts.identity.models import account_settings
+from musix.contexts.identity.models import account_settings, accounts
 from musix.contexts.library.models import albums, artists, track_artists, tracks
 from musix.contexts.library.service import get_tracks
 from musix.contexts.listening.models import taste_signals
@@ -32,6 +32,7 @@ from musix.contexts.playlists.models import playlist_items, playlists
 from musix.contexts.playlists.service import _LIVE_ITEMS
 from musix.contexts.sync import schemas as S
 from musix.errors import Invalid
+from musix.infra.changelog import notify
 from musix.infra.tables import change_log
 
 T, Al, Ar, Ta = tracks.c, albums.c, artists.c, track_artists.c
@@ -263,6 +264,32 @@ def decode(cursor: str) -> dict[str, Any]:
 
 def delta_cursor(seq: int) -> str:
     return encode({"s": seq})
+
+
+async def announce_images(s: AsyncSession, image_ids: list[str]) -> int:
+    """Images are immutable and not change-logged, with one exception: a variant added to
+    images that clients already mirror (the backdrop `bg`, 2026-10-04). A mirrored image
+    learns its new URL only from the feed, so every account that can see such an image gets
+    one `image` upsert. Returns the rows written; the caller commits."""
+    if not image_ids:
+        return 0
+    written = 0
+    accs: list[uuid.UUID] = list(await s.scalars(sa.select(accounts.c.id)))
+    for acc in accs:
+        seen = _image_ids(Ctx(s, acc, "", b"")).subquery()
+        cols = (sa.literal(acc), sa.literal("image"), seen.c.id, sa.literal("upsert"))
+        mine = sa.select(*cols).where(seen.c.id.in_(image_ids))
+        seqs: list[int] = list(
+            await s.scalars(
+                sa.insert(change_log)
+                .from_select(["account_id", "entity", "entity_id", "op"], mine)
+                .returning(change_log.c.seq)
+            )
+        )
+        if seqs:
+            written += len(seqs)
+            await notify(s, acc, "sync", seq=max(seqs))
+    return written
 
 
 async def head_seq(s: AsyncSession, account_id: uuid.UUID) -> int:

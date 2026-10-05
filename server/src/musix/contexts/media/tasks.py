@@ -90,7 +90,8 @@ async def regen_images() -> dict[str, int]:
 
 async def backdrops() -> dict[str, int]:
     """Backdrops for the images stored before them. Made from a stored variant (256 px is
-    more than the 192 px backdrop needs), so no originals are required.
+    more than the 192 px backdrop needs), so no originals are required. Clients mirror
+    images and never re-read them, so each batch is announced on the sync feed.
     `procrastinate defer media:backdrops {}`."""
     import asyncio
 
@@ -100,8 +101,18 @@ async def backdrops() -> dict[str, int]:
     from musix.contexts.media import images as img
 
     media = Path(settings().media_dir)
-    n = {"seen": 0, "made": 0, "missing": 0}
+    from musix.contexts.sync.service import announce_images
+
+    n = {"seen": 0, "made": 0, "missing": 0, "announced": 0}
     sm = sessionmaker()
+    made: list[str] = []
+
+    async def announce() -> None:
+        async with sm() as s:
+            n["announced"] += await announce_images(s, made)
+            await s.commit()
+        made.clear()
+
     async with sm() as s:
         rows = (await s.execute(sa.select(images.c.id, images.c.variants))).all()
     for row in rows:
@@ -120,6 +131,10 @@ async def backdrops() -> dict[str, int]:
             await s.execute(sa.update(images).where(images.c.id == row.id).values(variants=have))
             await s.commit()
         n["made"] += 1
+        made.append(row.id)
+        if len(made) >= 500:
+            await announce()
+    await announce()
     return n
 
 
