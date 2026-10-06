@@ -15,7 +15,7 @@ fonts = "https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700
 page = "\n".join([
     "<title>Главная MusiX</title>",
     f'<link rel="stylesheet" href="{fonts}">',
-    "<style>", (here / "styles.css").read_text(), (here / "variants.css").read_text(), "</style>",
+    "<style>", (here / "styles.css").read_text(), (here / "screen.css").read_text(), "</style>",
     (here / "markup.html").read_text(),
     "<script>", f"window.ICONS={json.dumps(icons, ensure_ascii=False)};", f"window.DATA={data};", (here / "logic.js").read_text(), "</script>",
 ])

@@ -133,3 +133,13 @@ however physical its motion. Physical means real materials and real light: frost
 with light behind it, a record, rings on water. Three such materials are in the mock
 (`data-wave`), his choice pending. Rule for the code: **no rendered gloss or plastic 3D**.
 
+**His decision, later the same day: v1's composition.** «Давай возьмём вариант v1 (старый
+ещё), всё-таки он мне нравится больше». The base is «Как в v1» (round 1, variant А), refined.
+Into it: the week block and the вайбики piles from round 2; «аккуратно плашку с
+рекомендуемыми альбомами и почему»; the wave's button **as v1 had it** (drops of colour
+under a glass cap, the ring, the halo), «только чуть улучши эффекты и плавность при нажатии
+кнопки»; the mini player and the search with the switch from round 2 in place of v1's.
+Lessons: his first verdict on a variant is not final, keep the rejected sources in git;
+the v1 orb is a reference he wants kept, not replaced; a new composition is shown as one
+mock before it is built (round 3, `design/reference/home/`).
+

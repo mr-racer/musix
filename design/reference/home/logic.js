@@ -5,7 +5,7 @@ const $=(s,r=document)=>r.querySelector(s), $$=(s,r=document)=>[...r.querySelect
 const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
 const SPRING='cubic-bezier(.34,1.56,.64,1)', EASE='cubic-bezier(.22,.9,.3,1)';
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-const page=$('#page'), stage=$('#stage'), viewport=$('#viewport');
+const stage=$('#stage'), viewport=$('#viewport');
 let S=1, playing=false, now=D.recent[0];
 
 /* icons: the app's own set (web/src/ui/icons.tsx), drawn the same way */
@@ -14,6 +14,7 @@ function icon(name,size){const d=IC[name]; if(!d) return '';
 const img=id=>(D.images[id]||{}).uri||'';
 const cv=(id,cls)=>'<span class="cv'+(cls?' '+cls:'')+'" style="background-image:url('+img(id)+')"></span>';
 const plural=(n,a,b,c)=>{const m=n%100, k=n%10; return m>10&&m<20?c:k===1?a:k>=2&&k<=4?b:c;};
+const num=n=>String(n).replace(/\B(?=(\d{3})+(?!\d))/g,' ');
 const dur=ms=>{const m=Math.round(ms/60000); return m<60?m+' мин':Math.floor(m/60)+' ч '+String(m%60).padStart(2,'0')+' м';};
 
 /* the taste's colours: from the anchors' covers (the server palette), a little dusted */
@@ -23,14 +24,14 @@ stage.style.setProperty('--acc',(pal[0]||{}).acc||'#e0703a');
 stage.style.setProperty('--acc2',(pal[2]||{}).vib||'#5664b3');
 $('#bgImg').style.backgroundImage='url('+D.bg+')';
 
-/* ── the pieces both variants share ─────────────────────────────────────────── */
+/* ── the pieces ─────────────────────────────────────────────────────────────── */
 const PH={lib:'Артист, альбом или песня',ai:'Строчка, звучание, плейлист…'};
 const SAYS=['Найди песню, где поют про дождь и пустой город','Что-нибудь похожее по звучанию на Discovery','Собери плейлист на вечер из спокойного'];
 $$('[data-find]').forEach(el=>{el.innerHTML='<div class="find" data-mode="lib"><span class="fmode" role="radiogroup" aria-label="Где искать"><span class="thumb" aria-hidden="true"></span>'
   +'<button type="button" role="radio" data-m="lib" aria-checked="true">'+icon('Search',14)+'Библиотека</button><button type="button" role="radio" data-m="ai" aria-checked="false">'+icon('Sparkles',14)+'ИИ</button></span>'
-  +'<input type="text" autocomplete="off" spellcheck="false" placeholder="'+PH.lib+'" aria-label="Поиск"><kbd>/</kbd></div>';});
-$$('[data-wavebtn]').forEach(el=>{el.innerHTML='<button type="button" class="wave js-play" aria-label="Моя волна"><span class="w-pool"></span><span class="w-body"><span class="w-liquid"><i></i><i></i></span><span class="w-frost"></span><span class="w-vinyl"><span class="w-label"><i></i></span></span><span class="w-sheen"></span><canvas class="w-ripple" aria-hidden="true"></canvas><span class="w-core"></span></span>'
-  +'<span class="w-glyph"><span data-when="idle">'+icon('Play',40)+'</span><span data-when="playing">'+icon('Pause',40)+'</span></span></button>';});
+  +'<input type="text" id="findInput" autocomplete="off" spellcheck="false" placeholder="'+PH.lib+'" aria-label="Поиск"><kbd>/</kbd></div>';});
+$$('[data-wavebtn]').forEach(el=>{el.innerHTML='<button type="button" class="orb js-play" aria-label="Включить поток"><span class="o-ring"></span><span class="o-clip"><span class="o-breathe"><span class="o-liquid"><i class="o-b1"></i><i class="o-b2"></i><i class="o-b3"></i><i class="o-b4"></i></span></span></span><span class="o-cap"></span>'
+  +'<span class="o-glyph"><span data-when="idle">'+icon('Play',24)+'</span><span data-when="playing">'+icon('Pause',24)+'</span></span><span class="o-halo"></span></button>';});
 const FAM=D.presets.filter(p=>p.row==='familiarity'), SND=D.presets.filter(p=>p.row==='sound');
 $$('[data-tuner]').forEach(el=>{el.innerHTML='<div class="tuner" role="group" aria-label="Настрой волны"><div class="tseg" role="radiogroup" aria-label="Что играть"><span class="thumb" aria-hidden="true"></span>'
   +FAM.map(p=>'<button type="button" role="radio" data-fam="'+p.id+'" aria-checked="false">'+esc(p.label)+'</button>').join('')+'</div><div class="tsound">'
@@ -40,22 +41,18 @@ $$('[data-i]').forEach(el=>{const [n,s]=el.dataset.i.split(':'); el.innerHTML=ic
 /* the phrase; the names in it (Latin words in a Russian sentence) lead to their artists */
 const NAME=/([A-Za-z](?:[A-Za-z0-9'’.&-]*[A-Za-z0-9])?(?: [A-Z](?:[A-Za-z0-9'’.&-]*[A-Za-z0-9])?)*)/;
 $$('[data-phrase]').forEach(el=>{el.innerHTML=D.phrase.split(NAME).map((part,i)=>i%2?'<a href="#" class="nm" data-go="'+esc('Артист: '+part)+'">'+esc(part)+'</a>':esc(part)).join('');});
+$$('[data-anchors]').forEach(el=>{el.innerHTML=D.anchors.map(t=>'<a href="#" title="'+esc(t.title+' — '+t.artist)+'" data-go="'+esc('Артист: '+t.artist)+'">'+cv(t.c)+'</a>').join('');});
 $$('[data-vstacks]').forEach(el=>{el.innerHTML=D.vibes.map((v,i)=>{const t=v.tracks, p=[t[2]||t[0],t[1]||t[0],t[0]];
   return '<button type="button" class="vstack js-vibe" data-n="'+i+'"><span class="pile">'+p.map(x=>cv(x.c)).join('')+'</span><span style="min-width:0"><b>'+esc(v.name)+'</b><small>'+t.length+' '+plural(t.length,'трек','трека','треков')+icon('Play',10)+'</small></span></button>';}).join('');});
+$$('[data-fan]').forEach(el=>{el.innerHTML=D.added.slice(0,3).map(t=>cv(t.c)).join('');});
 
 /* albums to put on whole: the sleeve with its record; the label takes the cover's colour */
-$$('[data-albums]').forEach(el=>{el.innerHTML=D.albums.map((a,i)=>'<button type="button" class="alb js-album" data-n="'+i+'" style="--lab:'+((D.images[a.c]||{}).vib||'#b7b0a0')+'"><span class="sleeve"><span class="disc"></span>'+cv(a.c)+'</span><b>'+esc(a.title)+'</b><small>'+esc(a.artist)+'</small><em>'+esc(a.why)+'</em></button>').join('');});
-const albCap=$('#albCap'), ALB_IDLE='что давно не включал и до чего не дошёл';
+$$('[data-albums]').forEach(el=>{el.innerHTML=D.albums.map((a,i)=>'<button type="button" class="alb js-album" data-n="'+i+'" style="--lab:'+((D.images[a.c]||{}).vib||'#b7b0a0')+'"><span class="sleeve"><span class="disc"></span>'+cv(a.c)+'</span><span style="min-width:0"><b>'+esc(a.title)+'</b><small>'+esc(a.artist)+(a.year?' · '+a.year:'')+'</small><em>'+esc(a.why)+'</em></span></button>').join('');});
+const albCap=$('#albCap'), ALB_IDLE='что давно не включал, до чего не дошёл и что любишь';
 function capSay(t){ if(albCap.textContent===t) return; albCap.textContent=t; if(!reduce) albCap.animate([{opacity:0,transform:'translateY(4px)'},{opacity:1,transform:'none'}],{duration:240,easing:EASE}); }
 albCap.textContent=ALB_IDLE;
-$$('.b-albums .rowx').forEach(r=>{ r.addEventListener('pointerover',ev=>{const a=ev.target.closest('.alb'); if(a){const x=D.albums[+a.dataset.n]; capSay(x.title+' · '+x.artist+' · '+x.why);}});
+$$('.a-albums .rowx').forEach(r=>{ r.addEventListener('pointerover',ev=>{const a=ev.target.closest('.alb'); if(a){const x=D.albums[+a.dataset.n]; capSay(x.n+' '+plural(x.n,'трек','трека','треков')+(x.plays?' · слушал '+x.plays+' '+plural(x.plays,'раз','раза','раз'):' · ещё ни разу'));}});
   r.addEventListener('pointerleave',()=>capSay(ALB_IDLE)); });
-
-/* playlists have no pictures of their own: plain names, or a mosaic of their tracks' covers */
-const PLS=[...D.playlists].sort((a,b)=>b.count-a.count);
-$$('[data-plnames]').forEach(el=>{el.innerHTML=PLS.slice(0,4).map(p=>'<button type="button" data-go="'+esc('Плейлист: '+p.name)+'"><span>'+esc(p.name)+'</span><small>'+p.count+'</small></button>').join('');});
-$$('[data-plmos]').forEach(el=>{el.innerHTML=PLS.slice(0,6).map(p=>{const m=p.covers.length>=4?p.covers.slice(0,4):p.covers.slice(0,1);
-  return '<button type="button" class="pl" data-go="'+esc('Плейлист: '+p.name)+'"><span class="mos'+(m.length<4?' one':'')+'">'+m.map(c=>cv(c)).join('')+'</span><span style="min-width:0"><b>'+esc(p.name)+'</b><small>'+p.count+' '+plural(p.count,'трек','трека','треков')+'</small></span></button>';}).join('');});
 
 /* the week: the last seven days, today last. The test database has almost no listening, so
    the numbers here are an example; the app takes them from /home */
@@ -75,6 +72,12 @@ $$('[data-plmos]').forEach(el=>{el.innerHTML=PLS.slice(0,6).map(p=>{const m=p.co
     $('.bars',el).addEventListener('pointerleave',()=>show(dur(total),'музыки')); $('.bars',el).addEventListener('focusout',()=>show(dur(total),'музыки'));
   });})();
 
+/* the counts tick up once, like a counter coming to rest */
+function countUp(){ $$('[data-counts]').forEach(el=>{const a=D.counts.albums, t=D.counts.tracks, t0=performance.now();
+  const txt=k=>num(Math.round(a*k))+' '+plural(a,'альбом','альбома','альбомов')+' · '+num(Math.round(t*k))+' '+plural(t,'трек','трека','треков');
+  if(reduce){el.textContent=txt(1); return;}
+  const step=n=>{const k=Math.min(1,(n-t0)/900), e=1-Math.pow(1-k,4); el.textContent=txt(e); if(k<1) requestAnimationFrame(step);}; requestAnimationFrame(step);});}
+
 /* ── the frame ──────────────────────────────────────────────────────────────── */
 let toastT=0;
 function toast(msg){const el=$('#toast'); el.textContent=msg; el.classList.add('on'); clearTimeout(toastT); toastT=setTimeout(()=>el.classList.remove('on'),2600);}
@@ -92,47 +95,47 @@ function fly(from,t){const to=$('#miniCover'); if(!from||reduce){setNow(t); retu
   g.animate([{transform:'translate('+(a.x-b.x)+'px,'+(a.y-b.y)+'px) scale('+(a.w/b.w)+')'},{transform:'none'}],{duration:560,easing:'cubic-bezier(.2,.8,.2,1)'}).onfinish=()=>{setNow(t); g.remove();
     to.animate([{transform:'scale(1)'},{transform:'scale(1.18)'},{transform:'scale(1)'}],{duration:420,easing:SPRING});};}
 
-/* ── the wave's button ──────────────────────────────────────────────────────── */
-/* The light (frost) turns all the time, and how fast says what is going on: barely at
-   rest, alive under the pointer, quick while the wave plays; the sound setting slows or
-   drives it. The record (vinyl) stands still until the wave plays, and only nudges under
-   the pointer. Rates change through the animations' playback rate, so nothing jumps */
+/* ── the orb of «Поток» ─────────────────────────────────────────────────────── */
+/* The drops drift and the ring turns all the time; how fast says what is going on: slow at
+   rest, quicker under the pointer, quick while the wave plays. The rates change through
+   the animations' playback rate, so nothing ever jumps (v1 switched animation-duration,
+   which made the drops leap) */
 let fam='mix', sound=null, hot=false, burstT=0;
-const liquids=reduce?[]:$$('.w-liquid i').map((el,i)=>el.animate([{transform:'rotate(0deg)'},{transform:'rotate(360deg)'}],{duration:i%2?12000:20000,iterations:Infinity,direction:i%2?'reverse':'normal'}));
-const labels=reduce?[]:$$('.w-label').map(el=>el.animate([{transform:'rotate(0deg)'},{transform:'rotate(360deg)'}],{duration:1800,iterations:Infinity}));
-function flow(k){const rate=(playing?2.3:hot?1:.14)*(sound==='calm'?.55:sound==='energetic'?1.8:1)*(k||1); liquids.forEach(a=>a.updatePlaybackRate(rate));
-  labels.forEach(a=>a.updatePlaybackRate(playing?1:hot?.2:0));}
-function ring(w){ if(reduce) return; if(stage.dataset.wave==='ripple'){emit(2.4); return;} const r=document.createElement('span'); r.className='w-ring'; w.appendChild(r);
-  r.animate([{transform:'scale(1)',opacity:.7},{transform:'scale(1.55)',opacity:0}],{duration:700,easing:'cubic-bezier(.2,.7,.2,1)'}).onfinish=()=>r.remove();}
-function gulp(){ $$('.wave').forEach(w=>{ if(w.offsetWidth) ring(w); }); flow(4.5); clearTimeout(burstT); burstT=setTimeout(()=>flow(),620); }
-$$('.wave').forEach(w=>{ let raf=0, x=50, y=50;
-  w.addEventListener('pointermove',ev=>{const r=w.getBoundingClientRect(); x=(ev.clientX-r.left)/r.width*100; y=(ev.clientY-r.top)/r.height*100;
-    if(!raf) raf=requestAnimationFrame(()=>{raf=0; w.style.setProperty('--lx',x.toFixed(1)+'%'); w.style.setProperty('--ly',y.toFixed(1)+'%'); w.style.setProperty('--sa',(Math.atan2(y-50,x-50)*180/Math.PI+90).toFixed(0)+'deg');});});
-  w.addEventListener('pointerenter',()=>{hot=true; flow();});
-  w.addEventListener('pointerleave',()=>{hot=false; flow(); ['--lx','--ly','--sa'].forEach(k=>w.style.removeProperty(k));});
-  w.addEventListener('click',()=>ring(w)); });
+const DRIFT=[
+  [{transform:'translate(-25%,-15%) scale(1)'},{transform:'translate(35%,20%) scale(1.35)',offset:.33},{transform:'translate(5%,-30%) scale(.85)',offset:.66},{transform:'translate(-25%,-15%) scale(1)'}],
+  [{transform:'translate(30%,25%) scale(1.1)'},{transform:'translate(-20%,-10%) scale(.9)',offset:.33},{transform:'translate(25%,30%) scale(1.3)',offset:.66},{transform:'translate(30%,25%) scale(1.1)'}],
+  [{transform:'translate(10%,30%) scale(.9)'},{transform:'translate(-30%,-20%) scale(1.25)',offset:.5},{transform:'translate(10%,30%) scale(.9)'}],
+  [{transform:'translate(-30%,20%) scale(1.2)'},{transform:'translate(30%,-25%) scale(.95)',offset:.5},{transform:'translate(-30%,20%) scale(1.2)'}]];
+const drops=reduce?[]:$$('.o-clip i').map((el,i)=>el.animate(DRIFT[i%4],{duration:[7000,9000,11000,8000][i%4],iterations:Infinity,easing:'ease-in-out'}));
+const rings=reduce?[]:$$('.o-ring').map(el=>el.animate([{transform:'rotate(0deg)'},{transform:'rotate(360deg)'}],{duration:6000,iterations:Infinity}));
+function flow(k){const r=(playing?2.2:hot?2:1)*(sound==='calm'?.7:sound==='energetic'?1.5:1)*(k||1); drops.forEach(a=>a.updatePlaybackRate(r)); rings.forEach(a=>a.updatePlaybackRate((playing?2.6:hot?2.5:1)*(k||1)));}
+/* the press: the liquid gulps, the halo bursts once, the ring hurries, then everything settles */
+function launch(o){ if(reduce) return; const br=$('.o-liquid',o), halo=$('.o-halo',o);
+  br.animate([{transform:'scale(1)'},{transform:'scale(.78)',offset:.3},{transform:'scale(1.1)',offset:.65},{transform:'scale(1)'}],{duration:720,easing:EASE,composite:'replace'});
+  halo.animate([{transform:'scale(.8)',opacity:.9},{transform:'scale(2.1)',opacity:0}],{duration:820,easing:'cubic-bezier(.2,.7,.2,1)'});
+  flow(3.5); clearTimeout(burstT); burstT=setTimeout(()=>flow(),700); }
+$$('.orb').forEach(o=>{ let raf=0, px=0, py=0;
+  o.addEventListener('pointermove',ev=>{const r=o.getBoundingClientRect(); px=(ev.clientX-r.left)/r.width-.5; py=(ev.clientY-r.top)/r.height-.5;
+    if(!raf) raf=requestAnimationFrame(()=>{raf=0; o.style.setProperty('--px',px.toFixed(3)); o.style.setProperty('--py',py.toFixed(3));});});
+  o.addEventListener('pointerenter',()=>{hot=true; flow();});
+  o.addEventListener('pointerleave',()=>{hot=false; flow(); o.style.setProperty('--px','0'); o.style.setProperty('--py','0');});
+  o.addEventListener('click',()=>launch(o)); });
 
-/* rings on water: a canvas wider than the button, rings run out from its centre and fade.
-   One on every beat while the wave plays, a quiet one now and then at rest */
-const COLS=['#e0703a','#c9c287','#5664b3','#b85a8a'].map((f,i)=>(pal[i]||{}).vib||f);
-const rings=[]; let ripRaf=0, lastEmit=0, nextIdle=0, beatOn=false;
-function emit(w){ rings.push({t0:performance.now(),w:w||1.5,c:COLS[rings.length%4]}); lastEmit=performance.now(); ripKick(); }
-function ripFrame(t){ ripRaf=0; const on=stage.dataset.wave==='ripple'; if(!on){rings.length=0; $$('.w-ripple').forEach(c=>{const x=c.getContext('2d'); x.clearRect(0,0,c.width,c.height);}); return;}
-  if(!playing&&t>nextIdle){ emit(1.2); nextIdle=t+(hot?1100:2600); }
-  const d=Math.min(devicePixelRatio||1,2);
-  for(const c of $$('.w-ripple')){ if(!c.offsetWidth) continue; const r=c.getBoundingClientRect(), w=Math.round(r.width/S*d), h=Math.round(r.height/S*d); if(c.width!==w||c.height!==h){c.width=w; c.height=h;}
-    const x=c.getContext('2d'); x.clearRect(0,0,w,h); const R=w/2, r0=R*.105, r1=R*.98;
-    for(const g of rings){ const k=(t-g.t0)/1700; if(k>=1) continue; const e=1-Math.pow(1-k,2.2); x.beginPath(); x.arc(R,R,r0+(r1-r0)*e,0,Math.PI*2); x.globalAlpha=(1-k)*(1-k)*.9; x.strokeStyle=g.c; x.lineWidth=g.w*d*(1-k*.6); x.stroke(); } x.globalAlpha=1; }
-  for(let i=rings.length-1;i>=0;i--) if(t-rings[i].t0>=1700) rings.splice(i,1);
-  ripRaf=requestAnimationFrame(ripFrame); }
-function ripKick(){ if(!ripRaf&&!reduce) ripRaf=requestAnimationFrame(ripFrame); }
-
-/* the wave's style: one state, shown by every tuner on the page and by the ball itself */
+/* the wave's style: one state; the drops take its colour */
 function thumbs(){ $$('.fmode,.tseg').forEach(g=>{const b=$('[aria-checked="true"]',g), t=$('.thumb',g); if(!b||!b.offsetWidth) return; t.style.setProperty('--x',b.offsetLeft+'px'); t.style.setProperty('--w',b.offsetWidth+'px');}); }
 function tune(){ stage.dataset.fam=fam; $$('.tseg button').forEach(b=>b.setAttribute('aria-checked',b.dataset.fam===fam)); $$('.tchip').forEach(b=>b.setAttribute('aria-pressed',b.dataset.sound===sound)); thumbs(); }
+/* «Настроить волну» opens in place; the rows below slide down with it */
+const tuneBox=$('#tuneBox'), tunePill=$('.js-tune'); let tuneOpen=false, tuneAnim=null;
+function setTune(open){ if(open===tuneOpen) return; tuneOpen=open; tunePill.setAttribute('aria-expanded',String(open)); if(tuneAnim) tuneAnim.cancel();
+  if(open){ tuneBox.hidden=false; thumbs(); const h=tuneBox.scrollHeight; if(reduce) return;
+    tuneAnim=tuneBox.animate([{height:'0px',opacity:0},{height:h+'px',opacity:1}],{duration:420,easing:EASE}); tuneAnim.onfinish=()=>{tuneAnim=null;}; }
+  else{ const h=tuneBox.offsetHeight; if(reduce){tuneBox.hidden=true; return;}
+    tuneAnim=tuneBox.animate([{height:h+'px',opacity:1},{height:'0px',opacity:0}],{duration:320,easing:EASE}); tuneAnim.onfinish=()=>{tuneAnim=null; tuneBox.hidden=true;}; } }
+tunePill.addEventListener('click',()=>setTune(!tuneOpen));
+
 stage.addEventListener('click',ev=>{
-  const f=ev.target.closest('.tseg button'); if(f){ if(f.dataset.fam!==fam){fam=f.dataset.fam; tune(); gulp(); if(playing) toast('Волна перестраивается: «'+f.textContent+'»');} return; }
-  const c=ev.target.closest('.tchip'); if(c){ sound=sound===c.dataset.sound?null:c.dataset.sound; tune(); gulp(); if(playing) toast(sound?'Волна перестраивается: «'+c.textContent+'»':'Волна вернулась к обычному звуку'); return; }
+  const f=ev.target.closest('.tseg button'); if(f){ if(f.dataset.fam!==fam){fam=f.dataset.fam; tune(); flow(3); clearTimeout(burstT); burstT=setTimeout(()=>flow(),600); if(playing) toast('Волна перестраивается: «'+f.textContent+'»');} return; }
+  const c=ev.target.closest('.tchip'); if(c){ sound=sound===c.dataset.sound?null:c.dataset.sound; tune(); flow(); if(playing) toast(sound?'Волна перестраивается: «'+c.textContent+'»':'Волна вернулась к обычному звуку'); return; }
   const p=ev.target.closest('.js-play'); if(p){setPlaying(!playing); pop(p); return;}
   const v=ev.target.closest('.js-vibe'); if(v){const vibe=D.vibes[+v.dataset.n]; fly(v.querySelector('.cv:last-child')||v.querySelector('.cv'),vibe.tracks[0]); setPlaying(true); toast('Играет вайбик «'+vibe.name+'»'); return;}
   const a=ev.target.closest('.js-album'); if(a){const x=D.albums[+a.dataset.n]; toast('В приложении: альбом «'+x.title+'» раскрывается, пластинка выезжает из конверта'); return;}
@@ -184,12 +187,11 @@ $$('.find').forEach(f=>{const input=$('input',f);
 qs.addEventListener('pointerdown',ev=>ev.preventDefault());   // the field keeps the focus
 qs.addEventListener('click',ev=>{const h=ev.target.closest('[data-n]'); if(h){ev.stopPropagation(); choose(+h.dataset.n);}});
 document.addEventListener('pointerdown',ev=>{ if(qsBy&&!ev.target.closest('.find')&&!ev.target.closest('#qs')) closeQs(); });
-document.addEventListener('keydown',ev=>{ if(ev.key==='/'&&!/input|textarea/i.test(document.activeElement.tagName)){ev.preventDefault(); const f=$('.screen.v'+stage.dataset.v+' .find input'); if(f) f.focus();} });
+document.addEventListener('keydown',ev=>{ if(ev.key==='/'&&!/input|textarea/i.test(document.activeElement.tagName)){ev.preventDefault(); const f=$('.find input'); if(f) f.focus();} });
 
 /* the mini player's spectrum: 16 bands, drawn every frame while the music plays. In the
-   app it is fed by the track's real bands; here by a stand-in that moves like music. The
-   same bass moves the wave's ball */
-const spec=$('#spec'), sx=spec.getContext('2d'), level=new Float32Array(16), bodies=$$('.w-body'); let raf=0, last=0;
+   app it is fed by the track's real bands; here by a stand-in that moves like music */
+const spec=$('#spec'), sx=spec.getContext('2d'), level=new Float32Array(16); let raf=0, last=0;
 function draw(){const r=spec.getBoundingClientRect(), d=Math.min(devicePixelRatio||1,2)*Math.max(1,S), w=Math.round(r.width/S*d), h=Math.round(r.height/S*d);
   if(spec.width!==w||spec.height!==h){spec.width=w; spec.height=h;} if(!w||!h) return;
   sx.clearRect(0,0,w,h); if(Math.max.apply(null,level)<.01) return; const acc=getComputedStyle(spec).color, base=h-d, span=h-3*d, x0=w*.04, dx=w*.92/15; let px=0, py=base;
@@ -200,38 +202,25 @@ function draw(){const r=spec.getBoundingClientRect(), d=Math.min(devicePixelRati
 function frame(t){raf=0; const dt=last?Math.min(64,t-last):16; last=t; const up=1-Math.exp(-dt/18), down=1-Math.exp(-dt/150); let top=0;
   for(let b=0;b<16;b++){let v=0; if(playing){const beat=Math.pow(Math.max(0,Math.sin(t/1000*Math.PI*2.05-b*.12)),6-b*.2); v=Math.min(1,.16+.5*beat*(1-b/26)+.3*Math.abs(Math.sin(t/470+b*1.7)*Math.sin(t/1310+b*.6)));}
     level[b]+=(v-level[b])*(v>level[b]?up:down); top=Math.max(top,level[b]);}
-  const bassN=Math.max(0,(level[0]+level[1]+level[2])/3-.16), bass=bassN.toFixed(3); bodies.forEach(el=>el.style.setProperty('--beat',bass));
-  if(playing&&stage.dataset.wave==='ripple'){ if(bassN>.3&&!beatOn&&t-lastEmit>300){beatOn=true; emit(1.6);} else if(bassN<.16) beatOn=false; }
-  draw(); if(!playing&&top<.01){last=0; bodies.forEach(el=>el.style.removeProperty('--beat')); return;} raf=requestAnimationFrame(frame);}
+  draw(); if(!playing&&top<.01){last=0; return;} raf=requestAnimationFrame(frame);}
 function kick(){ if(!raf&&!reduce) raf=requestAnimationFrame(frame); }
 spec.style.color='var(--acc)';
 
-/* ── fitting: the headline takes the largest size at which it stands in four lines; a row
-   of albums or playlists shows exactly as many as fit whole, never a cut one ─────────── */
-function fitPhrase(){const el=$('.b-phrase'); if(!el||!el.offsetWidth) return; el.style.fontSize='';
-  let size=parseFloat(getComputedStyle(el).fontSize); const room=()=>size*4.12;
-  while(size>30&&el.scrollHeight>room()){size-=2; el.style.fontSize=size+'px';}}
+/* ── fitting: a row of albums shows exactly as many as fit whole, never a cut one ──── */
 function trimRows(){ $$('[data-trim]').forEach(r=>{ if(!r.offsetWidth) return; const kids=[...r.children]; kids.forEach(k=>{k.style.display='';});
   const cols=getComputedStyle(r).gridTemplateColumns.split(' ').filter(Boolean).length; kids.forEach((k,i)=>{ if(i>=cols) k.style.display='none'; }); }); }
-function settle(){ thumbs(); trimRows(); fitPhrase(); }
+function settle(){ thumbs(); trimRows(); }
 
-/* ── the page's own switches: the variant and the size of the screen ─────────── */
+/* ── the page's own switch: the size of the screen ──────────────────────────── */
 let size={w:1728,h:1117,name:'16″'};
 function fit(){const vw=viewport.clientWidth; let w=size.w, h=size.h;
   if(!w){w=Math.max(960,vw); h=Math.max(620,Math.min(window.innerHeight-40,Math.round(w*.62)));}
   S=Math.min(1,vw/w); stage.style.width=w+'px'; stage.style.height=h+'px'; stage.style.transform=S<1?'scale('+S+')':'none'; viewport.style.height=Math.round(h*S)+'px';
   $('#sizeTag').textContent=w+' × '+h+(size.w?' · '+size.name:'')+(S<1?' · показано в '+Math.round(S*100)+' %':'');
   closeQs(); settle(); draw();}
-function setVariant(v){page.dataset.v=stage.dataset.v=v; $$('#variants button').forEach(x=>x.setAttribute('aria-pressed',x.dataset.v===v)); closeQs(); settle();}
 $('#sizes').addEventListener('click',ev=>{const b=ev.target.closest('button'); if(!b) return; $$('#sizes button').forEach(x=>x.setAttribute('aria-pressed',x===b)); size={w:+b.dataset.w,h:+b.dataset.h,name:b.textContent}; fit();});
-function setWave(m){stage.dataset.wave=m; $$('#waves button').forEach(x=>x.setAttribute('aria-pressed',x.dataset.wave===m)); nextIdle=0; ripKick();}
-$('#waves').addEventListener('click',ev=>{const b=ev.target.closest('button'); if(!b) return; setWave(b.dataset.wave); try{localStorage.setItem('home-mock-wave',b.dataset.wave);}catch(e){}});
-try{const m=localStorage.getItem('home-mock-wave'); if(m&&['frost','vinyl','ripple'].includes(m)) setWave(m);}catch(e){}
-$('#variants').addEventListener('click',ev=>{const b=ev.target.closest('button'); if(!b) return; setVariant(b.dataset.v); try{localStorage.setItem('home-mock-v2',b.dataset.v);}catch(e){}});
 window.addEventListener('resize',fit);
-try{const v=localStorage.getItem('home-mock-v2'); if(v&&'bc'.includes(v)) setVariant(v);}catch(e){}
-if(/^#[bc]$/.test(location.hash)) setVariant(location.hash.slice(1));
 
-setNow(now); tune(); flow(); fit(); ripKick();
+setNow(now); tune(); flow(); countUp(); fit();
 if(document.fonts&&document.fonts.ready) document.fonts.ready.then(settle);
 })();

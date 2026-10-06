@@ -1,4 +1,4 @@
-/* The home, three variants in one stage, with the frame every screen stands in.
+/* The home, one screen in one stage, with the frame every screen stands in.
    Layout: a quiet page chrome (switches, notes) around one stage that has the size of a real
    screen and is scaled to fit. Dark only: the owner chose dark first (roadmap.md).
    The stage follows design/code: open space, cover-lit colour, the player's type scale,
@@ -42,8 +42,6 @@ button{border:0;background:none;padding:0;cursor:pointer}
 .notes{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:var(--s5) var(--s6)}
 .notes h2{margin:0 0 var(--s2);font:600 var(--t-body)/1.3 var(--f-sans)}
 .notes ul{margin:0;padding-left:18px;display:grid;gap:6px;color:var(--muted);font-size:14px;max-width:64ch}
-.notes [data-for]{display:none}
-.page[data-v="b"] .notes [data-for~="b"],.page[data-v="c"] .notes [data-for~="c"]{display:block}
 
 /* the stage: a real screen's size, scaled to the page */
 .viewport{position:relative;width:100%;overflow:hidden;border-radius:14px;border:1px solid var(--line);background:#000}
@@ -150,8 +148,7 @@ button{border:0;background:none;padding:0;cursor:pointer}
 .toast.on{opacity:1;transform:translate(-50%,0)}
 
 /* shared pieces of the screens */
-.screen{position:absolute;z-index:2;inset:0 var(--inset-r) var(--mini) var(--inset-l);display:none}
-.stage[data-v="b"] .vb,.stage[data-v="c"] .vc{display:grid}
+.screen{position:absolute;z-index:2;inset:0 var(--inset-r) var(--mini) var(--inset-l);display:grid}
 .screen>*{animation:rise .5s var(--ease) backwards}
 .screen>*:nth-child(2){animation-delay:.06s}
 .screen>*:nth-child(3){animation-delay:.12s}

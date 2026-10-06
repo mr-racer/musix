@@ -1,46 +1,33 @@
 # The home — the mock
 
-Stage 1 of the web redesign (`design/code/roadmap.md`). **Not approved yet.**
+Stage 1 of the web redesign (`design/code/roadmap.md`). **Round 3 (2026-10-06), one
+composition, awaiting the owner's go-ahead to build.**
 
 Live: https://claude.ai/artifact/JuAU1yCKktTQ77Sa65kxPQ (private)
 
-**Round 2 (2026-10-06)**, after the owner's reaction to the first three variants
-(`design/code/preferences.md`, the block of that date). «А · Как в v1» is dropped. Two
-variants remain, built from the same pieces:
+The owner chose v1's composition after two rounds of variants (`design/code/preferences.md`,
+2026-10-06). This mock is that: round 1's «Как в v1», refined, with the pieces he picked.
 
-| Variant | The idea |
-|---|---|
-| Афиша | a poster, no longer the player repeated: the vibe phrase as the headline, one object (the wave's glass ball), and the small print at the bottom (the week, albums as sleeves, playlists as plain names) |
-| Полки | a launch pad in four rows of an even rhythm: who you are and search, start (the wave, its style, вайбики), one shelf of albums, your own (playlists, the week) |
-
-The pieces:
-
-- **The wave's button**, three materials on a switch (`data-wave`), after the owner found
-  the glossy glass ball artificial: *frost*, the taste's colours as light behind frosted
-  glass, the light leaning to the hand and the lamp breathing with the bass; *vinyl*, a
-  record that turns while the wave plays, its sheen swinging with the hand; *ripple*, no
-  object at all, rings running out from the glyph on every beat. In all three the button
-  lifts under the pointer, gives under a press, and the tuner recolours it.
-- **The tuner**, on the screen instead of a menu: «что играть» one of four on a track with
-  a springing thumb, the sound as two switches. The presets are the server's own.
-- **Search with a switch**, «Библиотека / ИИ»: the library at once by default; the other
-  mode hands the words to the assistant.
-- **«Альбом целиком»**: a sleeve with its record, which slides out under the pointer; three
-  reasons to offer an album (not played for long, not heard yet, a favourite).
-- **Playlists without pictures of their own**: plain names (Афиша) or a mosaic of their
-  tracks' covers (Полки).
-- **The week**: the last seven days, a bar says its own day under the pointer, and a line of
-  small readings with a new one, days in a row.
-
-Gone from the home: «Продолжить», «Недавно добавлено», the discoveries.
+- **v1's composition**: left the vibe phrase, the orb of «Поток» with its caption, the taste
+  anchors, the вайбики; right the two paths, search and the library; the bottom line.
+- **The orb as v1 had it**: four drops of the taste's colours drift under a glass cap, a
+  blurred ring turns around it, a halo leaves it under the pointer, the drops lean to the
+  pointer. New: the press. The orb gives and springs back, the liquid gulps, the halo bursts
+  once, the ring hurries for a moment, the glyph pops. The drift and the ring run on WAAPI
+  with playback rates, so changes of speed never jump (v1 switched animation-duration).
+- **«Настроить волну»** opens in place under the caption (height animated), with round 2's
+  tuner inside; the choice recolours the drops.
+- **Вайбики** as piles, **the week** at the bottom right, **search** with the
+  «Библиотека / ИИ» switch, **the mini player**: all from round 2.
+- **«Поставить альбом»**: a plate at the bottom with sleeves, titles and the reason for each
+  album; the record rises out of the sleeve under the pointer; as many as fit whole.
 
 In the mock the week's numbers are an example (the test database has almost no listening).
 The server does not yet pick albums by the three reasons or count days in a row.
 
 Build it: `python bake.py HOME.json DISCOVERIES.json COVERS_DIR data.json ALBUMS.tsv
 PLAYLIST_COVERS.tsv PRESETS.json`, then `python build.py data.json out.html`. The data
-(album art, listening) is not committed. The page has switches for the variant and for the
-screen size (14″, 16″, 32″, the window); the headline is fitted to four lines, and a row of
-albums or playlists shows exactly as many as fit whole.
+(album art, listening) is not committed. The page has a switch for the screen size.
 
-Round 1 (2026-10-05), three variants: commit 71d2284e.
+Earlier rounds: round 1 (three variants) at 71d2284e; round 2 («Афиша», «Полки», three
+materials for the wave's button) at 145570ec.
