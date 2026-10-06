@@ -133,41 +133,50 @@ function auFrame(t){auRaf=0; const dt=auLast?Math.min(50,t-auLast):16; auLast=t;
 
 /* Rain and snow, in front of the screen, at the stage's own resolution. Both know the
    edges of what stands on the screen: the headline's lines, the search field, the albums'
-   plate. A drop that reaches one breaks into a few droplets that fly up and fall back; a
-   flake that reaches the field or the plate stays, and the snow on them grows, then melts
-   when the snow stops */
-const wc=$('#weather'), wcx=wc.getContext('2d'); let falls=[], splash=[], edges=[], caps=[], edgeAt=0;
+   plate, the island on the left. A drop that reaches one breaks into a few droplets that
+   fly up and fall back; a flake that reaches the field, the plate or the island stays
+   where it fell, and the snow there grows as a height field (a little spills onto the
+   neighbouring cells, so a pile forms), then melts when the snow stops */
+const wc=$('#weather'), wcx=wc.getContext('2d'), CW=5; let falls=[], splash=[], edges=[], caps={}, edgeAt=0;
+const LANDS={find:{rad:24,max:7},plate:{rad:20,max:11},island:{rad:16,max:9}};
 function findEdges(){const list=[]; const ph=$('.a-phrase'); if(ph&&ph.offsetWidth){const rg=document.createRange(); rg.selectNodeContents(ph); for(const r of rg.getClientRects()){ if(r.width>20) list.push(rect(r,'text')); }}
-  for(const [sel,kind] of [['.find','find'],['.a-albums','plate']]){const e=$(sel); if(e&&e.offsetWidth) list.push(rect(e.getBoundingClientRect(),kind));}
-  edges=list; for(const e of edges){ if(e.kind!=='text'&&!caps.find(c=>c.kind===e.kind)) caps.push({kind:e.kind,h:0,seed:Math.random()*9}); }}
+  for(const [sel,kind] of [['.find','find'],['.a-albums','plate'],['#island','island']]){const e=$(sel); if(e&&e.offsetWidth) list.push(rect(e.getBoundingClientRect(),kind));}
+  edges=list;
+  for(const e of edges){ if(e.kind==='text') continue; const L=LANDS[e.kind], x0=e.l+L.rad, n=Math.max(1,Math.floor((e.w-2*L.rad)/CW)); const c=caps[e.kind];
+    if(!c||c.n!==n||Math.abs(c.x0-x0)>1){ caps[e.kind]={kind:e.kind,x0,n,cells:new Float32Array(n),max:L.max}; } }}
 function rect(r,kind){const s=stage.getBoundingClientRect(); return {kind,l:(r.left-s.left)/S,t:(r.top-s.top)/S,r:(r.right-s.left)/S,w:r.width/S};}
+const snowAt=(e,x)=>{const c=caps[e.kind]; if(!c) return 0; const i=Math.floor((x-c.x0)/CW); return i>=0&&i<c.n?c.cells[i]:0;};
 function weatherFrame(dt,t){const W=stage.clientWidth, H=stage.clientHeight, snowing=wx==='snow', raining=wx==='rain';
-  const alive=snowing||raining||falls.length||splash.length||caps.some(c=>c.h>.05);
+  const lying=Object.values(caps).some(c=>{for(let i=0;i<c.n;i++) if(c.cells[i]>.05) return true; return false;});
+  const alive=snowing||raining||falls.length||splash.length||lying;
   if(!alive){ if(wc.width){wc.width=0;} return; }
   if(wc.width!==W||wc.height!==H){wc.width=W; wc.height=H;}
   if(t-edgeAt>400){edgeAt=t; findEdges();}
   wcx.clearRect(0,0,W,H);
   const n=raining?110:snowing?80:0; while(falls.length<n) falls.push({x:Math.random()*W,y:-Math.random()*H,v:.5+Math.random(),s:Math.random()});
   if(!raining&&!snowing) falls.length=0;
-  const hit=(d,ny)=>{for(const e of edges){ if(d.x>=e.l&&d.x<=e.r&&d.y<e.t&&ny>=e.t) return e;} return null;};
+  const hit=(d,ny)=>{for(const e of edges){ if(d.x<e.l||d.x>e.r) continue; const top=e.t-(e.kind==='text'?0:snowAt(e,d.x)); if(d.y<top&&ny>=top) return {e,top};} return null;};
   if(raining){wcx.strokeStyle='rgba(205,220,245,.55)'; wcx.lineWidth=1; wcx.beginPath();
-    for(const d of falls){const l=9+d.v*13, ny=d.y+dt*(.5+d.v*.55); const e=hit(d,ny);
-      if(e){ for(let k=0;k<4;k++) splash.push({x:d.x,y:e.t-1,vx:(Math.random()-.5)*.6,vy:-(.3+Math.random()*.5),life:0}); d.y=-20-Math.random()*60; d.x=Math.random()*W; continue; }
+    for(const d of falls){const l=9+d.v*13, ny=d.y+dt*(.5+d.v*.55); const h=hit(d,ny);
+      if(h){ for(let k=0;k<4;k++) splash.push({x:d.x,y:h.top-1,vx:(Math.random()-.5)*.6,vy:-(.3+Math.random()*.5),life:0}); d.y=-20-Math.random()*60; d.x=Math.random()*W; continue; }
       wcx.moveTo(d.x,d.y); wcx.lineTo(d.x-l*.16,d.y+l); d.y=ny; d.x-=dt*.05; if(d.y>H){d.y=-20; d.x=Math.random()*W;}}
     wcx.stroke();}
   else if(snowing){wcx.fillStyle='rgba(255,255,255,.85)';
-    for(const d of falls){const r=1+d.s*1.7, ny=d.y+dt*(.028+d.v*.035); const e=hit(d,ny);
-      if(e&&e.kind!=='text'){const c=caps.find(c=>c.kind===e.kind); if(c) c.h=Math.min(e.kind==='plate'?10:7,c.h+.7); d.y=-10-Math.random()*40; d.x=Math.random()*W; continue;}
+    for(const d of falls){const r=1+d.s*1.7, ny=d.y+dt*(.028+d.v*.035); const h=hit(d,ny);
+      if(h&&h.e.kind!=='text'){const c=caps[h.e.kind]; if(c){const i=Math.floor((d.x-c.x0)/CW); const add=(j,v)=>{ if(j>=0&&j<c.n) c.cells[j]=Math.min(c.max,c.cells[j]+v); }; add(i,1.1); add(i-1,.5); add(i+1,.5); add(i-2,.18); add(i+2,.18);} d.y=-10-Math.random()*40; d.x=Math.random()*W; continue;}
       wcx.globalAlpha=.35+d.s*.5; wcx.beginPath(); wcx.arc(d.x,d.y,r,0,Math.PI*2); wcx.fill(); d.y=ny; d.x+=Math.sin((d.y+d.s*300)/60)*.35; if(d.y>H){d.y=-6; d.x=Math.random()*W;}}
     wcx.globalAlpha=1;}
   /* droplets of the splashes */
   if(splash.length){wcx.fillStyle='rgba(215,228,250,.8)'; for(const q of splash){q.life+=dt; q.vy+=dt*.0025; q.x+=q.vx*dt; q.y+=q.vy*dt; wcx.globalAlpha=Math.max(0,1-q.life/520); wcx.beginPath(); wcx.arc(q.x,q.y,1.5,0,Math.PI*2); wcx.fill();} wcx.globalAlpha=1; splash=splash.filter(q=>q.life<520);}
-  /* the snow lying on the field and the plate: a soft white band with bumps along the top edge */
-  for(const c of caps){ if(!snowing) c.h=Math.max(0,c.h-dt*.0012); if(c.h<.05) continue; const e=edges.find(e=>e.kind===c.kind); if(!e) continue;
-    const rad=c.kind==='plate'?20:24; wcx.beginPath(); wcx.moveTo(e.l+rad,e.t+2);
-    for(let x=e.l+rad;x<=e.r-rad;x+=6){const b=c.h*(.7+.3*Math.sin(x/13+c.seed)+.15*Math.sin(x/5.1+c.seed*2)); wcx.lineTo(x,e.t-b);}
-    wcx.lineTo(e.r-rad,e.t+3); wcx.closePath(); wcx.fillStyle='rgba(248,250,255,.94)'; wcx.fill();
-    wcx.strokeStyle='rgba(150,175,220,.35)'; wcx.lineWidth=1; wcx.beginPath(); wcx.moveTo(e.l+rad,e.t+2.5); wcx.lineTo(e.r-rad,e.t+2.5); wcx.stroke(); }}
+  /* the snow lying where it fell: the height field, smoothed a little, as a white band */
+  for(const c of Object.values(caps)){ const e=edges.find(e=>e.kind===c.kind); if(!e) continue; let any=false;
+    if(!snowing) for(let i=0;i<c.n;i++) c.cells[i]=Math.max(0,c.cells[i]-dt*.0012);
+    for(let i=0;i<c.n;i++) if(c.cells[i]>.05){any=true; break;} if(!any) continue;
+    const hAt=i=>{const a=c.cells[Math.max(0,i-1)], b=c.cells[i], d=c.cells[Math.min(c.n-1,i+1)]; return (a+2*b+d)/4;};
+    wcx.beginPath(); wcx.moveTo(c.x0,e.t+3); wcx.lineTo(c.x0,e.t-hAt(0));
+    for(let i=0;i<c.n;i++){const x=c.x0+i*CW+CW/2, y=e.t-hAt(i); if(i===0) wcx.lineTo(x,y); else wcx.quadraticCurveTo(c.x0+i*CW,e.t-(hAt(i-1)+hAt(i))/2,x,y);}
+    wcx.lineTo(c.x0+c.n*CW,e.t-hAt(c.n-1)); wcx.lineTo(c.x0+c.n*CW,e.t+3); wcx.closePath(); wcx.fillStyle='rgba(248,250,255,.94)'; wcx.fill();
+    wcx.strokeStyle='rgba(150,175,220,.35)'; wcx.lineWidth=1; wcx.beginPath(); wcx.moveTo(c.x0,e.t+2.5); wcx.lineTo(c.x0+c.n*CW,e.t+2.5); wcx.stroke(); }}
 function auKick(){ if(!auRaf&&!reduce) auRaf=requestAnimationFrame(auFrame); }
 $('#tods').addEventListener('click',ev=>{const b=ev.target.closest('button'); if(!b) return; todPick=b.dataset.tod; $$('#tods button').forEach(x=>x.setAttribute('aria-pressed',x===b));});
 $('#weathers').addEventListener('click',ev=>{const b=ev.target.closest('button'); if(!b) return; wx=b.dataset.weather; falls.length=0; $$('#weathers button').forEach(x=>x.setAttribute('aria-pressed',x===b));});

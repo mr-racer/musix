@@ -30,9 +30,10 @@ The owner chose v1's composition after two rounds of variants (`design/code/pref
   evening a sunset, the night deep blue with a small moon), the sun or the moon, and two
   quieter spots in the taste's colours (muted at night), which take the playing cover's
   colours while the wave plays. Rain and snow are drawn in front of the screen and know
-  its edges: snow lies on the albums' plate and the search field and melts when it stops,
-  rain breaks into droplets on the headline's lines, the field and the plate. The page has
-  switches for the hour and the weather.
+  its edges: snow lies on the albums' plate, the search field and the island where each flake
+  fell (a height field in 5-px cells, a little spilling onto the neighbours, so piles form)
+  and melts when it stops; rain breaks into droplets on the headline's lines, the field, the
+  plate and the island. The page has switches for the hour and the weather.
 - The screen ends 44 px above the mini player (`--spec-room`), so the spectrum never runs
   over the plates. Settings is a quiet glyph at the foot of the island's column, no plate.
   The taste anchors are gone from the home (their stack lives on in components.md).
