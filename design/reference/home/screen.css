@@ -139,7 +139,7 @@
 .alb:active .cv{transform:translate(5%,4%) rotate(-2deg) scale(.97)}
 .alb b{display:block;font:500 var(--t-body)/1.2 var(--f-sans);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .alb small{display:block;margin-top:2px;font:400 var(--t-sm)/1.2 var(--f-sans);color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.alb em{display:block;margin-top:5px;font:normal 500 var(--t-cap)/1.2 var(--f-sans);letter-spacing:.1em;text-transform:uppercase;color:color-mix(in srgb,var(--acc) 62%,var(--text))}
+.alb em{display:block;margin-top:4px;font:normal 500 12px/1.2 var(--f-sans);color:color-mix(in srgb,var(--acc) 62%,var(--text));white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
 /* The week: one number, seven bars that grow in, and a line of small readings. A bar under
    the pointer says its own day in place of the total */

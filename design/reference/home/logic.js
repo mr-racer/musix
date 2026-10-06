@@ -46,11 +46,17 @@ $$('[data-vstacks]').forEach(el=>{el.innerHTML=D.vibes.map((v,i)=>{const t=v.tra
 $$('[data-fan]').forEach(el=>{el.innerHTML=D.added.slice(0,3).map(t=>cv(t.c)).join('');});
 
 /* albums to put on whole: the sleeve with its record; the label takes the cover's colour */
-$$('[data-albums]').forEach(el=>{el.innerHTML=D.albums.map((a,i)=>'<button type="button" class="alb js-album" data-n="'+i+'" style="--lab:'+((D.images[a.c]||{}).vib||'#b7b0a0')+'"><span class="sleeve"><span class="disc"></span>'+cv(a.c)+'</span><span style="min-width:0"><b>'+esc(a.title)+'</b><small>'+esc(a.artist)+(a.year?' · '+a.year:'')+'</small><em>'+esc(a.why)+'</em></span></button>').join('');});
-const albCap=$('#albCap'), ALB_IDLE='что давно не включал, до чего не дошёл и что любишь';
+/* v1's picks (recommend/vibes/album-suggestions): for every current вайбик, the album whose
+   mean CLAP is closest to the vibe's centre but which is not inside the vibe, two per vibe
+   at most, round-robin (every vibe places its first before any places its second). The
+   reason is the vibe itself. The mock has no CLAP, so the albums here are stand-ins laid
+   out in that order; the app gets the real ones from the ported endpoint */
+const PICKS=D.albums.slice(0,6).map((a,i)=>({...a,why:'≈ '+D.vibes[i%D.vibes.length].name}));
+$$('[data-albums]').forEach(el=>{el.innerHTML=PICKS.map((a,i)=>'<button type="button" class="alb js-album" data-n="'+i+'" style="--lab:'+((D.images[a.c]||{}).vib||'#b7b0a0')+'"><span class="sleeve"><span class="disc"></span>'+cv(a.c)+'</span><span style="min-width:0"><b>'+esc(a.title)+'</b><small>'+esc(a.artist)+(a.year?' · '+a.year:'')+'</small><em>'+esc(a.why)+'</em></span></button>').join('');});
+const albCap=$('#albCap'), ALB_IDLE='звучат как твои вайбики, но не из них';
 function capSay(t){ if(albCap.textContent===t) return; albCap.textContent=t; if(!reduce) albCap.animate([{opacity:0,transform:'translateY(4px)'},{opacity:1,transform:'none'}],{duration:240,easing:EASE}); }
 albCap.textContent=ALB_IDLE;
-$$('.a-albums .rowx').forEach(r=>{ r.addEventListener('pointerover',ev=>{const a=ev.target.closest('.alb'); if(a){const x=D.albums[+a.dataset.n]; capSay(x.n+' '+plural(x.n,'трек','трека','треков')+(x.plays?' · слушал '+x.plays+' '+plural(x.plays,'раз','раза','раз'):' · ещё ни разу'));}});
+$$('.a-albums .rowx').forEach(r=>{ r.addEventListener('pointerover',ev=>{const a=ev.target.closest('.alb'); if(a){const x=PICKS[+a.dataset.n]; capSay(x.n+' '+plural(x.n,'трек','трека','треков')+(x.plays?' · слушал '+x.plays+' '+plural(x.plays,'раз','раза','раз'):' · ещё ни разу'));}});
   r.addEventListener('pointerleave',()=>capSay(ALB_IDLE)); });
 
 /* the week: the last seven days, today last. The test database has almost no listening, so
@@ -168,15 +174,18 @@ function weatherFrame(dt,t){const W=stage.clientWidth, H=stage.clientHeight, sno
     wcx.globalAlpha=1;}
   /* droplets of the splashes */
   if(splash.length){wcx.fillStyle='rgba(215,228,250,.8)'; for(const q of splash){q.life+=dt; q.vy+=dt*.0025; q.x+=q.vx*dt; q.y+=q.vy*dt; wcx.globalAlpha=Math.max(0,1-q.life/520); wcx.beginPath(); wcx.arc(q.x,q.y,1.5,0,Math.PI*2); wcx.fill();} wcx.globalAlpha=1; splash=splash.filter(q=>q.life<520);}
-  /* the snow lying where it fell: the height field, smoothed a little, as a white band */
+  /* the snow lying where it fell: the height field, smoothed, thinning out towards the ends
+     of the surface, drawn twice: a soft wider underlay, then the body, so no edge is hard */
   for(const c of Object.values(caps)){ const e=edges.find(e=>e.kind===c.kind); if(!e) continue; let any=false;
     if(!snowing) for(let i=0;i<c.n;i++) c.cells[i]=Math.max(0,c.cells[i]-dt*.0012);
     for(let i=0;i<c.n;i++) if(c.cells[i]>.05){any=true; break;} if(!any) continue;
-    const hAt=i=>{const a=c.cells[Math.max(0,i-1)], b=c.cells[i], d=c.cells[Math.min(c.n-1,i+1)]; return (a+2*b+d)/4;};
-    wcx.beginPath(); wcx.moveTo(c.x0,e.t+3); wcx.lineTo(c.x0,e.t-hAt(0));
-    for(let i=0;i<c.n;i++){const x=c.x0+i*CW+CW/2, y=e.t-hAt(i); if(i===0) wcx.lineTo(x,y); else wcx.quadraticCurveTo(c.x0+i*CW,e.t-(hAt(i-1)+hAt(i))/2,x,y);}
-    wcx.lineTo(c.x0+c.n*CW,e.t-hAt(c.n-1)); wcx.lineTo(c.x0+c.n*CW,e.t+3); wcx.closePath(); wcx.fillStyle='rgba(248,250,255,.94)'; wcx.fill();
-    wcx.strokeStyle='rgba(150,175,220,.35)'; wcx.lineWidth=1; wcx.beginPath(); wcx.moveTo(c.x0,e.t+2.5); wcx.lineTo(c.x0+c.n*CW,e.t+2.5); wcx.stroke(); }}
+    const taper=i=>{const k=Math.min(i+.5,c.n-.5-i)/5; return k>=1?1:k<=0?0:k*k*(3-2*k);};
+    const hAt=i=>{const a=c.cells[Math.max(0,i-1)], b=c.cells[i], d=c.cells[Math.min(c.n-1,i+1)]; return (a+2*b+d)/4*taper(i);};
+    const band=(grow,alpha)=>{wcx.beginPath(); wcx.moveTo(c.x0,e.t+3);
+      for(let i=0;i<c.n;i++){const x=c.x0+i*CW+CW/2, h=hAt(i), y=e.t-h-grow*Math.min(1,h);
+        if(i===0) wcx.lineTo(x,y); else {const hm=(hAt(i-1)+h)/2; wcx.quadraticCurveTo(c.x0+i*CW,e.t-hm-grow*Math.min(1,hm),x,y);}}
+      wcx.lineTo(c.x0+c.n*CW,e.t+3); wcx.closePath(); wcx.fillStyle='rgba(248,250,255,'+alpha+')'; wcx.fill();};
+    band(1.6,.28); band(.6,.4); band(0,.86); }}
 function auKick(){ if(!auRaf&&!reduce) auRaf=requestAnimationFrame(auFrame); }
 $('#tods').addEventListener('click',ev=>{const b=ev.target.closest('button'); if(!b) return; todPick=b.dataset.tod; $$('#tods button').forEach(x=>x.setAttribute('aria-pressed',x===b));});
 $('#weathers').addEventListener('click',ev=>{const b=ev.target.closest('button'); if(!b) return; wx=b.dataset.weather; falls.length=0; $$('#weathers button').forEach(x=>x.setAttribute('aria-pressed',x===b));});
@@ -241,7 +250,7 @@ stage.addEventListener('click',ev=>{
   const c=ev.target.closest('.tchip'); if(c){ sound=sound===c.dataset.sound?null:c.dataset.sound; tune(); flow(); if(playing) toast(sound?'Волна перестраивается: «'+c.textContent+'»':'Волна вернулась к обычному звуку'); return; }
   const p=ev.target.closest('.js-play'); if(p){setPlaying(!playing); pop(p); return;}
   const v=ev.target.closest('.js-vibe'); if(v){const vibe=D.vibes[+v.dataset.n]; fly(v.querySelector('.cv:last-child')||v.querySelector('.cv'),vibe.tracks[0]); setPlaying(true); toast('Играет вайбик «'+vibe.name+'»'); return;}
-  const a=ev.target.closest('.js-album'); if(a){const x=D.albums[+a.dataset.n]; toast('В приложении: альбом «'+x.title+'» раскрывается, пластинка выезжает из конверта'); return;}
+  const a=ev.target.closest('.js-album'); if(a){const x=PICKS[+a.dataset.n]; toast('В приложении: альбом «'+x.title+'» раскрывается, пластинка выезжает из конверта'); return;}
   const g=ev.target.closest('[data-go]'); if(g){ev.preventDefault(); toast('В приложении: '+g.dataset.go);}
 });
 $$('#island button').forEach((b,i)=>b.addEventListener('click',()=>{ if(i===0) return; $('#island').style.setProperty('--i',i);

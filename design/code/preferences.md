@@ -161,4 +161,8 @@ right corner.
 Then: the island on the left is a surface too, and snow must grow where it falls («как
 только 1 снежинка падает на поверхность, вся поверхность сразу в слое снега —
 нереалистично»): physics on the screen is taken literally, a surface accumulates locally.
+Then: the snow's edges were too hard («снег резко обрывается»). On the server: «найди уже
+существующую логику рекомендации альбомов в библиотеке (была в v1 точно, не выдумывай
+её)» and the days-in-a-row count, also v1's. Rule: when v1 had a feature, port its logic;
+do not design a replacement.
 
