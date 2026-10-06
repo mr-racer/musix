@@ -23,12 +23,16 @@ The owner chose v1's composition after two rounds of variants (`design/code/pref
   album; the record comes out from behind the sleeve, up and to the left into the plate's own
   padding (checked against the header, the titles and the neighbours at three sizes); as
   many as fit whole.
-- **The aurora** (after his note that v1's top half «мягко амбиент делала»): a canvas a tenth
-  of the stage's size, stretched, so the light is soft and costs nothing. Five spots drift on
-  sums of sines: four in the taste's colours, one warm lamp. The hour sets the light
-  (morning, day, evening, night), the weather dims or cools it (cloudy, rain with drops,
-  snow with flakes), and while the wave plays the spots take the playing cover's colours.
-  The page has switches for the hour and the weather to show every state.
+- **The sky** (after his notes that v1's top half «мягко амбиент делала» and that the hours
+  and the weather must differ for real): a canvas a tenth of the stage's size, stretched, so
+  the light is soft and costs nothing. Three spots of sky in real colours for the hour and
+  the weather (a clear morning bright and gold, the day blue or grey by the weather, the
+  evening a sunset, the night deep blue with a small moon), the sun or the moon, and two
+  quieter spots in the taste's colours (muted at night), which take the playing cover's
+  colours while the wave plays. Rain and snow are drawn in front of the screen and know
+  its edges: snow lies on the albums' plate and the search field and melts when it stops,
+  rain breaks into droplets on the headline's lines, the field and the plate. The page has
+  switches for the hour and the weather.
 - The screen ends 44 px above the mini player (`--spec-room`), so the spectrum never runs
   over the plates. Settings is a quiet glyph at the foot of the island's column, no plate.
   The taste anchors are gone from the home (their stack lives on in components.md).

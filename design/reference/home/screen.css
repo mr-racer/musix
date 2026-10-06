@@ -12,7 +12,7 @@
 .eyebrow{display:flex;align-items:center;gap:8px;font:600 var(--t-cap)/1.2 var(--f-sans);letter-spacing:.2em;text-transform:uppercase;color:color-mix(in srgb,var(--acc) 60%,var(--text))}
 .eyebrow.dot{color:var(--subtle)}
 .eyebrow.dot::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--acc);box-shadow:0 0 8px var(--acc)}
-.a-phrase{margin:0;max-width:27ch;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:4;overflow:hidden;padding-bottom:.08em;font:600 clamp(26px,2.45cqw,46px)/1.12 var(--f-sans);letter-spacing:-.028em;text-wrap:balance}
+.a-phrase{margin:0;text-shadow:0 2px 28px rgba(8,8,11,.55);max-width:27ch;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:4;overflow:hidden;padding-bottom:.08em;font:600 clamp(26px,2.45cqw,46px)/1.12 var(--f-sans);letter-spacing:-.028em;text-wrap:balance}
 .a-orbrow{display:flex;align-items:flex-start;gap:clamp(20px,2cqw,30px);width:100%}
 .a-orbtext{min-width:0;padding-top:clamp(4px,1cqh,14px)}
 .a-orbtitle{font:600 var(--t-sm)/1.2 var(--f-sans);letter-spacing:.2em;text-transform:uppercase}

@@ -151,3 +151,11 @@ their stack animation and design he liked, «запомним её примен�
 мягко амбиент делала», with «мягкость и ламповость», perhaps weather and the time of day;
 the record rising from a sleeve must not collide with other objects.
 
+**On the sky (2026-10-06, late):** the first aurora did not separate clear from cloudy or
+the hours enough. He wants real weather colours: a clear morning «яркое немного,
+воодушевляющее», the day «просто как день» and depending on the weather, the evening «как
+закат», the night dark but without acid colours («зелёный-розовый-красный — яркие и
+кислотные»). Weather with physics: snow should lie on the blocks (the albums' plate, the
+search field), rain should bounce off the headline. The settings button goes to the top
+right corner.
+
