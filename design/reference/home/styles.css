@@ -20,6 +20,7 @@
   --glass-bd:rgba(255,255,255,.13);
   --glass-sh:inset 0 1px 0 rgba(255,255,255,.25),inset 0 -1px 0 rgba(255,255,255,.07),0 18px 42px rgba(0,0,0,.45),0 2px 10px rgba(0,0,0,.28);
   --glass-bf:blur(28px) saturate(1.7);
+  --noise:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
 }
 *{box-sizing:border-box}
 body{background:var(--bg-deep);color:var(--text);font:400 var(--t-body)/1.5 var(--f-sans);-webkit-font-smoothing:antialiased}
@@ -54,7 +55,7 @@ button{border:0;background:none;padding:0;cursor:pointer}
 .bg{position:absolute;inset:0;z-index:0;pointer-events:none}
 .bg-img{position:absolute;inset:0;background-size:cover;background-position:center;opacity:.78}
 .tint{position:absolute;inset:0;opacity:.55;background:radial-gradient(70% 60% at 8% 0%,color-mix(in srgb,var(--acc) 26%,transparent),transparent 70%),radial-gradient(60% 70% at 100% 100%,color-mix(in srgb,var(--acc2) 30%,transparent),transparent 70%)}
-.grain{position:absolute;inset:0;opacity:.06;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+.grain{position:absolute;inset:0;opacity:.06;background-image:var(--noise)}
 .shade{position:absolute;inset:0;background:linear-gradient(180deg,rgba(8,8,11,.5) 0%,rgba(8,8,11,.3) 34%,rgba(8,8,11,.9) 100%),linear-gradient(to left,rgba(8,8,11,.42),transparent 42%)}
 /* icons: the app's own set, stroke 1.8–2 */
 .i{display:block;flex:none}

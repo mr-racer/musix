@@ -126,3 +126,10 @@ the other files; this one keeps the evidence.
 - Open, for him to decide: which composition; whether the glass ball is the physical button
   he meant (it would be the third place with glass); playlists as names, as mosaics, or not
   at all; whether the mini player stays a full-width line.
+
+**The glossy ball, same day**: «не нравится как искусственно она выглядит». A rendered
+gloss (a specular highlight, a plastic sheen, a fake 3D ball) reads as artificial to him,
+however physical its motion. Physical means real materials and real light: frosted glass
+with light behind it, a record, rings on water. Three such materials are in the mock
+(`data-wave`), his choice pending. Rule for the code: **no rendered gloss or plastic 3D**.
+

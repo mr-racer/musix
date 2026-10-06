@@ -1,30 +1,47 @@
 /* ── the pieces both variants are built from ─────────────────────────────────── */
 
-/* The wave's button: a glass ball with the taste's colours moving inside. The owner asked
-   for it to be physical, «с эффектом стекла». Its highlight follows the pointer, it lifts
-   under it and gives under a press, the light it throws on the floor answers both, and
-   while the wave plays the ball breathes with the bass. Its colours are the wave's style:
-   the tuner below recolours the liquid. */
+/* The wave's button, in three materials to choose from (the stage's data-wave picks one).
+   The owner found the first one, a glossy glass ball, artificial: no rendered gloss here.
+   - frost: the taste's colours as light behind frosted glass, a lamp. The light leans to
+     the hand, the lamp breathes with the bass.
+   - vinyl: a record. It turns while the wave plays, the lamp's sheen swings with the hand.
+   - ripple: no object at all, rings running out from the glyph like rings on water, one on
+     every beat. */
 .wave{position:relative;flex:none;width:var(--orb);aspect-ratio:1;border-radius:50%;display:grid;place-items:center;-webkit-tap-highlight-color:transparent;transition:transform .5s var(--spring)}
-.wave:hover{transform:translateY(-5px) scale(1.03)}
-.wave:active{transform:translateY(2px) scale(.94);transition-duration:.14s}
-.w-pool{position:absolute;left:6%;right:6%;bottom:-17%;height:24%;border-radius:50%;background:radial-gradient(closest-side,color-mix(in srgb,var(--c0) 75%,transparent),transparent);filter:blur(calc(var(--orb)*.05));opacity:.75;transition:opacity .4s var(--ease),transform .5s var(--spring)}
-.wave:hover .w-pool{transform:scale(.84);opacity:.5}
+.wave:hover{transform:translateY(-4px) scale(1.02)}
+.wave:active{transform:translateY(2px) scale(.95);transition-duration:.14s}
+.w-pool{position:absolute;left:6%;right:6%;bottom:-17%;height:24%;border-radius:50%;background:radial-gradient(closest-side,color-mix(in srgb,var(--c0) 75%,transparent),transparent);filter:blur(calc(var(--orb)*.05));opacity:.7;transition:opacity .4s var(--ease),transform .5s var(--spring)}
+.wave:hover .w-pool{transform:scale(.84);opacity:.45}
 .wave:active .w-pool{transform:scale(1.12);opacity:1;transition-duration:.14s}
-.w-body{position:absolute;inset:0;border-radius:50%;transform:scale(calc(1 + var(--beat,0)*.04))}
-.w-liquid{position:absolute;inset:3.5%;border-radius:50%;overflow:hidden;background:#15151b;transition:filter .7s var(--ease)}
-.w-liquid i{position:absolute;inset:-22%;border-radius:50%;background:conic-gradient(from 0deg,var(--c0),var(--c1),var(--c2),var(--c3),var(--c0));filter:blur(calc(var(--orb)*.075)) saturate(1.3)}
-.w-liquid i+i{inset:-8%;background:conic-gradient(from 140deg,transparent 0 12%,var(--c2) 26%,transparent 44%,var(--c0) 68%,transparent 86%);mix-blend-mode:screen;opacity:.75}
-.stage[data-fam="favorites"] .w-liquid{filter:saturate(1.55) brightness(1.12)}
-.stage[data-fam="rediscover"] .w-liquid{filter:sepia(.62) saturate(.9) brightness(.95)}
-.stage[data-fam="unfamiliar"] .w-liquid{filter:hue-rotate(150deg) saturate(1.1)}
-.w-glass{position:absolute;inset:0;border-radius:50%;border:1px solid rgba(255,255,255,.28);
-  background:radial-gradient(ellipse 21% 12% at calc(var(--lx,32%)*.5 + 18%) calc(var(--ly,24%)*.5 + 9%),rgba(255,255,255,.95),rgba(255,255,255,0)),
-    radial-gradient(circle at var(--lx,32%) var(--ly,24%),rgba(255,255,255,.4) 0,rgba(255,255,255,.1) 22%,transparent 44%),
-    radial-gradient(ellipse 56% 24% at 50% 93%,rgba(255,255,255,.36),transparent 72%),
-    radial-gradient(circle at 50% 45%,transparent 50%,rgba(0,0,0,.3) 84%,rgba(0,0,0,.52) 100%);
-  box-shadow:inset 0 1.5px 1px rgba(255,255,255,.6),inset 0 -1px 1px rgba(255,255,255,.2),inset 0 0 0 calc(var(--orb)*.035) rgba(255,255,255,.05),
-    0 calc(var(--orb)*.14) calc(var(--orb)*.26) calc(var(--orb)*-.08) rgba(0,0,0,.72),0 0 calc(var(--orb)*.5) calc(var(--orb)*-.06) color-mix(in srgb,var(--c0) 60%,transparent)}
+.w-body{position:absolute;inset:0;border-radius:50%;transform:scale(calc(1 + var(--beat,0)*var(--bk,.04)))}
+.w-liquid{position:absolute;inset:0;border-radius:50%;overflow:hidden;background:#14141a;transition:filter .7s var(--ease)}
+.w-liquid i{position:absolute;inset:-22%;border-radius:50%;background:conic-gradient(from 0deg,var(--c0),var(--c1),var(--c2),var(--c3),var(--c0));filter:blur(calc(var(--orb)*.11)) saturate(1.15);translate:calc((var(--lx,50%) - 50%)*.26) calc((var(--ly,50%) - 50%)*.26);transition:translate .8s var(--ease)}
+.w-liquid i+i{inset:-8%;background:conic-gradient(from 140deg,transparent 0 12%,var(--c2) 26%,transparent 44%,var(--c0) 68%,transparent 86%);mix-blend-mode:screen;opacity:.7}
+.stage[data-fam="favorites"] :is(.w-liquid,.w-label,.w-ripple){filter:saturate(1.55) brightness(1.12)}
+.stage[data-fam="rediscover"] :is(.w-liquid,.w-label,.w-ripple){filter:sepia(.62) saturate(.9) brightness(.95)}
+.stage[data-fam="unfamiliar"] :is(.w-liquid,.w-label,.w-ripple){filter:hue-rotate(150deg) saturate(1.1)}
+.w-frost,.w-vinyl,.w-sheen,.w-ripple,.w-core{display:none;position:absolute;inset:0;border-radius:50%}
+.stage[data-wave="frost"] .w-frost,.stage[data-wave="vinyl"] :is(.w-vinyl,.w-sheen),.stage[data-wave="ripple"] :is(.w-ripple,.w-core){display:block}
+.stage[data-wave="vinyl"] :is(.w-liquid,.w-pool),.stage[data-wave="ripple"] :is(.w-liquid,.w-pool){display:none}
+/* frost */
+.w-frost{background:radial-gradient(circle at 50% 36%,rgba(255,255,255,.2),rgba(255,255,255,.05) 56%,rgba(255,255,255,.11) 100%);
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.15),inset 0 1px 0 rgba(255,255,255,.22),inset 0 calc(var(--orb)*-.03) calc(var(--orb)*.1) rgba(0,0,0,.2),0 calc(var(--orb)*.12) calc(var(--orb)*.24) calc(var(--orb)*-.1) rgba(0,0,0,.6);
+  -webkit-backdrop-filter:blur(calc(var(--orb)*.05)) saturate(1.1);backdrop-filter:blur(calc(var(--orb)*.05)) saturate(1.1)}
+.w-frost::after{content:"";position:absolute;inset:0;border-radius:50%;background:var(--noise);opacity:.16;mix-blend-mode:overlay}
+/* vinyl */
+.stage[data-wave="vinyl"] .wave{--bk:.012}
+.w-vinyl{background:radial-gradient(circle,transparent 62%,rgba(0,0,0,.28) 100%),repeating-radial-gradient(circle,#0f0f13 0 1.4px,#1c1c22 1.4px 2.9px);
+  box-shadow:0 0 0 1px rgba(255,255,255,.07),inset 0 0 calc(var(--orb)*.04) rgba(0,0,0,.6),0 calc(var(--orb)*.12) calc(var(--orb)*.24) calc(var(--orb)*-.1) rgba(0,0,0,.75)}
+.w-label{position:absolute;inset:31%;border-radius:50%;background:radial-gradient(circle,transparent 70%,rgba(0,0,0,.32) 71% 74%,transparent 75%),color-mix(in srgb,var(--acc) 88%,#fff);box-shadow:inset 0 0 0 1px rgba(0,0,0,.35),0 0 0 1.5px rgba(255,255,255,.1);transition:filter .7s var(--ease)}
+.w-label i{position:absolute;left:46%;top:8%;width:8%;height:8%;border-radius:50%;background:rgba(255,255,255,.8)}
+.w-sheen{background:conic-gradient(from var(--sa,210deg),transparent 0 8%,rgba(255,255,255,.15) 16%,transparent 24% 58%,rgba(255,255,255,.08) 66%,transparent 74%);pointer-events:none}
+/* ripple */
+.stage[data-wave="ripple"] .wave{--bk:0}
+.stage[data-wave="ripple"] .w-glyph .i{width:calc(var(--orb)*.2);height:calc(var(--orb)*.2)}
+.w-ripple{inset:-60%;border-radius:0;width:220%;height:220%;pointer-events:none}
+.w-core{inset:27%;border:1.5px solid rgba(255,255,255,.5);background:radial-gradient(circle,color-mix(in srgb,var(--c0) 48%,transparent),transparent 72%);box-shadow:0 0 calc(var(--orb)*.2) calc(var(--orb)*-.03) color-mix(in srgb,var(--c0) 55%,transparent);transform:scale(calc(1 + var(--beat,0)*.14));transition:border-color .3s var(--ease)}
+.wave:hover .w-core{border-color:#fff}
+.vc .w-core{inset:19%}
 .w-glyph{position:relative;color:#fff;filter:drop-shadow(0 2px 8px rgba(0,0,0,.5));transition:transform .4s var(--spring)}
 .w-glyph .i{width:calc(var(--orb)*.26);height:calc(var(--orb)*.26)}
 .w-glyph [data-when="idle"]{translate:5% 0}

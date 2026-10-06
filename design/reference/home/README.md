@@ -15,10 +15,12 @@ variants remain, built from the same pieces:
 
 The pieces:
 
-- **The wave's ball**: glass, the taste's colours as a liquid inside. The highlight follows
-  the pointer, the ball lifts and gives under a press, a ring leaves it on a click, and
-  while the wave plays it breathes with the bass. The liquid's speed and colour show the
-  wave's style.
+- **The wave's button**, three materials on a switch (`data-wave`), after the owner found
+  the glossy glass ball artificial: *frost*, the taste's colours as light behind frosted
+  glass, the light leaning to the hand and the lamp breathing with the bass; *vinyl*, a
+  record that turns while the wave plays, its sheen swinging with the hand; *ripple*, no
+  object at all, rings running out from the glyph on every beat. In all three the button
+  lifts under the pointer, gives under a press, and the tuner recolours it.
 - **The tuner**, on the screen instead of a menu: «что играть» one of four on a track with
   a springing thumb, the sound as two switches. The presets are the server's own.
 - **Search with a switch**, «Библиотека / ИИ»: the library at once by default; the other

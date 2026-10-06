@@ -29,7 +29,7 @@ const SAYS=['Найди песню, где поют про дождь и пус�
 $$('[data-find]').forEach(el=>{el.innerHTML='<div class="find" data-mode="lib"><span class="fmode" role="radiogroup" aria-label="Где искать"><span class="thumb" aria-hidden="true"></span>'
   +'<button type="button" role="radio" data-m="lib" aria-checked="true">'+icon('Search',14)+'Библиотека</button><button type="button" role="radio" data-m="ai" aria-checked="false">'+icon('Sparkles',14)+'ИИ</button></span>'
   +'<input type="text" autocomplete="off" spellcheck="false" placeholder="'+PH.lib+'" aria-label="Поиск"><kbd>/</kbd></div>';});
-$$('[data-wave]').forEach(el=>{el.innerHTML='<button type="button" class="wave js-play" aria-label="Моя волна"><span class="w-pool"></span><span class="w-body"><span class="w-liquid"><i></i><i></i></span><span class="w-glass"></span></span>'
+$$('[data-wavebtn]').forEach(el=>{el.innerHTML='<button type="button" class="wave js-play" aria-label="Моя волна"><span class="w-pool"></span><span class="w-body"><span class="w-liquid"><i></i><i></i></span><span class="w-frost"></span><span class="w-vinyl"><span class="w-label"><i></i></span></span><span class="w-sheen"></span><canvas class="w-ripple" aria-hidden="true"></canvas><span class="w-core"></span></span>'
   +'<span class="w-glyph"><span data-when="idle">'+icon('Play',40)+'</span><span data-when="playing">'+icon('Pause',40)+'</span></span></button>';});
 const FAM=D.presets.filter(p=>p.row==='familiarity'), SND=D.presets.filter(p=>p.row==='sound');
 $$('[data-tuner]').forEach(el=>{el.innerHTML='<div class="tuner" role="group" aria-label="Настрой волны"><div class="tseg" role="radiogroup" aria-label="Что играть"><span class="thumb" aria-hidden="true"></span>'
@@ -92,22 +92,40 @@ function fly(from,t){const to=$('#miniCover'); if(!from||reduce){setNow(t); retu
   g.animate([{transform:'translate('+(a.x-b.x)+'px,'+(a.y-b.y)+'px) scale('+(a.w/b.w)+')'},{transform:'none'}],{duration:560,easing:'cubic-bezier(.2,.8,.2,1)'}).onfinish=()=>{setNow(t); g.remove();
     to.animate([{transform:'scale(1)'},{transform:'scale(1.18)'},{transform:'scale(1)'}],{duration:420,easing:SPRING});};}
 
-/* ── the wave's ball ────────────────────────────────────────────────────────── */
-/* The liquid turns all the time, and how fast says what is going on: barely at rest, alive
-   under the pointer, quick while the wave plays; the sound setting slows or drives it. The
-   rate changes through the animation's playback rate, so the turn never jumps */
+/* ── the wave's button ──────────────────────────────────────────────────────── */
+/* The light (frost) turns all the time, and how fast says what is going on: barely at
+   rest, alive under the pointer, quick while the wave plays; the sound setting slows or
+   drives it. The record (vinyl) stands still until the wave plays, and only nudges under
+   the pointer. Rates change through the animations' playback rate, so nothing jumps */
 let fam='mix', sound=null, hot=false, burstT=0;
 const liquids=reduce?[]:$$('.w-liquid i').map((el,i)=>el.animate([{transform:'rotate(0deg)'},{transform:'rotate(360deg)'}],{duration:i%2?12000:20000,iterations:Infinity,direction:i%2?'reverse':'normal'}));
-function flow(k){const rate=(playing?2.3:hot?1:.14)*(sound==='calm'?.55:sound==='energetic'?1.8:1)*(k||1); liquids.forEach(a=>a.updatePlaybackRate(rate));}
-function ring(w){ if(reduce) return; const r=document.createElement('span'); r.className='w-ring'; w.appendChild(r);
+const labels=reduce?[]:$$('.w-label').map(el=>el.animate([{transform:'rotate(0deg)'},{transform:'rotate(360deg)'}],{duration:1800,iterations:Infinity}));
+function flow(k){const rate=(playing?2.3:hot?1:.14)*(sound==='calm'?.55:sound==='energetic'?1.8:1)*(k||1); liquids.forEach(a=>a.updatePlaybackRate(rate));
+  labels.forEach(a=>a.updatePlaybackRate(playing?1:hot?.2:0));}
+function ring(w){ if(reduce) return; if(stage.dataset.wave==='ripple'){emit(2.4); return;} const r=document.createElement('span'); r.className='w-ring'; w.appendChild(r);
   r.animate([{transform:'scale(1)',opacity:.7},{transform:'scale(1.55)',opacity:0}],{duration:700,easing:'cubic-bezier(.2,.7,.2,1)'}).onfinish=()=>r.remove();}
 function gulp(){ $$('.wave').forEach(w=>{ if(w.offsetWidth) ring(w); }); flow(4.5); clearTimeout(burstT); burstT=setTimeout(()=>flow(),620); }
-$$('.wave').forEach(w=>{ let raf=0, x=32, y=24;
+$$('.wave').forEach(w=>{ let raf=0, x=50, y=50;
   w.addEventListener('pointermove',ev=>{const r=w.getBoundingClientRect(); x=(ev.clientX-r.left)/r.width*100; y=(ev.clientY-r.top)/r.height*100;
-    if(!raf) raf=requestAnimationFrame(()=>{raf=0; w.style.setProperty('--lx',x.toFixed(1)+'%'); w.style.setProperty('--ly',y.toFixed(1)+'%');});});
+    if(!raf) raf=requestAnimationFrame(()=>{raf=0; w.style.setProperty('--lx',x.toFixed(1)+'%'); w.style.setProperty('--ly',y.toFixed(1)+'%'); w.style.setProperty('--sa',(Math.atan2(y-50,x-50)*180/Math.PI+90).toFixed(0)+'deg');});});
   w.addEventListener('pointerenter',()=>{hot=true; flow();});
-  w.addEventListener('pointerleave',()=>{hot=false; flow(); w.style.removeProperty('--lx'); w.style.removeProperty('--ly');});
+  w.addEventListener('pointerleave',()=>{hot=false; flow(); ['--lx','--ly','--sa'].forEach(k=>w.style.removeProperty(k));});
   w.addEventListener('click',()=>ring(w)); });
+
+/* rings on water: a canvas wider than the button, rings run out from its centre and fade.
+   One on every beat while the wave plays, a quiet one now and then at rest */
+const COLS=['#e0703a','#c9c287','#5664b3','#b85a8a'].map((f,i)=>(pal[i]||{}).vib||f);
+const rings=[]; let ripRaf=0, lastEmit=0, nextIdle=0, beatOn=false;
+function emit(w){ rings.push({t0:performance.now(),w:w||1.5,c:COLS[rings.length%4]}); lastEmit=performance.now(); ripKick(); }
+function ripFrame(t){ ripRaf=0; const on=stage.dataset.wave==='ripple'; if(!on){rings.length=0; $$('.w-ripple').forEach(c=>{const x=c.getContext('2d'); x.clearRect(0,0,c.width,c.height);}); return;}
+  if(!playing&&t>nextIdle){ emit(1.2); nextIdle=t+(hot?1100:2600); }
+  const d=Math.min(devicePixelRatio||1,2);
+  for(const c of $$('.w-ripple')){ if(!c.offsetWidth) continue; const r=c.getBoundingClientRect(), w=Math.round(r.width/S*d), h=Math.round(r.height/S*d); if(c.width!==w||c.height!==h){c.width=w; c.height=h;}
+    const x=c.getContext('2d'); x.clearRect(0,0,w,h); const R=w/2, r0=R*.105, r1=R*.98;
+    for(const g of rings){ const k=(t-g.t0)/1700; if(k>=1) continue; const e=1-Math.pow(1-k,2.2); x.beginPath(); x.arc(R,R,r0+(r1-r0)*e,0,Math.PI*2); x.globalAlpha=(1-k)*(1-k)*.9; x.strokeStyle=g.c; x.lineWidth=g.w*d*(1-k*.6); x.stroke(); } x.globalAlpha=1; }
+  for(let i=rings.length-1;i>=0;i--) if(t-rings[i].t0>=1700) rings.splice(i,1);
+  ripRaf=requestAnimationFrame(ripFrame); }
+function ripKick(){ if(!ripRaf&&!reduce) ripRaf=requestAnimationFrame(ripFrame); }
 
 /* the wave's style: one state, shown by every tuner on the page and by the ball itself */
 function thumbs(){ $$('.fmode,.tseg').forEach(g=>{const b=$('[aria-checked="true"]',g), t=$('.thumb',g); if(!b||!b.offsetWidth) return; t.style.setProperty('--x',b.offsetLeft+'px'); t.style.setProperty('--w',b.offsetWidth+'px');}); }
@@ -182,7 +200,8 @@ function draw(){const r=spec.getBoundingClientRect(), d=Math.min(devicePixelRati
 function frame(t){raf=0; const dt=last?Math.min(64,t-last):16; last=t; const up=1-Math.exp(-dt/18), down=1-Math.exp(-dt/150); let top=0;
   for(let b=0;b<16;b++){let v=0; if(playing){const beat=Math.pow(Math.max(0,Math.sin(t/1000*Math.PI*2.05-b*.12)),6-b*.2); v=Math.min(1,.16+.5*beat*(1-b/26)+.3*Math.abs(Math.sin(t/470+b*1.7)*Math.sin(t/1310+b*.6)));}
     level[b]+=(v-level[b])*(v>level[b]?up:down); top=Math.max(top,level[b]);}
-  const bass=Math.max(0,(level[0]+level[1]+level[2])/3-.16).toFixed(3); bodies.forEach(el=>el.style.setProperty('--beat',bass));
+  const bassN=Math.max(0,(level[0]+level[1]+level[2])/3-.16), bass=bassN.toFixed(3); bodies.forEach(el=>el.style.setProperty('--beat',bass));
+  if(playing&&stage.dataset.wave==='ripple'){ if(bassN>.3&&!beatOn&&t-lastEmit>300){beatOn=true; emit(1.6);} else if(bassN<.16) beatOn=false; }
   draw(); if(!playing&&top<.01){last=0; bodies.forEach(el=>el.style.removeProperty('--beat')); return;} raf=requestAnimationFrame(frame);}
 function kick(){ if(!raf&&!reduce) raf=requestAnimationFrame(frame); }
 spec.style.color='var(--acc)';
@@ -205,11 +224,14 @@ function fit(){const vw=viewport.clientWidth; let w=size.w, h=size.h;
   closeQs(); settle(); draw();}
 function setVariant(v){page.dataset.v=stage.dataset.v=v; $$('#variants button').forEach(x=>x.setAttribute('aria-pressed',x.dataset.v===v)); closeQs(); settle();}
 $('#sizes').addEventListener('click',ev=>{const b=ev.target.closest('button'); if(!b) return; $$('#sizes button').forEach(x=>x.setAttribute('aria-pressed',x===b)); size={w:+b.dataset.w,h:+b.dataset.h,name:b.textContent}; fit();});
+function setWave(m){stage.dataset.wave=m; $$('#waves button').forEach(x=>x.setAttribute('aria-pressed',x.dataset.wave===m)); nextIdle=0; ripKick();}
+$('#waves').addEventListener('click',ev=>{const b=ev.target.closest('button'); if(!b) return; setWave(b.dataset.wave); try{localStorage.setItem('home-mock-wave',b.dataset.wave);}catch(e){}});
+try{const m=localStorage.getItem('home-mock-wave'); if(m&&['frost','vinyl','ripple'].includes(m)) setWave(m);}catch(e){}
 $('#variants').addEventListener('click',ev=>{const b=ev.target.closest('button'); if(!b) return; setVariant(b.dataset.v); try{localStorage.setItem('home-mock-v2',b.dataset.v);}catch(e){}});
 window.addEventListener('resize',fit);
 try{const v=localStorage.getItem('home-mock-v2'); if(v&&'bc'.includes(v)) setVariant(v);}catch(e){}
 if(/^#[bc]$/.test(location.hash)) setVariant(location.hash.slice(1));
 
-setNow(now); tune(); flow(); fit();
+setNow(now); tune(); flow(); fit(); ripKick();
 if(document.fonts&&document.fonts.ready) document.fonts.ready.then(settle);
 })();
