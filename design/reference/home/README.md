@@ -20,7 +20,18 @@ The owner chose v1's composition after two rounds of variants (`design/code/pref
 - **Вайбики** as piles, **the week** at the bottom right, **search** with the
   «Библиотека / ИИ» switch, **the mini player**: all from round 2.
 - **«Поставить альбом»**: a plate at the bottom with sleeves, titles and the reason for each
-  album; the record rises out of the sleeve under the pointer; as many as fit whole.
+  album; the record comes out from behind the sleeve, up and to the left into the plate's own
+  padding (checked against the header, the titles and the neighbours at three sizes); as
+  many as fit whole.
+- **The aurora** (after his note that v1's top half «мягко амбиент делала»): a canvas a tenth
+  of the stage's size, stretched, so the light is soft and costs nothing. Five spots drift on
+  sums of sines: four in the taste's colours, one warm lamp. The hour sets the light
+  (morning, day, evening, night), the weather dims or cools it (cloudy, rain with drops,
+  snow with flakes), and while the wave plays the spots take the playing cover's colours.
+  The page has switches for the hour and the weather to show every state.
+- The screen ends 44 px above the mini player (`--spec-room`), so the spectrum never runs
+  over the plates. Settings is a quiet glyph at the foot of the island's column, no plate.
+  The taste anchors are gone from the home (their stack lives on in components.md).
 
 In the mock the week's numbers are an example (the test database has almost no listening).
 The server does not yet pick albums by the three reasons or count days in a row.

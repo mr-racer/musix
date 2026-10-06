@@ -21,3 +21,5 @@ Measurements are the approved probe's (`design/reference/player-kino/styles.css`
 | **Segmented** | a pill group in an inset groove; the small size is 12 px text with 5 × 10 padding |
 | **Icon button** | 40 px circle, the project's icons at 22 px; hover: white 8 %; press: scale 0.9 on a spring. Switched on: the accent (огонёк orange, вода blue), a filled glyph for the reactions, and the icon bounce (motion-and-performance.md) |
 | **Badge** | mono 12 in a hairline box, radius 7 (Lossless) |
+| **Cover stack** | a row of small covers (40 px, radius 10, a 2-px dark border, a soft shadow) lying on each other, each 11 px over the previous. Under the pointer the stack spreads (4 px gaps, on the spring), and the cover under the pointer lifts 6 px and grows 6 %. The owner liked it on the home's «Якоря вкуса» (2026-10-06, «анимация и дизайн якорей вкуса мне понравилась, запомним её применить в других местах»): it was taken off the home, and is to be used wherever a few covers stand for a set — a playlist's row, an artist's albums, a vibe. Reference CSS in `design/reference/home/` history (`.stack`, commit fbd3d443) |
+

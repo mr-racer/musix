@@ -143,3 +143,11 @@ Lessons: his first verdict on a variant is not final, keep the rejected sources 
 the v1 orb is a reference he wants kept, not replaced; a new composition is shown as one
 mock before it is built (round 3, `design/reference/home/`).
 
+**Later, on the one composition (2026-10-06, evening):** «это уже лучше». Fixes: the mini
+player's spectrum must not run over the plates (raise them); the settings button «выглядит
+уже неактуальной и не к месту», fit it in softly; «якоря вкуса убираем нафиг с фронта», but
+their stack animation and design he liked, «запомним её применить в других местах»
+(components.md, «Cover stack»); the background should be as it was in v1, «верхняя половина
+мягко амбиент делала», with «мягкость и ламповость», perhaps weather and the time of day;
+the record rising from a sleeve must not collide with other objects.
+

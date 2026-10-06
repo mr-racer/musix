@@ -41,7 +41,6 @@ $$('[data-i]').forEach(el=>{const [n,s]=el.dataset.i.split(':'); el.innerHTML=ic
 /* the phrase; the names in it (Latin words in a Russian sentence) lead to their artists */
 const NAME=/([A-Za-z](?:[A-Za-z0-9'’.&-]*[A-Za-z0-9])?(?: [A-Z](?:[A-Za-z0-9'’.&-]*[A-Za-z0-9])?)*)/;
 $$('[data-phrase]').forEach(el=>{el.innerHTML=D.phrase.split(NAME).map((part,i)=>i%2?'<a href="#" class="nm" data-go="'+esc('Артист: '+part)+'">'+esc(part)+'</a>':esc(part)).join('');});
-$$('[data-anchors]').forEach(el=>{el.innerHTML=D.anchors.map(t=>'<a href="#" title="'+esc(t.title+' — '+t.artist)+'" data-go="'+esc('Артист: '+t.artist)+'">'+cv(t.c)+'</a>').join('');});
 $$('[data-vstacks]').forEach(el=>{el.innerHTML=D.vibes.map((v,i)=>{const t=v.tracks, p=[t[2]||t[0],t[1]||t[0],t[0]];
   return '<button type="button" class="vstack js-vibe" data-n="'+i+'"><span class="pile">'+p.map(x=>cv(x.c)).join('')+'</span><span style="min-width:0"><b>'+esc(v.name)+'</b><small>'+t.length+' '+plural(t.length,'трек','трека','треков')+icon('Play',10)+'</small></span></button>';}).join('');});
 $$('[data-fan]').forEach(el=>{el.innerHTML=D.added.slice(0,3).map(t=>cv(t.c)).join('');});
@@ -77,6 +76,57 @@ function countUp(){ $$('[data-counts]').forEach(el=>{const a=D.counts.albums, t=
   const txt=k=>num(Math.round(a*k))+' '+plural(a,'альбом','альбома','альбомов')+' · '+num(Math.round(t*k))+' '+plural(t,'трек','трека','треков');
   if(reduce){el.textContent=txt(1); return;}
   const step=n=>{const k=Math.min(1,(n-t0)/900), e=1-Math.pow(1-k,4); el.textContent=txt(e); if(k<1) requestAnimationFrame(step);}; requestAnimationFrame(step);});}
+
+/* ── the aurora ─────────────────────────────────────────────────────────────── */
+/* v1's home had a soft ambient in its top half; this is the same idea drawn on a canvas a
+   tenth of the stage's size and stretched, so the light is soft by nature and costs
+   nothing. Five spots of light drift on sums of sines: four in the taste's colours and one
+   warm lamp. The hour sets the light (morning pink and light, day clean, evening amber,
+   night deep and blue), the weather dims or cools it, and while the wave plays the spots
+   take the colours of the cover that is playing: the room is lit by what sounds */
+const COLS=['#e0703a','#c9c287','#5664b3','#b85a8a'].map((f,i)=>(pal[i]||{}).vib||f);
+const hex=h=>{const m=/^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})/i.exec(h); return m?[parseInt(m[1],16),parseInt(m[2],16),parseInt(m[3],16)]:[200,120,90];};
+const hsl2=s=>{const m=/hsl\((\d+),\s*(\d+)%,\s*(\d+)%\)/.exec(s); if(!m) return hex(s); const h=+m[1]/360,sa=+m[2]/100,l=+m[3]/100; const f=n=>{const k=(n+h*12)%12, a=sa*Math.min(l,1-l); return Math.round(255*(l-a*Math.max(-1,Math.min(k-3,9-k,1))));}; return [f(0),f(8),f(4)];};
+const rgb=c=>c.startsWith('hsl')?hsl2(c):hex(c);
+const TOD={morning:{bright:1,tint:[255,205,180],ta:.16,lamp:{c:[255,226,196],r:.62,a:.34,x:.08,y:-.06}},
+  day:{bright:1.06,tint:[255,255,255],ta:0,lamp:{c:[255,244,224],r:.5,a:.2,x:.2,y:-.1}},
+  evening:{bright:.95,tint:[255,150,80],ta:.2,lamp:{c:[255,176,110],r:.58,a:.42,x:.12,y:.02}},
+  night:{bright:.6,tint:[70,90,170],ta:.26,lamp:{c:[255,190,130],r:.32,a:.26,x:.1,y:.0}}};
+const WX={clear:{speed:1,bright:1,sat:1,cool:0},cloudy:{speed:.55,bright:.78,sat:.8,cool:.08},rain:{speed:.8,bright:.72,sat:.85,cool:.22},snow:{speed:.45,bright:.9,sat:.8,cool:.14}};
+let todPick='auto', wx='clear';
+const hourTod=()=>{const h=new Date().getHours(); return h<5?'night':h<11?'morning':h<17?'day':h<22?'evening':'night';};
+const au=$('#aurora'), ax=au.getContext('2d'), SEEDS=[[.18,.22,.13,.07,.9],[.62,.18,.09,.11,.7],[.42,.38,.11,.06,1.1],[.85,.3,.08,.09,.8]];
+const spots=SEEDS.map((z,i)=>({x:z[0],y:z[1],fx:z[2],fy:z[3],ph:z[4]*i*1.7,r:.34+i*.05,c:rgb(COLS[i]),t:rgb(COLS[i])}));
+let auRaf=0, auLast=0, auT=0, playingTint=0;
+function auFrame(t){auRaf=0; const dt=auLast?Math.min(50,t-auLast):16; auLast=t;
+  const tod=TOD[todPick==='auto'?hourTod():todPick], w=WX[wx]; auT+=dt*.00004*w.speed;
+  const W=Math.max(2,Math.round(stage.clientWidth/10)), H=Math.max(2,Math.round(stage.clientHeight/10)); if(au.width!==W||au.height!==H){au.width=W; au.height=H;}
+  /* the spots lean to the playing cover's colours, slowly, and back when the music stops */
+  playingTint+=((playing?1:0)-playingTint)*(1-Math.exp(-dt/1400));
+  const im=D.images[now.c]||{}, tc=[rgb(im.acc||COLS[0]),rgb(im.vib||COLS[1]),rgb(im.acc||COLS[2])];
+  ax.clearRect(0,0,W,H); ax.globalCompositeOperation='lighter';
+  const bright=tod.bright*w.bright;
+  const draw=(x,y,r,c,a)=>{const g=ax.createRadialGradient(x*W,y*H,0,x*W,y*H,r*W); g.addColorStop(0,'rgba('+c[0]+','+c[1]+','+c[2]+','+a+')'); g.addColorStop(1,'rgba('+c[0]+','+c[1]+','+c[2]+',0)'); ax.fillStyle=g; ax.fillRect(0,0,W,H);};
+  spots.forEach((s,i)=>{const x=s.x+.11*Math.sin(auT*s.fx*9+s.ph)+.05*Math.sin(auT*s.fy*17+s.ph*2), y=s.y+.09*Math.cos(auT*s.fy*8+s.ph)+.04*Math.sin(auT*s.fx*13);
+    const base=i<3?[0,1,2].map(k=>s.c[k]+(tc[i][k]-s.c[k])*playingTint):s.c; const mix=base.map((v,k)=>Math.round((v*(1-w.cool)+[150,190,255][k]*w.cool)*(.3+.7*w.sat)+128*(.7-.7*w.sat)));
+    draw(x,y,s.r,mix,.5*bright);});
+  draw(tod.lamp.x,tod.lamp.y,tod.lamp.r,tod.lamp.c,tod.lamp.a*w.bright);
+  if(tod.ta){ax.globalCompositeOperation='source-over'; ax.fillStyle='rgba('+tod.tint.join(',')+','+tod.ta+')'; ax.fillRect(0,0,W,H);}
+  /* the aurora lives in the top half: fade it out towards the floor */
+  ax.globalCompositeOperation='destination-in'; const m=ax.createLinearGradient(0,0,0,H); m.addColorStop(0,'rgba(0,0,0,1)'); m.addColorStop(.42,'rgba(0,0,0,.95)'); m.addColorStop(.86,'rgba(0,0,0,0)'); ax.fillStyle=m; ax.fillRect(0,0,W,H);
+  ax.globalCompositeOperation='source-over';
+  weatherFrame(dt); auRaf=requestAnimationFrame(auFrame);}
+/* rain and snow: a few drops or flakes on a second canvas, at the stage's own resolution */
+const wc=$('#weather'), wcx=wc.getContext('2d'); let flakes=[];
+function weatherFrame(dt){const W=stage.clientWidth, H=stage.clientHeight; if(wx!=='rain'&&wx!=='snow'){ if(wc.width) {wc.width=0; flakes=[];} return;}
+  if(wc.width!==W||wc.height!==H){wc.width=W; wc.height=H;}
+  const n=wx==='rain'?90:70; while(flakes.length<n) flakes.push({x:Math.random()*W,y:Math.random()*H,v:.5+Math.random(),s:Math.random()});
+  wcx.clearRect(0,0,W,H);
+  if(wx==='rain'){wcx.strokeStyle='rgba(200,215,245,.5)'; wcx.lineWidth=1; wcx.beginPath(); for(const f of flakes){const l=10+f.v*14; wcx.moveTo(f.x,f.y); wcx.lineTo(f.x-l*.18,f.y+l); f.y+=dt*(.42+f.v*.5); f.x-=dt*.06; if(f.y>H){f.y=-20; f.x=Math.random()*W;}} wcx.stroke();}
+  else{wcx.fillStyle='rgba(255,255,255,.75)'; for(const f of flakes){const r=1+f.s*1.8; wcx.globalAlpha=.3+f.s*.5; wcx.beginPath(); wcx.arc(f.x,f.y,r,0,Math.PI*2); wcx.fill(); f.y+=dt*(.025+f.v*.035); f.x+=Math.sin((f.y+f.s*300)/60)*.35; if(f.y>H){f.y=-6; f.x=Math.random()*W;}} wcx.globalAlpha=1;}}
+function auKick(){ if(!auRaf&&!reduce) auRaf=requestAnimationFrame(auFrame); }
+$('#tods').addEventListener('click',ev=>{const b=ev.target.closest('button'); if(!b) return; todPick=b.dataset.tod; $$('#tods button').forEach(x=>x.setAttribute('aria-pressed',x===b));});
+$('#weathers').addEventListener('click',ev=>{const b=ev.target.closest('button'); if(!b) return; wx=b.dataset.weather; $$('#weathers button').forEach(x=>x.setAttribute('aria-pressed',x===b));});
 
 /* ── the frame ──────────────────────────────────────────────────────────────── */
 let toastT=0;
@@ -221,6 +271,6 @@ function fit(){const vw=viewport.clientWidth; let w=size.w, h=size.h;
 $('#sizes').addEventListener('click',ev=>{const b=ev.target.closest('button'); if(!b) return; $$('#sizes button').forEach(x=>x.setAttribute('aria-pressed',x===b)); size={w:+b.dataset.w,h:+b.dataset.h,name:b.textContent}; fit();});
 window.addEventListener('resize',fit);
 
-setNow(now); tune(); flow(); countUp(); fit();
+setNow(now); tune(); flow(); countUp(); fit(); auKick();
 if(document.fonts&&document.fonts.ready) document.fonts.ready.then(settle);
 })();

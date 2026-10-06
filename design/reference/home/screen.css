@@ -25,7 +25,6 @@
 /* the wave's style opens under the caption, in place, and the row below moves down with it */
 .a-tune{overflow:hidden}
 .a-tune .tuner{padding-top:14px}
-.a-anchors{display:flex;align-items:center;gap:13px}
 .a-vibes{display:grid;gap:10px;width:100%}
 .a-vibes .cap i{font-style:normal;font-weight:400;letter-spacing:0;text-transform:none}
 .a-vibes .vrow{display:grid;grid-template-columns:repeat(3,minmax(0,auto));justify-content:start;gap:clamp(14px,2cqw,40px)}
@@ -102,14 +101,6 @@
 .nm:hover{color:color-mix(in srgb,var(--acc) 48%,#fff);transform:translateY(-.045em);text-decoration-color:currentColor}
 .nm:active{transform:translateY(0) scale(.98)}
 
-/* The taste anchors: a stack of covers that spreads under the pointer */
-.stack{display:flex;align-items:center}
-.stack a{position:relative;display:block;border-radius:12px;border:2px solid #0f0f13;box-shadow:0 6px 14px rgba(0,0,0,.35);transition:transform .3s var(--spring),margin .3s var(--spring)}
-.stack a+a{margin-left:-11px}
-.stack:hover a+a{margin-left:4px}
-.stack a:hover{transform:translateY(-6px) scale(1.06);z-index:3}
-.stack .cv{width:40px;--r:10px}
-
 /* A вайбик: its covers as a little pile that spreads under the pointer */
 .vstack{display:grid;grid-template-columns:auto minmax(0,auto);align-items:center;gap:var(--s4);min-width:0;text-align:left;border-radius:14px;transition:transform .3s var(--spring)}
 .vstack:active{transform:scale(.97)}
@@ -127,9 +118,9 @@
 
 /* Albums to put on whole, in a plate: each one its sleeve with the record behind, the
    title, and the reason it is here. Under the pointer the record rises out of the sleeve */
-.plate{padding:14px 18px 16px;border-radius:20px;background:var(--plate);box-shadow:inset 0 1px 0 rgba(255,255,255,.06)}
+.plate{padding:16px 20px 16px 22px;border-radius:20px;background:var(--plate);box-shadow:inset 0 1px 0 rgba(255,255,255,.06)}
 .a-albums{min-width:0}
-.a-albums .ph{display:flex;align-items:baseline;gap:12px;margin-bottom:12px}
+.a-albums .ph{display:flex;align-items:baseline;gap:12px;margin-bottom:16px}
 .a-albums .ph i{flex:1;min-width:0;font:normal 400 var(--t-sm)/1.2 var(--f-sans);color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .a-albums .ph .lnk{flex:none;font:500 var(--t-sm)/1 var(--f-sans);color:var(--muted)}
 .a-albums .rowx{display:grid;grid-template-columns:repeat(auto-fill,minmax(clamp(190px,12cqw,250px),1fr));gap:12px clamp(16px,1.6cqw,28px)}
@@ -141,9 +132,11 @@
   repeating-radial-gradient(circle,#101014 0 1.2px,#1a1a20 1.2px 2.4px);box-shadow:0 0 0 1px rgba(255,255,255,.05),0 8px 18px -8px rgba(0,0,0,.8);transition:transform .6s var(--spring)}
 .alb .disc::after{content:"";position:absolute;inset:0;border-radius:50%;background:conic-gradient(from 20deg,transparent 0 8%,rgba(255,255,255,.14) 14%,transparent 22% 58%,rgba(255,255,255,.1) 64%,transparent 72%)}
 .alb .cv{position:relative;width:100%;--r:8px;box-shadow:0 12px 24px -12px rgba(0,0,0,.85),0 0 0 1px rgba(255,255,255,.06);transition:transform .5s var(--spring)}
-.alb:hover .disc{transform:translateY(-34%) rotate(70deg)}
-.alb:hover .cv{transform:translateY(5%) rotate(-3deg)}
-.alb:active .cv{transform:translateY(5%) rotate(-3deg) scale(.97)}
+/* the record comes out from behind the cover towards the plate's own padding (up and to
+   the left), never towards the title, the header or the next album */
+.alb:hover .disc{transform:translate(-16%,-14%) rotate(60deg)}
+.alb:hover .cv{transform:translate(5%,4%) rotate(-2deg)}
+.alb:active .cv{transform:translate(5%,4%) rotate(-2deg) scale(.97)}
 .alb b{display:block;font:500 var(--t-body)/1.2 var(--f-sans);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .alb small{display:block;margin-top:2px;font:400 var(--t-sm)/1.2 var(--f-sans);color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .alb em{display:block;margin-top:5px;font:normal 500 var(--t-cap)/1.2 var(--f-sans);letter-spacing:.1em;text-transform:uppercase;color:color-mix(in srgb,var(--acc) 62%,var(--text))}
@@ -175,7 +168,7 @@
   .a-hero{gap:clamp(12px,1.8cqh,18px)}
   .a-phrase{-webkit-line-clamp:3}
   .a-paths{padding-top:12px;gap:24px}
-  .plate{padding:12px 16px 12px}
+  .plate{padding:12px 16px 12px 20px}
   .alb em{display:none}
   .alb .sleeve{width:52px}
   .week .mets{display:none}

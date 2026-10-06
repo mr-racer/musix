@@ -5,6 +5,19 @@
       <p>Композиция v1, отрефайненная, с тем, что ты выбрал: шар волны как в v1 с доработанным нажатием, вайбики и неделя из второго круга, плашка альбомов с причинами, поиск с переключателем, мини-плеер. На твоих данных; сцена имеет размер настоящего экрана и уменьшена под окно, всё нажимается.</p>
     </div>
     <div class="switches">
+      <div class="seg" id="tods" role="group" aria-label="Время суток">
+        <button type="button" data-tod="auto" aria-pressed="true">Сейчас</button>
+        <button type="button" data-tod="morning" aria-pressed="false">Утро</button>
+        <button type="button" data-tod="day" aria-pressed="false">День</button>
+        <button type="button" data-tod="evening" aria-pressed="false">Вечер</button>
+        <button type="button" data-tod="night" aria-pressed="false">Ночь</button>
+      </div>
+      <div class="seg" id="weathers" role="group" aria-label="Погода">
+        <button type="button" data-weather="clear" aria-pressed="true">Ясно</button>
+        <button type="button" data-weather="cloudy" aria-pressed="false">Облачно</button>
+        <button type="button" data-weather="rain" aria-pressed="false">Дождь</button>
+        <button type="button" data-weather="snow" aria-pressed="false">Снег</button>
+      </div>
       <div class="seg" id="sizes" role="group" aria-label="Размер экрана">
         <button type="button" data-w="1512" data-h="982" aria-pressed="false">14″</button>
         <button type="button" data-w="1728" data-h="1117" aria-pressed="true">16″</button>
@@ -16,7 +29,7 @@
 
   <div class="viewport" id="viewport">
     <div class="stage" id="stage" data-playing="false" data-fam="mix">
-      <div class="bg" aria-hidden="true"><div class="bg-img" id="bgImg"></div><div class="tint"></div><div class="grain"></div><div class="shade"></div></div>
+      <div class="bg" aria-hidden="true"><div class="bg-img" id="bgImg"></div><canvas id="aurora"></canvas><canvas id="weather"></canvas><div class="tint"></div><div class="grain"></div><div class="shade"></div></div>
 
       <!-- the frame -->
       <span class="brand" aria-hidden="true" data-i="Bars:18"></span>
@@ -46,7 +59,6 @@
                 <div class="a-tune" id="tuneBox" hidden><span data-tuner style="display:contents"></span></div>
               </div>
             </div>
-            <div class="a-anchors"><span class="cap">Якоря вкуса</span><span class="stack" data-anchors></span></div>
             <div class="a-vibes"><span class="cap">Вайбики · <i>то, что держит тебя сейчас</i></span><div class="vrow" data-vstacks></div></div>
           </div>
           <div class="a-paths">
@@ -96,7 +108,9 @@
 
   <section class="notes">
     <div><h2>Что откуда</h2><ul>
-      <li><b>Композиция v1</b>: слева вайб, шар «Потока» с подписью, якоря вкуса и вайбики; справа поиск и фонотека; внизу статистика. Фраза гротеском, цветные поля фона из палитры якорей, без стеклянных карточек.</li>
+      <li><b>Композиция v1</b>: слева вайб, шар «Потока» с подписью и вайбики (якоря вкуса убраны); справа поиск и фонотека; внизу плашка альбомов и неделя, поднятые над АЧХ мини-плеера. Фраза гротеском, без стеклянных карточек.</li>
+      <li><b>Фон</b>: живая аврора в верхней половине, как в v1, но на холсте: пять мягких пятен света в палитре вкуса медленно плывут. Она знает время суток (утром светлее и розовее, днём чище, вечером янтарная «лампа», ночью глубже и синее) и погоду (облачно: тусклее и медленнее; дождь: холоднее, тонкие капли; снег: редкие хлопья). Пока играет музыка, пятна перекрашиваются в цвета обложки текущего трека: комнату освещает то, что звучит. Переключатели наверху — чтобы посмотреть все состояния; в приложении время берётся с часов, погода с сервера по городу.</li>
+      <li><b>Настройки</b>: тихая иконка в колонке острова, без плашки; под курсором появляется тонкое кольцо и шестерёнка поворачивается.</li>
       <li><b>Шар</b> как в v1: четыре капли цвета вкуса дрейфуют под стеклянной крышкой, снаружи крутится размытое кольцо, под курсором расходится ореол, капли тянутся к курсору. Доработано нажатие: шар проминается и возвращается на пружине, жидкость внутри «сглатывает», ореол вспыхивает одним сильным кольцом, кольцо снаружи на миг ускоряется, значок подскакивает.</li>
       <li><b>Настроить волну</b> открывается под подписью прямо на месте, ряд ниже плавно сдвигается. Внутри настрой из второго круга: «что играть» одним выбором из четырёх, звук двумя переключателями. Выбор перекрашивает капли в шаре.</li>
       <li><b>Вайбики</b> стопками, как во втором круге.</li>
@@ -111,8 +125,8 @@
     </ul></div>
     <div><h2>Вопросы к тебе</h2><ul>
       <li>Так собираем? Если да, начинаю реализацию в вебе с этой композиции.</li>
+      <li>Фон: такая мягкость? Время суток и погода нужны, или достаточно палитры и музыки?</li>
       <li>Плашка альбомов внизу или выше, в правой колонке под фонотекой?</li>
-      <li>Нажатие шара: достаточно или ещё сочнее?</li>
     </ul></div>
   </section>
 </div>
