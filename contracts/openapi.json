@@ -244,6 +244,42 @@
         "title": "AlbumPageOut",
         "type": "object"
       },
+      "AlbumPick": {
+        "description": "«Поставить альбом»: v1's library rail (screens/picks.py). The vibe is the reason.",
+        "properties": {
+          "album": {
+            "$ref": "#/components/schemas/AlbumOut"
+          },
+          "score": {
+            "title": "Score",
+            "type": "number"
+          },
+          "vibeId": {
+            "format": "uuid",
+            "title": "Vibeid",
+            "type": "string"
+          },
+          "vibeName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vibename"
+          }
+        },
+        "required": [
+          "album",
+          "vibeId",
+          "vibeName",
+          "score"
+        ],
+        "title": "AlbumPick",
+        "type": "object"
+      },
       "AnswerIn": {
         "properties": {
           "optionId": {
@@ -1574,6 +1610,13 @@
       },
       "HomeOut": {
         "properties": {
+          "albumPicks": {
+            "items": {
+              "$ref": "#/components/schemas/AlbumPick"
+            },
+            "title": "Albumpicks",
+            "type": "array"
+          },
           "anchors": {
             "items": {
               "$ref": "#/components/schemas/TrackOut"
@@ -1626,6 +1669,16 @@
             "anyOf": [
               {
                 "$ref": "#/components/schemas/WaveOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "weather": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WeatherOut"
               },
               {
                 "type": "null"
@@ -5428,8 +5481,50 @@
         "title": "WaveOut",
         "type": "object"
       },
+      "WeatherOut": {
+        "properties": {
+          "at": {
+            "format": "date-time",
+            "title": "At",
+            "type": "string"
+          },
+          "code": {
+            "title": "Code",
+            "type": "integer"
+          },
+          "kind": {
+            "enum": [
+              "clear",
+              "cloudy",
+              "rain",
+              "snow"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "temperatureC": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Temperaturec"
+          }
+        },
+        "required": [
+          "kind",
+          "code",
+          "temperatureC",
+          "at"
+        ],
+        "title": "WeatherOut",
+        "type": "object"
+      },
       "WeeklyPulse": {
-        "description": "This local week (Monday..now): time listened, top genre, first-ever listens.",
+        "description": "This local week (Monday..now): time listened, top genre, first-ever listens. The\nweb's home shows the last seven days instead (`last7_ms`, oldest..today) with the\nlistening streak; `daily_ms` stays Monday..Sunday for the phone.",
         "properties": {
           "dailyMs": {
             "items": {
@@ -5442,8 +5537,25 @@
             "title": "Discoveries",
             "type": "integer"
           },
+          "last7Ms": {
+            "items": {
+              "type": "integer"
+            },
+            "title": "Last7Ms",
+            "type": "array"
+          },
+          "last7PlayedMs": {
+            "default": 0,
+            "title": "Last7Playedms",
+            "type": "integer"
+          },
           "playedMs": {
             "title": "Playedms",
+            "type": "integer"
+          },
+          "streakCurrent": {
+            "default": 0,
+            "title": "Streakcurrent",
             "type": "integer"
           },
           "topGenre": {

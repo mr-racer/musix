@@ -142,4 +142,8 @@ def test_stats_and_the_weekly_pulse_count_local_days(client: TestClient, listene
     pulse = client.get("/api/v2/home", params=q, headers=h).json()["pulse"]
     assert pulse["playedMs"] == sum(pulse["dailyMs"]) == 2 * dur
     assert pulse["discoveries"] == 1
+    # the web's home: the last seven local days, today last, and the streak of /stats
+    assert len(pulse["last7Ms"]) == 7
+    assert pulse["last7Ms"][-1] == pulse["last7PlayedMs"] == 2 * dur
+    assert pulse["streakCurrent"] == 1
     assert client.get("/api/v2/stats/map", headers=h).json()["trackIds"] == []

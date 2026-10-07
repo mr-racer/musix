@@ -16,9 +16,11 @@ const TABS: Tab[] = [
   { to: "/admin", label: "Админка", short: "Админ", icon: "Shield", owner: true },
 ];
 
-/** v1's desktop shell (a floating glass nav island at the left, settings at the bottom) and
- *  its phone tab bar; the mini player sits above the content's bottom edge. On the player,
- *  a dark cover-lit surface in both app themes, the whole shell takes the dark tokens. */
+/** v1's desktop shell (a floating glass nav island at the left, settings a quiet glyph in
+ *  the top right corner, where the owner wanted it) and its phone tab bar; the mini player
+ *  sits above the content's bottom edge. On the player and the home, dark cover-lit
+ *  surfaces in both app themes, the whole shell takes the dark tokens (the light theme
+ *  comes to the new screens in one pass at the end, design/code/roadmap.md). */
 export function Shell() {
   const role = useAuth((s) => s.role);
   const path = useRouterState({ select: (s) => s.location.pathname });
@@ -29,11 +31,11 @@ export function Shell() {
   const stood = useRef(0);
   if (on >= 0) stood.current = on;
   return (
-    <div className={css.shell} data-mx-theme={path === "/player" ? "dark" : undefined}>
+    <div className={css.shell} data-mx-theme={path === "/player" || path === "/" ? "dark" : undefined}>
       <Link to="/" className={css.brand} aria-label="MusiX — главная">
         <BrandMark size={30} />
       </Link>
-      <nav className={css.rail} aria-label="Разделы">
+      <nav className={css.rail} aria-label="Разделы" data-sky-edge="island">
         <span className={css.blob} aria-hidden data-off={on < 0 ? "" : undefined} style={{ ["--i" as string]: stood.current }} />
         {tabs.map((t) => (
           <Link key={t.to} to={t.to} className={active(t.to) ? css.railOn : css.railItem} aria-current={active(t.to) ? "page" : undefined}>
@@ -42,7 +44,7 @@ export function Shell() {
           </Link>
         ))}
       </nav>
-      <Link to="/settings" className={css.settings} aria-label="Настройки">
+      <Link to="/settings" className={css.settings} aria-label="Настройки" title="Настройки">
         <Icon name="Settings" size={18} />
       </Link>
       <main className={path === "/player" ? css.mainStage : css.main}>

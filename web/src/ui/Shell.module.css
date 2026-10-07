@@ -1,5 +1,5 @@
 .shell { min-height: 100dvh; position: relative; }
-.main { min-height: 100dvh; overflow-x: clip; /* full-bleed hero fields never widen the page */ padding-left: 92px; padding-bottom: calc(var(--player-h, 0px) + 12px); }
+.main { min-height: 100dvh; overflow-x: clip; /* full-bleed hero fields never widen the page */ padding-left: 92px; padding-bottom: calc(var(--player-h, 0px) + var(--spec-room, 0px) + 12px); }
 /* the player is exactly one screen: no breathing room under it (the phone rule below still leaves the tab bar's) */
 .mainStage { composes: main; padding-bottom: 0; }
 .brand { position: fixed; top: 18px; left: 22px; z-index: 30; }
@@ -31,11 +31,6 @@
   background: linear-gradient(165deg, rgba(255,255,255,0.16) 0%, rgba(255,255,255,0.05) 32%, rgba(255,255,255,0.02) 64%, rgba(255,255,255,0.10) 100%), rgba(24,24,32,0.36);
   box-shadow: inset 0 1px 0 rgba(255,255,255,0.25), inset 0 -1px 0 rgba(255,255,255,0.07), inset 1px 0 0 rgba(255,255,255,0.06), 0 18px 42px rgba(0,0,0,0.45), 0 2px 10px rgba(0,0,0,0.28);
 }
-/* `:root` lifts these over the light theme's relief (`:root[data-theme="light"] .btn`) */
-:root .shell[data-mx-theme="dark"] .settings {
-  background: linear-gradient(180deg, #2c2c34 0%, #1c1c23 100%);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.13), inset 0 -1px 0 rgba(0,0,0,0.5), 0 2px 5px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.05);
-}
 /* the blob: the raised pill under the open section. It springs between sections with an
    overshoot (design/code/motion-and-performance.md); the items themselves carry no plate */
 .blob {
@@ -60,11 +55,18 @@
 .railItem:active, .railOn:active { transform: scale(0.94); }
 .railOn { color: var(--mx-text); }
 @media (prefers-reduced-motion: reduce) { .blob { transition-duration: 0.01s; } }
+/* settings: a quiet glyph in the top right corner, no plate; a hairline ring appears under
+   the pointer and the cog turns (the owner found the raised button «неактуальной и не к месту») */
 .settings {
-  composes: btn from "./relief.module.css";
-  position: fixed; left: 22px; bottom: calc(var(--player-h, 0px) + 22px); z-index: 30;
-  width: 44px; height: 44px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: var(--mx-text-muted);
+  position: fixed; right: 22px; top: 16px; z-index: 30;
+  width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: var(--mx-text-subtle);
+  box-shadow: 0 0 0 1px transparent;
+  transition: transform 0.25s var(--mx-ease-spring), color 0.2s var(--mx-ease-standard), box-shadow 0.25s var(--mx-ease-standard), background 0.25s var(--mx-ease-standard);
 }
+.settings:hover { color: var(--mx-text); background: rgba(255,255,255,0.06); box-shadow: 0 0 0 1px var(--mx-border-strong); }
+.settings svg { transition: rotate 0.6s var(--mx-ease-spring); }
+.settings:hover svg { rotate: 60deg; }
+.settings:active { transform: scale(0.92); }
 .tabbar { display: none; }
 @media (max-width: 760px) {
   .main, .mainStage { padding-left: 0; padding-bottom: calc(var(--player-h, 0px) + 72px + env(safe-area-inset-bottom, 0px)); }

@@ -43,6 +43,12 @@ SELECT
     (SELECT array_agg(coalesce(d.ms, 0) ORDER BY g) FROM generate_series(1, 7) g
      LEFT JOIN (SELECT dow, sum(played_ms) AS ms FROM ev GROUP BY dow) d ON d.dow = g)
 """)
+_LAST7 = sa.text(f"""
+SELECT array_agg(coalesce(d.ms, 0) ORDER BY g) FROM generate_series(0, 6) g
+LEFT JOIN (SELECT {LOCAL}::date AS day, sum(l.played_ms) AS ms FROM listen_events l
+           WHERE l.account_id = :a AND l.started_at >= now() - interval '9 days' GROUP BY 1) d
+  ON d.day = (CAST(:today AS date) - (6 - g))
+""")
 _TOTALS = sa.text("""
 SELECT coalesce(sum(played_ms), 0), min(started_at),
        avg(least(played_ms::float8 / duration_ms, 1)) FILTER (WHERE duration_ms > 0)
@@ -176,12 +182,23 @@ def local_today(tz: int) -> dt.date:
 
 
 async def pulse(c: Ctx, tz: int) -> S.WeeklyPulse:
-    row = (await c.run(lambda s: s.execute(_PULSE, {"a": c.account_id, "tz": tz}))).one()
+    today = local_today(tz)
+    p = {"a": c.account_id, "tz": tz, "today": today}
+    res, last7, days = await asyncio.gather(
+        c.run(lambda s: s.execute(_PULSE, p)),
+        c.run(lambda s: s.scalar(_LAST7, p)),
+        c.run(lambda s: s.execute(_DAYS, p)),
+    )
+    row = res.one()
+    seven = [int(x) for x in last7 or []]
     return S.WeeklyPulse(
         played_ms=int(row[0]),
         top_genre=row[1],
         discoveries=int(row[2]),
         daily_ms=[int(x) for x in row[3]],
+        last7_ms=seven,
+        last7_played_ms=sum(seven),
+        streak_current=streaks([r[0] for r in days.all()], today)[0],
     )
 
 

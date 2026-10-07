@@ -9,7 +9,7 @@ from musix.api.deps import Auth
 from musix.contexts.identity.security import Principal
 from musix.contexts.knowledge.service import knowledge_version
 from musix.contexts.screens import schemas as S
-from musix.contexts.screens import service, stats
+from musix.contexts.screens import service, stats, weather
 from musix.contexts.stream.models import taste_maps, taste_profile
 from musix.errors import Invalid, NotFound
 from musix.schemas import ID_LIST
@@ -50,13 +50,19 @@ def _profile_version(account_id: uuid.UUID) -> Any:
 
 @router.get("/home", response_model=S.HomeOut, responses=etag.NOT_MODIFIED)
 async def home(p: Auth, request: Request, response: Response, tz: TzOffset = 0) -> Any:
-    # the pulse resets on the local Monday; «вайбики» change when the profile job runs
-    shape = f"home:{tz}:{stats.local_today(tz).isocalendar()[:2]}"
+    # the pulse moves with the local day; «вайбики» change when the profile job runs; the
+    # sky changes with the weather (a cached reading; a stale one refreshes in the background)
+    st = request.app.state
+    wx = weather.peek(st.settings.weather_latlon, st.settings.proxy_url)
+    shape = f"home:{tz}:{stats.local_today(tz)}:{wx.kind if wx else '-'}"
     tag, head = await etag.versioned_tag(
         request, p.account_id, shape, with_plays=True, also=(_profile_version(p.account_id),)
     )
     return await etag.conditional(
-        request, response, tag, lambda: service.home(_ctx(request, p), head, tz)
+        request,
+        response,
+        tag,
+        lambda: service.home(_ctx(request, p), head, tz, qdrant=st.qdrant, weather=wx),
     )
 
 

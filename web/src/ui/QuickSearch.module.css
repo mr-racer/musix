@@ -1,0 +1,43 @@
+/* The search field: an inset groove with the «Библиотека / ИИ» switch at its left. In the
+   AI mode the field glows in the accent (design/code/screens/home.md) */
+.find { position: relative; display: flex; align-items: center; gap: 10px; height: 48px; padding: 0 14px 0 5px; border-radius: 999px;
+  background: rgba(0,0,0,0.3); box-shadow: inset 0 1px 0 rgba(0,0,0,0.4), inset 0 -1px 0 rgba(255,255,255,0.07);
+  transition: box-shadow 0.3s var(--mx-ease-standard), background 0.3s var(--mx-ease-standard); }
+.find:focus-within { background: rgba(0,0,0,0.42); box-shadow: inset 0 1px 0 rgba(0,0,0,0.4), 0 0 0 2px color-mix(in srgb, var(--mx-text) 34%, transparent); }
+.find[data-mode="ai"], .find[data-mode="ai"]:focus-within { box-shadow: inset 0 1px 0 rgba(0,0,0,0.4), 0 0 0 1.5px color-mix(in srgb, var(--mx-accent-light) 70%, transparent), 0 0 34px -8px var(--mx-accent-light); }
+.find input { flex: 1; min-width: 0; border: 0; background: transparent; outline: 0; font: inherit; font-size: 15px; color: var(--mx-text); }
+.find input::placeholder { color: var(--mx-text-subtle); }
+.kbd { flex: none; padding: 3px 7px; border: 1px solid var(--mx-border-strong); border-radius: 6px; font: 400 11px/1.2 var(--mx-font-mono); color: var(--mx-text-subtle); transition: opacity 0.2s var(--mx-ease-standard); }
+.find:focus-within .kbd { opacity: 0; }
+.mode { position: relative; flex: none; display: inline-flex; padding: 3px; border-radius: 999px; background: rgba(255,255,255,0.07); }
+.thumb { position: absolute; left: 0; top: 3px; bottom: 3px; width: var(--w, 0); border-radius: 999px; background: rgba(255,255,255,0.16);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.18), 0 2px 6px rgba(0,0,0,0.3); transform: translateX(var(--x, 0));
+  transition: transform 0.5s cubic-bezier(0.3, 1.45, 0.42, 1), width 0.35s var(--mx-ease-swift), background 0.3s var(--mx-ease-standard); }
+.find[data-mode="ai"] .thumb { background: color-mix(in srgb, var(--mx-accent-light) 34%, rgba(255,255,255,0.1)); }
+.side { position: relative; display: inline-flex; align-items: center; gap: 5px; height: 32px; padding: 0 12px; border-radius: 999px; font: 500 13px/1 var(--mx-font-sans); color: var(--mx-text-muted);
+  transition: color 0.2s var(--mx-ease-standard), transform 0.25s var(--mx-ease-spring); }
+.side[aria-checked="true"] { color: var(--mx-text); }
+.side:active { transform: scale(0.94); }
+.side[data-m="ai"][aria-checked="true"] svg { animation: hop 0.62s var(--mx-ease-standard); }
+@keyframes hop { 0% { transform: none; } 28% { transform: translateY(-34%) rotate(-12deg) scale(1.12); } 52% { transform: translateY(0) rotate(0) scale(0.96); } 72% { transform: translateY(-12%) rotate(5deg); } 100% { transform: none; } }
+/* what was found: a float surface under the field, growing out of its top edge */
+.pop { position: absolute; z-index: 20; left: 0; right: 0; top: calc(100% + 8px); max-height: min(520px, 60vh); padding: 8px; border: 1px solid var(--mx-border-strong); border-radius: 22px;
+  background: var(--mx-float); box-shadow: 0 24px 60px rgba(0,0,0,0.55); overflow: auto; transform-origin: 50% 0; animation: pop 0.34s var(--mx-ease-spring) both; }
+@keyframes pop { from { opacity: 0; transform: scale(0.9) translateY(-6px); } }
+.h { margin: 10px 10px 4px; font: 600 11px/1.2 var(--mx-font-sans); letter-spacing: 0.14em; text-transform: uppercase; color: var(--mx-text-subtle); }
+.group { display: contents; }
+.hit { display: grid; grid-template-columns: 40px minmax(0, 1fr) auto; align-items: center; gap: 12px; width: 100%; padding: 6px 10px 6px 6px; border-radius: 12px; text-align: left;
+  transition: background 0.15s var(--mx-ease-standard), transform 0.25s var(--mx-ease-spring); }
+.hit:active { transform: scale(0.985); }
+.hit[aria-selected="true"], .hit:hover { background: rgba(255,255,255,0.07); }
+.hit b { display: block; font: 500 15px/1.2 var(--mx-font-sans); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hit small { display: block; margin-top: 2px; font: 400 13px/1.2 var(--mx-font-sans); color: var(--mx-text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hit mark { background: none; color: var(--mx-accent-light); }
+.k { font: 400 11px/1 var(--mx-font-mono); color: var(--mx-text-subtle); }
+.ai { margin-top: 4px; border-top: 1px solid var(--mx-border); border-radius: 0 0 12px 12px; padding-top: 10px; }
+.ai:first-child { margin-top: 0; border-top: 0; border-radius: 12px; padding-top: 6px; }
+.orbit { width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; color: var(--mx-accent-light); background: rgba(255,255,255,0.06); }
+.say { display: block; width: 100%; padding: 10px 12px; border-radius: 12px; text-align: left; font: 400 15px/1.4 var(--mx-font-text); color: var(--mx-text-muted); transition: background 0.15s var(--mx-ease-standard), color 0.15s var(--mx-ease-standard); }
+.say:hover, .say[aria-selected="true"] { background: rgba(255,255,255,0.07); color: var(--mx-text); }
+.empty { margin: 0; padding: 14px 12px; font: italic 400 15px/1.5 var(--mx-font-text); color: var(--mx-text-muted); }
+@media (prefers-reduced-motion: reduce) { .pop { animation: none; } .thumb { transition-duration: 0.01s; } }

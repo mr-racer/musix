@@ -79,7 +79,7 @@ Routes of the web app (`web/src/routes`), with what each holds and where it lead
 
 | Screen | Route | What it holds | Leads to |
 |---|---|---|---|
-| **Home** | `/` | the vibe line, the «Поток» orb with «Настроить волну» (a menu of presets), the taste anchors, вайбики, the lyric search, the library card, discoveries, the week's pulse | the player (orb, вайбик, discovery), an artist (anchor), search by lyrics, the library, settings |
+| **Home** | `/` | done: `screens/home.md` (the sky, the orb, «Настроить волну» in place, вайбики as piles, the search with the «Библиотека / ИИ» switch, the library row, «Поставить альбом», the week) | the player (orb, вайбик, the mini player), an artist (a name in the phrase, search), an album (a pick, search), the library, the assistant (the search's AI side), settings |
 | **Player** | `/player` | done: `screens/player.md` | an artist, an album, search (a producer), the queue and assistant windows |
 | **Library** | `/library` | the summary, a filter, four tabs: albums (sorts), artists, tracks (sorts), playlists (with «Новый плейлист») | the gatefold (an album), an artist, a playlist, the player (a track) |
 | **Album** | `/album/$id` | the cover in its light, play, shuffle, «В плейлист», numbered tracks | the artist, the player |

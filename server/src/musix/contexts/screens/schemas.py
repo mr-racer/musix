@@ -3,7 +3,7 @@ the screen references, once, keyed by id."""
 
 import datetime as dt
 import uuid
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import Field
 
@@ -52,12 +52,33 @@ class VibeOut(Model):
 
 
 class WeeklyPulse(Model):
-    """This local week (Monday..now): time listened, top genre, first-ever listens."""
+    """This local week (Monday..now): time listened, top genre, first-ever listens. The
+    web's home shows the last seven days instead (`last7_ms`, oldest..today) with the
+    listening streak; `daily_ms` stays Monday..Sunday for the phone."""
 
     played_ms: int
     top_genre: str | None
     discoveries: int
     daily_ms: list[int]  # Monday..Sunday
+    last7_ms: list[int] = Field(default_factory=list)  # the last seven local days, today last
+    last7_played_ms: int = 0
+    streak_current: int = 0  # consecutive days to local today (yesterday counts as grace)
+
+
+class AlbumPick(Model):
+    """«Поставить альбом»: v1's library rail (screens/picks.py). The vibe is the reason."""
+
+    album: AlbumOut
+    vibe_id: uuid.UUID  # the vibe's representative track
+    vibe_name: str | None
+    score: float  # cosine(vibe centroid, album mean CLAP)
+
+
+class WeatherOut(Model):
+    kind: Literal["clear", "cloudy", "rain", "snow"]
+    code: int  # WMO
+    temperature_c: float | None
+    at: dt.datetime
 
 
 class WaveOut(Model):
@@ -74,6 +95,8 @@ class HomeOut(Model):
     vibes: list[VibeOut]
     wave: WaveOut | None  # the «Поток» hero phrase
     pulse: WeeklyPulse
+    album_picks: list[AlbumPick] = Field(default_factory=list)
+    weather: WeatherOut | None = None  # the instance's place, when one is configured
     images: dict[str, ImageData]
 
 

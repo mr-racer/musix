@@ -36,6 +36,7 @@ are taken from the mock where they fit the client's stack.
 | `layout.md` | The desktop grid, the phone rule, windows. |
 | `components.md` | The shared pieces and their measurements. |
 | `screens/player.md` | The player surface. |
+| `screens/home.md` | The home: v1's composition refined, the sky, the orb, the search, the album picks, the week, the mini player. |
 
 Tokens live in `design/tokens/*.json`; `make design` regenerates `design/gen/` for the web
 (`--mx-*` custom properties), Android (`MusixTheme.kt`) and Windows (parked: its output is generated but nothing depends on it).

@@ -100,8 +100,14 @@ async def counts(c: Ctx, head: int | None = None) -> S.Counts:
     return out
 
 
-async def home(c: Ctx, head: int | None = None, tz: int = 0) -> S.HomeOut:
-    from musix.contexts.screens import stats
+async def home(
+    c: Ctx,
+    head: int | None = None,
+    tz: int = 0,
+    qdrant: Any = None,
+    weather: S.WeatherOut | None = None,
+) -> S.HomeOut:
+    from musix.contexts.screens import picks, stats
 
     live = sa.select(T.id).where(T.id == St.track_id, T.deleted_at.is_(None))
     wave = asyncio.create_task(stats.wave(c))  # gather's typing stops at six
@@ -121,6 +127,7 @@ async def home(c: Ctx, head: int | None = None, tz: int = 0) -> S.HomeOut:
         stats.pulse(c, tz),
     )
     members = [uuid.UUID(m) for v in vibe_rows for m in v["members"]]
+    album_picks = asyncio.create_task(picks.album_picks(c, qdrant, vibe_rows))
     strong = await anchor_ids
     both = await c.tracks(list(dict.fromkeys([*recent_ids, *added_ids, *members, *strong])))
     by = {t.id: t for t in both}
@@ -137,7 +144,14 @@ async def home(c: Ctx, head: int | None = None, tz: int = 0) -> S.HomeOut:
         if len(anchors) == 5:
             break
     pls = pls[:12]
-    imgs = await c.images([*_covers(both), *(p.cover_image_id for p in pls)])
+    chosen = await album_picks
+    imgs = await c.images(
+        [
+            *_covers(both),
+            *(p.cover_image_id for p in pls),
+            *(a.album.cover_image_id for a in chosen),
+        ]
+    )
     return S.HomeOut(
         recent=recent,
         recently_added=added,
@@ -147,6 +161,8 @@ async def home(c: Ctx, head: int | None = None, tz: int = 0) -> S.HomeOut:
         vibes=await stats.vibes(c, vibe_rows, by),
         wave=await wave,
         pulse=pulse,
+        album_picks=chosen,
+        weather=weather,
         images=imgs,
     )
 

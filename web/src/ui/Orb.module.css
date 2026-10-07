@@ -1,0 +1,31 @@
+/* The orb of «Поток»: v1's `.fy-hybrid`, measured against design/reference/home (screen.css) */
+.orb { position: relative; flex: none; width: var(--orb, 112px); height: var(--orb, 112px); border-radius: 50%; display: grid; place-items: center;
+  -webkit-tap-highlight-color: transparent; animation: glow 5s ease infinite; transition: transform 0.5s var(--mx-ease-spring); cursor: pointer; }
+.orb:hover { transform: scale(1.08); }
+.orb:active { transform: scale(0.92); transition: transform 0.12s var(--mx-ease-standard); }
+.ring { position: absolute; inset: -8%; border-radius: 50%; background: conic-gradient(from 0deg, var(--c0), var(--c1), var(--c2), var(--c0)); filter: blur(3px); opacity: 0.6; transition: opacity 0.35s var(--mx-ease-standard); }
+.orb:hover .ring, .live .ring { opacity: 1; }
+.clip { position: absolute; inset: 0; border-radius: 50%; overflow: hidden; background: #15151b; box-shadow: 0 14px 30px -10px rgba(0,0,0,0.6); }
+.breathe { position: absolute; inset: 0; animation: breath 7s ease-in-out infinite; }
+.live .breathe { animation: breathPlay 3.2s ease-in-out infinite; }
+.liquid { position: absolute; inset: 0; }
+.liquid i { position: absolute; width: 87%; height: 87%; border-radius: 50%; filter: blur(calc(var(--orb, 112px) * 0.145)); transition: translate 0.3s ease-out; }
+.b1 { background: var(--c0); top: 3%; left: 3%; translate: calc(var(--px, 0) * 8px) calc(var(--py, 0) * 8px); }
+.b2 { background: var(--c1); top: 10%; left: 15%; translate: calc(var(--px, 0) * 12px) calc(var(--py, 0) * 12px); }
+.b3 { background: var(--c2); top: 15%; left: -5%; translate: calc(var(--px, 0) * 10px) calc(var(--py, 0) * 10px); }
+.b4 { background: var(--c3); top: -5%; left: 11%; translate: calc(var(--px, 0) * 15px) calc(var(--py, 0) * 15px); }
+.cap { position: absolute; inset: 18%; border-radius: 50%; -webkit-backdrop-filter: blur(5px); backdrop-filter: blur(5px);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.5), inset 0 -3px 8px rgba(0,0,0,0.25);
+  background: linear-gradient(140deg, color-mix(in srgb, var(--c0) 50%, transparent), color-mix(in srgb, var(--c3) 42%, transparent) 55%, color-mix(in srgb, var(--c1) 40%, transparent)); }
+.glyph { position: relative; color: #fff; filter: drop-shadow(0 1px 6px rgba(0,0,0,0.45)); transition: transform 0.4s var(--mx-ease-spring); display: grid; place-items: center; }
+.glyph svg { display: block; }
+.orb:not(.live) .glyph { translate: 6% 0; }
+.orb:hover .glyph { transform: scale(1.12); }
+.halo { position: absolute; inset: 0; border-radius: 50%; border: 2px solid color-mix(in srgb, var(--c1) 65%, transparent); opacity: 0; pointer-events: none; }
+.orb:hover .halo { animation: haloOut 1s ease-out infinite; }
+.live .halo { animation: haloOut 1.5s ease-out infinite; }
+@keyframes glow { 0%, 100% { box-shadow: 0 8px 26px color-mix(in srgb, var(--c0) 50%, transparent); } 50% { box-shadow: 0 10px 34px color-mix(in srgb, var(--c3) 60%, transparent); } }
+@keyframes haloOut { 0% { transform: scale(0.7); opacity: 0.5; } 100% { transform: scale(1.8); opacity: 0; } }
+@keyframes breath { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.07); } }
+@keyframes breathPlay { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.035); } }
+@media (prefers-reduced-motion: reduce) { .orb, .breathe, .halo, .live .halo, .live .breathe { animation: none; } }

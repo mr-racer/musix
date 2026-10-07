@@ -17,3 +17,9 @@ export function hoursMinutes(ms: number): string {
   const m = Math.round(ms / 60000);
   return m >= 60 ? `${Math.floor(m / 60)}ч ${m % 60}м` : `${m}м`;
 }
+
+/** «8 ч 59 м», «41 мин» (the home's week readout; design/reference/home). */
+export function hoursMinutesWide(ms: number): string {
+  const m = Math.round(ms / 60000);
+  return m >= 60 ? `${Math.floor(m / 60)} ч ${String(m % 60).padStart(2, "0")} м` : `${m} мин`;
+}

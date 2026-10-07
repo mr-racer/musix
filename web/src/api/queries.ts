@@ -15,9 +15,11 @@ async function withImages<T extends { images?: Record<string, import("./client")
   return r;
 }
 
+/** The home counts the week in the device's local days. */
 export const homeQuery = queryOptions({
   queryKey: ["home"],
-  queryFn: () => withImages(ok(api.GET("/api/v2/home"))),
+  queryFn: () => withImages(ok(api.GET("/api/v2/home", { params: { query: { tzOffsetMinutes: -new Date().getTimezoneOffset() } } }))),
+  staleTime: 60_000,
 });
 
 export const contextQuery = (trackId: string) =>
