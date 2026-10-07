@@ -73,9 +73,9 @@ prod-env:  # once: the stack's interpolation secrets, never printed
 # and a separate build would duplicate gigabytes (`make dev` builds them first)
 prod-up: prod-env web
 	docker tag musix-v2-server:dev musix-v2-server:prod && docker tag musix-v2-ml:dev musix-v2-ml:prod
-	$(PROD) up -d --wait $(if $(AI),--profile ai)
+	$(PROD) $(if $(AI),--profile ai) up -d --wait
 prod-down:
-	$(PROD) down
+	$(PROD) $(if $(AI),--profile ai) down
 prod-logs:
 	$(PROD) logs --tail 100 -f api worker nginx
 # the migration into the prod stack: its media dir, compose file, Postgres and Qdrant
