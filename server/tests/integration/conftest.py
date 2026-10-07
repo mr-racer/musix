@@ -37,6 +37,7 @@ def settings(tmp_path_factory: pytest.TempPathFactory) -> Iterator[Settings]:
             qdrant_url=f"http://{qd.rest_host_address}",
             secrets_dir=str(tmp_path_factory.mktemp("secrets")),
             media_dir=str(tmp_path_factory.mktemp("media")),
+            weather_latlon="",  # the tests never ask Open-Meteo: a clear sky, no network
         )
         cfg = Config(str(SERVER / "alembic.ini"))
         cfg.attributes["url"] = s.sqlalchemy_sync_url
@@ -45,7 +46,8 @@ def settings(tmp_path_factory: pytest.TempPathFactory) -> Iterator[Settings]:
         # gets pointed here too. Without this, in-process tasks reached the dev stack's
         # Postgres and Qdrant. Nobody noticed until that stack was stopped (2026-10-01).
         env = {"MUSIX_DATABASE_URL": s.database_url, "MUSIX_QDRANT_URL": s.qdrant_url,
-               "MUSIX_SECRETS_DIR": s.secrets_dir, "MUSIX_MEDIA_DIR": s.media_dir}
+               "MUSIX_SECRETS_DIR": s.secrets_dir, "MUSIX_MEDIA_DIR": s.media_dir,
+               "MUSIX_WEATHER_LATLON": ""}
         before = {k: os.environ.get(k) for k in env}
         os.environ.update(env)
         try:

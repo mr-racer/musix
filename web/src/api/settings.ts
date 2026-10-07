@@ -1,7 +1,13 @@
 import { api, ok } from "./client";
 import { db } from "./db";
 
-export type Settings = { quality?: { wifi?: string; cellular?: string }; playback?: { normalize?: boolean }; [k: string]: unknown };
+export type Settings = {
+  quality?: { wifi?: string; cellular?: string };
+  playback?: { normalize?: boolean };
+  /** the city the home's sky follows; none means Istanbul (design/code/screens/home.md) */
+  weather?: { place?: { name: string; country?: string | null; admin?: string | null; lat: number; lon: number } | null };
+  [k: string]: unknown;
+};
 
 /** The account's settings live in the mirror (synced); a change writes the whole value
  *  (PUT is a replace) and updates the mirror at once so the UI does not wait for /sync. */

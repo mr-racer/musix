@@ -1,6 +1,8 @@
 import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
 import { useState, type FormEvent } from "react";
 import { AuthError, setup } from "../api/auth";
+import { setSetting } from "../api/settings";
+import { type Place, PlacePicker } from "../ui/PlacePicker";
 import { instanceQuery } from "../api/queries";
 import { BrandMark } from "../ui/Brand";
 import { controls } from "../ui/controls";
@@ -21,6 +23,7 @@ function Setup() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [mode, setMode] = useState<"personal" | "shared">("shared");
+  const [place, setPlace] = useState<Place | null>(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -30,6 +33,7 @@ function Setup() {
     setError("");
     try {
       await setup(email.trim(), password, mode);
+      if (place) await setSetting(["weather", "place"], place); // the home's sky; nothing chosen means Istanbul
       await nav({ to: "/admin/setup" });
     } catch (err) {
       setError(err instanceof AuthError && err.status === 409 ? "Сервер уже настроен" : err instanceof AuthError ? err.detail : "Сервер не отвечает");
@@ -58,6 +62,10 @@ function Setup() {
           <div className={css.tabs} role="radiogroup" aria-label="Режим">
             <button type="button" role="radio" aria-checked={mode === "shared"} className={mode === "shared" ? css.tabOn : css.tab} onClick={() => setMode("shared")}>Общий — для друзей</button>
             <button type="button" role="radio" aria-checked={mode === "personal"} className={mode === "personal" ? css.tabOn : css.tab} onClick={() => setMode("personal")}>Личный</button>
+          </div>
+          <div className={css.field}>
+            <span className={css.fieldLabel}>Город для погоды на главной <small>необязательно; без выбора — Стамбул</small></span>
+            <PlacePicker value={place} onChange={setPlace} />
           </div>
           {error && <div className={controls.error} role="alert">{error}</div>}
           <button type="submit" disabled={busy} className={controls.cta + " " + css.submit}>{busy ? "Создаю…" : "Создать сервер"}</button>

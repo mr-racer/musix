@@ -7,6 +7,7 @@ from fastapi import APIRouter, Query, Request, Response
 from musix.api import etag
 from musix.api.deps import Auth
 from musix.contexts.identity.security import Principal
+from musix.contexts.identity.service import get_settings
 from musix.contexts.knowledge.service import knowledge_version
 from musix.contexts.screens import schemas as S
 from musix.contexts.screens import service, stats, weather
@@ -53,7 +54,10 @@ async def home(p: Auth, request: Request, response: Response, tz: TzOffset = 0) 
     # the pulse moves with the local day; «вайбики» change when the profile job runs; the
     # sky changes with the weather (a cached reading; a stale one refreshes in the background)
     st = request.app.state
-    wx = weather.peek(st.settings.weather_latlon, st.settings.proxy_url)
+    prefs = await _ctx(request, p).run(lambda s: get_settings(s, p.account_id))
+    wx = await weather.peek(
+        weather.latlon_of(prefs, st.settings.weather_latlon), st.settings.proxy_url
+    )
     shape = f"home:{tz}:{stats.local_today(tz)}:{wx.kind if wx else '-'}"
     tag, head = await etag.versioned_tag(
         request, p.account_id, shape, with_plays=True, also=(_profile_version(p.account_id),)
@@ -64,6 +68,14 @@ async def home(p: Auth, request: Request, response: Response, tz: TzOffset = 0) 
         tag,
         lambda: service.home(_ctx(request, p), head, tz, qdrant=st.qdrant, weather=wx),
     )
+
+
+@router.get("/weather/places", response_model=list[S.PlaceOut])
+async def weather_places(
+    p: Auth, request: Request, q: str = Query(min_length=2, max_length=80)
+) -> Any:
+    """Cities for the settings' weather place (the home's sky): Open-Meteo's geocoding."""
+    return await weather.places(q, request.app.state.settings.proxy_url)
 
 
 @router.get("/stats", response_model=S.StatsOut, responses=etag.NOT_MODIFIED)

@@ -81,6 +81,16 @@ class WeatherOut(Model):
     at: dt.datetime
 
 
+class PlaceOut(Model):
+    """A city for the settings' weather place, as Open-Meteo's geocoding names it."""
+
+    name: str
+    country: str | None
+    admin: str | None  # the region
+    lat: float
+    lon: float
+
+
 class WaveOut(Model):
     phrase: str
     source: str  # ai | fallback

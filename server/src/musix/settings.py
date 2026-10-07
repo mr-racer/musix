@@ -39,7 +39,7 @@ class Settings(BaseSettings):
     llm_api_key: SecretStr | None = None  # a local server ignores it; SecretStr: never in a repr
     knowledge_langs: list[str] = ["ru"]  # the languages facts, vibe lines and bios are written in
     proxy_url: str | None = None  # outbound knowledge sources only; internal traffic never
-    weather_latlon: str | None = None  # "55.75,37.62": the home's sky follows this place's weather
+    weather_latlon: str = "55.7522,37.6156"  # default place for the sky: Istanbul
 
     @field_validator("database_url")
     @classmethod

@@ -15,6 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from musix import __version__, errors, observability
 from musix.api.idempotency import IdempotencyMiddleware
 from musix.api.realtime import Hub
+from musix.contexts.screens import weather
 from musix.infra import db, secrets, vectors
 from musix.infra.ml_client import MlClient
 from musix.infra.queue import make_queue_app
@@ -99,7 +100,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         app.state.hub = Hub(settings.procrastinate_conninfo)
         app.state.hub.start()
         app.state.ml = MlClient(settings.ml_url, read_timeout=60.0)
+        # the home's sky: the default place's weather is warm before the first home
+        # (every worker keeps its own reading; a listener's own city is fetched on first ask)
+        warm = asyncio.create_task(weather.fetch(settings.weather_latlon, settings.proxy_url))
         yield
+        warm.cancel()
         await app.state.ml.close()
         await app.state.hub.stop()
         await app.state.queue.close_async()

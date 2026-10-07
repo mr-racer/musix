@@ -1,0 +1,22 @@
+/* The place picker: an inset field that turns into a chip once a city is chosen */
+.picker { position: relative; min-width: 260px; }
+.compact { min-width: 220px; }
+.field { display: flex; align-items: center; gap: 8px; height: 40px; padding: 0 12px; border-radius: 999px; background: rgba(0,0,0,0.3); color: var(--mx-text-subtle);
+  box-shadow: inset 0 1px 0 rgba(0,0,0,0.4), inset 0 -1px 0 rgba(255,255,255,0.07); transition: box-shadow 0.3s var(--mx-ease-standard); }
+.field:focus-within { box-shadow: inset 0 1px 0 rgba(0,0,0,0.4), 0 0 0 2px color-mix(in srgb, var(--mx-text) 34%, transparent); }
+.field input { flex: 1; min-width: 0; border: 0; background: transparent; outline: 0; font: inherit; font-size: 14px; color: var(--mx-text); }
+.field input::placeholder { color: var(--mx-text-subtle); }
+.busy { width: 12px; height: 12px; border-radius: 50%; border: 1.5px solid var(--mx-text-subtle); border-top-color: transparent; animation: turn 0.8s linear infinite; }
+@keyframes turn { to { transform: rotate(360deg); } }
+.chosen { display: inline-flex; align-items: center; gap: 8px; height: 40px; padding: 0 6px 0 14px; border-radius: 999px; background: color-mix(in srgb, var(--mx-accent-light) 16%, transparent); border: 1px solid color-mix(in srgb, var(--mx-accent-light) 55%, transparent); font-size: 14px; color: var(--mx-text); animation: pop 0.3s var(--mx-ease-spring); }
+.chosenName { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 32ch; }
+.clear { width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; color: var(--mx-text-muted); transition: background 0.2s var(--mx-ease-standard), color 0.2s var(--mx-ease-standard), transform 0.25s var(--mx-ease-spring); }
+.clear:hover { background: rgba(255,255,255,0.1); color: var(--mx-text); }
+.clear:active { transform: scale(0.9); }
+.pop { position: absolute; z-index: 20; left: 0; right: 0; top: calc(100% + 6px); margin: 0; padding: 6px; list-style: none; border: 1px solid var(--mx-border-strong); border-radius: 16px; background: var(--mx-float); box-shadow: 0 24px 60px rgba(0,0,0,0.55); transform-origin: 50% 0; animation: pop 0.3s var(--mx-ease-spring) both; }
+@keyframes pop { from { opacity: 0; transform: scale(0.94) translateY(-4px); } }
+.hit { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; width: 100%; padding: 8px 10px; border-radius: 10px; text-align: left; transition: background 0.15s var(--mx-ease-standard); }
+.hit:hover, .hit[aria-selected="true"] { background: rgba(255,255,255,0.07); }
+.hit b { font: 500 14px/1.2 var(--mx-font-sans); }
+.hit small { font: 400 12px/1.2 var(--mx-font-sans); color: var(--mx-text-muted); }
+@media (prefers-reduced-motion: reduce) { .pop, .chosen { animation: none; } .busy { animation-duration: 2s; } }

@@ -166,3 +166,8 @@ Then: the snow's edges were too hard («снег резко обрывается
 её)» and the days-in-a-row count, also v1's. Rule: when v1 had a feature, port its logic;
 do not design a replacement.
 
+**2026-10-07, on the implementation's video:** the segmented thumb «вылетает за края и
+обрезается» on a far switch; the snow «резко появляется по всей поверхности, а не только
+там куда упал». On the weather: ask the city in the settings and at the first run, «без
+определения по ip» (VPNs); если юзер не указывает город — дефолтный город инстанса.
+

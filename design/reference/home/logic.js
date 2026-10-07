@@ -181,10 +181,11 @@ function weatherFrame(dt,t){const W=stage.clientWidth, H=stage.clientHeight, sno
     for(let i=0;i<c.n;i++) if(c.cells[i]>.05){any=true; break;} if(!any) continue;
     const taper=i=>{const k=Math.min(i+.5,c.n-.5-i)/5; return k>=1?1:k<=0?0:k*k*(3-2*k);};
     const hAt=i=>{const a=c.cells[Math.max(0,i-1)], b=c.cells[i], d=c.cells[Math.min(c.n-1,i+1)]; return (a+2*b+d)/4*taper(i);};
-    const band=(grow,alpha)=>{wcx.beginPath(); wcx.moveTo(c.x0,e.t+3);
-      for(let i=0;i<c.n;i++){const x=c.x0+i*CW+CW/2, h=hAt(i), y=e.t-h-grow*Math.min(1,h);
-        if(i===0) wcx.lineTo(x,y); else {const hm=(hAt(i-1)+h)/2; wcx.quadraticCurveTo(c.x0+i*CW,e.t-hm-grow*Math.min(1,hm),x,y);}}
-      wcx.lineTo(c.x0+c.n*CW,e.t+3); wcx.closePath(); wcx.fillStyle='rgba(248,250,255,'+alpha+')'; wcx.fill();};
+    const band=(grow,alpha)=>{const top=i=>{const h=hAt(i); return e.t-h-grow*Math.min(1,h);}, bottom=i=>e.t+3*Math.min(1,hAt(i));
+      wcx.beginPath(); wcx.moveTo(c.x0,e.t);
+      for(let i=0;i<c.n;i++){const x=c.x0+i*CW+CW/2; if(i===0) wcx.lineTo(x,top(i)); else wcx.quadraticCurveTo(c.x0+i*CW,(top(i-1)+top(i))/2,x,top(i));}
+      wcx.lineTo(c.x0+c.n*CW,e.t); for(let i=c.n-1;i>=0;i--) wcx.lineTo(c.x0+i*CW+CW/2,bottom(i));
+      wcx.closePath(); wcx.fillStyle='rgba(248,250,255,'+alpha+')'; wcx.fill();};
     band(1.6,.28); band(.6,.4); band(0,.86); }}
 function auKick(){ if(!auRaf&&!reduce) auRaf=requestAnimationFrame(auFrame); }
 $('#tods').addEventListener('click',ev=>{const b=ev.target.closest('button'); if(!b) return; todPick=b.dataset.tod; $$('#tods button').forEach(x=>x.setAttribute('aria-pressed',x===b));});

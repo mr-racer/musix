@@ -238,14 +238,21 @@ export function Sky({ weather, taste }: { weather: Weather; taste: string[] }) {
         if (!c.cells.some((v) => v > 0.05)) continue;
         const taper = (i: number) => { const k = Math.min(i + 0.5, c.n - 0.5 - i) / 5; return k >= 1 ? 1 : k <= 0 ? 0 : k * k * (3 - 2 * k); };
         const hAt = (i: number) => ((c.cells[Math.max(0, i - 1)]! + 2 * c.cells[i]! + c.cells[Math.min(c.n - 1, i + 1)]!) / 4) * taper(i);
+        // the band: its top is the snow's profile, its bottom sinks 3 px into the surface only
+        // where snow lies (a bare cell is a point), so nothing shows where nothing fell
         const band = (grow: number, alpha: number) => {
-          wcx.beginPath(); wcx.moveTo(c.x0, e.t + 3);
+          wcx.beginPath();
+          const top = (i: number) => { const h = hAt(i); return e.t - h - grow * Math.min(1, h); };
+          const bottom = (i: number) => e.t + 3 * Math.min(1, hAt(i));
+          wcx.moveTo(c.x0, e.t);
           for (let i = 0; i < c.n; i++) {
-            const x = c.x0 + i * CW + CW / 2, h = hAt(i), y = e.t - h - grow * Math.min(1, h);
-            if (i === 0) wcx.lineTo(x, y);
-            else { const hm = (hAt(i - 1) + h) / 2; wcx.quadraticCurveTo(c.x0 + i * CW, e.t - hm - grow * Math.min(1, hm), x, y); }
+            const x = c.x0 + i * CW + CW / 2;
+            if (i === 0) wcx.lineTo(x, top(i));
+            else wcx.quadraticCurveTo(c.x0 + i * CW, (top(i - 1) + top(i)) / 2, x, top(i));
           }
-          wcx.lineTo(c.x0 + c.n * CW, e.t + 3); wcx.closePath();
+          wcx.lineTo(c.x0 + c.n * CW, e.t);
+          for (let i = c.n - 1; i >= 0; i--) wcx.lineTo(c.x0 + i * CW + CW / 2, bottom(i));
+          wcx.closePath();
           wcx.fillStyle = `rgba(248,250,255,${alpha})`; wcx.fill();
         };
         band(1.6, 0.28); band(0.6, 0.4); band(0, 0.86);

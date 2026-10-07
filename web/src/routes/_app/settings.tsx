@@ -7,6 +7,7 @@ import { readSettings, setSetting, type Settings } from "../../api/settings";
 import { useLive } from "../../lib/live";
 import { setThemePref, themePref, useTheme, type ThemePref } from "../../lib/theme";
 import { Segmented } from "../../ui/controls";
+import { type Place, PlacePicker } from "../../ui/PlacePicker";
 import css from "./settings.module.css";
 
 export const Route = createFileRoute("/_app/settings")({ component: SettingsView });
@@ -40,6 +41,14 @@ function SettingsView() {
             <input type="checkbox" checked={s.playback?.normalize ?? true} onChange={(e) => void setSetting(["playback", "normalize"], e.target.checked)} />
             <span />
           </label>
+        </Row>
+      </section>
+
+      <section className={css.card}>
+        <div className={css.eyebrow}>Главная</div>
+        <Row label="Город для погоды" hint="Небо на главной следует погоде этого города. Без выбора — Стамбул; по IP не определяем">
+          <PlacePicker compact value={(s.weather?.place as Place | undefined) ?? null}
+            onChange={(p) => { void setSetting(["weather", "place"], p); void qc.invalidateQueries({ queryKey: ["home"] }); }} />
         </Row>
       </section>
 

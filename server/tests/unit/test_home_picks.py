@@ -43,3 +43,12 @@ def test_weather_kinds_follow_wmo_codes() -> None:
     assert [weather.kind_of(c) for c in (2, 3, 45)] == ["cloudy"] * 3
     assert [weather.kind_of(c) for c in (61, 80, 95)] == ["rain"] * 3
     assert [weather.kind_of(c) for c in (71, 85)] == ["snow", "snow"]
+
+
+def test_the_listeners_place_comes_from_the_settings_else_the_instance() -> None:
+    chosen = {"weather": {"place": {"lat": 59.93, "lon": 30.33}}}
+    assert weather.latlon_of(chosen, "1,2") == "59.9300,30.3300"
+    assert weather.latlon_of({"weather": {"place": {"lat": "x"}}}, "1,2") == "1,2"
+    assert weather.latlon_of({}, None) == ""  # no instance default: no weather
+    assert weather.latlon_of({}, weather.ISTANBUL) == weather.ISTANBUL
+    assert weather.latlon_of(None, "55.75,37.62") == "55.75,37.62"

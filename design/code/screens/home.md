@@ -29,14 +29,16 @@ Gone from v1's home: the taste anchors (their stack is a component now, `compone
 - **The sky** (`ui/Sky.tsx`): v1's top half «мягко амбиент делала». A canvas a tenth of
   the viewport, stretched, under a grain and the shade. Three spots of sky in real colours
   for the hour (morning, day, evening, night by the clock) and the weather (clear, cloudy,
-  rain, snow from `/home.weather`, the instance's place in `MUSIX_WEATHER_LATLON`), the
+  rain, snow from `/home.weather` for the listener's city: chosen at the first run or in
+  the settings; nothing chosen means Istanbul, the instance's `MUSIX_WEATHER_LATLON`), the
   sun or the moon, and two quieter spots in the taste's colours (muted at night: no acid
   colours) which take the playing cover's colours while music plays. Rain and snow fall on
   a second canvas in front of the page and know the edges marked `data-sky-edge`: the
   headline's lines (rain only), the search field, the albums' plate and the island. A drop
   breaks into four droplets; a flake stays where it fell and the snow there grows as a
   height field in 5-px cells (a little spills onto the neighbours), thinning out towards
-  the ends of a surface, with a feathered edge; it melts when the snow stops.
+  the ends of a surface, with a feathered edge, and the band's underside follows the
+  height too, so a bare surface shows nothing; it melts when the snow stops.
   `localStorage.mx-sky = clear|cloudy|rain|snow` shows any weather.
 - **The orb** (`ui/Orb.tsx`): v1's `.fy-hybrid` kept: four drops of the taste's colours
   drift under a glass cap, a blurred ring turns, a halo leaves it under the pointer, the
@@ -45,7 +47,9 @@ Gone from v1's home: the taste anchors (their stack is a component now, `compone
   so a change of pace never jumps. The press: the orb gives and springs back, the liquid
   gulps, the halo bursts once, the ring hurries for 0.7 s, the glyph pops.
 - **«Настроить волну»**: opens in place under the caption (height animated), the rows
-  below slide down. Inside: what to play, one of four on a track with a springing thumb;
+  below slide down. Inside: what to play, one of four on a track with a springing thumb
+  (the groove clips its overshoot, so from one end to the other it bumps the wall, never
+  leaves the groove; the same for the search switch);
   the sound, two switches. Saved to the server and remembered on the device.
 - **Вайбики**: piles of three covers; the pile spreads under the pointer. A click plays
   the vibe; its top cover flies into the mini player's cover.

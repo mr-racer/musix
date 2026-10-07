@@ -42,3 +42,7 @@
   .chips { margin-inline: auto; }
   .auroraA, .auroraB { filter: blur(44px); }
 }
+/* the first run's optional field: a label over its control */
+.field { display: flex; flex-direction: column; gap: 8px; }
+.fieldLabel { font-size: 13px; color: var(--mx-text-muted, rgba(238,238,243,0.66)); display: flex; flex-direction: column; gap: 2px; }
+.fieldLabel small { font-size: 12px; color: var(--mx-text-subtle, rgba(238,238,243,0.46)); }
