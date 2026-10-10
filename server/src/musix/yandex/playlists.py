@@ -60,6 +60,21 @@ def list_sources(client) -> list[dict]:
     return sources
 
 
+def track_row(t) -> dict:
+    """One track for the import picker (the web lists a source's tracks to choose from)."""
+    album = (t.albums or [None])[0]
+    uri = getattr(t, "cover_uri", None)
+    return {
+        "id": str(t.id),
+        "title": t.title or "",
+        "artists": [a.name for a in (t.artists or []) if getattr(a, "name", None)],
+        "album": getattr(album, "title", None),
+        "duration_ms": getattr(t, "duration_ms", None),
+        "cover": f"https://{uri.replace('%%', '200x200')}" if uri else None,
+        "available": getattr(t, "available", True) is not False,
+    }
+
+
 def _short_to_id(ts) -> str | int | None:
     """Best id for ``client.tracks`` from a TrackShort (prefer 'track:album')."""
     tid = getattr(ts, "track_id", None) or getattr(ts, "id", None)

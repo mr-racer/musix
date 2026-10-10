@@ -20,6 +20,7 @@ from typing import Any
 import numpy as np
 import sqlalchemy as sa
 from qdrant_client import AsyncQdrantClient, models
+from qdrant_client.http.exceptions import UnexpectedResponse
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from musix.contexts.stream.models import colisten_vectors
@@ -110,8 +111,15 @@ async def collect(
             (str(t), str(m))
             for t, m in (
                 await s.execute(
+                    # Only files the intel chain has put into Qdrant: a recommend query
+                    # naming a missing point is a 404 for the whole query (2026-10-10:
+                    # uploads made while ml was off sat in a liked session and every
+                    # «Поток» chunk answered 500).
                     sa.text(
-                        "SELECT id, media_file_id FROM tracks WHERE account_id = :a AND id = ANY(:ids)"
+                        """SELECT t.id, t.media_file_id FROM tracks t
+                        JOIN media_files m ON m.id = t.media_file_id
+                        WHERE t.account_id = :a AND t.id = ANY(:ids)
+                        AND m.intel_state = 'indexed'"""
                     ),
                     {"ids": [uuid.UUID(x) for x in anchors + neg], **a},
                 )
@@ -121,19 +129,24 @@ async def collect(
         negative: list[Any] = [mf[t] for t in neg if t in mf]
         if not positive:
             return []
-        res = await q.query_points(
-            TRACKS,
-            query=models.RecommendQuery(
-                recommend=models.RecommendInput(
-                    positive=positive,
-                    negative=negative or None,
-                    strategy=models.RecommendStrategy.BEST_SCORE,
-                )
-            ),
-            using="clap",
-            limit=B_CLAP,
-            query_filter=owned_by(account),
-        )
+        try:
+            res = await q.query_points(
+                TRACKS,
+                query=models.RecommendQuery(
+                    recommend=models.RecommendInput(
+                        positive=positive,
+                        negative=negative or None,
+                        strategy=models.RecommendStrategy.BEST_SCORE,
+                    )
+                ),
+                using="clap",
+                limit=B_CLAP,
+                query_filter=owned_by(account),
+            )
+        except UnexpectedResponse as e:
+            if e.status_code == 404:  # an indexed point without a CLAP vector: skip the source
+                return []
+            raise
         hits = [str(p.id) for p in res.points]
         if not hits:
             return []

@@ -40,7 +40,7 @@ class ModelHub:
             from musix.assistant.compat import MlSync
             from musix.settings import Settings
 
-            self._ml = MlSync(Settings().ml_url)
+            self._ml = MlSync(Settings().ml_url, clap_url=Settings().ml_clap_url)
         return self._ml
 
     def encode_dense(self, texts: list, *, is_query: bool = False):

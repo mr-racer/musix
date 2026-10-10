@@ -12,7 +12,8 @@ from fastapi.testclient import TestClient
 
 from musix.contexts.intel import envelope, pipeline
 from musix.contexts.intel import lyrics as online
-from musix.contexts.library.models import tracks
+from musix.contexts.library.models import media_files, tracks
+from musix.errors import Unavailable
 from musix.infra import vectors
 from musix.infra.ratelimit import Source
 from musix.settings import Settings
@@ -99,3 +100,49 @@ def test_envelope_is_ten_hz_by_four_bands(tmp_path: Path) -> None:
     assert env.shape == (31, 4)  # 3 s at 10 Hz, + the centred last frame
     assert env[5:25, 0].min() > env[5:25, 2].max()  # a 100 Hz tone lives in the lowest band
     assert np.array_equal(envelope.unpack(envelope.pack(env)), env)
+
+
+class _CpuOnlyMl:
+    """CLAP answers, the GPU host is off — until `gpu_on`."""
+
+    def __init__(self) -> None:
+        self.gpu_on = False
+        self.rng = np.random.default_rng(7)
+
+    async def clap_audio(self, path: str, *, priority: str = "bulk"):  # type: ignore[no-untyped-def]
+        return self.rng.standard_normal(512), self.rng.standard_normal((3, 512))
+
+    async def clap_text(self, texts: list[str], *, priority: str):  # type: ignore[no-untyped-def]
+        return self.rng.standard_normal((len(texts), 512))
+
+    async def embed_text(self, texts: list[str], *, is_query: bool, priority: str):  # type: ignore[no-untyped-def]
+        if not self.gpu_on:
+            raise Unavailable("ml dense: ConnectError", op="dense")
+        return self.rng.standard_normal((len(texts), 1024))
+
+
+async def test_a_song_gets_ready_without_the_gpu_and_its_lyrics_vector_comes_later(
+    sm,
+    settings: Settings,
+    listener,  # type: ignore[no-untyped-def]
+) -> None:
+    _, _, ids = listener
+    async with sm() as s:
+        mf = await s.scalar(sa.select(tracks.c.media_file_id).where(tracks.c.id == ids[1]))
+    q = vectors.client(settings.qdrant_url)
+    ml = _CpuOnlyMl()
+    await pipeline.embed_step(sm, ml, q, mf)  # type: ignore[arg-type]
+    async with sm() as s:
+        state = await s.scalar(sa.select(media_files.c.intel_state).where(media_files.c.id == mf))
+    assert state == "indexed"  # ready for «Поток» and sound search with the GPU off
+    got = (await q.retrieve(vectors.TRACKS, [str(mf)], with_vectors=True))[0]
+    assert {"clap", "bm25"} <= set(got.vector)
+    assert "text" not in got.vector
+
+    with pytest.raises(Unavailable):  # the gpu job waits for the host (GPU_RETRY)
+        await pipeline.text_step(sm, ml, q, mf)  # type: ignore[arg-type]
+    ml.gpu_on = True
+    await pipeline.text_step(sm, ml, q, mf)  # type: ignore[arg-type]
+    got = (await q.retrieve(vectors.TRACKS, [str(mf)], with_vectors=True))[0]
+    assert {"clap", "bm25", "text"} <= set(got.vector)  # added, nothing dropped
+    await q.close()

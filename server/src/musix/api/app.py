@@ -99,7 +99,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         await app.state.queue.open_async()
         app.state.hub = Hub(settings.procrastinate_conninfo)
         app.state.hub.start()
-        app.state.ml = MlClient(settings.ml_url, read_timeout=60.0)
+        app.state.ml = MlClient(settings.ml_url, clap_url=settings.ml_clap_url, read_timeout=60.0)
         # the home's sky: the default place's weather is warm before the first home
         # (every worker keeps its own reading; a listener's own city is fetched on first ask)
         warm = asyncio.create_task(weather.fetch(settings.weather_latlon, settings.proxy_url))

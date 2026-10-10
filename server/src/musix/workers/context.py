@@ -26,7 +26,7 @@ def sessionmaker() -> async_sessionmaker[AsyncSession]:
 @cache
 def ml() -> MlClient:
     """The worker's ml client: long reads (a bulk CLAP pass queues behind interactive work)."""
-    return MlClient(settings().ml_url, read_timeout=900.0)
+    return MlClient(settings().ml_url, clap_url=settings().ml_clap_url, read_timeout=900.0)
 
 
 _qdrant: AsyncQdrantClient | None = None

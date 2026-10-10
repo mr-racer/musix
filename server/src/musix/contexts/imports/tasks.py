@@ -9,7 +9,9 @@ import procrastinate
 from musix.workers.context import sessionmaker, settings
 
 
-async def yandex_import(account_id: str, job: str, sources: list[Any]) -> dict[str, Any]:
+async def yandex_import(
+    account_id: str, job: str, sources: list[Any], tracks: list[str] | None = None
+) -> dict[str, Any]:
     from musix.contexts.imports import yandex
     from musix.contexts.media.tasks import enqueue as media
     from musix.infra import secrets
@@ -25,6 +27,7 @@ async def yandex_import(account_id: str, job: str, sources: list[Any]) -> dict[s
         job,
         sources,
         on_registered=media,
+        only=tracks,
     )
 
 

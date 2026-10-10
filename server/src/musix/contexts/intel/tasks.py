@@ -1,5 +1,6 @@
-"""Worker tasks of the intel chain. Queues: `net` (outbound sources), `ml` (the model
-host: its executor serialises anyway, so a small concurrency), `media` (ffmpeg)."""
+"""Worker tasks of the intel chain. Queues: `net` (outbound sources), `ml` (CLAP on its CPU
+host: its executor serialises anyway, so a small concurrency), `gpu` (the optional GPU
+host's dense vectors), `media` (ffmpeg)."""
 
 from __future__ import annotations
 
@@ -20,6 +21,8 @@ from musix.workers.context import ml, qdrant, sessionmaker
 RETRY = procrastinate.RetryStrategy(
     max_attempts=6, wait=10, exponential_wait=2, retry_exceptions={Unavailable}
 )
+# the GPU host is optional (the owner turns it off): its jobs wait for it, every 10 min, forever
+GPU_RETRY = procrastinate.RetryStrategy(wait=600, retry_exceptions={Unavailable})
 
 
 async def _defer(name: str, mf: str) -> None:
@@ -55,9 +58,14 @@ async def embed(media_file_id: str) -> None:
     except Exception as e:
         await pipeline.fail(sessionmaker(), mf, f"{type(e).__name__}: {e}")
         raise
+    await _defer("intel:embed_text", media_file_id)
     await _defer(
         "knowledge:start", media_file_id
     )  # sonic tags exist now (the vibe line reads them)
+
+
+async def embed_text(media_file_id: str) -> None:
+    await pipeline.text_step(sessionmaker(), ml(), await qdrant(), uuid.UUID(media_file_id))
 
 
 async def envelope(media_file_id: str) -> None:
@@ -139,6 +147,7 @@ def register(app: procrastinate.App) -> None:
     app.task(name="intel:reown", queue="default")(reown)
     app.task(name="intel:lyrics", queue="net", retry=RETRY)(lyrics)
     app.task(name="intel:embed", queue="ml", retry=RETRY)(embed)
+    app.task(name="intel:embed_text", queue="gpu", retry=GPU_RETRY)(embed_text)
     app.task(name="intel:envelope", queue="media", retry=2)(envelope)
     app.task(name="intel:backfill", queue="default")(backfill)
     app.task(name="intel:envelope_backfill", queue="default")(envelope_backfill)

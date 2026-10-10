@@ -121,15 +121,21 @@ async def lyrics(
 ) -> list[tuple[str, float]]:
     yf = decades(years or [])
     own = owned_by(account, [yf] if yf else [])
-    dense = (await ml.embed_text([text], is_query=True, priority="interactive"))[0]
-    legs = [
-        models.Prefetch(
-            query=dense.tolist(),
-            using="text",
-            limit=LYRICS_DENSE,
-            score_threshold=LYRICS_MIN,
-            filter=own,
-        ),
+    legs = []
+    try:
+        dense = (await ml.embed_text([text], is_query=True, priority="interactive"))[0]
+        legs.append(
+            models.Prefetch(
+                query=dense.tolist(),
+                using="text",
+                limit=LYRICS_DENSE,
+                score_threshold=LYRICS_MIN,
+                filter=own,
+            )
+        )
+    except Unavailable:  # the GPU host is optional: BM25 alone while it's off
+        pass
+    legs += [
         models.Prefetch(
             query=models.Document(text=text, model=BM25),
             using="bm25",

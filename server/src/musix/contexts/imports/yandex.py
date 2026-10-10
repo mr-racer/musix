@@ -193,6 +193,25 @@ async def sources(s: AsyncSession, fernet: Fernet, account_id: uuid.UUID) -> lis
     return await asyncio.to_thread(playlists.list_sources, client)
 
 
+async def source_tracks(
+    s: AsyncSession, fernet: Fernet, account_id: uuid.UUID, source: Any
+) -> list[dict[str, Any]]:
+    """A source's tracks for the picker, each marked `imported` if this account has it."""
+    from musix.yandex import playlists
+
+    client = await _client(s, fernet, account_id)
+    got = await asyncio.to_thread(playlists.resolve_tracks, client, source)
+    have: set[str] = set(
+        await s.scalars(
+            sa.select(yandex_imports.c.yandex_track_id).where(
+                yandex_imports.c.account_id == account_id,
+                yandex_imports.c.status == "downloaded",
+            )
+        )
+    )
+    return [{**(r := playlists.track_row(t)), "imported": r["id"] in have} for t in got]
+
+
 class _BucketThrottle:
     """v1's `Throttle.wait()` shape over the shared bucket, called from worker threads."""
 
@@ -237,18 +256,20 @@ async def run_import(
     job: str,
     selected: list[Any],
     on_registered: Any = None,
+    only: list[str] | None = None,
 ) -> dict[str, Any]:
+    """`only`: the tracks picked in the web's list (None = every track of the sources).
+    A picked track that failed before is tried again; a downloaded one is not."""
     from musix.yandex import downloader, playlists
 
     async with sm() as s:
         client = await _client(s, fernet, account_id)
-        done_ids: set[str] = set(
-            await s.scalars(
-                sa.select(yandex_imports.c.yandex_track_id).where(
-                    yandex_imports.c.account_id == account_id
-                )
-            )
+        q = sa.select(yandex_imports.c.yandex_track_id).where(
+            yandex_imports.c.account_id == account_id
         )
+        if only is not None:
+            q = q.where(yandex_imports.c.status == "downloaded")
+        done_ids: set[str] = set(await s.scalars(q))
 
     def resolve() -> list[
         Any
@@ -262,7 +283,12 @@ async def run_import(
                     out.append(t)
         return out
 
-    tracks = [t for t in await asyncio.to_thread(resolve) if str(t.id) not in done_ids]
+    picked = set(only) if only is not None else None
+    tracks = [
+        t
+        for t in await asyncio.to_thread(resolve)
+        if str(t.id) not in done_ids and (picked is None or str(t.id) in picked)
+    ]
     throttle = _BucketThrottle(sm, asyncio.get_running_loop())
     tmp = media_dir / "yandex-tmp" / str(account_id)
     report: dict[str, Any] = {
