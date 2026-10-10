@@ -17,6 +17,7 @@ x-server: &server
     MUSIX_MEDIA_DIR: /mnt/data/musix-v2-prod/media
     MUSIX_LIBRARY_ROOTS: '["/mnt/data/music"]'
     MUSIX_ML_URL: http://ml:8002
+    MUSIX_ML_CLAP_URL: http://ml-clap:8002  # CLAP on the CPU: songs get ready with the GPU `ml` off
     MUSIX_PUBLIC_BASE_URL: ${MUSIX_PUBLIC_BASE_URL:-https://musixai.ru}
     MUSIX_LLM_BASE_URL: ${MUSIX_LLM_BASE_URL:-http://192.168.0.168:8082/v1}
     MUSIX_LLM_MODEL: ${MUSIX_LLM_MODEL:-qwen3.8-27b-ud-iq3_s}
@@ -82,6 +83,23 @@ services:
       interval: 5s
       retries: 30
 
+  # the same image serving CLAP alone (models load on first use), always on and never on the
+  # GPU: ingest must not depend on the GPU host, which the owner turns off (2026-10-10)
+  ml-clap:
+    image: musix-v2-ml:prod
+    restart: unless-stopped
+    environment: {ML_DEVICE: cpu, ML_THREADS: "6"}
+    mem_limit: 6g
+    volumes:
+      - v1-hf-cache:/models/hf:ro
+      - /mnt/data/lyrics-search/weights:/models/weights:ro
+      - /mnt/data/music:/mnt/data/music:ro
+      - /mnt/data/musix-v2-prod/media:/mnt/data/musix-v2-prod/media:ro
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request as u; u.urlopen('http://127.0.0.1:8002/health', timeout=3)"]
+      interval: 5s
+      retries: 30
+
   api:
     <<: *server
     command: >-
@@ -100,7 +118,7 @@ services:
 
   worker:
     <<: *server
-    command: procrastinate --app=musix.workers.app.app worker --concurrency 3 --queues default,ingest,net,ml
+    command: procrastinate --app=musix.workers.app.app worker --concurrency 3 --queues default,ingest,net,ml,gpu
     stop_grace_period: 60s
     depends_on: {migrate: {condition: service_completed_successfully}}
     healthcheck:

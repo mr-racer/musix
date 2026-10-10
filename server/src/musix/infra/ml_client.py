@@ -18,24 +18,34 @@ FAILURES_TO_OPEN, OPEN_S = 5, 30.0
 
 
 class MlClient:
-    def __init__(self, base_url: str, *, read_timeout: float = 600.0) -> None:
-        self._http = httpx.AsyncClient(
-            base_url=base_url,
-            timeout=httpx.Timeout(read_timeout, connect=3.0),
-            limits=httpx.Limits(max_connections=32, max_keepalive_connections=16),
-            trust_env=False,  # internal traffic never goes through a proxy
-        )
+    def __init__(
+        self, base_url: str, *, clap_url: str | None = None, read_timeout: float = 600.0
+    ) -> None:
+        def client(url: str) -> httpx.AsyncClient:
+            return httpx.AsyncClient(
+                base_url=url,
+                timeout=httpx.Timeout(read_timeout, connect=3.0),
+                limits=httpx.Limits(max_connections=32, max_keepalive_connections=16),
+                trust_env=False,  # internal traffic never goes through a proxy
+            )
+
+        self._http = client(base_url)
+        # CLAP lives on its own CPU host when one is set: songs get ready with the GPU off
+        self._clap = client(clap_url) if clap_url and clap_url != base_url else self._http
         self._fails: dict[str, int] = {}
         self._open_until: dict[str, float] = {}
 
     async def close(self) -> None:
         await self._http.aclose()
+        if self._clap is not self._http:
+            await self._clap.aclose()
 
     async def _post(self, op: str, path: str, body: dict[str, Any], priority: Priority) -> Any:
         if self._open_until.get(op, 0.0) > time.monotonic():
             raise Unavailable(f"ml {op} is failing; retrying shortly", op=op)
         try:
-            r = await self._http.post(path, json=body, headers={"X-Priority": priority})
+            http = self._clap if path.startswith("/v1/clap/") else self._http
+            r = await http.post(path, json=body, headers={"X-Priority": priority})
         except httpx.TransportError as e:
             self._fail(op)
             raise Unavailable(f"ml {op}: {type(e).__name__}", op=op) from e

@@ -18,6 +18,7 @@ import numpy as np
 import sqlalchemy as sa
 import structlog
 from qdrant_client import AsyncQdrantClient, models
+from qdrant_client.http.exceptions import UnexpectedResponse
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
@@ -161,18 +162,17 @@ async def _prompts(ml: MlClient, key: str, texts: tuple[str, ...]) -> np.ndarray
 
 
 async def embed_step(sm: SM, ml: MlClient, q: AsyncQdrantClient, mf_id: uuid.UUID) -> None:
+    """CLAP (CPU) + BM25: everything a song needs to be ready, with the GPU host off.
+    The dense lyrics vector is `text_step`'s, added later (the owner's rule, 2026-10-10:
+    uploads made while the GPU `ml` was off never got indexed at all)."""
     async with sm() as s:
         m = await meta(s, mf_id)
         own = await owners(s, mf_id)
     if m is None:
         return
     text = text_for_embedding(m.title, m.artist_display, m.album, m.genre, m.lyrics)
-    dense = (await ml.embed_text([text], is_query=False, priority="bulk"))[0]
     audio = await ml.clap_audio(m.path, priority="bulk")
-    vectors: dict[str, Any] = {
-        "text": dense.tolist(),
-        "bm25": models.Document(text=text, model=BM25),
-    }
+    vectors: dict[str, Any] = {"bm25": models.Document(text=text, model=BM25)}
     axes: dict[str, float] = {}
     tags: list[dict[str, Any]] = []
     if audio is not None:
@@ -203,6 +203,24 @@ async def embed_step(sm: SM, ml: MlClient, q: AsyncQdrantClient, mf_id: uuid.UUI
         )
         await _progress(s, own)
         await s.commit()
+
+
+async def text_step(sm: SM, ml: MlClient, q: AsyncQdrantClient, mf_id: uuid.UUID) -> None:
+    """The dense lyrics vector on the GPU host, onto the point `embed_step` wrote. Until
+    it lands, lyrics search finds the song through BM25 alone."""
+    async with sm() as s:
+        m = await meta(s, mf_id)
+    if m is None:
+        return
+    text = text_for_embedding(m.title, m.artist_display, m.album, m.genre, m.lyrics)
+    dense = (await ml.embed_text([text], is_query=False, priority="bulk"))[0]
+    try:
+        await q.update_vectors(
+            TRACKS, [models.PointVectors(id=str(mf_id), vector={"text": dense.tolist()})], wait=True
+        )
+    except UnexpectedResponse as e:  # the point is gone (file deleted meanwhile)
+        if e.status_code != 404:
+            raise
 
 
 async def _progress(s: AsyncSession, own: list[str]) -> None:

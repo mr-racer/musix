@@ -98,7 +98,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         await app.state.queue.open_async()
         app.state.hub = Hub(settings.procrastinate_conninfo)
         app.state.hub.start()
-        app.state.ml = MlClient(settings.ml_url, read_timeout=60.0)
+        app.state.ml = MlClient(settings.ml_url, clap_url=settings.ml_clap_url, read_timeout=60.0)
         yield
         await app.state.ml.close()
         await app.state.hub.stop()

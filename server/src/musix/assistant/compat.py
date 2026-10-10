@@ -56,15 +56,25 @@ STATS = _Stats()
 class MlSync:
     """v1 `ModelRegistry`'s retrieval calls, answered by the ml service."""
 
-    def __init__(self, base_url: str, *, priority: str = "interactive") -> None:
+    def __init__(
+        self, base_url: str, *, clap_url: str | None = None, priority: str = "interactive"
+    ) -> None:
         self.http = httpx.Client(
             base_url=base_url, timeout=httpx.Timeout(120.0, connect=3.0), trust_env=False
+        )
+        self.clap = (
+            httpx.Client(
+                base_url=clap_url, timeout=httpx.Timeout(120.0, connect=3.0), trust_env=False
+            )
+            if clap_url and clap_url != base_url
+            else self.http
         )
         self.headers = {"X-Priority": priority}
 
     def _post(self, path: str, body: dict[str, Any]) -> Any:
+        http = self.clap if path.startswith("/v1/clap/") else self.http
         try:
-            r = self.http.post(path, json=body, headers=self.headers)
+            r = http.post(path, json=body, headers=self.headers)
             r.raise_for_status()
         except httpx.HTTPError as e:
             raise ModelError(f"ml {path}: {type(e).__name__}") from e
