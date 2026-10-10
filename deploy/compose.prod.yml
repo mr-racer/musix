@@ -88,7 +88,8 @@ services:
   ml-clap:
     image: musix-v2-ml:prod
     restart: unless-stopped
-    environment: {ML_DEVICE: cpu, ML_THREADS: "6"}
+    # the default roots are dev's: prod uploads live under musix-v2-prod/media
+    environment: {ML_DEVICE: cpu, ML_THREADS: "6", ML_MEDIA_ROOTS: "/mnt/data/music:/mnt/data/musix-v2-prod/media"}
     mem_limit: 6g
     volumes:
       - v1-hf-cache:/models/hf:ro
