@@ -1,0 +1,138 @@
+/* The import picker: sources unfold into their tracks; every control answers the pointer
+   (design code rule 10). Motion is transform/opacity, except the fold's height (one grid
+   track, a fixed-height list inside), which is the move itself. */
+
+.lead { font-size: 13px; color: var(--mx-text-subtle); margin: 0 0 6px; }
+.sources { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+
+.source, .sourceOpen { border-top: 1px solid var(--mx-border); }
+.source:first-child, .sourceOpen:first-child { border-top: 0; }
+
+.head { display: flex; align-items: center; gap: 12px; padding: 8px 0; }
+.headMain {
+  flex: 1; min-width: 0; display: flex; align-items: center; gap: 12px; padding: 6px 8px 6px 4px;
+  border-radius: 12px; text-align: left; color: inherit;
+  transition: background var(--mx-dur-d-2-0-0) var(--mx-ease-standard);
+}
+.headMain:hover { background: oklch(100% 0 0 / 0.04); }
+.headMain:active .art, .headMain:active .artLikes { transform: scale(0.94); }
+.art, .artLikes {
+  width: 44px; height: 44px; border-radius: 8px; flex-shrink: 0; object-fit: cover;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.35);
+  transition: transform 0.45s var(--mx-ease-spring);
+}
+.headMain:hover .art, .headMain:hover .artLikes { transform: translateY(-2px) rotate(-2deg) scale(1.04); }
+.artLikes {
+  display: grid; place-items: center; font-size: 20px; color: #fff;
+  background: radial-gradient(120% 120% at 30% 20%, oklch(72% 0.2 15), oklch(52% 0.22 355));
+}
+.headText { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.headTitle { font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.headSub { font-size: 12px; color: var(--mx-text-subtle); }
+.picked { color: var(--mx-accent-light); display: inline-block; animation: tick 0.35s var(--mx-ease-spring); }
+.pickHint {
+  font-size: 12px; color: var(--mx-text-subtle); opacity: 0; transform: translateX(6px);
+  transition: opacity 0.2s var(--mx-ease-standard), transform 0.3s var(--mx-ease-spring);
+}
+.headMain:hover .pickHint, .sourceOpen .pickHint { opacity: 1; transform: none; }
+.chevron { display: grid; color: var(--mx-text-muted); transition: transform 0.45s var(--mx-ease-spring); }
+.headMain:hover .chevron { transform: translateY(2px); }
+.sourceOpen .chevron { transform: rotate(180deg); }
+.sourceOpen .headMain:hover .chevron { transform: rotate(180deg) translateY(2px); }
+
+/* the fold: one grid row from 0fr to 1fr; the content rises into place behind it */
+.fold {
+  display: grid; grid-template-rows: 0fr; opacity: 0;
+  transition: grid-template-rows 0.42s var(--mx-ease-swift), opacity 0.25s var(--mx-ease-standard);
+}
+.sourceOpen .fold { grid-template-rows: 1fr; opacity: 1; }
+.foldInner { min-height: 0; overflow: hidden; }
+.picker {
+  padding: 4px 0 14px 44px; transform: translateY(-10px);
+  transition: transform 0.5s var(--mx-ease-spring);
+}
+.sourceOpen .picker { transform: none; }
+
+.tools { display: flex; gap: 10px; align-items: center; margin-bottom: 8px; }
+.search {
+  flex: 1; display: flex; align-items: center; gap: 8px; padding: 0 12px; height: 36px; border-radius: 10px;
+  background: var(--mx-surface-2, oklch(100% 0 0 / 0.05)); color: var(--mx-text-subtle);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.3);
+  transition: box-shadow 0.2s var(--mx-ease-standard), color 0.2s var(--mx-ease-standard);
+}
+.search:focus-within { color: var(--mx-text); box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.3), 0 0 0 2px oklch(68% 0.17 275 / 0.55); }
+.search input { flex: 1; min-width: 0; background: none; border: 0; outline: 0; color: var(--mx-text); font: inherit; font-size: 13px; }
+.allBtn {
+  font-size: 13px; padding: 8px 12px; border-radius: 10px; color: var(--mx-accent-light);
+  transition: background 0.2s var(--mx-ease-standard), transform 0.3s var(--mx-ease-spring);
+}
+.allBtn:hover:not(:disabled) { background: oklch(68% 0.17 275 / 0.12); }
+.allBtn:active:not(:disabled) { transform: scale(0.95); }
+.allBtn:disabled { opacity: 0.4; }
+
+.list { overflow-y: auto; overscroll-behavior: contain; position: relative; scrollbar-width: thin; }
+.track, .trackOn, .trackOff {
+  position: absolute; left: 0; right: 0; top: 0; height: 52px; margin-top: 2px; /* a 56 px slot: picked rows don't merge */
+  display: flex; align-items: center; gap: 12px; padding: 0 10px 0 6px; border-radius: 10px;
+  text-align: left; color: inherit;
+}
+.list[data-fresh] .track, .list[data-fresh] .trackOn, .list[data-fresh] .trackOff {
+  animation: rowIn 0.42s var(--mx-ease-spring) backwards; animation-delay: calc(var(--i, 0) * 18ms);
+}
+.track:hover, .trackOn:hover { background: oklch(100% 0 0 / 0.045); }
+.trackOn { background: oklch(68% 0.17 275 / 0.08); }
+.trackOn:hover { background: oklch(68% 0.17 275 / 0.12); }
+.trackOff { opacity: 0.45; cursor: default; }
+.trackCheck { display: grid; transition: transform 0.3s var(--mx-ease-spring); }
+.track:active .trackCheck, .trackOn:active .trackCheck { transform: scale(0.86); }
+.cover {
+  width: 38px; height: 38px; border-radius: 6px; flex-shrink: 0; object-fit: cover;
+  background: oklch(100% 0 0 / 0.06);
+  transition: transform 0.4s var(--mx-ease-spring);
+}
+.track:hover .cover, .trackOn:hover .cover { transform: scale(1.06); }
+.text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.trackTitle, .trackSub { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.trackTitle { font-size: 13.5px; }
+.trackSub { font-size: 12px; color: var(--mx-text-subtle); }
+.time { font-size: 12px; color: var(--mx-text-subtle); font-variant-numeric: tabular-nums; min-width: 36px; text-align: right; }
+.tag, .tagOff { font-size: 11px; padding: 3px 8px; border-radius: 999px; white-space: nowrap; }
+.tag { color: var(--mx-accent-light); background: oklch(68% 0.17 275 / 0.12); }
+.tagOff { color: var(--mx-text-subtle); background: oklch(100% 0 0 / 0.06); }
+
+/* the checkbox: the box springs on press, the mark draws itself */
+.check {
+  width: 22px; height: 22px; flex-shrink: 0; border-radius: 7px; display: grid; place-items: center;
+  border: 1.5px solid oklch(100% 0 0 / 0.28); background: oklch(0% 0 0 / 0.15);
+  transition: background 0.22s var(--mx-ease-standard), border-color 0.22s var(--mx-ease-standard), transform 0.35s var(--mx-ease-spring);
+}
+button.check:hover { border-color: oklch(100% 0 0 / 0.5); transform: scale(1.06); }
+button.check:active { transform: scale(0.85); }
+.check[data-state="all"], .check[data-state="some"] { background: var(--mx-accent); border-color: var(--mx-accent); box-shadow: 0 2px 10px oklch(60% 0.2 275 / 0.45); }
+.check svg { width: 16px; height: 16px; fill: none; stroke: #fff; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+.markAll, .markSome { stroke-dasharray: 16; stroke-dashoffset: 16; transition: stroke-dashoffset 0.28s var(--mx-ease-swift); }
+.check[data-state="all"] .markAll { stroke-dashoffset: 0; transition-delay: 0.04s; }
+.check[data-state="some"] .markSome { stroke-dashoffset: 0; }
+.check[data-state="all"] { animation: pop 0.38s var(--mx-ease-spring); }
+
+.loading { display: flex; gap: 6px; padding: 18px 0 18px 44px; }
+.loading span { width: 7px; height: 7px; border-radius: 50%; background: var(--mx-text-subtle); animation: dot 1s var(--mx-ease-symmetric) infinite; }
+.loading span:nth-child(2) { animation-delay: 0.15s; }
+.loading span:nth-child(3) { animation-delay: 0.3s; }
+.empty { padding: 16px 6px; font-size: 13px; color: var(--mx-text-subtle); }
+
+.footer { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding-top: 12px; border-top: 1px solid var(--mx-border); margin-top: 4px; }
+.status { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 8px; font-size: 14px; }
+.tick { display: inline-block; animation: tick 0.35s var(--mx-ease-spring); }
+.bar { display: block; height: 3px; border-radius: 3px; background: oklch(100% 0 0 / 0.08); overflow: hidden; max-width: 320px; }
+.bar span { display: block; height: 100%; background: var(--mx-accent-light); transform-origin: left; transition: transform 0.6s var(--mx-ease-standard); }
+
+@keyframes rowIn { from { opacity: 0; transform: translateY(8px); } }
+@keyframes tick { from { opacity: 0; transform: translateY(6px); } }
+@keyframes pop { 40% { transform: scale(1.18); } }
+@keyframes dot { 50% { opacity: 0.25; transform: translateY(-3px); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .fold, .picker, .chevron, .check, .markAll, .markSome, .art, .artLikes, .cover, .pickHint { transition: none; }
+  .list[data-fresh] .track, .list[data-fresh] .trackOn, .list[data-fresh] .trackOff, .picked, .tick, .check[data-state="all"], .loading span { animation: none; }
+}

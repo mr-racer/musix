@@ -123,3 +123,61 @@ async def test_a_yandex_track_whose_content_the_server_has_is_not_stored_twice(
     async with sm() as s:
         sha = await s.scalar(sa.select(media_files.c.sha256).where(media_files.c.id == a))
         assert await s.scalar(sa.select(sa.func.count()).where(media_files.c.sha256 == sha)) == 1
+
+
+async def test_a_yandex_import_takes_only_the_picked_tracks_and_retries_a_failed_pick(
+    sm, tmp_path, listener, monkeypatch
+) -> None:  # type: ignore[no-untyped-def]
+    from types import SimpleNamespace
+
+    from musix.contexts.imports import yandex
+    from musix.contexts.imports.models import yandex_imports
+    from musix.yandex import downloader, playlists
+
+    _, acct, _ = listener
+    src = [
+        SimpleNamespace(id=n, title=f"Song {n}", artists=[SimpleNamespace(name="Band")])
+        for n in (1, 2, 3)
+    ]
+
+    async def client(*_a):  # type: ignore[no-untyped-def]
+        return object()
+
+    def download(t, tmp, throttle=None):  # type: ignore[no-untyped-def]
+        tmp.mkdir(parents=True, exist_ok=True)
+        out = tmp / f"{t.id}.flac"
+        shutil.copy(AUDIO / "tiny.flac", out)
+        return {"ok": True, "path": str(out)}
+
+    monkeypatch.setattr(yandex, "_client", client)
+    monkeypatch.setattr(playlists, "resolve_tracks", lambda c, s: src)
+    monkeypatch.setattr(downloader, "download_track", download)
+    async with sm() as s:  # «3» failed in an earlier import
+        await s.execute(
+            sa.insert(yandex_imports).values(
+                account_id=acct, yandex_track_id="3", status="skipped", reason="no rights"
+            )
+        )
+        await s.commit()
+
+    got = await yandex.run_import(
+        sm,
+        None,
+        tmp_path / "media",
+        acct,
+        "yandex:t",
+        ["likes"],
+        only=["2", "3"],  # type: ignore[arg-type]
+    )
+    assert (got["total"], got["downloaded"]) == (2, 2)  # «1» was not picked; «3» is retried
+    async with sm() as s:
+        rows = dict(
+            (
+                await s.execute(
+                    sa.select(yandex_imports.c.yandex_track_id, yandex_imports.c.status).where(
+                        yandex_imports.c.account_id == acct
+                    )
+                )
+            ).all()
+        )
+    assert rows == {"2": "downloaded", "3": "downloaded"}
