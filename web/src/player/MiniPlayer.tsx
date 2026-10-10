@@ -1,5 +1,5 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { useEffect } from "react";
+import { useEffect, useLayoutEffect, useRef } from "react";
 import { image } from "../lib/images";
 import { clock } from "../lib/format";
 import { Cover } from "../ui/Cover";
@@ -27,6 +27,20 @@ export function MiniPlayer() {
   const shown = !!item && !onPlayer;
   const accent = image(item?.coverImageId)?.palette?.accent.light ?? "#c9c287";
 
+  // a song starting from silence: the bar rises from under the screen's edge and the cover
+  // pops in after it, while the page eases up to make room (--player-h is animated)
+  const bar = useRef<HTMLDivElement>(null);
+  const had = useRef(false);
+  useLayoutEffect(() => {
+    const el = bar.current;
+    if (shown && el && !had.current && !window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) {
+      el.animate([{ transform: "translateY(110%)", opacity: 0 }, { transform: "none", opacity: 1 }], { duration: 620, easing: "cubic-bezier(.2,.9,.25,1.04)" });
+      el.querySelector(`.${css.cover}`)?.animate([{ transform: "scale(.6) rotate(-6deg)", opacity: 0 }, { transform: "none", opacity: 1 }],
+        { duration: 560, delay: 160, easing: "cubic-bezier(.34,1.56,.64,1)", fill: "backwards" });
+    }
+    had.current = !!item;
+  }, [shown, item]);
+
   useEffect(() => {
     const root = document.documentElement.style;
     root.setProperty("--player-h", shown ? `${MINI_H}px` : "0px");
@@ -36,7 +50,7 @@ export function MiniPlayer() {
   if (!shown) return null;
   const lossless = tier === "lossless" || tier === "lossless_compat";
   return (
-    <div className={css.mini} role="region" aria-label="Сейчас играет" style={{ ["--acc" as string]: accent }}>
+    <div ref={bar} className={css.mini} role="region" aria-label="Сейчас играет" style={{ ["--acc" as string]: accent }}>
       <SeekLine className={css.line} progress={durationMs ? Math.min(1, positionMs / durationMs) : 0} durationMs={durationMs} onSeek={(f) => player.seek(f * durationMs)}>
         <Spectrum trackId={item.trackId} className={css.spectrum} />
       </SeekLine>

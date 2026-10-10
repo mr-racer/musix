@@ -14,6 +14,11 @@ body {
   font-size: 14px;
   line-height: 1.45;
 }
+/* the room the mini player takes: registered, so pages ease into it when a song starts
+   instead of jumping up by the bar's height */
+@property --player-h { syntax: "<length>"; inherits: true; initial-value: 0px; }
+@property --spec-room { syntax: "<length>"; inherits: true; initial-value: 0px; }
+:root { transition: --player-h 0.6s cubic-bezier(.22,.9,.3,1), --spec-room 0.6s cubic-bezier(.22,.9,.3,1); }
 input, textarea, select, button { font: inherit; color: inherit; }
 button { background: none; border: none; cursor: pointer; }
 a { color: inherit; text-decoration: none; }
