@@ -21,7 +21,7 @@ export function AlbumCard({ id, coverImageId, title, sub, badge, size = 200 }: {
   const label = `radial-gradient(circle at 38% 32%, ${pal?.vibrant ?? "oklch(62% 0.16 285)"}, ${pal?.accent.dark ?? "oklch(45% 0.16 300)"} 70%)`;
   return (
     <Link to="/album/$id" params={{ id }} className={css.card} onClick={(e) => openAlbum(e, id, coverImageId ?? null, deck.current)}>
-      <span ref={deck} className={css.deck}>
+      <span ref={deck} className={css.deck} data-album-cover={id}>
         <span className={css.disc} aria-hidden><span className={css.grooves}><span className={css.label} style={{ background: label }} /></span></span>
         <span className={css.sleeve}>
           <Cover id={coverImageId} size={size} radius={12} />

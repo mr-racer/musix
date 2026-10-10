@@ -111,7 +111,7 @@ async def library_summary(p: Auth, request: Request, response: Response) -> Any:
 
 @router.get("/albums/{album_id}", response_model=S.AlbumPageOut, responses=etag.NOT_MODIFIED)
 async def album_page(album_id: uuid.UUID, p: Auth, request: Request, response: Response) -> Any:
-    tag = await _tag(request, p, f"album:{album_id}")
+    tag = await _tag(request, p, f"album:{album_id}", with_plays=True)
     return await etag.conditional(
         request, response, tag, lambda: service.album_page(_ctx(request, p), album_id)
     )

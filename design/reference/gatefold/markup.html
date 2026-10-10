@@ -1,0 +1,99 @@
+<div class="page" id="page">
+  <header class="top">
+    <div>
+      <h1>Альбом · гейтфолд</h1>
+      <p>Открытие как сейчас: обложка вылетает из сетки и переворачивается. Меняется оборот. Три варианта на твоих альбомах; сцена размером с настоящий экран, уменьшена под окно. Нажми любую обложку в сетке; в списке наведи на трек и нажми ⤵, чтобы поставить его в очередь.</p>
+    </div>
+    <div class="switches">
+      <div class="seg" id="vars" role="group" aria-label="Вариант">
+        <button type="button" data-v="A" aria-pressed="true">А · Конверт</button>
+        <button type="button" data-v="B" aria-pressed="false">Б · Разворот</button>
+        <button type="button" data-v="C" aria-pressed="false">В · Пластинка</button>
+      </div>
+      <div class="seg" id="sizes" role="group" aria-label="Размер экрана">
+        <button type="button" data-w="1280" data-h="720" aria-pressed="false">Мин.</button>
+        <button type="button" data-w="1512" data-h="982" aria-pressed="false">14″</button>
+        <button type="button" data-w="1728" data-h="1117" aria-pressed="true">16″</button>
+        <button type="button" data-w="2560" data-h="1440" aria-pressed="false">32″</button>
+      </div>
+    </div>
+  </header>
+
+  <div class="viewport" id="viewport">
+    <div class="stage" id="stage">
+      <div class="bg" aria-hidden="true"></div>
+      <span class="brand" aria-hidden="true" data-i="Bars:18"></span>
+      <nav class="island" aria-label="Разделы" style="--i:2">
+        <span class="blob" aria-hidden="true"></span>
+        <button type="button"><span data-i="Home:18"></span><span>Главная</span></button>
+        <button type="button"><span data-i="Player:18"></span><span>Плеер</span></button>
+        <button type="button" aria-current="page"><span data-i="Library:18"></span><span>Библ</span></button>
+        <button type="button"><span data-i="Sparkles:18"></span><span>ИИ</span></button>
+        <button type="button"><span data-i="Quiz:18"></span><span>Игра</span></button>
+      </nav>
+
+      <main class="lib" id="lib">
+        <div>
+          <h2>Библиотека</h2>
+          <div class="sum">Альбомы, которые ты слушаешь чаще всего</div>
+        </div>
+        <div class="tabs"><b>Альбомы</b><span>Артисты</span><span>Треки</span><span>Плейлисты</span></div>
+        <div class="grid" id="grid"></div>
+      </main>
+
+      <footer class="mini" id="mini">
+        <div class="line"><i id="miniLine"></i></div>
+        <div class="row">
+          <button type="button" class="now" id="miniNow"><img id="miniCover" alt=""><span><b id="miniTitle"></b><small id="miniArtist"></small></span></button>
+          <div class="tr">
+            <button type="button" class="ic" aria-label="Предыдущий"><span data-i="ChevronLeft:22"></span></button>
+            <button type="button" class="ic big" id="miniPlay" aria-label="Пауза"><span data-i="Pause:22"></span></button>
+            <button type="button" class="ic" id="miniNext" aria-label="Следующий"><span data-i="ChevronRight:22"></span></button>
+          </div>
+          <div class="tools"><span class="time" id="miniTime"></span><span class="badge">Lossless</span></div>
+        </div>
+      </footer>
+    </div>
+  </div>
+  <div class="sizeTag" id="sizeTag"></div>
+
+  <div class="notes" id="notes">
+    <section data-for="A">
+      <h2>А · Конверт <small>доработанный нынешний</small></h2>
+      <ul>
+        <li>Квадратный конверт, как сейчас. Сверху маленький конверт с пластинкой, название, <b>артист ссылкой</b> (стрелка едет при наведении), строка фактов: год · жанр · треки · время · Lossless.</li>
+        <li><b>«Слушать»</b> одной кнопкой в цвете обложки. «Вперемешку» и «Весь альбом в плейлист» убраны.</li>
+        <li>Треки лежат прямо на фоне обложки, без стеклянной коробки; края списка растворяются при прокрутке.</li>
+        <li>Фон оборота берётся готовым с сервера (размытый с приглушёнными бликами), без размытия в браузере: переворот дешевле и не «плывёт».</li>
+      </ul>
+    </section>
+    <section data-for="B">
+      <h2>Б · Разворот <small>новый язык</small></h2>
+      <ul>
+        <li>После переворота конверт <b>раскрывается как настоящий гейтфолд</b>: правая створка распахивается, на сгибе тень, свет на створке меняется по ходу.</li>
+        <li>Слева афиша: крупное название, артист, «Слушать», сверху как вкладыш продюсеры и лейбл. Справа на створке весь треклист во всю высоту.</li>
+        <li>Самый просторный: длинный альбом (Curtain Call 2, 33 трека) читается без тесноты.</li>
+        <li>Цена: открытие длиннее на 0,5 с; на 14″ разворот занимает почти всю ширину.</li>
+      </ul>
+    </section>
+    <section data-for="C">
+      <h2>В · Пластинка <small>альтернатива</small></h2>
+      <ul>
+        <li>После переворота <b>пластинка выезжает из конверта</b>. На ней видны дорожки альбома, как на настоящем виниле: светлые промежутки между песнями, ширина по длительности.</li>
+        <li>Наводишь на трек в списке — загорается его дорожка; наводишь на дорожку — загорается трек. Клик по дорожке ставит песню, по яблоку пластинки — весь альбом.</li>
+        <li>Пока играет, пластинка крутится, а <b>тонарм</b> стоит на дорожке текущей песни и ползёт к центру.</li>
+        <li>Цена: самый «игрушечный» из трёх; на 14″ пластинка меньше.</li>
+      </ul>
+    </section>
+    <section>
+      <h2>Во всех трёх</h2>
+      <ul>
+        <li><b>Трек в очередь:</b> ⤵ в конце строки. Название вылетает дугой в мини-плеер, над ним всплывает «Далее». На кнопке остаётся номер в очереди; повторный клик убирает. Выбранные по одному играют в том порядке, в каком ты их выбрал.</li>
+        <li><b>Мини-плеер не прячется под затемнением</b>, пока открыт альбом: туда летят треки, и видно, что играет.</li>
+        <li>«Слушать» больше не закрывает альбом: кнопка становится паузой, у играющего трека эквалайзер.</li>
+        <li>Мелочи: метка «любимая» у трека, который ты слушаешь чаще всего (по твоей статистике); «84 прослушивания · последний раз 5 окт.»; диски с заголовками; внизу продюсеры и лейбл как в плеере; <b>«Ещё у артиста»</b> стопкой обложек: клик переворачивает конверт на другой альбом.</li>
+        <li>Убрано: «Вперемешку», «В плейлист» для всего альбома и для отдельного трека. Последнее можно вернуть в меню строки.</li>
+      </ul>
+    </section>
+  </div>
+</div>

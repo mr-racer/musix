@@ -35,6 +35,7 @@ export interface QueueItem {
   reason?: string | null;
   contextType: ContextType;
   contextId?: string | null;
+  queued?: boolean; // put in by hand («В очередь» on the gatefold): plays in the order picked
 }
 
 export interface PlayerState {
@@ -417,6 +418,25 @@ class Engine {
     if (index < 0) return void this.playTracks(items, 0);
     set({ queue: [...queue.slice(0, index + 1), ...items, ...queue.slice(index + 1)] });
     this.dropHeld();
+  }
+
+  /** «В очередь»: right after the current track and after what was queued this way before,
+   *  so hand-picked tracks play in the order they were picked (playNext puts each new one
+   *  first). With nothing playing it simply plays. */
+  enqueue(item: QueueItem): void {
+    const { queue, index } = get();
+    if (index < 0) return void this.playTracks([item], 0);
+    let at = index + 1;
+    while (at < queue.length && queue[at]!.queued) at++;
+    set({ queue: [...queue.slice(0, at), { ...item, queued: true }, ...queue.slice(at)] });
+    this.dropHeld();
+  }
+
+  /** Takes a hand-queued track back out (the first one with that id after the current). */
+  unqueue(trackId: string): void {
+    const { queue, index } = get();
+    const i = queue.findIndex((q, k) => k > index && q.queued && q.trackId === trackId);
+    if (i > index) this.remove(i);
   }
 
   stop(): Promise<void> {

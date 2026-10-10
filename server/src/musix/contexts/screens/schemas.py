@@ -238,10 +238,22 @@ class LibrarySummaryOut(Model):
     album_plays: dict[str, int] = Field(default_factory=dict)  # album id → plays («слушаю чаще»)
 
 
+class AlbumCredit(Model):
+    name: str
+    artist_id: uuid.UUID | None = None
+    songs: int  # how many of the album's songs carry it
+
+
 class AlbumPageOut(Model):
     album: AlbumOut
     tracks: list[TrackOut]  # disc, then track order
     images: dict[str, ImageData]
+    # the gatefold (design/reference/gatefold): the account's listening, and the credits
+    # summed over the album's songs
+    track_plays: dict[str, int] = Field(default_factory=dict)  # track id → plays
+    last_played_at: dt.datetime | None = None
+    producers: list[AlbumCredit] = Field(default_factory=list)  # most songs first, ≤4
+    label: str | None = None
 
 
 class ArtistPageOut(Model):

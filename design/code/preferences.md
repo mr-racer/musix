@@ -171,3 +171,35 @@ do not design a replacement.
 там куда упал». On the weather: ask the city in the settings and at the first run, «без
 определения по ip» (VPNs); если юзер не указывает город — дефолтный город инстанса.
 
+
+## 2026-10-10 — the album gatefold, the brief
+
+- The work moves to branch `v2`: a new design is made there, he checks it, then it goes to
+  prod.
+- The gatefold (the album opened from the home's picks or the library) is next. «Эффект
+  открытия мне нравится, его надо оставить, но вот дизайн этой карточки можно обновить»: the
+  fly-out of the grid and the flip stay as they are.
+- Must keep: the way to the artist, starting the whole album, choosing a particular track
+  into the queue.
+- Not needed: «Весь альбом в плейлист»; «Вперемешку» (the player has it).
+- Apple-style design is welcome.
+- Round 1 (`design/reference/gatefold/`): «Конверт», «Разворот», «Пластинка», awaiting his
+  choice.
+
+## 2026-10-10 — the gatefold, round 1: «Разворот»
+
+**He chose «Б · Разворот»**, «в остальном кайф», and asked to build it straight into
+`design-refresh` (no second mock). His fixes:
+- The left page shows **the sharp cover in the middle**, blurred only under the text at the
+  top and the bottom. The right page stays blurred.
+- «Текст серым плохо читается на ярких обложках»: check readability and contrast on covers
+  of every kind. (Measured on 12 of his covers, white ones included: main text 8.4–13.5 : 1,
+  secondary 5.5–8.5 : 1.)
+- The spread must open and close faster, «чтобы юзер не ждал долго»; the fly-in is fine.
+- The mini player in the mock was not the app's: **the mini player is the same everywhere.**
+- Turning to another album: «странно выглядит, что обложка закрывается, потом резко меняется
+  её цвет, и опять раскрывается». Now the spread stays open and the cover travels in.
+- «любимая» becomes the огонёк icon.
+- «Немного странно выглядит, что она становится размытой до того как открылась»: the change
+  from sharp to blurred must be smooth. Now the sleeve's back is the same sharp cover; the
+  blur comes up with the text.

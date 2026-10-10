@@ -1,6 +1,8 @@
 /* The mini player: the player's own bottom line, on every other screen. Open on the
    background: the seek line with the spectrum over it, then one row of controls. The
    spectrum rises 44 px above the bar (`--spec-room`); pages end above that. */
+/* above the gatefold's scrim while an album is open: what is queued there flies in here */
+:global(html[data-gatefold]) .mini { z-index: 101; }
 .mini { position: fixed; left: 120px; right: 40px; bottom: 0; z-index: 35; height: 86px; display: grid; grid-template-rows: 20px auto; align-content: start; row-gap: 6px;
   text-shadow: 0 1px 14px rgba(8,8,11,0.4); }
 .line { position: relative; height: 20px; cursor: pointer; touch-action: none; border-radius: 4px; }

@@ -54,8 +54,8 @@ async def versioned_tag(
 # cleaned on the way out): every tag moves once, so no client keeps revalidating an old
 # body into 304s. 2: artist cutout/country, bios without the agent's notes; 3: the stats'
 # collection map, the quiz images (2026-10-01); 5: image refs carry the backdrop URL `bg`
-# (2026-10-04).
-REV = 5
+# (2026-10-04); 6: the album page's plays and credits (2026-10-10).
+REV = 6
 
 
 def make(*parts: object) -> str:

@@ -53,7 +53,7 @@ export function MiniPlayer() {
           <button type="button" className={css.big} onClick={() => player.toggle()} aria-label={playing ? "Пауза" : "Играть"} aria-busy={buffering}>
             <Icon name={playing ? "Pause" : "Play"} size={20} />
           </button>
-          <button type="button" className={css.ic} onClick={() => void player.next()} aria-label="Следующий"><Icon name="ChevronRight" size={22} /></button>
+          <button type="button" className={css.ic} data-mini-next onClick={() => void player.next()} aria-label="Следующий"><Icon name="ChevronRight" size={22} /></button>
         </div>
         <div className={css.tools}>
           <span className={css.time}>{clock(positionMs)} / {clock(durationMs)}</span>

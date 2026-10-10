@@ -1,0 +1,306 @@
+/* The album gatefold, three variants on one stage.
+   Layout: page chrome (switches, notes) around one stage that has the size of a real screen,
+   scaled to the window. Behind the gatefold: the library's album grid, the nav island and the
+   mini player. Dark only: the app is designed dark first (roadmap.md, stage 10 brings light).
+   Rules from design/code: open space, cover-lit colour from the server palette, Geist / Noto
+   Sans / JetBrains Mono, links underlined with a sliding chevron, springs for what arrives,
+   a short ease-in for what leaves, transform and opacity only. */
+:root{
+  color-scheme:dark;
+  --bg:#0d0d10; --bg-deep:#08080b; --line:rgba(255,255,255,.08); --line-2:rgba(255,255,255,.14);
+  --text:#eeeef3; --muted:rgba(238,238,243,.66); --subtle:rgba(238,238,243,.46);
+  --float:#16161c; --plate:rgba(255,255,255,.075);
+  --brand:#8f8cf6;
+  --acc:#e0703a;                         /* the open album's accent: palette.accent.dark */
+  --on-acc:#fff;
+  --f-sans:'Geist','Inter',system-ui,sans-serif;
+  --f-text:'Noto Sans',system-ui,sans-serif;
+  --f-mono:'JetBrains Mono',ui-monospace,monospace;
+  --ease:cubic-bezier(.22,.9,.3,1); --spring:cubic-bezier(.34,1.56,.64,1); --swift:cubic-bezier(.16,1,.3,1);
+  --s1:4px; --s2:8px; --s3:12px; --s4:16px; --s5:24px; --s6:32px;
+  --t-cap:11px; --t-sm:13px; --t-body:15px; --t-lead:18px; --t-h:24px;
+  --glass-bg:linear-gradient(165deg,rgba(255,255,255,.16) 0%,rgba(255,255,255,.05) 32%,rgba(255,255,255,.02) 64%,rgba(255,255,255,.10) 100%),rgba(24,24,32,.36);
+  --glass-bd:rgba(255,255,255,.13);
+  --glass-sh:inset 0 1px 0 rgba(255,255,255,.25),inset 0 -1px 0 rgba(255,255,255,.07),0 18px 42px rgba(0,0,0,.45),0 2px 10px rgba(0,0,0,.28);
+  --noise:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+*{box-sizing:border-box}
+html,body{background:var(--bg-deep)}
+body{color:var(--text);font:400 var(--t-body)/1.5 var(--f-sans);-webkit-font-smoothing:antialiased;margin:0}
+button,input{font:inherit;color:inherit}
+button{border:0;background:none;padding:0;cursor:pointer}
+:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+.i{display:block;flex:none}
+
+/* ── page chrome ─────────────────────────────────────────────────────────── */
+.page{max-width:1760px;margin-inline:auto;padding-inline:16px;padding-block:20px 56px;display:grid;gap:var(--s5)}
+.top{display:flex;flex-wrap:wrap;align-items:end;justify-content:space-between;gap:var(--s4)}
+.top h1{margin:0;font:600 22px/1.2 var(--f-sans);letter-spacing:-.02em}
+.top p{margin:var(--s1) 0 0;max-width:72ch;color:var(--muted);font-size:var(--t-sm);text-wrap:pretty}
+.switches{display:flex;flex-wrap:wrap;gap:var(--s2)}
+.seg{display:inline-flex;padding:3px;border-radius:999px;background:rgba(255,255,255,.06);box-shadow:inset 0 1px 0 rgba(255,255,255,.07),inset 0 -1px 0 rgba(0,0,0,.35)}
+.seg button{padding:8px 14px;border-radius:999px;font:500 var(--t-sm)/1 var(--f-sans);color:var(--muted);white-space:nowrap;transition:background .2s var(--ease),color .2s var(--ease),transform .25s var(--spring)}
+.seg button:hover{color:var(--text)}
+.seg button:active{transform:scale(.96)}
+.seg button[aria-pressed="true"]{background:rgba(255,255,255,.13);color:var(--text);box-shadow:inset 0 1px 0 rgba(255,255,255,.14)}
+.sizeTag{justify-self:end;margin-top:calc(var(--s3)*-1);font:400 11px/1.3 var(--f-mono);color:var(--subtle)}
+.notes{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:var(--s5) var(--s6)}
+.notes section{min-width:0}
+.notes h2{margin:0 0 var(--s2);font:600 var(--t-body)/1.3 var(--f-sans)}
+.notes h2 small{font:400 12px/1 var(--f-mono);color:var(--subtle);margin-left:6px}
+.notes ul{margin:0;padding-left:18px;display:grid;gap:6px;color:var(--muted);font-size:14px;max-width:64ch}
+.notes li b{color:var(--text);font-weight:500}
+.notes section[data-on="false"]{opacity:.55}
+
+/* ── the stage: a real screen, scaled to the page ────────────────────────── */
+.viewport{position:relative;width:100%;overflow:hidden;border-radius:14px;border:1px solid var(--line);background:#000}
+.stage{position:relative;isolation:isolate;overflow:hidden;transform-origin:0 0;background:var(--bg);
+  --inset-l:120px; --inset-r:40px; --mini:86px}
+.bg{position:absolute;inset:0;z-index:0;pointer-events:none;background:
+  radial-gradient(60% 50% at 10% 0%,rgba(143,140,246,.10),transparent 70%),
+  radial-gradient(50% 60% at 100% 100%,rgba(224,112,58,.07),transparent 70%)}
+.bg::after{content:"";position:absolute;inset:0;opacity:.06;background-image:var(--noise)}
+
+/* the frame: brand mark, the nav island, the mini player */
+.brand{position:absolute;z-index:6;left:22px;top:18px;width:30px;height:30px;border-radius:9px;display:grid;place-items:center;background:linear-gradient(180deg,#2c2c34,#1c1c23);box-shadow:inset 0 1px 0 rgba(255,255,255,.13),0 2px 5px rgba(0,0,0,.5);color:var(--brand)}
+.island{position:absolute;z-index:6;left:12px;top:50%;translate:0 -50%;display:flex;flex-direction:column;gap:4px;padding:8px 6px;border-radius:26px;
+  background:var(--glass-bg);border:1px solid var(--glass-bd);box-shadow:var(--glass-sh);backdrop-filter:blur(28px) saturate(1.7);-webkit-backdrop-filter:blur(28px) saturate(1.7)}
+.blob{position:absolute;left:6px;top:8px;width:56px;height:52px;border-radius:18px;pointer-events:none;background:linear-gradient(180deg,rgba(255,255,255,.2),rgba(255,255,255,.05));border:1px solid rgba(143,140,246,.5);box-shadow:inset 0 1px 0 rgba(255,255,255,.3),0 4px 12px rgba(0,0,0,.25);transform:translateY(calc(var(--i,0)*56px))}
+.island button{position:relative;z-index:1;width:56px;height:52px;border-radius:18px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;font:600 9.5px/1 var(--f-sans);letter-spacing:.08em;text-transform:uppercase;color:var(--subtle)}
+.island button[aria-current="page"]{color:var(--text)}
+
+.mini{position:absolute;z-index:60;left:var(--inset-l);right:var(--inset-r);bottom:0;height:var(--mini);display:grid;grid-template-rows:20px auto;align-content:start;row-gap:6px;text-shadow:0 1px 14px rgba(8,8,11,.4)}
+.mini .line{position:relative;height:20px}
+.mini .line::before,.mini .line i{content:"";position:absolute;left:0;top:8px;width:100%;height:4px;border-radius:2px}
+.mini .line::before{background:rgba(255,255,255,.16)}
+.mini .line i{background:var(--mini-acc,#cfd0ff);transform-origin:left center;transform:scaleX(var(--p,.3))}
+.mini .row{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:center;gap:var(--s5)}
+.mini .now{display:grid;grid-template-columns:44px minmax(0,auto);align-items:center;gap:var(--s3);justify-self:start;max-width:100%;text-align:left}
+.mini .now img{width:44px;height:44px;border-radius:9px;object-fit:cover;box-shadow:0 8px 20px -8px rgba(0,0,0,.7)}
+.mini .now b{display:block;font:500 var(--t-body)/1.2 var(--f-sans);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mini .now small{display:block;margin-top:3px;font:400 var(--t-sm)/1.2 var(--f-sans);color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mini .tr{display:flex;align-items:center;gap:var(--s2)}
+.ic{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;color:var(--text);transition:background .2s var(--ease),transform .25s var(--spring)}
+.ic:hover{background:rgba(255,255,255,.08)}
+.ic:active{transform:scale(.9)}
+.mini .tr .ic{background:rgba(255,255,255,.1)}
+.mini .tr .ic.big{width:46px;height:46px;background:var(--text);color:#111}
+.mini .tools{display:flex;align-items:center;gap:var(--s3);justify-self:end;color:var(--muted)}
+.badge{display:inline-flex;align-items:center;padding:4px 8px;border:1px solid var(--line-2);border-radius:7px;font:400 11.5px/1 var(--f-mono);color:var(--muted);letter-spacing:.02em}
+.mini .time{font:400 12px/1 var(--f-mono);font-variant-numeric:tabular-nums;color:var(--subtle)}
+/* a queued track in flight, and «Далее» where it lands */
+.fly{position:absolute;z-index:80;left:0;top:0;pointer-events:none}
+.pill{display:flex;align-items:center;gap:10px;padding:6px 14px 6px 6px;border-radius:999px;background:var(--float);border:1px solid var(--line-2);box-shadow:0 18px 40px rgba(0,0,0,.5);font:500 13px/1.2 var(--f-sans);white-space:nowrap;color:var(--text)}
+.pill img{width:28px;height:28px;border-radius:7px;object-fit:cover}
+.pill span{color:var(--subtle);font-weight:400}
+/* «Далее»: where a queued track lands, above the mini player's next button */
+.peek{position:absolute;z-index:61;bottom:calc(var(--mini) + 6px);display:flex;align-items:center;gap:10px;padding:6px 14px 6px 6px;border-radius:999px;
+  background:var(--float);border:1px solid var(--line-2);box-shadow:0 18px 40px rgba(0,0,0,.5);font:500 13px/1.2 var(--f-sans);white-space:nowrap;transform-origin:50% 100%;pointer-events:none}
+.peek img{width:28px;height:28px;border-radius:7px;object-fit:cover}
+.peek span{color:var(--subtle);font-weight:400}
+.toast{position:absolute;z-index:70;left:50%;bottom:calc(var(--mini) + 18px);translate:-50% 0;padding:10px 18px;border-radius:999px;background:var(--float);border:1px solid var(--line-2);box-shadow:0 18px 40px rgba(0,0,0,.5);font-size:13.5px;white-space:nowrap;pointer-events:none}
+
+/* the library behind the gatefold */
+.lib{position:absolute;z-index:1;left:var(--inset-l);right:var(--inset-r);top:0;bottom:calc(var(--mini) + 44px);padding-top:64px;display:flex;flex-direction:column;gap:var(--s5);overflow:hidden}
+.lib h2{margin:0;font:600 40px/1 var(--f-sans);letter-spacing:-.035em}
+.lib .sum{margin-top:var(--s2);color:var(--muted);font-size:var(--t-sm)}
+.tabs{display:flex;gap:var(--s5);font:500 var(--t-body)/1 var(--f-sans);color:var(--subtle);border-bottom:1px solid var(--line);padding-bottom:var(--s3)}
+.tabs b{color:var(--text);font-weight:500;position:relative}
+.tabs b::after{content:"";position:absolute;left:0;right:0;bottom:-13px;height:2px;border-radius:2px;background:var(--text)}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(var(--card,196px),1fr));gap:var(--s6) var(--s5);align-content:start}
+.card{position:relative;display:flex;flex-direction:column;gap:6px;min-width:0;text-align:left;z-index:1}
+.card:hover{z-index:5}
+.deck{position:relative;display:block;aspect-ratio:1}
+.disc{position:absolute;top:4%;left:6%;width:92%;height:92%;z-index:1;transform:translateX(6px);transition:transform .5s var(--ease)}
+.card:hover .disc{transform:translateX(52%) rotate(10deg)}
+.sleeveImg{position:relative;z-index:2;display:block;width:100%;height:100%;border-radius:12px;object-fit:cover;box-shadow:0 6px 18px rgba(0,0,0,.3);transition:transform .5s var(--ease),box-shadow .5s ease}
+.card:hover .sleeveImg{transform:translateX(-7px) rotate(-2deg);box-shadow:0 18px 42px rgba(0,0,0,.45)}
+.card[data-open="true"] .sleeveImg,.card[data-open="true"] .disc{opacity:0}
+.card .ct{font:600 14px/1.3 var(--f-sans);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:4px}
+.card .cs{font:400 12.5px/1.3 var(--f-sans);color:var(--subtle);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* a record, shared by the grid, the sleeve in the hero (A) and the big one (C) */
+.vinyl{position:relative;display:block;width:100%;height:100%;border-radius:50%;
+  background:radial-gradient(circle at 34% 28%,rgba(255,255,255,.14),transparent 42%),
+    repeating-radial-gradient(circle at 50% 50%,#0b0b0d 0px,#0b0b0d 2px,#17171a 2.5px,#0b0b0d 4px);
+  box-shadow:0 16px 38px rgba(0,0,0,.55),inset 0 1px 1px rgba(255,255,255,.07),0 0 0 1px rgba(255,255,255,.05)}
+.vinyl .lbl{position:absolute;inset:33%;border-radius:50%;box-shadow:inset 0 0 0 1px rgba(0,0,0,.35),inset 0 1px 1px rgba(255,255,255,.22)}
+.vinyl::after{content:"";position:absolute;left:50%;top:50%;width:8%;height:8%;translate:-50% -50%;border-radius:50%;background:#08080a;box-shadow:inset 0 1px 2px rgba(0,0,0,.9),0 1px 0 rgba(255,255,255,.08);z-index:2}
+
+/* ── the gatefold ────────────────────────────────────────────────────────── */
+.scrim{position:absolute;inset:0;z-index:50;background:rgba(0,0,0,.62);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+.gf{position:absolute;z-index:51;left:50%;top:var(--gy,50%);width:var(--L);height:var(--L);translate:-50% -50%;perspective:2000px;
+  --L:760px; --acc:#e0703a; --on-acc:#fff; color:var(--text);
+  --mark:color-mix(in srgb,var(--acc) 30%,#fff)}   /* the accent lifted: it must read on the cover's own colour */
+.sleeve{position:absolute;inset:0;z-index:2;will-change:transform}
+.flip{position:relative;width:100%;height:100%;transform-style:preserve-3d;transform:rotateY(0deg)}
+.face{position:absolute;inset:0;backface-visibility:hidden;-webkit-backface-visibility:hidden;border-radius:18px;overflow:hidden;background:#0d0a12;
+  box-shadow:0 30px 80px rgba(0,0,0,.55),0 0 0 1px rgba(255,255,255,.07)}
+.face.back{transform:rotateY(180deg);container-type:size}
+.front img{width:100%;height:100%;object-fit:cover;display:block}
+.front::after{content:"";position:absolute;inset:0;background:linear-gradient(115deg,rgba(255,255,255,.14) 0%,transparent 32%,transparent 68%,rgba(0,0,0,.28) 100%)}
+/* the back is lit by the cover: the server's backdrop (192 px, blurred, highlights tamed),
+   stretched; grain; one shade towards the list. No CSS blur, no veil. */
+.paper{position:absolute;inset:-6%;background-size:cover;background-position:center;transform:scale(1.04)}
+.paper::after{content:"";position:absolute;inset:0;opacity:.06;background-image:var(--noise)}
+.shade{position:absolute;inset:0;background:linear-gradient(180deg,rgba(10,9,14,.10) 0%,rgba(10,9,14,.28) 36%,rgba(10,9,14,.55) 100%)}
+.body{position:absolute;inset:0;display:flex;flex-direction:column;text-shadow:0 1px 14px rgba(8,8,11,.4)}
+
+.x{position:absolute;z-index:5;top:14px;right:14px;width:36px;height:36px;border-radius:50%;display:grid;place-items:center;color:var(--muted);
+  transition:color .2s var(--ease),transform .3s var(--spring),box-shadow .2s var(--ease)}
+.x:hover{color:var(--text);box-shadow:inset 0 0 0 1px var(--line-2);transform:rotate(90deg)}
+.x:active{transform:rotate(90deg) scale(.88)}
+
+/* the text block: title, the artist, the line of facts */
+.ttl{margin:0;font:650 clamp(26px,4.6cqw,44px)/1.02 var(--f-sans);letter-spacing:-.035em;text-wrap:balance;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.ttl.long{font-size:clamp(22px,3.6cqw,36px);line-height:1.06}
+.who{display:inline-flex;align-items:center;gap:4px;margin-top:10px;font:500 var(--t-lead)/1.2 var(--f-sans);color:var(--text);
+  text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:4px;text-decoration-color:rgba(238,238,243,.42);transition:text-decoration-color .2s var(--ease)}
+.who:hover{text-decoration-color:var(--text)}
+.who .i{opacity:.7;transition:transform .3s var(--spring),opacity .2s}
+.who:hover .i{transform:translateX(3px);opacity:1}
+.facts{display:flex;flex-wrap:wrap;align-items:center;gap:6px 0;margin-top:12px;font:400 12.5px/1 var(--f-mono);color:var(--muted);font-variant-numeric:tabular-nums;letter-spacing:.02em}
+.facts > span + span::before{content:"·";margin:0 9px;opacity:.55}
+.facts .badge{margin-left:12px}
+.facts > .badge::before{content:none}
+
+/* play: the album's own colour */
+.acts{display:flex;align-items:center;gap:var(--s4);flex-wrap:wrap}
+.play{display:inline-flex;align-items:center;gap:10px;height:46px;padding:0 22px 0 18px;border-radius:999px;background:var(--text);color:#141418;
+  font:600 15px/1 var(--f-sans);letter-spacing:-.005em;text-shadow:none;
+  box-shadow:inset 0 -1px 0 rgba(0,0,0,.12),0 12px 28px -10px rgba(0,0,0,.6);transition:transform .3s var(--spring),box-shadow .3s var(--ease)}
+.play:hover{transform:translateY(-1px) scale(1.02);box-shadow:inset 0 -1px 0 rgba(0,0,0,.12),0 16px 34px -10px rgba(0,0,0,.7)}
+.play:active{transform:scale(.96)}
+.play .gl{position:relative;width:18px;height:18px}
+.play .gl .i{position:absolute;inset:0;transition:opacity .2s,transform .35s var(--spring)}
+.play .gl .i:last-child{opacity:0;transform:scale(.4)}
+.play[data-on="true"] .gl .i:first-child{opacity:0;transform:scale(.4)}
+.play[data-on="true"] .gl .i:last-child{opacity:1;transform:none}
+.stat{font:400 var(--t-sm)/1.35 var(--f-sans);color:var(--muted)}
+.stat b{font-weight:500;color:var(--text)}
+
+/* the list: open on the backdrop, no box; the edges fade where it scrolls */
+.list{position:relative;flex:1;min-height:0;overflow:auto;overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.18) transparent;
+  -webkit-mask-image:linear-gradient(180deg,transparent 0,#000 14px,#000 calc(100% - 28px),transparent 100%);mask-image:linear-gradient(180deg,transparent 0,#000 14px,#000 calc(100% - 28px),transparent 100%)}
+.disc-h{display:flex;align-items:center;gap:10px;padding:18px 12px 6px;font:600 var(--t-cap)/1 var(--f-sans);letter-spacing:.14em;text-transform:uppercase;color:var(--subtle)}
+.disc-h:first-child{padding-top:6px}
+.disc-h::after{content:"";flex:1;height:1px;background:var(--line)}
+.row{position:relative;display:grid;grid-template-columns:30px minmax(0,1fr) auto 44px 36px;align-items:center;column-gap:12px;min-height:44px;padding:0 4px 0 8px;border-radius:12px;cursor:pointer;
+  transition:background .18s var(--ease),transform .25s var(--spring)}
+.row + .row::before{content:"";position:absolute;left:50px;right:12px;top:0;height:1px;background:var(--line);transition:opacity .18s}
+.row:hover,.row:focus-visible{background:rgba(255,255,255,.07);outline:none}
+.row:hover::before,.row:hover + .row::before{opacity:0}
+.row:active{transform:scale(.99)}
+.row.hov{background:rgba(255,255,255,.07)}
+.no{position:relative;height:20px;display:grid;place-items:center;font:400 12px/1 var(--f-mono);color:var(--subtle);font-variant-numeric:tabular-nums}
+.no > *{grid-area:1/1;transition:opacity .16s var(--ease),transform .3s var(--spring)}
+.no .pg{opacity:0;transform:scale(.5);color:var(--text)}
+.row:hover .no .n{opacity:0;transform:scale(.6)}
+.row:hover .no .pg{opacity:1;transform:none}
+.eq{display:flex;align-items:flex-end;gap:2px;height:13px;opacity:0}
+.eq i{width:3px;border-radius:1px;background:var(--mark);height:40%}
+.row.on .no .n{opacity:0}
+.row.on .eq{opacity:1}
+.row.on:hover .eq{opacity:0}
+.row.on.playing .eq i{animation:eq .9s ease-in-out infinite alternate}
+.row.on.playing .eq i:nth-child(2){animation-duration:.7s;animation-delay:-.3s}
+.row.on.playing .eq i:nth-child(3){animation-duration:1.1s;animation-delay:-.5s}
+@keyframes eq{from{height:25%}to{height:100%}}
+.nm{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font:450 var(--t-body)/1.25 var(--f-sans)}
+.row.on .nm{color:var(--mark);font-weight:550}
+.nm small{font-size:13px;color:var(--subtle);font-weight:400}
+.fav{font:500 11px/1 var(--f-sans);color:var(--text);padding:4px 8px;border-radius:999px;background:rgba(255,255,255,.12);box-shadow:inset 0 0 0 1px rgba(255,255,255,.1);white-space:nowrap;text-shadow:none}
+.dur{text-align:right;font:400 12px/1 var(--f-mono);color:var(--subtle);font-variant-numeric:tabular-nums}
+/* «В очередь»: waits at the row's end, comes forward under the pointer */
+.q{position:relative;width:32px;height:32px;border-radius:50%;display:grid;place-items:center;color:var(--muted);opacity:0;transform:translateX(6px) scale(.9);
+  transition:opacity .2s var(--ease),transform .3s var(--spring),background .2s,color .2s}
+.row:hover .q,.q:focus-visible{opacity:1;transform:none}
+.q:hover{background:rgba(255,255,255,.12);color:var(--text)}
+.q:active{transform:scale(.86)}
+.q .k{position:absolute;inset:4px;border-radius:50%;display:grid;place-items:center;background:var(--text);color:#141418;font:600 11px/1 var(--f-mono);opacity:0;transform:scale(.3);text-shadow:none}
+.q[data-n] {opacity:1;transform:none}
+.q[data-n] .i{opacity:0}
+.q[data-n] .k{opacity:1;transform:none;transition:opacity .15s,transform .45s var(--spring)}
+.q .tip{position:absolute;right:calc(100% + 6px);top:50%;translate:0 -50%;padding:5px 9px;border-radius:8px;background:var(--float);border:1px solid var(--line-2);font:500 12px/1 var(--f-sans);color:var(--text);white-space:nowrap;opacity:0;transform:translateX(4px);pointer-events:none;transition:opacity .15s,transform .25s var(--spring);text-shadow:none}
+.q:hover .tip{opacity:1;transform:none;transition-delay:.35s}
+
+/* the credits under the list: labelled groups, as in the player */
+.creds{display:flex;flex-wrap:wrap;gap:18px 32px;padding:22px 12px 8px}
+.cg{min-width:0}
+.cg > span{display:block;font:600 var(--t-cap)/1 var(--f-sans);letter-spacing:.14em;text-transform:uppercase;color:var(--subtle);margin-bottom:8px}
+.cg p{margin:0;font:400 14px/1.45 var(--f-sans);color:var(--muted)}
+.lnk{color:var(--text);text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:4px;text-decoration-color:rgba(238,238,243,.36);transition:text-decoration-color .2s}
+.lnk:hover{text-decoration-color:var(--text)}
+/* «Ещё у артиста»: a cover stack that spreads under the pointer (components.md) */
+.stack{display:flex;padding:2px 0 4px}
+.stack button{position:relative;width:40px;height:40px;flex:none;border-radius:10px;overflow:hidden;border:2px solid #121217;box-shadow:0 6px 14px rgba(0,0,0,.4);
+  margin-left:-11px;transition:margin .4s var(--spring),transform .35s var(--spring)}
+.stack button:first-child{margin-left:0}
+.stack:hover button{margin-left:4px}
+.stack:hover button:first-child{margin-left:0}
+.stack button:hover{transform:translateY(-6px) scale(1.06);z-index:2}
+.stack img{width:100%;height:100%;object-fit:cover;display:block}
+
+/* rise: what comes after the flip */
+.rise{opacity:0}
+
+/* ── A · «Конверт»: one square, the hero on top, the list below ─────────── */
+.A .body{padding:30px 30px 18px;gap:18px}
+.A .hero{display:grid;grid-template-columns:auto minmax(0,1fr);gap:24px;align-items:center;padding-right:40px}
+.A .mini-sl{position:relative;width:calc(var(--L)*.2);height:calc(var(--L)*.2);margin-right:calc(var(--L)*.08)}
+.A .mini-sl img{position:relative;z-index:2;width:100%;height:100%;border-radius:12px;object-fit:cover;box-shadow:8px 0 18px rgba(0,0,0,.45)}
+.A .mini-sl .rec{position:absolute;z-index:1;top:4%;left:4%;width:92%;height:92%}
+.A .acts{padding-left:0}
+.A .list{margin:0 -8px}
+
+/* ── B · «Разворот»: the sleeve opens; poster on the left, the list on the right leaf ─ */
+.B .body{padding:32px 34px 30px}
+.B .liner{display:grid;gap:18px;align-content:start}
+.B .liner .cg p{font-size:13.5px}
+.B .poster{margin-top:auto;display:grid;gap:0}
+.B .ttl{font-size:clamp(30px,7.4cqw,64px);line-height:.98;-webkit-line-clamp:3}
+.B .ttl.long{font-size:clamp(26px,5.6cqw,48px);line-height:1.02}
+.B .acts{margin-top:22px}
+.leaf{position:absolute;z-index:3;left:100%;top:0;width:100%;height:100%;transform-origin:0 50%;transform-style:preserve-3d;transform:rotateY(-180deg);visibility:hidden}
+.leaf .face{border-radius:0 18px 18px 0}
+.leaf .face.out{transform:rotateY(180deg);border-radius:18px 0 0 18px}
+.leaf .inn{container-type:size}
+.leaf .crease{position:absolute;left:0;top:0;bottom:0;width:26px;background:linear-gradient(90deg,rgba(0,0,0,.38),rgba(0,0,0,0));pointer-events:none;z-index:3}
+.leaf .lit{position:absolute;inset:0;background:#000;opacity:0;pointer-events:none;z-index:4}
+.B .lb{padding:30px 26px 18px 30px;gap:14px}
+.B .lb .lh{display:flex;align-items:baseline;justify-content:space-between;padding:0 48px 0 8px;font:400 12.5px/1 var(--f-mono);color:var(--muted)}
+.B .lb .lh b{font:600 var(--t-cap)/1 var(--f-sans);letter-spacing:.14em;text-transform:uppercase;color:var(--subtle)}
+.B.open .sleeve .face.back{border-radius:18px 0 0 18px}
+.under{position:absolute;inset:0;pointer-events:none;background:linear-gradient(90deg,rgba(0,0,0,0) 40%,rgba(0,0,0,.55));opacity:0;z-index:4}
+
+/* ── C · «Пластинка»: the record comes out of the sleeve and carries the album ─ */
+.C .body{padding:30px 30px 16px;gap:16px}
+.C .hero{padding-right:44px}
+.C .ttl{font-size:clamp(26px,5.4cqw,48px)}
+.C .list{margin:0 -8px}
+.C .row{min-height:40px}
+.C .creds{padding-top:18px}
+.bigrec{position:absolute;z-index:1;top:4%;left:4%;width:92%;height:92%;opacity:0}
+.bigrec .vinyl{box-shadow:0 30px 70px rgba(0,0,0,.6),inset 0 1px 1px rgba(255,255,255,.07),0 0 0 1px rgba(255,255,255,.06)}
+.bigrec .spin{position:absolute;inset:0;border-radius:50%}
+.bigrec svg.bands{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
+.bigrec .bands circle.hit{fill:none;stroke:transparent;cursor:pointer;pointer-events:stroke}
+.bigrec .bands circle.gap{fill:none;stroke:rgba(255,255,255,.07)}
+.bigrec .bands circle.hl{fill:none;stroke:var(--acc);opacity:0;transition:opacity .2s var(--ease);pointer-events:none}
+.bigrec .bands circle.hl.on{opacity:.38}
+.bigrec .bands circle.hl.cur{opacity:.22}
+.bigrec .lbl{display:grid;place-items:center;cursor:pointer;overflow:hidden}
+.bigrec .lbl svg{position:absolute;inset:0;width:100%;height:100%}
+.bigrec .lbl svg text{font:600 8.5px var(--f-sans);letter-spacing:.12em;fill:rgba(255,255,255,.88);text-transform:uppercase}
+.bigrec .lbl .pp{position:relative;z-index:3;width:30%;height:30%;border-radius:50%;display:grid;place-items:center;color:#fff;opacity:0;transition:opacity .2s,transform .3s var(--spring)}
+.bigrec .lbl:hover .pp{opacity:1}
+.bigrec .lbl:active .pp{transform:scale(.85)}
+.bigrec .glare{position:absolute;inset:0;border-radius:50%;pointer-events:none;background:conic-gradient(from 210deg,transparent 0deg,rgba(255,255,255,.07) 30deg,transparent 70deg,transparent 180deg,rgba(255,255,255,.05) 220deg,transparent 260deg)}
+.arm{position:absolute;z-index:3;pointer-events:none;overflow:visible}
+.arm .rot{transform-box:view-box}
+
+@media (prefers-reduced-motion: reduce){
+  .row.on.playing .eq i{animation:none;height:70%}
+  .card:hover .disc,.card:hover .sleeveImg{transform:none}
+}

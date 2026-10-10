@@ -6,6 +6,7 @@ A shape only ever holds the account's own tracks: every track query filters by
 from __future__ import annotations
 
 import asyncio
+import re
 import uuid
 from collections.abc import Awaitable, Callable, Iterable
 from dataclasses import dataclass
@@ -14,6 +15,7 @@ from typing import Any, TypeVar
 import sqlalchemy as sa
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from musix.contexts.knowledge.models import song_relations
 from musix.contexts.library.models import (
     albums,
     artists,
@@ -273,9 +275,82 @@ async def album_page(c: Ctx, album_id: uuid.UUID) -> S.AlbumPageOut:
     )
     if not cards:
         raise NotFound("album")
-    ts = await c.tracks(ids)
+    ts, (plays, last), (producers, label) = await asyncio.gather(
+        c.tracks(ids),
+        _album_plays(c, ids),
+        _album_credits(c, ids, cards[0].album_artist.name if cards[0].album_artist else ""),
+    )
     imgs = await c.images([cards[0].cover_image_id, *_covers(ts)])
-    return S.AlbumPageOut(album=cards[0], tracks=ts, images=imgs)
+    return S.AlbumPageOut(
+        album=cards[0],
+        tracks=ts,
+        images=imgs,
+        track_plays=plays,
+        last_played_at=last,
+        producers=producers,
+        label=label,
+    )
+
+
+async def _album_plays(c: Ctx, ids: list[uuid.UUID]) -> tuple[dict[str, int], Any]:
+    if not ids:
+        return {}, None
+    q = sa.select(St.track_id, St.plays, St.last_played_at).where(
+        St.account_id == c.account_id, St.track_id.in_(ids)
+    )
+    rows = (await c.run(lambda s: s.execute(q))).all()
+    plays = {str(r.track_id): r.plays for r in rows if r.plays}
+    last = max((r.last_played_at for r in rows if r.last_played_at), default=None)
+    return plays, last
+
+
+_SPLIT = re.compile(r",\s*|\s*&\s*")
+
+
+async def _album_credits(
+    c: Ctx, ids: list[uuid.UUID], artist: str
+) -> tuple[list[S.AlbumCredit], str | None]:
+    """Producers and the label summed over the album's songs. The web's relations carry
+    noise: the album artist themself (a self-produced album says nothing), single tokens of
+    their name ("West", "Kanye"), youtubers. A label row is often a distributor chain («G.O.O.D.
+    Music, Roc-A-Fella Records & Def Jam»): its first name is the label."""
+    if not ids:
+        return [], None
+    R = song_relations.c
+    q = (
+        sa.select(
+            R.kind,
+            R.target_text,
+            sa.func.min(sa.cast(R.target_artist_id, sa.Text)).label("aid"),
+            sa.func.count(sa.distinct(R.song_id)).label("n"),
+        )
+        .join(tracks, T.song_id == R.song_id)
+        .where(T.id.in_(ids), R.kind.in_(("producer", "label")))
+        .group_by(R.kind, R.target_text)
+        .order_by(sa.desc("n"), R.target_text)
+    )
+    rows = (await c.run(lambda s: s.execute(q))).all()
+    return clean_credits([(r.kind, r.target_text, r.aid, r.n) for r in rows], artist)
+
+
+def clean_credits(
+    rows: list[tuple[str, str, str | None, int]], artist: str
+) -> tuple[list[S.AlbumCredit], str | None]:
+    """(kind, text, artist id, songs) rows, most songs first → producers ≤4 and the label."""
+    me = artist.casefold()
+    parts = set(me.split())
+    producers: list[S.AlbumCredit] = []
+    for kind, text, aid, n in rows:
+        name = text.strip()
+        low = name.casefold()
+        if kind != "producer" or low == me or low in parts or "youtube" in low:
+            continue
+        if n < 2 and len(producers) >= 2:
+            continue
+        aid_ = uuid.UUID(aid) if aid else None
+        producers.append(S.AlbumCredit(name=name, artist_id=aid_, songs=n))
+    label = next((_SPLIT.split(t)[0].strip() for k, t, _, _ in rows if k == "label"), None)
+    return producers[:4], label or None
 
 
 async def artists_by_ids(c: Ctx, ids: list[uuid.UUID]) -> list[S.ArtistOut]:

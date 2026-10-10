@@ -265,7 +265,7 @@ function Picks({ picks }: { picks: Schemas["AlbumPick"][] }) {
             <Link key={p.album.id} to="/album/$id" params={{ id: p.album.id }} className={css.alb} style={{ ["--lab" as string]: lab }}
               onPointerEnter={() => setCap(`${p.album.trackCount} ${plural(p.album.trackCount, "трек", "трека", "треков")} · ${hoursMinutes(p.album.durationMs)}`)}
               onClick={(e) => openAlbum(e, p.album.id, p.album.coverImageId, e.currentTarget.querySelector("img"))}>
-              <span className={css.sleeve}><span className={css.disc} /><Cover id={p.album.coverImageId} size={78} radius={8} className={css.sleeveCover} /></span>
+              <span className={css.sleeve} data-album-cover={p.album.id}><span className={css.disc} /><Cover id={p.album.coverImageId} size={78} radius={8} className={css.sleeveCover} /></span>
               <span className={css.albText}>
                 <b>{p.album.title}</b>
                 <small>{p.album.albumArtist?.name ?? ""}{p.album.year ? ` · ${p.album.year}` : ""}</small>

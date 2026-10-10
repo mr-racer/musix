@@ -96,6 +96,36 @@
         "title": "AlbumChange",
         "type": "object"
       },
+      "AlbumCredit": {
+        "properties": {
+          "artistId": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Artistid"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "songs": {
+            "title": "Songs",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "name",
+          "songs"
+        ],
+        "title": "AlbumCredit",
+        "type": "object"
+      },
       "AlbumData": {
         "properties": {
           "albumArtistId": {
@@ -226,6 +256,43 @@
               "$ref": "#/components/schemas/ImageData"
             },
             "title": "Images",
+            "type": "object"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
+          },
+          "lastPlayedAt": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lastplayedat"
+          },
+          "producers": {
+            "items": {
+              "$ref": "#/components/schemas/AlbumCredit"
+            },
+            "title": "Producers",
+            "type": "array"
+          },
+          "trackPlays": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Trackplays",
             "type": "object"
           },
           "tracks": {
