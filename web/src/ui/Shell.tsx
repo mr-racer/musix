@@ -24,7 +24,8 @@ const TABS: Tab[] = [
  *  comes to the new screens in one pass at the end, design/code/roadmap.md). */
 export function Shell() {
   const role = useAuth((s) => s.role);
-  const path = useRouterState({ select: (s) => s.location.pathname });
+  // the resolved location changes with the page, inside the page change (lib/pageMotion.ts)
+  const path = useRouterState({ select: (s) => (s.resolvedLocation ?? s.location).pathname });
   const tabs = TABS.filter((t) => !t.owner || role === "owner");
   const active = (to: string) => (to === "/" ? path === "/" : path === to || path.startsWith(to + "/"));
   // the island's blob springs to the open section; on a page outside the sections it fades where it stood

@@ -10,12 +10,15 @@ import "./player/handoff"; // «Слушать на…»: a tab can be handed th
 import { routeTree } from "./routeTree.gen";
 import "./styles/fonts";
 import "./styles/global.css";
+import "./styles/pages.css";
+import { installPageMotion } from "./lib/pageMotion";
 
 export const queryClient = new QueryClient({
   defaultOptions: { queries: { staleTime: 30_000, retry: 1, refetchOnWindowFocus: false } },
 });
 
 const router = createRouter({ routeTree, context: { queryClient }, defaultPreload: "intent", scrollRestoration: true });
+installPageMotion(router);
 
 declare module "@tanstack/react-router" {
   interface Register {

@@ -24,7 +24,7 @@
 .side[data-m="ai"][aria-checked="true"] svg { animation: hop 0.62s var(--mx-ease-standard); }
 @keyframes hop { 0% { transform: none; } 28% { transform: translateY(-34%) rotate(-12deg) scale(1.12); } 52% { transform: translateY(0) rotate(0) scale(0.96); } 72% { transform: translateY(-12%) rotate(5deg); } 100% { transform: none; } }
 /* what was found: a float surface under the field, growing out of its top edge */
-.pop { composes: deep from "./glass.module.css"; position: absolute; z-index: 20; left: 0; right: 0; top: calc(100% + 8px); max-height: min(520px, 60vh); padding: 8px; border-radius: 22px;
+.pop { composes: lg from "./glass.module.css"; position: absolute; z-index: 20; left: 0; right: 0; top: calc(100% + 8px); max-height: min(520px, 60vh); padding: 8px; border-radius: 22px;
   overflow: auto; transform-origin: 50% 0; animation: pop 0.34s var(--mx-ease-spring) both; }
 @keyframes pop { from { opacity: 0; transform: scale(0.9) translateY(-6px); } }
 .h { margin: 10px 10px 4px; font: 600 11px/1.2 var(--mx-font-sans); letter-spacing: 0.14em; text-transform: uppercase; color: var(--mx-text-subtle); }

@@ -30,3 +30,11 @@ things on a screen. When the content under it is plain, glass shows nothing: use
 words), the search button, and the home's field when it is next touched. The left island is the
 same glass. One recipe for all of them: `.lg` in `design/reference/library/styles.css`.
 
+**Liquid glass v2 is the only glass (the owner, 2026-10-11):** «под liquid glass (теперь я его
+называю liquid glass v2) я имею в виду прозрачную кнопку, которая вылезает как мини шапка
+„заслушаны до дыр“ … а не старый liquid glass без прозрачного фона. Замени везде на liquid glass
+v2». The see-through glass of the floating plate is the one look: the island, every search field
+and its answers, the plate and every list or menu that opens from a control (the jump list, the
+sort menu), the rail's label, the achievement pop-up. The deeper tint is gone. Words on it take
+`--glass-ink` / `--glass-ink2` and a soft glow. Code: `web/src/ui/glass.module.css` (`.lg`).
+

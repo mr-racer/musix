@@ -4,6 +4,9 @@
 .page { --tile: 208px; --gap: 5px; --bar-h: 72px; position: relative; padding: 0 56px 0 28px; min-width: 0; }
 
 /* ── the sticky bar ───────────────────────────────────────────────────────── */
+/* between tabs the bar stays and its underline glides (styles/pages.css) */
+:global(html[data-nav^="tab"]) .bar { view-transition-name: lib-bar; }
+:global(html[data-nav^="tab"]) .ul { view-transition-name: lib-ul; transition: none; }
 .bar { position: sticky; top: 0; z-index: 20; height: var(--bar-h); display: flex; align-items: center; gap: 14px; padding-right: 52px; }
 .bar::before { content: ""; position: absolute; inset: 0 -200px -18px -200px; z-index: -1; pointer-events: none;
   background: linear-gradient(var(--mx-bg) 0, var(--mx-bg) 70%, color-mix(in srgb, var(--mx-bg) 70%, transparent) 84%, transparent); }
@@ -55,10 +58,12 @@
 .menu button[aria-pressed="true"] { color: var(--mx-text); background: rgba(255,255,255,0.05); }
 .menu .nm { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .menu small { font: 400 12px/1 var(--mx-font-sans); color: var(--mx-text-subtle); white-space: nowrap; }
-.menuGlass { composes: menu; border-radius: 22px; }
+/* liquid glass v2 (the owner: the see-through glass of the floating plate, everywhere): the look
+   comes from glass.lg's variables, so it never depends on which stylesheet loads first */
+.menuGlass { composes: menu; border-radius: 22px; background: var(--glass-bg); border: 1px solid var(--glass-edge); box-shadow: var(--glass-sh); }
 .menuGlass button { color: var(--glass-ink); font-weight: 600; text-shadow: var(--glass-glow); }
-.menuGlass button:hover { background: rgba(255,255,255,0.12); }
-.menuGlass button[aria-pressed="true"] { background: rgba(255,255,255,0.17); box-shadow: inset 0 1px 0 rgba(255,255,255,0.18); }
+.menuGlass button:hover { background: color-mix(in srgb, var(--glass-ink) 12%, transparent); }
+.menuGlass button[aria-pressed="true"] { background: color-mix(in srgb, var(--glass-ink) 17%, transparent); box-shadow: inset 0 1px 0 rgba(255,255,255,0.18); }
 .menuGlass small { color: var(--glass-ink2); font-family: var(--mx-font-mono); }
 
 /* ── groups ───────────────────────────────────────────────────────────────── */
@@ -104,9 +109,10 @@
 .rseg[data-on] b { color: #111; background: var(--acc, #fff); }
 .rseg i { position: relative; z-index: 1; width: 18px; aspect-ratio: 4 / 3; border-radius: 2px; background-size: cover; background-position: center; box-shadow: 0 0 0 1.5px var(--mx-bg), 0 0 0 2.5px rgba(255,255,255,0.12); transform: scale(var(--fs, 1)); transition: transform 0.25s var(--mx-ease-spring); }
 .rseg[data-on] i { box-shadow: 0 0 0 1.5px var(--mx-bg), 0 0 0 3.5px var(--acc, #fff); }
-.rlabel { position: fixed; z-index: 31; right: 48px; display: flex; align-items: center; gap: 10px; height: 40px; padding: 0 14px 0 6px; border-radius: 20px; background: var(--mx-float); border: 1px solid var(--mx-border-strong);
-  box-shadow: 0 16px 36px rgba(0,0,0,0.5); font: 600 14.5px/1 var(--mx-font-sans); white-space: nowrap; pointer-events: none; transform-origin: 100% 50%; transition: top 0.22s cubic-bezier(0.3, 1.3, 0.42, 1), opacity 0.18s, transform 0.25s var(--mx-ease-spring); }
-.rlabel small { font: 400 12px/1 var(--mx-font-mono); color: var(--mx-text-subtle); }
+/* the label beside the rail, in glass v2; its position is written per pointer move (Wall.tsx), never eased */
+.rlabel { position: fixed; z-index: 31; top: 0; right: 48px; display: flex; align-items: center; gap: 10px; height: 40px; padding: 0 14px 0 6px; border-radius: 20px;
+  color: var(--glass-ink); text-shadow: var(--glass-glow); font: 600 14.5px/1 var(--mx-font-sans); white-space: nowrap; pointer-events: none; transform-origin: 100% 50%; transition: opacity 0.18s, transform 0.25s var(--mx-ease-spring); }
+.rlabel small { font: 400 12px/1 var(--mx-font-mono); color: var(--glass-ink2); }
 .rlabel[hidden] { display: flex !important; opacity: 0; transform: scale(0.9); }
 
 /* ── the wall ─────────────────────────────────────────────────────────────── */
@@ -241,7 +247,7 @@
 .sfield input::-webkit-search-cancel-button { display: none; }
 .sx { width: 32px; height: 32px; flex: none; border-radius: 50%; display: grid; place-items: center; color: var(--mx-text); transition: background 0.2s; }
 .sx:hover { background: rgba(255,255,255,0.08); }
-.sres { position: fixed; z-index: 64; overflow-y: auto; padding: 8px; border-radius: 24px; transform-origin: 100% 0; scrollbar-width: thin; color: var(--mx-text); }
+.sres { position: fixed; z-index: 64; overflow-y: auto; padding: 8px; border-radius: 24px; transform-origin: 100% 0; scrollbar-width: thin; color: var(--glass-ink); }
 .sgroup { padding: 6px 0 4px; }
 .sgroup + .sgroup { border-top: 1px solid var(--mx-border); }
 .sgroup h3 { margin: 4px 10px 6px; display: flex; align-items: center; gap: 8px; font: 600 12px/1 var(--mx-font-sans); color: var(--kc); }

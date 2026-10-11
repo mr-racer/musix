@@ -73,7 +73,7 @@ Routes of the web app (`web/src/routes`), with what each holds and where it lead
 | «В плейлист» menu | on the album, in the gatefold, in the player | — |
 | «Слушать на…» menu, «Играет на…» bar | hand the music to another device, or take it here | — |
 | Page states | loading, empty, error, "no such page", the server in limited mode | — |
-| Page changes | how one screen gives way to another (none designed today) | — |
+| Page changes | how one screen gives way to another: `motion-and-performance.md` «Page changes» (2026-10-11) | every screen |
 
 ### Listening
 

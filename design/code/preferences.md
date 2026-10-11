@@ -381,3 +381,25 @@ covers, groups, flags, the film, search, the statistics and the achievements as 
 scrolling keeps the frame. The home's search field is in the same glass now (its results
 too); glass reads the theme: light under the light theme, dark again inside the dark home and
 player. Awaiting his check before prod.
+
+## 2026-10-11 — after the library went live
+
+- «Давай улучшим плавность и качество переходов между вкладками главная, библиотека и вкладками
+  в библиотеке … плавно в духе нашего v2 дизайна» and «открытие плеера из миниплеера и всех
+  других возможных экранов надо сделать анимированным» → page changes designed and built
+  (`motion-and-performance.md` «Page changes»).
+- «Может сразу запрашивать стату при заходе на вкладку библиотеки? Она же мало весит» → the
+  statistics are asked for when the library opens.
+- «Шрифт портрета слушателя крупноват — давай немного снизим шрифт больших элементов (20–30 %)»
+  → the hours, the comparison, the portrait, the days, the facts and the favourite names are
+  about a quarter smaller; captions keep the size he asked for in round 2.
+- **Liquid glass v2**: «под liquid glass (теперь я его называю liquid glass v2) я имею в виду
+  прозрачную кнопку, которая вылезает как мини шапка „заслушаны до дыр“ … а не старый liquid
+  glass без прозрачного фона. Замени везде на liquid glass v2» (`surfaces.md`). He asked why the
+  list from the glass plate was not in the same glass.
+- Bugs he found on prod, fixed: a jump from the rail threw the rail onto the albums and painted
+  it full (a transformed parent held the fixed rail); the covers shifted when an album opened
+  and back when it closed (the scrollbar's room was lost under the gatefold); the rail's label
+  trailed the pointer (now 1:1, every frame); the wall once slid over «Пластинка дня» (the band
+  was measured once; now watched while it stands).
+

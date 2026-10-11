@@ -1,0 +1,66 @@
+/* Page changes (lib/pageMotion.ts names the kind in html[data-nav]). The shell's parts carry
+   their own names (Shell.module.css, MiniPlayer.module.css), so they stay put while the page
+   — the root snapshot — moves. What arrives eases out with no overshoot (a click carries no
+   momentum, design/code/motion-and-performance.md); what leaves accelerates away, shorter. */
+::view-transition-group(*) { animation-duration: 0.5s; animation-timing-function: cubic-bezier(0.2, 0.9, 0.25, 1); }
+::view-transition-old(root), ::view-transition-new(root) { animation: none; mix-blend-mode: normal; }
+/* the island's blob keeps its own spring with the overshoot (Shell.module.css) */
+::view-transition-group(island-blob) { animation-duration: 0.55s; animation-timing-function: cubic-bezier(0.3, 1.45, 0.42, 1); }
+::view-transition-group(lib-ul) { animation-timing-function: cubic-bezier(0.3, 1.2, 0.42, 1); }
+
+/* the island is a column: down it, the new page rises from below; up it, it comes from above */
+html[data-nav="down"]::view-transition-new(root) { animation: vt-in 0.2s linear both, vt-from-below 0.52s cubic-bezier(0.2, 0.9, 0.25, 1) both; }
+html[data-nav="down"]::view-transition-old(root) { animation: vt-to-above 0.3s cubic-bezier(0.5, 0, 0.75, 0) both; }
+html[data-nav="up"]::view-transition-new(root) { animation: vt-in 0.2s linear both, vt-from-above 0.52s cubic-bezier(0.2, 0.9, 0.25, 1) both; }
+html[data-nav="up"]::view-transition-old(root) { animation: vt-to-below 0.3s cubic-bezier(0.5, 0, 0.75, 0) both; }
+
+/* a page that is not a section comes forward; going back to a section steps back */
+html[data-nav="deeper"]::view-transition-new(root) { animation: vt-in 0.2s linear both, vt-from-near 0.5s cubic-bezier(0.2, 0.9, 0.25, 1) both; }
+html[data-nav="deeper"]::view-transition-old(root) { animation: vt-recede 0.36s cubic-bezier(0.4, 0, 0.6, 1) both; }
+html[data-nav="back"]::view-transition-new(root) { animation: vt-in 0.2s linear both, vt-from-far 0.5s cubic-bezier(0.2, 0.9, 0.25, 1) both; }
+html[data-nav="back"]::view-transition-old(root) { animation: vt-advance 0.26s cubic-bezier(0.5, 0, 0.75, 0) both; }
+
+/* the library's tabs are a row: the next tab slides in from the right under the bar, the
+   underline glides (library.module.css names both only for these changes) */
+html[data-nav="tab-next"]::view-transition-new(root) { animation: vt-in 0.18s linear both, vt-from-right 0.5s cubic-bezier(0.2, 0.9, 0.25, 1) both; }
+html[data-nav="tab-next"]::view-transition-old(root) { animation: vt-to-left 0.26s cubic-bezier(0.5, 0, 0.75, 0) both; }
+html[data-nav="tab-prev"]::view-transition-new(root) { animation: vt-in 0.18s linear both, vt-from-left 0.5s cubic-bezier(0.2, 0.9, 0.25, 1) both; }
+html[data-nav="tab-prev"]::view-transition-old(root) { animation: vt-to-right 0.26s cubic-bezier(0.5, 0, 0.75, 0) both; }
+
+/* the player grows out of the mini player: the stage opens upwards from where the bar stood,
+   the cover flies from the bar into its place, the page behind sinks back into the dark */
+html[data-nav="player-open"]::view-transition-new(root) { animation: vt-sheet-open 0.56s cubic-bezier(0.2, 0.9, 0.25, 1) both; }
+html[data-nav="player-open"]::view-transition-old(root) { animation: vt-sink 0.56s cubic-bezier(0.2, 0.9, 0.25, 1) both; }
+html[data-nav="player-open"]::view-transition-old(mini-bar) { animation: vt-out 0.16s cubic-bezier(0.5, 0, 0.75, 0) both; }
+html[data-nav="player-open"]::view-transition-group(np-cover) { animation-duration: 0.56s; }
+/* … and folds back into it: the stage over the page closes down into the bar's place */
+html[data-nav="player-close"]::view-transition-old(root) { z-index: 1; animation: vt-sheet-close 0.46s cubic-bezier(0.55, 0, 0.3, 1) both; }
+html[data-nav="player-close"]::view-transition-new(root) { animation: vt-rise-back 0.46s cubic-bezier(0.2, 0.9, 0.25, 1) both; }
+html[data-nav="player-close"]::view-transition-new(mini-bar) { animation: vt-in 0.2s linear 0.28s both; }
+html[data-nav="player-close"]::view-transition-group(np-cover) { z-index: 2; animation-duration: 0.46s; animation-timing-function: cubic-bezier(0.55, 0, 0.3, 1); }
+
+@keyframes vt-in { from { opacity: 0; } }
+@keyframes vt-out { to { opacity: 0; } }
+@keyframes vt-from-below { from { transform: translateY(44px); } }
+@keyframes vt-from-above { from { transform: translateY(-44px); } }
+@keyframes vt-to-above { to { transform: translateY(-18px) scale(0.99); filter: brightness(0.7); } }
+@keyframes vt-to-below { to { transform: translateY(18px) scale(0.99); filter: brightness(0.7); } }
+@keyframes vt-from-near { from { transform: scale(1.025); } }
+@keyframes vt-from-far { from { transform: scale(0.975); } }
+@keyframes vt-recede { to { transform: scale(0.975); filter: brightness(0.6); } }
+@keyframes vt-advance { to { transform: scale(1.03); opacity: 0; } }
+@keyframes vt-from-right { from { transform: translateX(56px); } }
+@keyframes vt-from-left { from { transform: translateX(-56px); } }
+@keyframes vt-to-left { to { transform: translateX(-28px); opacity: 0; } }
+@keyframes vt-to-right { to { transform: translateX(28px); opacity: 0; } }
+@keyframes vt-sheet-open {
+  from { clip-path: inset(var(--vt-mt, calc(100% - 86px)) var(--vt-mr, 40px) 0 var(--vt-ml, 120px) round 22px); }
+  to { clip-path: inset(0 0 0 0 round 0); }
+}
+@keyframes vt-sheet-close {
+  from { clip-path: inset(0 0 0 0 round 0); }
+  80% { opacity: 1; }
+  to { clip-path: inset(var(--vt-mt, calc(100% - 86px)) var(--vt-mr, 40px) 0 var(--vt-ml, 120px) round 22px); opacity: 0; }
+}
+@keyframes vt-sink { to { transform: scale(0.96); filter: brightness(0.5); } }
+@keyframes vt-rise-back { from { transform: scale(0.96); filter: brightness(0.5); } }

@@ -22,6 +22,25 @@
 
 Easings and durations are tokens (`--mx-ease-*`, `MusixMotion`).
 
+## Page changes (the owner, 2026-10-11: «открываются без эффектов, а хочется плавно»)
+
+View transitions around every router commit (`web/src/lib/pageMotion.ts`, `styles/pages.css`).
+The shell never moves: the island, the logo, the gear and the mini player carry their own
+names and stay; only the page (the root snapshot) moves, by the kind of the change:
+- **sections are a column** (the island's order): down it the new page rises from below
+  (44 px, 0.52 s, no overshoot), the old one lifts away and dims (0.3 s, ease-in); up it, the
+  mirror. The island's blob travels between the two items with its own overshoot spring;
+- **the library's tabs are a row**: the next tab slides in from the right under the bar, the
+  previous from the left; the bar stays and its underline glides to the new tab;
+- **the player grows out of the mini player**: the stage opens upwards from the bar's place,
+  the cover flies from the bar into the big cover, the page behind sinks into the dark; closing
+  folds the stage back into the bar and the cover flies home;
+- **a page that is not a section comes forward** (an artist, a playlist, settings), going back
+  to a section steps back.
+Sorts, views and filters inside a screen are not page changes and keep their own motion. The
+new page's first render is what the change shows, so a screen reads its data before it: the
+library's mirror and summary in the route's loader (and the statistics, prefetched there).
+
 ## What may move at rest
 
 - The spectrum above the seek line: one small canvas, at the screen's frame rate (the owner

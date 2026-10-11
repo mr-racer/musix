@@ -132,7 +132,7 @@ function Field({ at, close }: { at: { right: number; top: number; width: number 
         <button type="button" className={css.sx} aria-label="Закрыть поиск" onClick={leave}><Icon name="Close" size={16} /></button>
       </div>
       {q.trim() && ix && (
-        <div ref={res} className={`${css.sres} ${glass.deep}`} role="listbox" style={{ right: at.right, top, width: at.width, maxHeight: innerHeight - top - 150 }}>
+        <div ref={res} className={`${css.sres} ${glass.lg}`} role="listbox" style={{ right: at.right, top, width: at.width, maxHeight: innerHeight - top - 150 }}>
           {!groups.length && <div className={css.snone}>Ничего не нашлось по «{q}».<br />Ищу по названиям альбомов и песен и по именам артистов.</div>}
           {groups.map((g) => (
             <div key={g.k} className={css.sgroup} data-k={g.k}>

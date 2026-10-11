@@ -1,7 +1,10 @@
-/* Liquid glass, one recipe for every glass thing (design/code/surfaces.md; the owner,
-   2026-10-11: the island, the search field everywhere, the floating plate and its list, the
-   achievement pop-up): blur and saturate what is behind, a light gradient, a hairline, inner
-   highlights, and a sheen that crosses it under the pointer.
+/* Liquid glass v2, one recipe for every glass thing (design/code/surfaces.md). The owner,
+   2026-10-11: «под liquid glass v2 я имею в виду прозрачную кнопку, которая вылезает как мини
+   шапка „заслушаны до дыр“ … а не старый liquid glass без прозрачного фона. Замени везде» —
+   so there is one glass, see-through, for the island, every search field and its answers, the
+   floating plate and every list or menu, the rail's label, the achievement pop-up. Blur and
+   saturate what is behind, a light gradient, a hairline, inner highlights, and a sheen that
+   crosses it under the pointer.
    The look is in variables: light glass under the light theme, dark glass again inside a
    dark scope (the home and the player are dark in both themes, like the island there), and
    `--glass-ink`/`--glass-ink2` for words on it. */
@@ -32,10 +35,6 @@
   transition: opacity 0.5s var(--mx-ease-standard), background-position 1.1s var(--mx-ease-swift);
 }
 .lg:hover::after { opacity: 1; background-position: 0% 0%; }
-/* glass that carries words to read: the same, a deeper tint under them */
-.deep { composes: lg; --glass-bg: linear-gradient(165deg, rgba(255,255,255,0.16) 0%, rgba(255,255,255,0.05) 32%, rgba(255,255,255,0.02) 64%, rgba(255,255,255,0.10) 100%), rgba(18,18,25,0.62); }
-:where(:root[data-theme="light"]) .deep { --glass-bg: linear-gradient(165deg, rgba(255,255,255,0.96) 0%, rgba(255,255,255,0.78) 40%, rgba(255,255,255,0.86) 100%), rgba(244,243,250,0.6); }
-:where([data-mx-theme="dark"]) .deep { --glass-bg: linear-gradient(165deg, rgba(255,255,255,0.16) 0%, rgba(255,255,255,0.05) 32%, rgba(255,255,255,0.02) 64%, rgba(255,255,255,0.10) 100%), rgba(18,18,25,0.62); }
 @media (prefers-reduced-transparency: reduce) {
   .lg { --glass-bg: #1c1c24; -webkit-backdrop-filter: none; backdrop-filter: none; }
   :where(:root[data-theme="light"]) .lg { --glass-bg: #f4f3fa; }

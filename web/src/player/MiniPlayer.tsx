@@ -23,7 +23,9 @@ export function MiniPlayer() {
   const positionMs = usePlayer((s) => s.positionMs);
   const durationMs = usePlayer((s) => s.durationMs);
   const tier = usePlayer((s) => s.tier);
-  const onPlayer = useRouterState({ select: (s) => s.location.pathname === "/player" });
+  // the resolved location: it changes with the page, inside the page change, so the old page
+  // is photographed with the bar still in it (lib/pageMotion.ts); `location` changes earlier
+  const onPlayer = useRouterState({ select: (s) => (s.resolvedLocation ?? s.location).pathname === "/player" });
   const shown = !!item && !onPlayer;
   const accent = image(item?.coverImageId)?.palette?.accent.light ?? "#c9c287";
 
@@ -50,7 +52,7 @@ export function MiniPlayer() {
   if (!shown) return null;
   const lossless = tier === "lossless" || tier === "lossless_compat";
   return (
-    <div ref={bar} className={css.mini} role="region" aria-label="Сейчас играет" style={{ ["--acc" as string]: accent }}>
+    <div ref={bar} className={css.mini} data-mini role="region" aria-label="Сейчас играет" style={{ ["--acc" as string]: accent }}>
       <SeekLine className={css.line} progress={durationMs ? Math.min(1, positionMs / durationMs) : 0} durationMs={durationMs} onSeek={(f) => player.seek(f * durationMs)}>
         <Spectrum trackId={item.trackId} className={css.spectrum} />
       </SeekLine>

@@ -17,7 +17,7 @@ import css from "./library.module.css";
  *  exactly (design/code/screens/library.md). */
 
 export type Kind = "album" | "artist";
-type Row<T> = { t: "head"; s: number; first: boolean } | { t: "tiles"; s: number; items: T[] } | { t: "rows"; s: number; item: T } | { t: "rhead" } | { t: "top" };
+type Row<T> = { t: "head"; s: number; first: boolean } | { t: "tiles"; s: number; items: T[] } | { t: "rows"; s: number; item: T } | { t: "rhead" };
 
 const reduce = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
 const SPRING = "cubic-bezier(.34,1.56,.64,1)";
@@ -138,11 +138,13 @@ export function Wall<T extends AlbumCard | ArtistCard>({ kind, sections, view, t
   const box = useRef<HTMLDivElement>(null);
   const topEl = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(1200);
-  const [topH, setTopH] = useState(0);
   const [margin, setMargin] = useState(0);
+  // the block above the wall («Пластинка дня») lives outside the virtual rows and is watched for
+  // as long as it stands: when it grows (the summary arrives, its cover loads) the wall moves
+  // down with it. As a row it was measured once, and the wall could slide over it (the owner)
   useLayoutEffect(() => {
     const ro = new ResizeObserver(() => {
-      setWidth(box.current?.clientWidth ?? 1200); setTopH(topEl.current?.offsetHeight ?? 0);
+      setWidth(box.current?.clientWidth ?? 1200);
       setMargin(box.current ? box.current.getBoundingClientRect().top + window.scrollY : 0);
     });
     if (box.current) ro.observe(box.current);
@@ -154,7 +156,7 @@ export function Wall<T extends AlbumCard | ArtistCard>({ kind, sections, view, t
 
   // rows and their exact heights: a jump to a group lands where it should
   const { rows, heads } = useMemo(() => {
-    const rows: Row<T>[] = [{ t: "top" }];
+    const rows: Row<T>[] = [];
     const heads: number[] = [];
     if (view === "rows" && sections.length) rows.push({ t: "rhead" });
     sections.forEach((s, i) => {
@@ -164,7 +166,7 @@ export function Wall<T extends AlbumCard | ArtistCard>({ kind, sections, view, t
     });
     return { rows, heads };
   }, [sections, view, cols]);
-  const heightOf = useCallback((r: Row<T>) => (r.t === "top" ? topH : r.t === "head" ? (r.first ? 76 : 112) : r.t === "tiles" ? tile + gap : r.t === "rhead" ? 40 : 72), [tile, topH]);
+  const heightOf = useCallback((r: Row<T>) => (r.t === "head" ? (r.first ? 76 : 112) : r.t === "tiles" ? tile + gap : r.t === "rhead" ? 40 : 72), [tile]);
   const starts = useMemo(() => { const out: number[] = []; let y = 0; for (const r of rows) { out.push(y); y += heightOf(r); } return out; }, [rows, heightOf]);
   const v = useWindowVirtualizer({ count: rows.length, estimateSize: (i) => heightOf(rows[i]!), overscan: 3, scrollMargin: margin });
   useEffect(() => { v.measure(); }, [v, heightOf, rows]);
@@ -221,7 +223,6 @@ export function Wall<T extends AlbumCard | ArtistCard>({ kind, sections, view, t
 
   const sealedOf = (a: AlbumCard) => !a.plays && !film.heard.has(a.id) && !film.open.has(a.id);
   const rowKids = (r: Row<T>, i: number) => {
-    if (r.t === "top") return <div ref={topEl}>{top}</div>;
     if (r.t === "rhead") return kind === "album"
       ? <div className={css.rhead}><span /><span>Альбом</span><span>Артист</span><span>Год</span><span>Жанр</span><span>Прослушано</span><span /></div>
       : <div className={css.rheadA}><span /><span>Артист</span><span>Альбомы</span><span>Песни</span><span>Прослушано</span><span /></div>;
@@ -256,17 +257,23 @@ export function Wall<T extends AlbumCard | ArtistCard>({ kind, sections, view, t
   const closeMenu = useCallback(() => setMenu(null), []);
   const openJump = (el: Element) => { const r = el.getBoundingClientRect(); setMenu({ x: r.left, y: r.bottom + 8 }); };
 
+  // the plate, the rail and the list stand beside the wall, not in it: a far jump fades the wall
+  // out and in with a transform, and a transformed parent would hold its fixed children (the
+  // rail jumped onto the albums and stretched over the whole list — the owner's report)
   return (
-    <div ref={box} className={css.vlist} style={{ height: v.getTotalSize() }} onPointerMove={onMove}>
-      {v.getVirtualItems().map((it) => (
-        <div key={it.key} className={css.vrow} style={{ transform: `translateY(${it.start - v.options.scrollMargin}px)`, height: it.size }}>
-          {rowKids(rows[it.index]!, it.index)}
-        </div>
-      ))}
+    <>
+      {top && <div ref={topEl}>{top}</div>}
+      <div ref={box} className={css.vlist} style={{ height: v.getTotalSize() }} onPointerMove={onMove}>
+        {v.getVirtualItems().map((it) => (
+          <div key={it.key} className={css.vrow} style={{ transform: `translateY(${it.start - v.options.scrollMargin}px)`, height: it.size }}>
+            {rowKids(rows[it.index]!, it.index)}
+          </div>
+        ))}
+      </div>
       <Plate sections={sections} cur={cur} on={plateOn} onOpen={openJump} left={box.current?.getBoundingClientRect().left ?? 120} />
       <Rail sections={sections} cur={cur} glide={glide} />
       {menu && <JumpMenu sections={sections} cur={cur} at={menu} close={closeMenu} go={(i) => { setMenu(null); glide(i); }} />}
-    </div>
+    </>
   );
 }
 
@@ -292,7 +299,10 @@ function Plate<T extends AlbumCard | ArtistCard>({ sections, cur, on, onOpen, le
 
 function Rail<T extends AlbumCard | ArtistCard>({ sections, cur, glide }: { sections: Section<T>[]; cur: number; glide: (i: number, instant?: boolean) => void }) {
   const el = useRef<HTMLDivElement>(null);
-  const [lab, setLab] = useState<{ i: number; y: number } | null>(null);
+  const labEl = useRef<HTMLDivElement>(null);
+  // the label rides with the pointer frame by frame (written straight to its style); React only
+  // hears when it changes group. A transition on its position made it trail the pointer (the owner)
+  const [lab, setLab] = useState<number | null>(null);
   const drag = useRef<{ y: number; moved: boolean } | null>(null);
   const total = sections.reduce((n, s) => n + s.items.length, 0) || 1;
   const H = el.current?.clientHeight ?? 400;
@@ -304,11 +314,12 @@ function Rail<T extends AlbumCard | ArtistCard>({ sections, cur, glide }: { sect
       const r = sg.getBoundingClientRect(), f = Math.max(0, 1 - Math.abs((r.top + r.bottom) / 2 - e.clientY) / 70);
       sg.style.setProperty("--fx", (1 + f * 1.4).toFixed(2)); sg.style.setProperty("--fs", (1 + f * 0.45).toFixed(2));
     }
-    setLab({ i, y: e.clientY - 20 });
+    labEl.current?.style.setProperty("translate", `0 ${e.clientY - 20}px`);
+    setLab(i);
     if (drag.current) { if (Math.abs(e.clientY - drag.current.y) > 4) drag.current.moved = true; if (drag.current.moved) glide(i, true); }
   };
   const leave = () => { if (drag.current) return; setLab(null); for (const sg of [...(el.current?.children ?? [])] as HTMLElement[]) { sg.style.removeProperty("--fx"); sg.style.removeProperty("--fs"); } };
-  const s = lab ? sections[lab.i] : null;
+  const s = lab != null ? sections[lab] : null;
   return (
     <>
       <div ref={el} className={css.rail} aria-label="Перейти к группе" onPointerMove={move} onPointerLeave={leave}
@@ -323,7 +334,7 @@ function Rail<T extends AlbumCard | ArtistCard>({ sections, cur, glide }: { sect
           );
         })}
       </div>
-      <div className={css.rlabel} hidden={!s} style={{ top: lab?.y ?? 0 }}>{s && <><Stack s={s} />{s.name}<small>{s.items.length}</small></>}</div>
+      <div ref={labEl} className={`${css.rlabel} ${glass.lg}`} hidden={!s}>{s && <><Stack s={s} />{s.name}<small>{s.items.length}</small></>}</div>
     </>
   );
 }
@@ -344,7 +355,7 @@ function JumpMenu<T extends AlbumCard | ArtistCard>({ sections, cur, at, close, 
     return () => { window.removeEventListener("pointerdown", off); window.removeEventListener("keydown", esc); };
   }, [close]);
   return (
-    <div ref={el} className={`${css.menuGlass} ${glass.deep}`} role="menu" style={{ left: Math.min(at.x, innerWidth - 300), top: at.y, maxHeight: innerHeight - at.y - 150 }}>
+    <div ref={el} className={`${css.menuGlass} ${glass.lg}`} role="menu" style={{ left: Math.min(at.x, innerWidth - 300), top: at.y, maxHeight: innerHeight - at.y - 150 }}>
       {sections.map((s, i) => (
         <button key={s.key} type="button" role="menuitem" aria-pressed={i === cur} onClick={() => go(i)}>
           <Stack s={s} /><span className={css.nm}>{s.name}</span><small>{s.items.length}</small>

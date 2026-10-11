@@ -1,14 +1,14 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useLayoutEffect, useMemo, useRef, useState } from "react";
-import { db } from "../../api/db";
-import { summaryQuery } from "../../api/queries";
-import { image, warmFromMirror } from "../../lib/images";
+import { statsQuery, summaryQuery } from "../../api/queries";
+import { image } from "../../lib/images";
 import { useLive } from "../../lib/live";
 import { usePlayer } from "../../player/engine";
 import { Icon } from "../../ui/icons";
 import { DayBand } from "../../library/DayBand";
 import { Lists } from "../../library/Lists";
+import { lastMirror, readMirror } from "../../library/mirror";
 import {
   ALBUM_SORTS, ARTIST_SORTS, type AlbumSort, type ArtistSort, albumCards, albumSections, artistCards, artistSections, type Lens,
 } from "../../library/model";
@@ -16,6 +16,7 @@ import { SearchButton } from "../../library/Search";
 import { Stats } from "../../library/Stats";
 import { Wall } from "../../library/Wall";
 import css from "../../library/library.module.css";
+import glass from "../../ui/glass.module.css";
 
 /** The library «Стена» and its statistics (design/code/screens/library.md; approved by the
  *  owner on 2026-10-11 after four rounds of the mock, design/reference/library). */
@@ -30,6 +31,14 @@ export const Route = createFileRoute("/_app/library")({
     sort: typeof s.sort === "string" ? s.sort : undefined,
     view: s.view === "rows" ? "rows" : undefined,
   }),
+  // the page's first render is what a page change shows (lib/pageMotion.ts), so the wall and its
+  // order are read before it; the statistics are asked for here too, so the tab is ready when
+  // it is opened (the owner: «может сразу запрашивать стату при заходе в библиотеку?»)
+  loader: async ({ context }) => {
+    void context.queryClient.prefetchQuery(statsQuery);
+    const summary = context.queryClient.ensureQueryData(summaryQuery).catch(() => undefined);
+    await Promise.race([Promise.all([summary, lastMirror() ?? readMirror()]), new Promise((r) => setTimeout(r, 600))]);
+  },
   component: Library,
 });
 
@@ -48,13 +57,7 @@ function Library() {
   const nav = useNavigate({ from: "/library" });
   const set = (p: { tab?: Tab; sort?: string; view?: View }) => void nav({ search: (s) => ({ ...s, ...p }), replace: true, resetScroll: false });
   const summary = useQuery(summaryQuery).data;
-  const mirror = useLive(async () => {
-    const [tracks, albums, artists] = await Promise.all([db.tracks.toArray(), db.albums.toArray(), db.artists.toArray()]);
-    // the covers' urls and palettes come from the mirror: without this the wall stays blank
-    // until some other screen has remembered them
-    await warmFromMirror([...albums.map((a) => a.coverImageId), ...artists.map((a) => a.imageId), ...tracks.map((t) => t.coverImageId)]);
-    return { tracks, albums, artists };
-  }, []);
+  const mirror = useLive(readMirror, [], lastMirror());
   const [sealedOnly, setSealedOnly] = useState(false);
   const [searching, setSearching] = useState(false);
 
@@ -84,7 +87,8 @@ function Library() {
 
   const sortKeyNow = tab === "albums" ? (aSort === "genre" ? `genre:${lens ?? "tags"}` : aSort) : rSort;
   const sortName = (tab === "albums" ? ALBUM_SORTS : ARTIST_SORTS).find((s) => s[0] === sortKeyNow)?.[1] ?? "";
-  const changeTab = (t: Tab) => { if (t === tab) return; set({ tab: t, sort: undefined }); window.scrollTo(0, 0); };
+  // the new tab starts at the top: the router scrolls after the old one is photographed
+  const changeTab = (t: Tab) => { if (t !== tab) void nav({ search: (s) => ({ ...s, tab: t, sort: undefined }), replace: true, resetScroll: true }); };
   const T: Record<Tab, [string, number | null]> = { albums: ["Альбомы", albums.length], artists: ["Артисты", artists.length], playlists: ["Плейлисты", null], stats: ["Статистика", null] };
 
   return (
@@ -160,7 +164,7 @@ function SortPill({ name, options, current, pick }: { name: string; options: [st
         <Icon name="Bars" size={15} /><span>{name}</span><span className={css.chev}><Icon name="ChevronDown" size={16} /></span>
       </button>
       {at && (
-        <div ref={menu} className={css.menu} role="menu" style={{ left: Math.min(at.x, innerWidth - 280), top: at.y }}>
+        <div ref={menu} className={`${css.menuGlass} ${glass.lg}`} role="menu" style={{ left: Math.min(at.x, innerWidth - 280), top: at.y }}>
           {options.map(([k, n, d]) => (
             <button key={k} type="button" role="menuitemradio" aria-pressed={k === current} onClick={() => { setAt(null); pick(k); }}>
               <span className={css.nm}>{n}</span><small>{d}</small>

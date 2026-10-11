@@ -2,8 +2,9 @@
 .main { min-height: 100dvh; overflow-x: clip; /* full-bleed hero fields never widen the page */ padding-left: 92px; padding-bottom: calc(var(--player-h, 0px) + var(--spec-room, 0px) + 12px); }
 /* the player is exactly one screen: no breathing room under it (the phone rule below still leaves the tab bar's) */
 .mainStage { composes: main; padding-bottom: 0; }
-.brand { position: fixed; top: 18px; left: 22px; z-index: 30; }
+.brand { view-transition-name: brand; position: fixed; top: 18px; left: 22px; z-index: 30; }
 .rail {
+  view-transition-name: island; /* the shell stays put while pages change (styles/pages.css) */
   position: fixed; left: 12px; top: 50%; transform: translateY(-50%); z-index: 30;
   display: flex; flex-direction: column; gap: 4px; padding: 8px 6px; border-radius: 26px;
   /* the nav island: one of the two places where glass lives (design/code/surfaces.md; v1 `.lg-island`) */
@@ -35,11 +36,15 @@
    overshoot (design/code/motion-and-performance.md); the items themselves carry no plate */
 .blob {
   composes: btn from "./relief.module.css";
+  view-transition-name: island-blob;
   position: absolute; left: 6px; top: 8px; width: 56px; height: 52px; border-radius: 18px; pointer-events: none;
   transform: translateY(calc(var(--i, 0) * 56px));
   transition: transform 0.55s cubic-bezier(0.3, 1.45, 0.42, 1), opacity 0.25s var(--mx-ease-standard), border-color 0.6s var(--mx-ease-standard);
 }
 .blob[data-off] { opacity: 0; }
+/* during a page change the blob travels as its own picture (styles/pages.css): its own
+   transition would still be at the start when the new page is photographed */
+:global(html[data-nav]) .blob { transition: none; }
 /* on the player the blob is light glass edged with the cover's accent, as in the approved probe */
 :root .shell[data-mx-theme="dark"] .blob {
   background: linear-gradient(180deg, rgba(255,255,255,0.2), rgba(255,255,255,0.05));
@@ -58,6 +63,7 @@
 /* settings: a quiet glyph in the top right corner, no plate; a hairline ring appears under
    the pointer and the cog turns (the owner found the raised button «неактуальной и не к месту») */
 .settings {
+  view-transition-name: gear;
   position: fixed; right: 22px; top: 16px; z-index: 30;
   width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: var(--mx-text-subtle);
   box-shadow: 0 0 0 1px transparent;
@@ -67,7 +73,7 @@
 .settings svg { transition: rotate 0.6s var(--mx-ease-spring); }
 .settings:hover svg { rotate: 60deg; }
 .settings:active { transform: scale(0.92); }
-.tabbar { display: none; }
+.tabbar { display: none; view-transition-name: tabbar; }
 @media (max-width: 760px) {
   .main, .mainStage { padding-left: 0; padding-bottom: calc(var(--player-h, 0px) + 72px + env(safe-area-inset-bottom, 0px)); }
   .rail, .settings, .brand { display: none; }

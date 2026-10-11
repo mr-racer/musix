@@ -198,11 +198,15 @@ function Gatefold({ id: firstId, cover, from, onClose }: Open & { onClose: () =>
   }, [L, narrow, swapped, id, onClose]);
 
   useEffect(() => {
-    const prev = document.body.style.overflow;
+    // the page stops scrolling under the gatefold, but keeps the scrollbar's room: without it
+    // the page grew by the bar's width, the library's wall laid its tiles out again and the
+    // covers shifted while the album opened and back when it closed (the owner's report)
+    const root = document.documentElement.style, prev = document.body.style.overflow, gutter = root.scrollbarGutter;
+    root.scrollbarGutter = "stable";
     document.body.style.overflow = "hidden";
     const esc = (e: KeyboardEvent) => { if (e.key === "Escape") void close(); };
     document.addEventListener("keydown", esc);
-    return () => { document.body.style.overflow = prev; document.removeEventListener("keydown", esc); };
+    return () => { document.body.style.overflow = prev; root.scrollbarGutter = gutter; document.removeEventListener("keydown", esc); };
   }, [close]);
 
   // «Ещё у артиста»: the other album's cover travels from its thumbnail onto the left page
