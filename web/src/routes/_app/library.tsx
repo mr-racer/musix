@@ -4,12 +4,11 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { statsQuery, summaryQuery } from "../../api/queries";
 import { image } from "../../lib/images";
 import { morph } from "../../lib/pageMotion";
-import { useLive } from "../../lib/live";
 import { usePlayer } from "../../player/engine";
 import { Icon } from "../../ui/icons";
 import { DayBand } from "../../library/DayBand";
 import { Lists } from "../../library/Lists";
-import { lastMirror, readMirror } from "../../library/mirror";
+import { mirrorReady, useMirror } from "../../library/mirror";
 import {
   ALBUM_SORTS, ARTIST_SORTS, type AlbumSort, type ArtistSort, albumCards, albumSections, artistCards, artistSections, type Lens,
 } from "../../library/model";
@@ -36,9 +35,13 @@ export const Route = createFileRoute("/_app/library")({
   // order are read before it; the statistics are asked for here too, so the tab is ready when
   // it is opened (the owner: «может сразу запрашивать стату при заходе в библиотеку?»)
   loader: async ({ context }) => {
-    void context.queryClient.prefetchQuery(statsQuery);
-    const summary = context.queryClient.ensureQueryData(summaryQuery).catch(() => undefined);
-    await Promise.race([Promise.all([summary, lastMirror() ?? readMirror()]), new Promise((r) => setTimeout(r, 600))]);
+    const qc = context.queryClient;
+    // what is already here is shown at once; the refreshes (a fetch and a parse each) wait until
+    // the page change is over, so they never take its first frames
+    setTimeout(() => { void qc.prefetchQuery(statsQuery); void qc.prefetchQuery(summaryQuery); }, 700);
+    if (!qc.getQueryData(statsQuery.queryKey)) void qc.prefetchQuery(statsQuery);
+    const summary = qc.ensureQueryData(summaryQuery).catch(() => undefined);
+    await Promise.race([Promise.all([summary, mirrorReady()]), new Promise((r) => setTimeout(r, 600))]);
   },
   component: Library,
 });
@@ -57,8 +60,8 @@ function Library() {
   const { tab = "albums", sort, view = "grid" } = Route.useSearch();
   const nav = useNavigate({ from: "/library" });
   const set = (p: { tab?: Tab; sort?: string; view?: View }) => void nav({ search: (s) => ({ ...s, ...p }), replace: true, resetScroll: false });
-  const summary = useQuery(summaryQuery).data;
-  const mirror = useLive(readMirror, [], lastMirror());
+  const summary = useQuery({ ...summaryQuery, refetchOnMount: false }).data; // the loader refreshes it
+  const mirror = useMirror();
   const [sealedOnly, setSealedOnly] = useState(false);
   const [searching, setSearching] = useState(false);
   // no browser scrollbar here: the rail of groups at the right is the page's scrollbar (the owner)

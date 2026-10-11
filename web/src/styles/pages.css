@@ -42,21 +42,22 @@ html[data-nav="back"]::view-transition-old(root) { --vt-s: 1.02; }
 /* opening: the page behind goes out of focus and darkens, without moving; the player's stage
    materialises over it — out of a deep blur, from a little nearer, fading in */
 html[data-nav="player-open"]::view-transition-old(root) {
-  --vt-blur: 18px;
-  animation: vt-dim 0.6s cubic-bezier(0.22, 0.9, 0.24, 1) both;
+  --vt-blur: 16px;
+  /* once the player covers it (0.44 s) the page is let go: nothing blurs it for nobody */
+  animation: vt-dim 0.6s cubic-bezier(0.22, 0.9, 0.24, 1) both, vt-fade-out 0.1s linear 0.48s both;
 }
 html[data-nav="player-open"]::view-transition-new(root) {
-  --vt-blur: 24px; --vt-s: 1.06;
+  --vt-blur: 20px; --vt-s: 1.06;
   animation: vt-fade-in 0.4s cubic-bezier(0.25, 0.1, 0.25, 1) 0.04s both, vt-focus-in 0.56s cubic-bezier(0.22, 0.9, 0.24, 1) 0.04s both, vt-from 0.7s cubic-bezier(0.22, 0.9, 0.24, 1) 0.04s both;
 }
 /* closing: the player dissolves the same way it came (out of focus, a little nearer), the
    page comes back into focus and light */
 html[data-nav="player-close"]::view-transition-old(root) {
-  z-index: 1; --vt-blur: 16px; --vt-s: 1.04;
+  z-index: 1; --vt-blur: 14px; --vt-s: 1.04;
   animation: vt-fade-out 0.34s cubic-bezier(0.4, 0, 0.6, 1) both, vt-focus-out 0.34s cubic-bezier(0.4, 0, 0.6, 1) both, vt-to 0.4s cubic-bezier(0.4, 0, 0.6, 1) both;
 }
 html[data-nav="player-close"]::view-transition-new(root) {
-  --vt-blur: 18px;
+  --vt-blur: 16px;
   animation: vt-undim 0.56s cubic-bezier(0.22, 0.9, 0.24, 1) both;
 }
 /* what flies between the mini player and the player: the cover, the title, the artist, the

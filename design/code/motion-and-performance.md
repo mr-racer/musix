@@ -56,6 +56,21 @@ the home's own live sky with or without the blur. Headless Chrome composites in 
 started with `--enable-gpu --use-angle=vulkan --enable-features=Vulkan,DefaultANGLEVulkan,
 VulkanFromANGLE --ignore-gpu-blocklist --enable-gpu-rasterization` — measure with those.
 
+**Smooth from the first frame (the owner liked round 2, 2026-10-11: «немного статтерит в самом
+начале … не в ущерб визуалу»).** The change's own motion (transform, opacity, filter of the
+snapshots) runs on the compositor and does not wait for the main thread — a 400 ms block in the
+middle of a change stalls only the live content inside the new page. What made the start
+stutter was work inside the change: the room under the mini player (`--player-h`, a registered
+property with a 0.6 s transition) re-laid out the whole page on every frame of the player's
+opening and closing; the wall rendered at a guessed width and was laid out again on the first
+frame; the library read six thousand rows again on every visit; the spectrum redrew every frame;
+fresh data was fetched and parsed in the first frames. Rules now: inside `html[data-nav]` nothing
+eases the layout (`transition: none`); a screen measures itself in a layout effect, before the
+picture; data a screen already has is shown at once and refreshed after the change (700 ms);
+closed windows and the spectrum mount a frame later (`lib/afterPaint.ts`); canvases hold still
+during a change; a page fully covered by the player is let go (opacity 0) so the GPU stops
+blurring it.
+
 ## What may move at rest
 
 - The spectrum above the seek line: one small canvas, at the screen's frame rate (the owner

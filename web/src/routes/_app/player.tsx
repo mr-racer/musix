@@ -5,6 +5,7 @@ import { useShallow } from "zustand/react/shallow";
 import { mediaUrl, type Schemas } from "../../api/client";
 import { db, rowToTrack } from "../../api/db";
 import { contextQuery } from "../../api/queries";
+import { useAfterPaint } from "../../lib/afterPaint";
 import { factClass } from "../../lib/facts";
 import { clock, plural } from "../../lib/format";
 import { image, imageUrl, warmFromMirror } from "../../lib/images";
@@ -183,6 +184,9 @@ function Playing({ trackId }: { trackId: string }) {
   // buffering, not a pause, and must not flash the paused look (the blurred, dimmed cover)
   const paused = !s.playing && !s.buffering;
   const asked = useTrackChat((c) => (c.trackId === trackId ? c.messages.findLast((m) => m.line)?.line ?? null : null));
+  // the closed windows (the queue, the assistant) and the spectrum come a frame after the
+  // screen: opening the player does not wait for them (lib/afterPaint.ts)
+  const late = useAfterPaint();
 
   // the neighbours' pictures and spectra, ahead of a skip: over a real link they would
   // otherwise arrive after the change (the cover swapping late, the curve rising late)
@@ -344,7 +348,7 @@ function Playing({ trackId }: { trackId: string }) {
           {s.error && <p className={css.error} role="status">{s.error}</p>}
         </div>
 
-        <Scrub>{!narrow && <Spectrum trackId={trackId} className={css.spectrum} />}</Scrub>
+        <Scrub>{!narrow && late && <Spectrum trackId={trackId} className={css.spectrum} />}</Scrub>
 
         <div className={css.bottom}>
         <div className={css.controls} role="toolbar" aria-label="Действия с треком">
@@ -395,9 +399,9 @@ function Playing({ trackId }: { trackId: string }) {
           <b>{s.mode === "stream" ? "Поток" : "Очередь"}, {upcoming} {plural(upcoming, "трек", "трека", "треков")} впереди</b>
           <button type="button" className={css.ic} onClick={() => setSheet(null)} aria-label="Закрыть"><Icon name="Close" size={18} /></button>
         </div>
-        <div className={css.winBody}><Queue onPick={narrow ? () => setSheet(null) : undefined} onNear={warm} /></div>
+        <div className={css.winBody}>{late && <Queue onPick={narrow ? () => setSheet(null) : undefined} onNear={warm} />}</div>
       </aside>
-      <Assistant trackId={trackId} open={sheet === "ai"} onClose={() => setSheet(null)} />
+      {late && <Assistant trackId={trackId} open={sheet === "ai"} onClose={() => setSheet(null)} />}
       {narrow && (
         <aside className={css.win + (sheet === "about" ? " " + css.winOpen : "")} aria-label="О песне" aria-hidden={sheet !== "about"}>
           <div className={css.winHead}>

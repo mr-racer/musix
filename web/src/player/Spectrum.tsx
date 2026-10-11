@@ -152,6 +152,9 @@ export function Spectrum({ trackId, className }: { trackId: string; className?: 
     const frame = (now: number) => {
       raf = 0;
       if (document.hidden) return;
+      // inside a page change the curve holds still: it flies (the seek line between the mini
+      // player and the player) or is photographed, and the frame's time goes to the change
+      if (document.documentElement.dataset.nav) { last = now; raf = requestAnimationFrame(frame); return; }
       const dt = last ? Math.min(64, now - last) : 16;
       last = now;
       const st = usePlayer.getState();

@@ -1,5 +1,5 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { useEffect, useLayoutEffect, useRef } from "react";
+import { useLayoutEffect, useRef } from "react";
 import { image } from "../lib/images";
 import { clock } from "../lib/format";
 import { Cover } from "../ui/Cover";
@@ -43,7 +43,8 @@ export function MiniPlayer() {
     had.current = !!item;
   }, [shown, item]);
 
-  useEffect(() => {
+  // a layout effect: inside a page change it lands before the new page is photographed
+  useLayoutEffect(() => {
     const root = document.documentElement.style;
     root.setProperty("--player-h", shown ? `${MINI_H}px` : "0px");
     root.setProperty("--spec-room", shown ? `${SPEC_ROOM}px` : "0px");

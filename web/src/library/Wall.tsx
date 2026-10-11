@@ -143,11 +143,15 @@ export function Wall<T extends AlbumCard | ArtistCard>({ kind, sections, view, t
   // the block above the wall («Пластинка дня») lives outside the virtual rows and is watched for
   // as long as it stands: when it grows (the summary arrives, its cover loads) the wall moves
   // down with it. As a row it was measured once, and the wall could slide over it (the owner)
+  // measured at once as well: the wall's first render is what a page change photographs, and
+  // a guessed width laid it out again (other columns) on the first frame of the change
   useLayoutEffect(() => {
-    const ro = new ResizeObserver(() => {
+    const measure = () => {
       setWidth(box.current?.clientWidth ?? 1200);
       setMargin(box.current ? box.current.getBoundingClientRect().top + window.scrollY : 0);
-    });
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
     if (box.current) ro.observe(box.current);
     if (topEl.current) ro.observe(topEl.current);
     return () => ro.disconnect();
