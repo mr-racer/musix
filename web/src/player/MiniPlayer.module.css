@@ -17,6 +17,10 @@
 .cover { box-shadow: 0 8px 20px -8px rgba(0,0,0,0.7); transition: transform 0.35s var(--mx-ease-spring); }
 /* the cover flies into the player's and back (styles/pages.css) */
 :global(html[data-nav^="player"]) .cover { view-transition-name: np-cover; }
+/* …and the title, the artist and the seek line fly with it (styles/pages.css) */
+:global(html[data-nav^="player"]) .title { view-transition-name: np-title; }
+:global(html[data-nav^="player"]) .artist { view-transition-name: np-artist; }
+:global(html[data-nav^="player"]) .line { view-transition-name: np-seek; }
 .now:hover .cover { transform: scale(1.08) rotate(-2deg); }
 .text { display: flex; flex-direction: column; min-width: 0; }
 .title { font: 500 15px/1.2 var(--mx-font-sans); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

@@ -731,7 +731,7 @@ function LyricsBack({ title, lyrics, shown, asked, onSeek, onAsk }: {
  *  The tilt, the glare and the press are CSS variables written at most once a frame, and only
  *  while the pointer is over the cover: no React state, nothing repaints at rest. */
 function CoverStage({ item, index, flipped, playing, buffering, fx, back }: {
-  item: { trackId: string; coverImageId?: string | null; title: string; album?: string | null };
+  item: { trackId: string; coverImageId?: string | null; title: string; album?: string | null; albumId?: string | null };
   index: number; flipped: boolean; playing: boolean; buffering: boolean;
   fx: { kind: "fire" | "water"; n: number } | null; back: React.ReactNode;
 }) {
@@ -829,7 +829,7 @@ function CoverStage({ item, index, flipped, playing, buffering, fx, back }: {
         <div className={css.flipper + (flipped ? " " + css.isFlipped : "")}>
           <button type="button" className={css.front + (playing ? "" : " " + css.paused)} tabIndex={flipped ? -1 : 0}
             onClick={() => player.toggle()} aria-label={playing ? "Пауза" : "Играть"}>
-            <Cover id={item.coverImageId} size={380} radius={10} fresh alt={item.album ?? item.title} className={css.cover} />
+            <Cover id={item.coverImageId} size={380} radius={10} fresh alt={item.album ?? item.title} className={css.cover} seed={item.albumId ?? item.title} />
             <span className={css.veil + (buffering ? " " + css.veilOn : "")} aria-hidden><span className={css.spinner} /></span>
             <span className={css.glare} aria-hidden />
           </button>
@@ -859,7 +859,7 @@ function Queue({ onPick, onNear }: { onPick?: () => void; onNear?: (q: { trackId
             });
           }}>
             <span className={css.num}>{i === index ? <span className={css.eq} aria-hidden><i /><i /><i /></span> : i - index > 0 ? i - index : ""}</span>
-            <Cover id={q.coverImageId} size={44} radius={10} />
+            <Cover id={q.coverImageId} size={44} radius={10} seed={q.albumId ?? q.title} />
             <span className={css.rowText}>
               <span className={css.rowTitle}>{q.title}</span>
               <span className={css.rowArtist}>{q.artist}</span>

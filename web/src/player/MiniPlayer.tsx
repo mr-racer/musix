@@ -58,7 +58,7 @@ export function MiniPlayer() {
       </SeekLine>
       <div className={css.row}>
         <Link to="/player" className={css.now}>
-          <Cover id={item.coverImageId} size={44} radius={9} className={css.cover} />
+          <Cover id={item.coverImageId} size={44} radius={9} className={css.cover} seed={item.albumId ?? item.title} />
           <span className={css.text}>
             <span className={css.title}>{item.title}</span>
             <span className={css.artist}>{item.artist}</span>

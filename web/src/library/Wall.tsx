@@ -2,6 +2,7 @@ import { useWindowVirtualizer } from "@tanstack/react-virtual";
 import { Link } from "@tanstack/react-router";
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { image, imageUrl } from "../lib/images";
+import { coverFill } from "../lib/coverFill";
 import { plural } from "../lib/format";
 import { Icon } from "../ui/icons";
 import glass from "../ui/glass.module.css";
@@ -27,7 +28,7 @@ const tileMin = (w: number) => (w < 1400 ? 190 : w < 1800 ? 208 : w < 2200 ? 224
 /** A cover that arrives organically: the palette's colour at once, then its 96 px sketch
  *  blurred, then the cover develops (a wave from the top left when several come together);
  *  a cover already in the browser's cache is simply there. */
-export const WallCover = memo(function WallCover({ id, px, round }: { id: string | null; px: number; round?: boolean }) {
+export const WallCover = memo(function WallCover({ id, px, round, seed }: { id: string | null; px: number; round?: boolean; seed?: string }) {
   const pal = image(id)?.palette;
   const src = imageUrl(id, Math.round(px * Math.min(2, devicePixelRatio || 1)));
   const sketch = imageUrl(id, 96);
@@ -43,7 +44,7 @@ export const WallCover = memo(function WallCover({ id, px, round }: { id: string
   };
   return (
     <>
-      <div ref={ph} className={css.ph} style={{ background: pal ? `linear-gradient(145deg, ${pal.dominant ?? pal.muted}, ${pal.muted ?? pal.dominant})` : "#202026" }}>
+      <div ref={ph} className={css.ph} style={{ background: pal ? `linear-gradient(145deg, ${pal.dominant ?? pal.muted}, ${pal.muted ?? pal.dominant})` : seed ? coverFill(seed) : "#202026" }}>
         {sketch && sketch !== src && <img src={sketch} alt="" decoding="async" />}
       </div>
       {src && <img className={css.cv} data-wait="" src={src} alt="" decoding="async" loading="lazy" draggable={false}
@@ -70,7 +71,7 @@ const AlbumTile = memo(function AlbumTile({ a, px, sealed, rewrap }: { a: AlbumC
   };
   return (
     <Link ref={el} to="/album/$id" params={{ id: a.id }} className={css.card} data-id={a.id} onClick={(e) => go(e, false)} draggable={false}>
-      <WallCover id={a.cover} px={px} />
+      <WallCover id={a.cover} px={px} seed={a.id} />
       {sealed && <Film rewrap={rewrap} />}
       <span className={css.cap}><b>{a.title}</b><small>{a.artist}{a.year ? ` · ${a.year}` : ""}</small></span>
       <button type="button" className={css.play} aria-label={`Слушать «${a.title}»`} onClick={(e) => go(e, true)}><Icon name="Play" size={18} /></button>
@@ -100,7 +101,7 @@ function AlbumLine({ a, mx, other, sealed }: { a: AlbumCard; mx: number; other: 
   return (
     <Link ref={el} to="/album/$id" params={{ id: a.id }} className={css.row} data-id={a.id}
       onClick={(e) => { if (e.button !== 0 || e.metaKey || e.ctrlKey) return; e.preventDefault(); openFrom(a.id, a.cover, el.current?.querySelector("img") ?? null, false); }}>
-      <span className={css.rc}><WallCover id={a.cover} px={56} />{sealed && <Film rewrap={false} />}</span>
+      <span className={css.rc}><WallCover id={a.cover} px={56} seed={a.id} />{sealed && <Film rewrap={false} />}</span>
       <span className={css.rt}>{a.title}</span><span className={css.rm}>{a.artist}</span><span className={css.rn}>{a.year ?? "—"}</span><span className={css.rm}>{other}</span>
       {listened(a.plays, mx)}
       <button type="button" className={css.rp} aria-label="Слушать" onClick={(e) => { e.preventDefault(); e.stopPropagation(); void playAlbum(a.id, el.current); }}><Icon name="Play" size={14} /></button>
@@ -291,7 +292,7 @@ function Plate<T extends AlbumCard | ArtistCard>({ sections, cur, on, onOpen, le
     was.current = { on, cur };
   }, [on, cur]);
   return (
-    <button ref={el} type="button" className={`${css.plate} ${glass.lg}`} hidden={!on || !s} style={{ left }} aria-haspopup="menu" onClick={(e) => onOpen(e.currentTarget)}>
+    <button ref={el} type="button" className={`${css.plate} ${glass.lg} ${glass.sheen}`} hidden={!on || !s} style={{ left }} aria-haspopup="menu" onClick={(e) => onOpen(e.currentTarget)}>
       {s && <><Stack s={s} /><span className={css.nm}><span data-nm>{s.name}</span></span><small>{s.items.length}</small><Icon name="ChevronDown" size={16} /></>}
     </button>
   );

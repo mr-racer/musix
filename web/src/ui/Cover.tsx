@@ -1,4 +1,5 @@
 import { useLayoutEffect, useRef, useState } from "react";
+import { coverFill } from "../lib/coverFill";
 import { image, imageUrl } from "../lib/images";
 import css from "./Cover.module.css";
 
@@ -9,7 +10,7 @@ import css from "./Cover.module.css";
  *  would wear the previous cover and then snap. With `fresh` every picture is its own
  *  element: the placeholder colour shows at once and the picture fades in when it is there
  *  (not at all if it was already loaded). */
-export function Cover({ id, size, radius = 10, alt = "", className, eager, fresh }: {
+export function Cover({ id, size, radius = 10, alt = "", className, eager, fresh, seed }: {
   id: string | null | undefined;
   size: number;
   radius?: number;
@@ -17,13 +18,15 @@ export function Cover({ id, size, radius = 10, alt = "", className, eager, fresh
   className?: string;
   eager?: boolean;
   fresh?: boolean;
+  /** the album (or the song) when there is no picture: the soft fill of lib/coverFill.ts */
+  seed?: string | null;
 }) {
   const img = image(id);
   const src = imageUrl(id, size * 2);
   const tint = img?.palette?.muted ?? img?.palette?.dominant;
   return (
     <span className={css.cover + (className ? " " + className : "")}
-      style={{ ["--size" as string]: `${size}px`, ["--r" as string]: `${radius}px`, ["--tint" as string]: tint ?? "var(--mx-surface-2)" }}>
+      style={{ ["--size" as string]: `${size}px`, ["--r" as string]: `${radius}px`, ["--tint" as string]: tint ?? "var(--mx-surface-2)", ...(!src && seed ? { background: coverFill(seed) } : null) }}>
       {src && (fresh
         ? <Fresh key={src} src={src} alt={alt} size={size} />
         : <img src={src} alt={alt} loading={eager ? "eager" : "lazy"} decoding="async" width={size} height={size} />)}

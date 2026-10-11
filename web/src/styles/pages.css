@@ -1,66 +1,102 @@
-/* Page changes (lib/pageMotion.ts names the kind in html[data-nav]). The shell's parts carry
-   their own names (Shell.module.css, MiniPlayer.module.css), so they stay put while the page
-   — the root snapshot — moves. What arrives eases out with no overshoot (a click carries no
-   momentum, design/code/motion-and-performance.md); what leaves accelerates away, shorter. */
-::view-transition-group(*) { animation-duration: 0.5s; animation-timing-function: cubic-bezier(0.2, 0.9, 0.25, 1); }
+/* Page changes, round 2 (lib/pageMotion.ts names the kind in html[data-nav]). The owner on
+   round 1: the sheet that grew out of the mini player and the sliding tabs read as a rectangle
+   of background pushed over the screen — «не высокотехнологичный дизайн». So nothing slides
+   across the screen any more. What leaves goes out of focus and fades in a fifth of a second
+   (ease-in); what arrives comes into focus from a short way off in its direction, a beat later,
+   with no overshoot (a click carries no momentum). Between the two the page dips into its own
+   background instead of showing two pages at once. The player is not a page sliding in: the
+   page behind blurs and dims, the player materialises over it (blur and scale together), and
+   the cover, the title, the artist and the seek line fly between the mini player and their
+   places. The shell's parts carry their own names and stay where they are. */
+
+::view-transition-group(*) { animation-duration: 0.5s; animation-timing-function: cubic-bezier(0.22, 0.9, 0.24, 1); }
 ::view-transition-old(root), ::view-transition-new(root) { animation: none; mix-blend-mode: normal; }
-/* the island's blob keeps its own spring with the overshoot (Shell.module.css) */
+/* the island: its lens keeps its own spring with the overshoot; its items above it crossfade */
 ::view-transition-group(island-blob) { animation-duration: 0.55s; animation-timing-function: cubic-bezier(0.3, 1.45, 0.42, 1); }
-::view-transition-group(lib-ul) { animation-timing-function: cubic-bezier(0.3, 1.2, 0.42, 1); }
+::view-transition-group(lib-ul) { animation-duration: 0.45s; animation-timing-function: cubic-bezier(0.3, 1.2, 0.42, 1); }
 
-/* the island is a column: down it, the new page rises from below; up it, it comes from above */
-html[data-nav="down"]::view-transition-new(root) { animation: vt-in 0.2s linear both, vt-from-below 0.52s cubic-bezier(0.2, 0.9, 0.25, 1) both; }
-html[data-nav="down"]::view-transition-old(root) { animation: vt-to-above 0.3s cubic-bezier(0.5, 0, 0.75, 0) both; }
-html[data-nav="up"]::view-transition-new(root) { animation: vt-in 0.2s linear both, vt-from-above 0.52s cubic-bezier(0.2, 0.9, 0.25, 1) both; }
-html[data-nav="up"]::view-transition-old(root) { animation: vt-to-below 0.3s cubic-bezier(0.5, 0, 0.75, 0) both; }
-
-/* a page that is not a section comes forward; going back to a section steps back */
-html[data-nav="deeper"]::view-transition-new(root) { animation: vt-in 0.2s linear both, vt-from-near 0.5s cubic-bezier(0.2, 0.9, 0.25, 1) both; }
-html[data-nav="deeper"]::view-transition-old(root) { animation: vt-recede 0.36s cubic-bezier(0.4, 0, 0.6, 1) both; }
-html[data-nav="back"]::view-transition-new(root) { animation: vt-in 0.2s linear both, vt-from-far 0.5s cubic-bezier(0.2, 0.9, 0.25, 1) both; }
-html[data-nav="back"]::view-transition-old(root) { animation: vt-advance 0.26s cubic-bezier(0.5, 0, 0.75, 0) both; }
-
-/* the library's tabs are a row: the next tab slides in from the right under the bar, the
-   underline glides (library.module.css names both only for these changes) */
-html[data-nav="tab-next"]::view-transition-new(root) { animation: vt-in 0.18s linear both, vt-from-right 0.5s cubic-bezier(0.2, 0.9, 0.25, 1) both; }
-html[data-nav="tab-next"]::view-transition-old(root) { animation: vt-to-left 0.26s cubic-bezier(0.5, 0, 0.75, 0) both; }
-html[data-nav="tab-prev"]::view-transition-new(root) { animation: vt-in 0.18s linear both, vt-from-left 0.5s cubic-bezier(0.2, 0.9, 0.25, 1) both; }
-html[data-nav="tab-prev"]::view-transition-old(root) { animation: vt-to-right 0.26s cubic-bezier(0.5, 0, 0.75, 0) both; }
-
-/* the player grows out of the mini player: the stage opens upwards from where the bar stood,
-   the cover flies from the bar into its place, the page behind sinks back into the dark */
-html[data-nav="player-open"]::view-transition-new(root) { animation: vt-sheet-open 0.56s cubic-bezier(0.2, 0.9, 0.25, 1) both; }
-html[data-nav="player-open"]::view-transition-old(root) { animation: vt-sink 0.56s cubic-bezier(0.2, 0.9, 0.25, 1) both; }
-html[data-nav="player-open"]::view-transition-old(mini-bar) { animation: vt-out 0.16s cubic-bezier(0.5, 0, 0.75, 0) both; }
-html[data-nav="player-open"]::view-transition-group(np-cover) { animation-duration: 0.56s; }
-/* … and folds back into it: the stage over the page closes down into the bar's place */
-html[data-nav="player-close"]::view-transition-old(root) { z-index: 1; animation: vt-sheet-close 0.46s cubic-bezier(0.55, 0, 0.3, 1) both; }
-html[data-nav="player-close"]::view-transition-new(root) { animation: vt-rise-back 0.46s cubic-bezier(0.2, 0.9, 0.25, 1) both; }
-html[data-nav="player-close"]::view-transition-new(mini-bar) { animation: vt-in 0.2s linear 0.28s both; }
-html[data-nav="player-close"]::view-transition-group(np-cover) { z-index: 2; animation-duration: 0.46s; animation-timing-function: cubic-bezier(0.55, 0, 0.3, 1); }
-
-@keyframes vt-in { from { opacity: 0; } }
-@keyframes vt-out { to { opacity: 0; } }
-@keyframes vt-from-below { from { transform: translateY(44px); } }
-@keyframes vt-from-above { from { transform: translateY(-44px); } }
-@keyframes vt-to-above { to { transform: translateY(-18px) scale(0.99); filter: brightness(0.7); } }
-@keyframes vt-to-below { to { transform: translateY(18px) scale(0.99); filter: brightness(0.7); } }
-@keyframes vt-from-near { from { transform: scale(1.025); } }
-@keyframes vt-from-far { from { transform: scale(0.975); } }
-@keyframes vt-recede { to { transform: scale(0.975); filter: brightness(0.6); } }
-@keyframes vt-advance { to { transform: scale(1.03); opacity: 0; } }
-@keyframes vt-from-right { from { transform: translateX(56px); } }
-@keyframes vt-from-left { from { transform: translateX(-56px); } }
-@keyframes vt-to-left { to { transform: translateX(-28px); opacity: 0; } }
-@keyframes vt-to-right { to { transform: translateX(28px); opacity: 0; } }
-@keyframes vt-sheet-open {
-  from { clip-path: inset(var(--vt-mt, calc(100% - 86px)) var(--vt-mr, 40px) 0 var(--vt-ml, 120px) round 22px); }
-  to { clip-path: inset(0 0 0 0 round 0); }
+/* ── the two halves every content change is made of ─────────────────────────────────────── */
+html[data-nav]:not([data-nav^="player"])::view-transition-old(root) {
+  animation: vt-fade-out 0.2s cubic-bezier(0.4, 0, 1, 1) both, vt-focus-out 0.2s cubic-bezier(0.4, 0, 1, 1) both, vt-to 0.24s cubic-bezier(0.4, 0, 1, 1) both;
 }
-@keyframes vt-sheet-close {
-  from { clip-path: inset(0 0 0 0 round 0); }
-  80% { opacity: 1; }
-  to { clip-path: inset(var(--vt-mt, calc(100% - 86px)) var(--vt-mr, 40px) 0 var(--vt-ml, 120px) round 22px); opacity: 0; }
+html[data-nav]:not([data-nav^="player"])::view-transition-new(root) {
+  animation: vt-fade-in 0.26s linear 0.07s both, vt-focus-in 0.38s cubic-bezier(0.3, 0, 0.2, 1) 0.07s both, vt-from 0.56s cubic-bezier(0.22, 0.9, 0.24, 1) 0.07s both;
 }
-@keyframes vt-sink { to { transform: scale(0.96); filter: brightness(0.5); } }
-@keyframes vt-rise-back { from { transform: scale(0.96); filter: brightness(0.5); } }
+/* …and where they come from: the island's column, the library's row, in place, forward, back */
+html[data-nav="down"]::view-transition-new(root) { --vt-y: 34px; }
+html[data-nav="down"]::view-transition-old(root) { --vt-y: -16px; }
+html[data-nav="up"]::view-transition-new(root) { --vt-y: -34px; }
+html[data-nav="up"]::view-transition-old(root) { --vt-y: 16px; }
+html[data-nav="tab-next"]::view-transition-new(root) { --vt-x: 30px; }
+html[data-nav="tab-next"]::view-transition-old(root) { --vt-x: -14px; }
+html[data-nav="tab-prev"]::view-transition-new(root) { --vt-x: -30px; }
+html[data-nav="tab-prev"]::view-transition-old(root) { --vt-x: 14px; }
+html[data-nav="regroup"]::view-transition-new(root) { --vt-y: 16px; --vt-blur: 6px; }
+html[data-nav="regroup"]::view-transition-old(root) { --vt-s: 0.985; --vt-blur: 6px; }
+html[data-nav="deeper"]::view-transition-new(root) { --vt-s: 1.03; }
+html[data-nav="deeper"]::view-transition-old(root) { --vt-s: 0.98; }
+html[data-nav="back"]::view-transition-new(root) { --vt-s: 0.975; }
+html[data-nav="back"]::view-transition-old(root) { --vt-s: 1.02; }
+
+/* ── the player ─────────────────────────────────────────────────────────────────────────── */
+/* opening: the page behind goes out of focus and darkens, without moving; the player's stage
+   materialises over it — out of a deep blur, from a little nearer, fading in */
+html[data-nav="player-open"]::view-transition-old(root) {
+  --vt-blur: 18px;
+  animation: vt-dim 0.6s cubic-bezier(0.22, 0.9, 0.24, 1) both;
+}
+html[data-nav="player-open"]::view-transition-new(root) {
+  --vt-blur: 24px; --vt-s: 1.06;
+  animation: vt-fade-in 0.4s cubic-bezier(0.25, 0.1, 0.25, 1) 0.04s both, vt-focus-in 0.56s cubic-bezier(0.22, 0.9, 0.24, 1) 0.04s both, vt-from 0.7s cubic-bezier(0.22, 0.9, 0.24, 1) 0.04s both;
+}
+/* closing: the player dissolves the same way it came (out of focus, a little nearer), the
+   page comes back into focus and light */
+html[data-nav="player-close"]::view-transition-old(root) {
+  z-index: 1; --vt-blur: 16px; --vt-s: 1.04;
+  animation: vt-fade-out 0.34s cubic-bezier(0.4, 0, 0.6, 1) both, vt-focus-out 0.34s cubic-bezier(0.4, 0, 0.6, 1) both, vt-to 0.4s cubic-bezier(0.4, 0, 0.6, 1) both;
+}
+html[data-nav="player-close"]::view-transition-new(root) {
+  --vt-blur: 18px;
+  animation: vt-undim 0.56s cubic-bezier(0.22, 0.9, 0.24, 1) both;
+}
+/* what flies between the mini player and the player: the cover, the title, the artist, the
+   seek line. The small picture gives way to the large one early, so nothing blurry travels */
+html[data-nav^="player"]::view-transition-group(np-cover),
+html[data-nav^="player"]::view-transition-group(np-title),
+html[data-nav^="player"]::view-transition-group(np-artist),
+html[data-nav^="player"]::view-transition-group(np-seek) { animation-duration: 0.62s; }
+html[data-nav="player-close"]::view-transition-group(np-cover),
+html[data-nav="player-close"]::view-transition-group(np-title),
+html[data-nav="player-close"]::view-transition-group(np-artist),
+html[data-nav="player-close"]::view-transition-group(np-seek) { z-index: 2; animation-duration: 0.5s; animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1); }
+html[data-nav^="player"]::view-transition-old(np-cover), html[data-nav^="player"]::view-transition-new(np-cover),
+html[data-nav^="player"]::view-transition-old(np-title), html[data-nav^="player"]::view-transition-new(np-title),
+html[data-nav^="player"]::view-transition-old(np-artist), html[data-nav^="player"]::view-transition-new(np-artist),
+html[data-nav^="player"]::view-transition-old(np-seek), html[data-nav^="player"]::view-transition-new(np-seek) { mix-blend-mode: normal; }
+/* the seek line stretches with its box; the cover and the words keep their proportions */
+html[data-nav^="player"]::view-transition-old(np-seek), html[data-nav^="player"]::view-transition-new(np-seek) { height: 100%; object-fit: fill; }
+html[data-nav^="player"]::view-transition-old(np-cover) { animation: vt-fade-out 0.24s linear both; }
+html[data-nav^="player"]::view-transition-new(np-cover) { animation: vt-fade-in 0.16s linear both; }
+html[data-nav^="player"]::view-transition-old(np-title), html[data-nav^="player"]::view-transition-old(np-artist) { animation: vt-fade-out 0.2s linear both; }
+html[data-nav^="player"]::view-transition-new(np-title), html[data-nav^="player"]::view-transition-new(np-artist) { animation: vt-fade-in 0.3s linear 0.08s both; }
+html[data-nav^="player"]::view-transition-old(np-seek) { animation: vt-fade-out 0.3s linear both; }
+html[data-nav^="player"]::view-transition-new(np-seek) { animation: vt-fade-in 0.3s linear 0.1s both; }
+/* the rest of the mini player sinks away as the player opens and comes back after it closes */
+html[data-nav="player-open"]::view-transition-old(mini-bar) { --vt-y: 12px; animation: vt-fade-out 0.18s cubic-bezier(0.4, 0, 1, 1) both, vt-to 0.18s cubic-bezier(0.4, 0, 1, 1) both; }
+html[data-nav="player-close"]::view-transition-new(mini-bar) { --vt-y: 12px; animation: vt-fade-in 0.24s linear 0.26s both, vt-from 0.4s cubic-bezier(0.22, 0.9, 0.24, 1) 0.26s both; }
+/* the player's controls arrive last, rising into their row; they leave first */
+html[data-nav="player-open"]::view-transition-new(np-controls) { --vt-y: 18px; animation: vt-fade-in 0.3s linear 0.16s both, vt-from 0.56s cubic-bezier(0.22, 0.9, 0.24, 1) 0.16s both; }
+html[data-nav="player-close"]::view-transition-old(np-controls) { --vt-y: 12px; animation: vt-fade-out 0.16s cubic-bezier(0.4, 0, 1, 1) both, vt-to 0.16s cubic-bezier(0.4, 0, 1, 1) both; }
+
+@keyframes vt-fade-in { from { opacity: 0; } }
+@keyframes vt-fade-out { to { opacity: 0; } }
+@keyframes vt-focus-in { from { filter: blur(var(--vt-blur, 8px)); } }
+@keyframes vt-focus-out { to { filter: blur(var(--vt-blur, 8px)); } }
+@keyframes vt-from { from { transform: translate(var(--vt-x, 0px), var(--vt-y, 0px)) scale(var(--vt-s, 1)); } }
+@keyframes vt-to { to { transform: translate(var(--vt-x, 0px), var(--vt-y, 0px)) scale(var(--vt-s, 1)); } }
+@keyframes vt-dim { to { filter: blur(var(--vt-blur, 18px)) brightness(0.5) saturate(1.2); } }
+@keyframes vt-undim { from { filter: blur(var(--vt-blur, 18px)) brightness(0.5) saturate(1.2); } }
+
+/* the library has no browser scrollbar: its rail of groups is the page's scrollbar (the owner) */
+html[data-bare] { scrollbar-width: none; }
+html[data-bare]::-webkit-scrollbar { display: none; }

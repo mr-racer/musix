@@ -403,3 +403,23 @@ player. Awaiting his check before prod.
   trailed the pointer (now 1:1, every frame); the wall once slid over «Пластинка дня» (the band
   was measured once; now watched while it stands).
 
+## 2026-10-11 — page changes, round 2
+
+- The island: «при выборе библиотеки иконка на время пропадает» (the lens was drawn over the
+  items during a change); «не как liquid glass v2 сделан, ровно как и поиск по песням»; a colour
+  rectangle around it while the player opened or closed (the edge of the round-1 sheet); «эффект
+  переливания блока при наведении — убрать, а только добавить реакцию иконок на наведение» → the
+  island is the one glass recipe, no sheen; the open section sits under a clear glass lens; icons
+  rise and grow a little on hover, press in on press; the sheen stays only on small glass
+  controls (the plate, the search button).
+- «Переходы в плеер из мини плеера в целом норм с точки зрения эффекта обложки, но прямоугольник
+  фона, наезжающий на экран — плохо … ровно как и переходы между вкладками в библиотеке. Надо
+  переделать качественно … в стиле Apple» → round 2 of page changes (`motion-and-performance.md`).
+- «Смена группировок в библиотеке … без эффекта, рвано выглядит … и выбор „не распечатаны“» → a
+  new grouping, a view and the filter settle in place under the bar.
+- «Альбомы без обложек выглядят чёрными, а при раскрытии — с рандомным цветом» → one soft
+  gradient per album (its hue fixed by the album), the same on the wall, in the gatefold and in
+  the players (`web/src/lib/coverFill.ts`).
+- «Убери полоску скролла на библиотеке — там уже есть полоска с группировкой» → no browser
+  scrollbar on the library.
+

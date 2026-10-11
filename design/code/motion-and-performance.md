@@ -22,24 +22,39 @@
 
 Easings and durations are tokens (`--mx-ease-*`, `MusixMotion`).
 
-## Page changes (the owner, 2026-10-11: «открываются без эффектов, а хочется плавно»)
+## Page changes (the owner, 2026-10-11, two rounds)
 
-View transitions around every router commit (`web/src/lib/pageMotion.ts`, `styles/pages.css`).
-The shell never moves: the island, the logo, the gear and the mini player carry their own
-names and stay; only the page (the root snapshot) moves, by the kind of the change:
-- **sections are a column** (the island's order): down it the new page rises from below
-  (44 px, 0.52 s, no overshoot), the old one lifts away and dims (0.3 s, ease-in); up it, the
-  mirror. The island's blob travels between the two items with its own overshoot spring;
-- **the library's tabs are a row**: the next tab slides in from the right under the bar, the
-  previous from the left; the bar stays and its underline glides to the new tab;
-- **the player grows out of the mini player**: the stage opens upwards from the bar's place,
-  the cover flies from the bar into the big cover, the page behind sinks into the dark; closing
-  folds the stage back into the bar and the cover flies home;
-- **a page that is not a section comes forward** (an artist, a playlist, settings), going back
-  to a section steps back.
-Sorts, views and filters inside a screen are not page changes and keep their own motion. The
-new page's first render is what the change shows, so a screen reads its data before it: the
-library's mirror and summary in the route's loader (and the statistics, prefetched there).
+View transitions around every router commit (`web/src/lib/pageMotion.ts`, `styles/pages.css`),
+and around a wall filter that is not a route (`morph()`). Round 1 slid pages and grew the player
+as a sheet out of the mini player; the owner: «прямоугольник фона, наезжающий на экран — плохо …
+не высокотехнологичный дизайн». So **nothing slides across the screen**:
+- **what leaves goes out of focus** — fades, blurs (8 px), drifts a little the other way, in
+  0.2 s, ease-in; **what arrives comes into focus** a beat later (70 ms) from a short way off in
+  its direction — fade 0.26 s, blur off 0.38 s, travel 0.56 s, critically damped, no overshoot.
+  Between them the page dips into its own background, never two sharp pages at once;
+- directions: **sections are a column** (the island's order, 34 px), **the library's tabs are
+  a row** (30 px), **a new grouping or the «Не распечатаны» filter settles in place** (16 px up,
+  the old one shrinks to 0.985), **a page that is not a section comes forward** (from 1.03),
+  back to a section steps back (from 0.975);
+- **the player is not a page that slides in**: the page behind goes out of focus and darkens
+  where it stands (blur 18 px, brightness 0.5); the player materialises over it — out of a deep
+  blur, from 1.06, fading in; the **cover, the title, the artist and the seek line fly** between
+  the mini player and their places (the small picture gives way to the large one early); the
+  player's controls rise into their row last; the rest of the mini player sinks away. Closing is
+  the same road back: the player dissolves nearer and out of focus, the page comes back into
+  focus and light, the parts fly home, the mini player's rest returns after them;
+- **the shell never moves**: the island, the logo, the gear and the mini player carry their own
+  names; the island's lens travels with its overshoot spring under its items (the items are
+  pictures of their own above it, so the lens never hides an icon on its way).
+Shell UI that must be photographed in the old state reads the router's `resolvedLocation`. A
+screen reads its data before the change (the library's mirror and summary in its loader), so the
+picture of the new page is the finished page.
+
+Measured (headless Chrome with hardware compositing, RTX 3090, 1600×1000, capped at 60 Hz): every
+transition holds 16.7 ms frames through its animation; switching to the home loses 2–4 frames to
+the home's own live sky with or without the blur. Headless Chrome composites in software unless
+started with `--enable-gpu --use-angle=vulkan --enable-features=Vulkan,DefaultANGLEVulkan,
+VulkanFromANGLE --ignore-gpu-blocklist --enable-gpu-rasterization` — measure with those.
 
 ## What may move at rest
 

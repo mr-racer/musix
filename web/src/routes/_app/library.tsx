@@ -1,8 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { statsQuery, summaryQuery } from "../../api/queries";
 import { image } from "../../lib/images";
+import { morph } from "../../lib/pageMotion";
 import { useLive } from "../../lib/live";
 import { usePlayer } from "../../player/engine";
 import { Icon } from "../../ui/icons";
@@ -60,6 +61,11 @@ function Library() {
   const mirror = useLive(readMirror, [], lastMirror());
   const [sealedOnly, setSealedOnly] = useState(false);
   const [searching, setSearching] = useState(false);
+  // no browser scrollbar here: the rail of groups at the right is the page's scrollbar (the owner)
+  useEffect(() => {
+    document.documentElement.dataset.bare = "";
+    return () => { delete document.documentElement.dataset.bare; };
+  }, []);
 
   const albums = useMemo(() => (mirror ? albumCards(mirror.albums, mirror.tracks, new Map(mirror.artists.map((a) => [a.id, a])), summary) : []), [mirror, summary]);
   const artists = useMemo(() => (mirror ? artistCards(mirror.artists, mirror.tracks, mirror.albums, summary) : []), [mirror, summary]);
@@ -107,11 +113,11 @@ function Library() {
         <div className={css.tools}>
           {(tab === "albums" || tab === "artists") && (
             <SortPill name={sortName} options={tab === "albums" ? ALBUM_SORTS : ARTIST_SORTS} current={sortKeyNow}
-              pick={(k) => { set({ sort: k === "plays" ? undefined : k }); window.scrollTo(0, 0); }} />
+              pick={(k) => void nav({ search: (s) => ({ ...s, sort: k === "plays" ? undefined : k }), replace: true, resetScroll: true })} />
           )}
           {tab === "albums" && (
             <button type="button" className={css.chip} data-tool aria-pressed={sealedOnly} title="Не распечатаны: альбомы, которые ты ещё не слушал"
-              onClick={() => { setSealedOnly((v) => !v); window.scrollTo(0, 0); }}>
+              onClick={() => morph("regroup", () => { setSealedOnly((v) => !v); window.scrollTo(0, 0); })}>
               <span className={css.wrap} /><span className={css.chipLbl}>Не распечатаны</span><small>{sealedCount}</small>
             </button>
           )}

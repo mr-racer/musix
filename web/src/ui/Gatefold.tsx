@@ -6,6 +6,7 @@ import { mediaUrl, type Schemas } from "../api/client";
 import { albumQuery, artistQuery } from "../api/queries";
 import { clock, plural } from "../lib/format";
 import { image, imageUrl } from "../lib/images";
+import { coverFill } from "../lib/coverFill";
 import { fromTrack, player, usePlayer, type QueueItem } from "../player/engine";
 import css from "./Gatefold.module.css";
 import { Icon } from "./icons";
@@ -336,7 +337,7 @@ function Gatefold({ id: firstId, cover, from, onClose }: Open & { onClose: () =>
         <div ref={sleeve} className={css.sleeve}>
           <div ref={flip} className={css.flip}>
             <div className={css.face}>
-              <Picture key={coverId} low={low} high={high} />
+              <Picture key={coverId} low={low} high={high} seed={id} />
               <div className={css.sheen} aria-hidden />
             </div>
             <div ref={page} className={`${css.face} ${css.back}`}>
@@ -348,7 +349,7 @@ function Gatefold({ id: firstId, cover, from, onClose }: Open & { onClose: () =>
                 </>
               ) : (
                 <>
-                  <Picture key={coverId} low={low} high={high} />
+                  <Picture key={coverId} low={low} high={high} seed={id} />
                   <Bands key={`b${id}`} url={bg} />
                   <Liner key={`c${id}`} data={q.data} onArtist={toArtist} onSwap={swap} current={id} />
                   {poster}
@@ -386,10 +387,10 @@ function backdropOf(albumId: string, qc: ReturnType<typeof useQueryClient>): str
 
 /** The cover, sharp: the cached grid variant at once, the large one over it when it has
  *  loaded (a fade; none at all when it is already there). */
-function Picture({ low, high }: { low: string | null; high: string | null }) {
+function Picture({ low, high, seed }: { low: string | null; high: string | null; seed: string }) {
   return (
     <>
-      {low ? <img src={low} alt="" className={css.pic} /> : <div className={css.blank} />}
+      {low ? <img src={low} alt="" className={css.pic} /> : <div className={css.blank} style={{ background: coverFill(seed) }} />}
       {high && high !== low && (
         <img src={high} alt="" className={`${css.pic} ${css.hi}`}
           ref={(el) => { if (el?.complete && el.naturalWidth) el.dataset.ready = ""; }}

@@ -76,6 +76,10 @@
 .coverRow { grid-area: cover; align-self: start; position: relative; left: calc(var(--shift) * -1); width: var(--cw); margin-right: var(--mx-space-6); }
 /* the mini player's cover flies into this one and back (styles/pages.css) */
 :global(html[data-nav^="player"]) .art { view-transition-name: np-cover; }
+:global(html[data-nav^="player"]) .title { view-transition-name: np-title; }
+:global(html[data-nav^="player"]) .artist { view-transition-name: np-artist; }
+:global(html[data-nav^="player"]) .bar { view-transition-name: np-seek; }
+:global(html[data-nav^="player"]) .bottom { view-transition-name: np-controls; }
 .art { width: 100%; aspect-ratio: 1; perspective: 1100px; position: relative; border-radius: var(--r-cover); user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent; }
 .tilt, .flipper { position: absolute; inset: 0; transform-style: preserve-3d; }
 .tilt { transform: rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)) scale(var(--press, 1)); transition: transform .25s var(--mx-ease-standard); }

@@ -39,8 +39,9 @@ export function Shell() {
       </Link>
       <nav className={css.rail} aria-label="Разделы" data-sky-edge="island">
         <span className={css.blob} aria-hidden data-off={on < 0 ? "" : undefined} style={{ ["--i" as string]: stood.current }} />
-        {tabs.map((t) => (
-          <Link key={t.to} to={t.to} className={active(t.to) ? css.railOn : css.railItem} aria-current={active(t.to) ? "page" : undefined}>
+        {tabs.map((t, i) => (
+          <Link key={t.to} to={t.to} className={active(t.to) ? css.railOn : css.railItem} aria-current={active(t.to) ? "page" : undefined}
+            style={{ viewTransitionName: `island-item-${i}` }}>
             <Icon name={t.icon} size={18} />
             <span>{t.short}</span>
           </Link>

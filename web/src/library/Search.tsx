@@ -61,7 +61,7 @@ export function SearchButton({ onSearching }: { onSearching: (on: boolean) => vo
   });
   return (
     <>
-      <button ref={btn} type="button" className={`${css.sbtn} ${glass.lg}`} data-hide={open ? "" : undefined} aria-label="Поиск по библиотеке" onClick={start}>
+      <button ref={btn} type="button" className={`${css.sbtn} ${glass.lg} ${glass.sheen}`} data-hide={open ? "" : undefined} aria-label="Поиск по библиотеке" onClick={start}>
         <Icon name="Search" size={18} /><kbd>/</kbd>
       </button>
       {open && <Field at={open} close={() => { setOpen(null); onSearching(false); btn.current?.animate([{ transform: "scale(.7)" }, { transform: "none" }], { duration: 380, easing: "cubic-bezier(.34,1.56,.64,1)" }); }} />}
