@@ -375,3 +375,9 @@ the year under the pointer **is said above its point**, not under the chart.
 **Liquid glass: «давай ВЕЗДЕ сделаем поисковую строку в стиле liquid glass» — in the library
 and later on the home; the left island in the same glass.**
 «В остальном — утверждаю»: the library «Стена» and the statistics «А» are approved.
+
+«Норм, погнали» → built on `v2` (2026-10-11) and checked on the owner's own data, read-only:
+covers, groups, flags, the film, search, the statistics and the achievements as in the mock;
+scrolling keeps the frame. The home's search field is in the same glass now (its results
+too); glass reads the theme: light under the light theme, dark again inside the dark home and
+player. Awaiting his check before prod.

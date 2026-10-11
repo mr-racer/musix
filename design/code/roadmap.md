@@ -81,7 +81,7 @@ Routes of the web app (`web/src/routes`), with what each holds and where it lead
 |---|---|---|---|
 | **Home** | `/` | done: `screens/home.md` (the sky, the orb, «Настроить волну» in place, вайбики as piles, the search with the «Библиотека / ИИ» switch, the library row, «Поставить альбом», the week) | the player (orb, вайбик, the mini player), an artist (a name in the phrase, search), an album (a pick, search), the library, the assistant (the search's AI side), settings |
 | **Player** | `/player` | done: `screens/player.md` | an artist, an album, search (a producer), the queue and assistant windows |
-| **Library** | `/library` | the summary, a filter, four tabs: albums (sorts), artists, tracks (sorts), playlists (with «Новый плейлист») | the gatefold (an album), an artist, a playlist, the player (a track) |
+| **Library** | `/library` | built on `v2` 2026-10-11, awaiting the owner's check: `screens/library.md` (the wall «Стена» of albums and artists with groups, the glass plate and the rail, the film «Не распечатаны», «Пластинка дня», the glass search, playlists filling the page, the statistics «А» with achievements) | the gatefold (an album), an artist, a playlist, the player (a song) |
 | **Album** | `/album/$id` | the cover in its light, play, shuffle, «В плейлист», numbered tracks | the artist, the player |
 | **Artist** | `/artist/$id` | the name, the photo or cut-out figure in its light, the dossier, the AI bio, top tracks, albums | the gatefold, the player, the library |
 | **Playlist** | `/playlist/$id` | rename in place, delete with a second click, drag to reorder, remove a row | the player, the library |

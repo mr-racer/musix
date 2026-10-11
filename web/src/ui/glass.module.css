@@ -1,12 +1,29 @@
 /* Liquid glass, one recipe for every glass thing (design/code/surfaces.md; the owner,
    2026-10-11: the island, the search field everywhere, the floating plate and its list, the
    achievement pop-up): blur and saturate what is behind, a light gradient, a hairline, inner
-   highlights, and a sheen that crosses it under the pointer. */
+   highlights, and a sheen that crosses it under the pointer.
+   The look is in variables: light glass under the light theme, dark glass again inside a
+   dark scope (the home and the player are dark in both themes, like the island there), and
+   `--glass-ink`/`--glass-ink2` for words on it. */
 .lg {
-  background: linear-gradient(165deg, rgba(255,255,255,0.16) 0%, rgba(255,255,255,0.05) 32%, rgba(255,255,255,0.02) 64%, rgba(255,255,255,0.10) 100%), rgba(24,24,32,0.36);
-  border: 1px solid rgba(255,255,255,0.13);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.25), inset 0 -1px 0 rgba(255,255,255,0.07), 0 18px 42px rgba(0,0,0,0.45), 0 2px 10px rgba(0,0,0,0.28);
+  --glass-bg: linear-gradient(165deg, rgba(255,255,255,0.16) 0%, rgba(255,255,255,0.05) 32%, rgba(255,255,255,0.02) 64%, rgba(255,255,255,0.10) 100%), rgba(24,24,32,0.36);
+  --glass-edge: rgba(255,255,255,0.13);
+  --glass-sh: inset 0 1px 0 rgba(255,255,255,0.25), inset 0 -1px 0 rgba(255,255,255,0.07), 0 18px 42px rgba(0,0,0,0.45), 0 2px 10px rgba(0,0,0,0.28);
+  --glass-ink: rgba(255,255,255,0.92); --glass-ink2: rgba(255,255,255,0.66); --glass-glow: 0 1px 8px rgba(0,0,0,0.35);
+  background: var(--glass-bg); border: 1px solid var(--glass-edge); box-shadow: var(--glass-sh);
   -webkit-backdrop-filter: blur(28px) saturate(1.7); backdrop-filter: blur(28px) saturate(1.7);
+}
+:where(:root[data-theme="light"]) .lg {
+  --glass-bg: linear-gradient(165deg, rgba(255,255,255,0.92) 0%, rgba(255,255,255,0.58) 36%, rgba(255,255,255,0.42) 66%, rgba(255,255,255,0.80) 100%), rgba(244,243,250,0.35);
+  --glass-edge: rgba(255,255,255,0.75);
+  --glass-sh: inset 0 1px 0 rgba(255,255,255,0.95), inset 0 -1px 0 rgba(255,255,255,0.40), 0 0 0 1px rgba(46,36,86,0.09), 0 18px 42px rgba(46,36,86,0.16), 0 2px 10px rgba(46,36,86,0.08);
+  --glass-ink: rgba(22,20,34,0.92); --glass-ink2: rgba(22,20,34,0.6); --glass-glow: none;
+}
+:where([data-mx-theme="dark"]) .lg {
+  --glass-bg: linear-gradient(165deg, rgba(255,255,255,0.16) 0%, rgba(255,255,255,0.05) 32%, rgba(255,255,255,0.02) 64%, rgba(255,255,255,0.10) 100%), rgba(24,24,32,0.36);
+  --glass-edge: rgba(255,255,255,0.13);
+  --glass-sh: inset 0 1px 0 rgba(255,255,255,0.25), inset 0 -1px 0 rgba(255,255,255,0.07), 0 18px 42px rgba(0,0,0,0.45), 0 2px 10px rgba(0,0,0,0.28);
+  --glass-ink: rgba(255,255,255,0.92); --glass-ink2: rgba(255,255,255,0.66); --glass-glow: 0 1px 8px rgba(0,0,0,0.35);
 }
 .lg::after {
   content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; opacity: 0;
@@ -16,5 +33,11 @@
 }
 .lg:hover::after { opacity: 1; background-position: 0% 0%; }
 /* glass that carries words to read: the same, a deeper tint under them */
-.deep { composes: lg; background: linear-gradient(165deg, rgba(255,255,255,0.16) 0%, rgba(255,255,255,0.05) 32%, rgba(255,255,255,0.02) 64%, rgba(255,255,255,0.10) 100%), rgba(18,18,25,0.62); }
-@media (prefers-reduced-transparency: reduce) { .lg { background: #1c1c24; -webkit-backdrop-filter: none; backdrop-filter: none; } }
+.deep { composes: lg; --glass-bg: linear-gradient(165deg, rgba(255,255,255,0.16) 0%, rgba(255,255,255,0.05) 32%, rgba(255,255,255,0.02) 64%, rgba(255,255,255,0.10) 100%), rgba(18,18,25,0.62); }
+:where(:root[data-theme="light"]) .deep { --glass-bg: linear-gradient(165deg, rgba(255,255,255,0.96) 0%, rgba(255,255,255,0.78) 40%, rgba(255,255,255,0.86) 100%), rgba(244,243,250,0.6); }
+:where([data-mx-theme="dark"]) .deep { --glass-bg: linear-gradient(165deg, rgba(255,255,255,0.16) 0%, rgba(255,255,255,0.05) 32%, rgba(255,255,255,0.02) 64%, rgba(255,255,255,0.10) 100%), rgba(18,18,25,0.62); }
+@media (prefers-reduced-transparency: reduce) {
+  .lg { --glass-bg: #1c1c24; -webkit-backdrop-filter: none; backdrop-filter: none; }
+  :where(:root[data-theme="light"]) .lg { --glass-bg: #f4f3fa; }
+  :where([data-mx-theme="dark"]) .lg { --glass-bg: #1c1c24; }
+}

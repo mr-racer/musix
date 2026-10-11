@@ -2,6 +2,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { type AlbumRow, type ArtistRow, db, rowToTrack, type TrackRow } from "../api/db";
 import { fromTrack, player } from "../player/engine";
+import { warmFromMirror } from "../lib/images";
 import { Cover } from "./Cover";
 import { openAlbum } from "./Gatefold";
 import { Icon } from "./icons";
@@ -27,6 +28,8 @@ let index: Promise<Index> | null = null;
 export function load(): Promise<Index> {
   index ??= (async () => {
     const [tracks, artists, albums] = await Promise.all([db.tracks.toArray(), db.artists.toArray(), db.albums.toArray()]);
+    // the hits' covers come from the mirror, not from whichever screen happened to remember them
+    await warmFromMirror([...tracks.map((t) => t.coverImageId), ...artists.map((a) => a.imageId), ...albums.map((a) => a.coverImageId)]);
     const count = new Map<string, { n: number; cover: string | null }>();
     const byAlbum = new Map<string, string>();
     for (const t of tracks) {

@@ -1,10 +1,13 @@
-/* The search field: an inset groove with the «Библиотека / ИИ» switch at its left. In the
-   AI mode the field glows in the accent (design/code/screens/home.md) */
-.find { position: relative; display: flex; align-items: center; gap: 10px; height: 48px; padding: 0 14px 0 5px; border-radius: 999px;
-  background: rgba(0,0,0,0.3); box-shadow: inset 0 1px 0 rgba(0,0,0,0.4), inset 0 -1px 0 rgba(255,255,255,0.07);
-  transition: box-shadow 0.3s var(--mx-ease-standard), background 0.3s var(--mx-ease-standard); }
-.find:focus-within { background: rgba(0,0,0,0.42); box-shadow: inset 0 1px 0 rgba(0,0,0,0.4), 0 0 0 2px color-mix(in srgb, var(--mx-text) 34%, transparent); }
-.find[data-mode="ai"], .find[data-mode="ai"]:focus-within { box-shadow: inset 0 1px 0 rgba(0,0,0,0.4), 0 0 0 1.5px color-mix(in srgb, var(--mx-accent-light) 70%, transparent), 0 0 34px -8px var(--mx-accent-light); }
+/* The search field: liquid glass like every search field (the owner, 2026-10-11: «поисковую
+   строку в стиле liquid glass — везде»), with the «Библиотека / ИИ» switch at its left. In the
+   AI mode the glass glows in the accent (design/code/screens/home.md) */
+.find { composes: lg from "./glass.module.css"; position: relative; display: flex; align-items: center; gap: 10px; height: 48px; padding: 0 14px 0 5px; border-radius: 999px;
+  transition: box-shadow 0.3s var(--mx-ease-standard); isolation: isolate; z-index: 20; -webkit-backdrop-filter: none; backdrop-filter: none; }
+/* the blur lives on a layer under the field, not on the field itself: a field with a backdrop
+   filter is the backdrop root of the results inside it, and their glass would have nothing to blur */
+.find::before { content: ""; position: absolute; inset: 0; z-index: -1; border-radius: inherit; pointer-events: none; -webkit-backdrop-filter: blur(28px) saturate(1.7); backdrop-filter: blur(28px) saturate(1.7); }
+.find:focus-within { box-shadow: var(--glass-sh), 0 0 0 2px color-mix(in srgb, var(--mx-text) 30%, transparent); }
+.find[data-mode="ai"], .find[data-mode="ai"]:focus-within { box-shadow: var(--glass-sh), 0 0 0 1.5px color-mix(in srgb, var(--mx-accent-light) 70%, transparent), 0 0 34px -8px var(--mx-accent-light); }
 .find input { flex: 1; min-width: 0; border: 0; background: transparent; outline: 0; font: inherit; font-size: 15px; color: var(--mx-text); }
 .find input::placeholder { color: var(--mx-text-subtle); }
 .kbd { flex: none; padding: 3px 7px; border: 1px solid var(--mx-border-strong); border-radius: 6px; font: 400 11px/1.2 var(--mx-font-mono); color: var(--mx-text-subtle); transition: opacity 0.2s var(--mx-ease-standard); }
@@ -21,8 +24,8 @@
 .side[data-m="ai"][aria-checked="true"] svg { animation: hop 0.62s var(--mx-ease-standard); }
 @keyframes hop { 0% { transform: none; } 28% { transform: translateY(-34%) rotate(-12deg) scale(1.12); } 52% { transform: translateY(0) rotate(0) scale(0.96); } 72% { transform: translateY(-12%) rotate(5deg); } 100% { transform: none; } }
 /* what was found: a float surface under the field, growing out of its top edge */
-.pop { position: absolute; z-index: 20; left: 0; right: 0; top: calc(100% + 8px); max-height: min(520px, 60vh); padding: 8px; border: 1px solid var(--mx-border-strong); border-radius: 22px;
-  background: var(--mx-float); box-shadow: 0 24px 60px rgba(0,0,0,0.55); overflow: auto; transform-origin: 50% 0; animation: pop 0.34s var(--mx-ease-spring) both; }
+.pop { composes: deep from "./glass.module.css"; position: absolute; z-index: 20; left: 0; right: 0; top: calc(100% + 8px); max-height: min(520px, 60vh); padding: 8px; border-radius: 22px;
+  overflow: auto; transform-origin: 50% 0; animation: pop 0.34s var(--mx-ease-spring) both; }
 @keyframes pop { from { opacity: 0; transform: scale(0.9) translateY(-6px); } }
 .h { margin: 10px 10px 4px; font: 600 11px/1.2 var(--mx-font-sans); letter-spacing: 0.14em; text-transform: uppercase; color: var(--mx-text-subtle); }
 .group { display: contents; }

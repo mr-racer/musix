@@ -56,10 +56,10 @@
 .menu .nm { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .menu small { font: 400 12px/1 var(--mx-font-sans); color: var(--mx-text-subtle); white-space: nowrap; }
 .menuGlass { composes: menu; border-radius: 22px; }
-.menuGlass button { color: rgba(255,255,255,0.9); font-weight: 600; text-shadow: 0 1px 8px rgba(0,0,0,0.35); }
+.menuGlass button { color: var(--glass-ink); font-weight: 600; text-shadow: var(--glass-glow); }
 .menuGlass button:hover { background: rgba(255,255,255,0.12); }
 .menuGlass button[aria-pressed="true"] { background: rgba(255,255,255,0.17); box-shadow: inset 0 1px 0 rgba(255,255,255,0.18); }
-.menuGlass small { color: rgba(255,255,255,0.66); font-family: var(--mx-font-mono); }
+.menuGlass small { color: var(--glass-ink2); font-family: var(--mx-font-mono); }
 
 /* ── groups ───────────────────────────────────────────────────────────────── */
 .sh { display: flex; align-items: baseline; gap: 14px; padding: 14px 0 16px; min-width: 0; height: 76px; }
@@ -235,7 +235,7 @@
 .pcard:hover .plus { transform: rotate(90deg) scale(1.08); }
 
 /* search: the button grows into a glass field; the answers are glass with a deeper tint */
-.sfield { position: fixed; z-index: 65; height: 46px; border-radius: 23px; display: flex; align-items: center; gap: 10px; padding: 0 6px 0 15px; overflow: hidden; color: var(--mx-text); text-shadow: 0 1px 8px rgba(0,0,0,0.3); }
+.sfield { position: fixed; z-index: 65; height: 46px; border-radius: 23px; display: flex; align-items: center; gap: 10px; padding: 0 6px 0 15px; overflow: hidden; color: var(--glass-ink); text-shadow: var(--glass-glow); }
 .sfield input { flex: 1; min-width: 0; background: none; border: 0; outline: 0; font: 400 15.5px/1 var(--mx-font-sans); color: var(--mx-text); }
 .sfield input::placeholder { color: var(--mx-text-subtle); }
 .sfield input::-webkit-search-cancel-button { display: none; }
@@ -248,7 +248,7 @@
 .sgroup h3 small { font: 400 11.5px/1 var(--mx-font-mono); color: var(--mx-text-subtle); }
 .sgroup h3::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--kc); }
 .hit { width: 100%; display: grid; grid-template-columns: 42px minmax(0, 1fr) auto; align-items: center; gap: 12px; padding: 6px 10px; border-radius: 12px; text-align: left; color: inherit; transition: background 0.15s; }
-.hit[data-on] { background: rgba(255,255,255,0.12); }
+.hit[data-on] { background: color-mix(in srgb, var(--glass-ink, var(--mx-text)) 11%, transparent); }
 .pic { width: 42px; height: 42px; object-fit: cover; background: #222; display: block; }
 .hit[data-k="artist"] .pic { border-radius: 50%; }
 .hit[data-k="album"] .pic { border-radius: 6px; box-shadow: 3px 0 0 -1px rgba(0,0,0,0.6), 5px 0 0 -1px #1d1d22; }
@@ -258,13 +258,14 @@
 .htx { min-width: 0; }
 .htx b { display: block; font: 500 15px/1.25 var(--mx-font-sans); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .htx b mark { background: none; color: var(--kc); font-weight: 600; }
-.htx small { display: block; margin-top: 2px; font: 400 13px/1.25 var(--mx-font-sans); color: rgba(238,238,243,0.66); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.htx small { display: block; margin-top: 2px; font: 400 13px/1.25 var(--mx-font-sans); color: var(--glass-ink2, var(--mx-text-muted)); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .htx small i { font-style: normal; color: var(--kc); }
 .go { opacity: 0; color: var(--mx-text-subtle); transform: translateX(-4px); transition: opacity 0.15s, transform 0.25s var(--mx-ease-spring); }
 .hit[data-on] .go { opacity: 1; transform: none; }
 .snone { padding: 22px 14px; color: var(--mx-text-subtle); font: 400 14px/1.5 var(--mx-font-text); text-align: center; }
 .shint { display: flex; gap: 14px; justify-content: flex-end; padding: 8px 10px 2px; border-top: 1px solid var(--mx-border); font: 400 11px/1 var(--mx-font-mono); color: var(--mx-text-subtle); }
 [data-k="artist"] { --kc: #b3a8ff; } [data-k="album"] { --kc: #f0b85a; } [data-k="song"] { --kc: #6fd3bd; }
+:root[data-theme="light"] [data-k="artist"] { --kc: #5b4bd0; } :root[data-theme="light"] [data-k="album"] { --kc: #a8650c; } :root[data-theme="light"] [data-k="song"] { --kc: #12806a; }
 
 /* the page dissolves under the mini player: a gradient only (a blur here repainted the bottom
    of the wall on every scroll frame) */
