@@ -1,257 +1,173 @@
 import { useQuery } from "@tanstack/react-query";
-import { useWindowVirtualizer } from "@tanstack/react-virtual";
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useMemo, useRef, useState } from "react";
-import { db, type AlbumRow, type ArtistRow, type TrackRow } from "../../api/db";
-import { createPlaylist } from "../../api/playlists";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useLayoutEffect, useMemo, useRef, useState } from "react";
+import { db } from "../../api/db";
 import { summaryQuery } from "../../api/queries";
-import { sortKey } from "../../api/sync";
-import { clock, num, plural } from "../../lib/format";
-import { warmFromMirror } from "../../lib/images";
+import { image, warmFromMirror } from "../../lib/images";
 import { useLive } from "../../lib/live";
-import { player, type QueueItem } from "../../player/engine";
-import { AlbumCard } from "../../ui/AlbumCard";
-import { Cover } from "../../ui/Cover";
+import { usePlayer } from "../../player/engine";
 import { Icon } from "../../ui/icons";
-import css from "./library.module.css";
+import { DayBand } from "../../library/DayBand";
+import { Lists } from "../../library/Lists";
+import {
+  ALBUM_SORTS, ARTIST_SORTS, type AlbumSort, type ArtistSort, albumCards, albumSections, artistCards, artistSections, type Lens,
+} from "../../library/model";
+import { SearchButton } from "../../library/Search";
+import { Stats } from "../../library/Stats";
+import { Wall } from "../../library/Wall";
+import css from "../../library/library.module.css";
 
-type Tab = "albums" | "artists" | "tracks" | "playlists";
-type Sort = "az" | "year" | "plays" | "added";
+/** The library «Стена» and its statistics (design/code/screens/library.md; approved by the
+ *  owner on 2026-10-11 after four rounds of the mock, design/reference/library). */
+
+type Tab = "albums" | "artists" | "playlists" | "stats";
+type View = "grid" | "rows";
+const TABS: Tab[] = ["albums", "artists", "playlists", "stats"];
 
 export const Route = createFileRoute("/_app/library")({
-  validateSearch: (s: Record<string, unknown>): { tab?: Tab; sort?: Sort } => ({
-    tab: ["albums", "artists", "tracks", "playlists"].includes(s.tab as string) ? (s.tab as Tab) : undefined,
-    sort: ["az", "year", "plays", "added"].includes(s.sort as string) ? (s.sort as Sort) : undefined,
+  validateSearch: (s: Record<string, unknown>): { tab?: Tab; sort?: string; view?: View } => ({
+    tab: TABS.includes(s.tab as Tab) ? (s.tab as Tab) : undefined,
+    sort: typeof s.sort === "string" ? s.sort : undefined,
+    view: s.view === "rows" ? "rows" : undefined,
   }),
   component: Library,
 });
 
-export interface AlbumCard { id: string; title: string; year: number | null; artist: string; coverImageId: string | null; tracks: number; addedAt: number }
-
-/** Built from the mirror in one pass: albums with their track count, artist and newest add. */
-async function albumCards(): Promise<AlbumCard[]> {
-  const [albums, artists, tracks] = await Promise.all([db.albums.toArray(), db.artists.toArray(), db.tracks.toArray()]);
-  const names = new Map(artists.map((a: ArtistRow) => [a.id, a.name]));
-  const per = new Map<string, { n: number; added: number; artist: string }>();
-  for (const t of tracks as TrackRow[]) {
-    if (!t.albumId) continue;
-    const e = per.get(t.albumId) ?? { n: 0, added: 0, artist: t.artist };
-    e.n++;
-    e.added = Math.max(e.added, t.addedAt);
-    per.set(t.albumId, e);
-  }
-  return (albums as AlbumRow[])
-    .filter((a) => per.has(a.id))
-    .map((a) => ({ id: a.id, title: a.title, year: a.year, artist: (a.albumArtistId && names.get(a.albumArtistId)) || per.get(a.id)!.artist, coverImageId: a.coverImageId, tracks: per.get(a.id)!.n, addedAt: per.get(a.id)!.added }));
+const reduce = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
+/** A mark placed for the first time appears where it belongs; after that it glides. */
+function place(el: HTMLElement | null, props: Record<string, string>) {
+  if (!el) return;
+  const first = !el.dataset.placed;
+  if (first) el.style.transition = "none";
+  for (const k in props) el.style.setProperty(k, props[k]!);
+  if (first) { void el.offsetWidth; el.style.transition = ""; el.dataset.placed = "1"; }
 }
 
-/** v1's library (golden library-albums), in the home/player language: the summary readout,
- *  a filter, the section switch, and a virtualized list from the local mirror (no request). */
 function Library() {
-  const { tab = "albums", sort = "az" } = Route.useSearch();
+  const { tab = "albums", sort, view = "grid" } = Route.useSearch();
   const nav = useNavigate({ from: "/library" });
-  const [filter, setFilter] = useState("");
-  const counts = useLive(async () => ({ tracks: await db.tracks.count(), albums: await db.albums.count(), artists: await db.artists.count(), playlists: await db.playlists.count() }), [], undefined);
+  const set = (p: { tab?: Tab; sort?: string; view?: View }) => void nav({ search: (s) => ({ ...s, ...p }), replace: true, resetScroll: false });
   const summary = useQuery(summaryQuery).data;
-  const syncing = counts?.tracks === 0;
+  const mirror = useLive(async () => {
+    const [tracks, albums, artists] = await Promise.all([db.tracks.toArray(), db.albums.toArray(), db.artists.toArray()]);
+    // the covers' urls and palettes come from the mirror: without this the wall stays blank
+    // until some other screen has remembered them
+    await warmFromMirror([...albums.map((a) => a.coverImageId), ...artists.map((a) => a.imageId), ...tracks.map((t) => t.coverImageId)]);
+    return { tracks, albums, artists };
+  }, []);
+  const [sealedOnly, setSealedOnly] = useState(false);
+  const [searching, setSearching] = useState(false);
+
+  const albums = useMemo(() => (mirror ? albumCards(mirror.albums, mirror.tracks, new Map(mirror.artists.map((a) => [a.id, a])), summary) : []), [mirror, summary]);
+  const artists = useMemo(() => (mirror ? artistCards(mirror.artists, mirror.tracks, mirror.albums, summary) : []), [mirror, summary]);
+  const albumById = useMemo(() => new Map(albums.map((a) => [a.id, a])), [albums]);
+  const clusters = useMemo(() => new Map((summary?.clusters ?? []).map((c) => [c.id, c.name])), [summary]);
+  const [aSort, lens] = ((tab === "albums" ? sort : null) ?? "plays").split(":") as [AlbumSort, Lens | undefined];
+  const rSort = ((tab === "artists" ? sort : null) ?? "plays") as ArtistSort;
+  const sealedCount = albums.filter((a) => !a.plays).length;
+  const albumSecs = useMemo(() => albumSections(sealedOnly ? albums.filter((a) => !a.plays) : albums, aSort, lens ?? "tags", clusters), [albums, aSort, lens, clusters, sealedOnly]);
+  const artistSecs = useMemo(() => artistSections(artists, rSort), [artists, rSort]);
+  const maxA = useMemo(() => Math.max(1, ...albums.map((a) => a.plays)), [albums]);
+  const maxR = useMemo(() => Math.max(1, ...artists.map((a) => a.plays)), [artists]);
+
+  // the rail and the marks wear the playing song's accent
+  const cover = usePlayer((s) => s.queue[s.index]?.coverImageId);
+  const acc = image(cover)?.palette?.accent.light ?? "#cfd0ff";
+
+  const tabsEl = useRef<HTMLDivElement>(null), viewsEl = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const t = tabsEl.current?.querySelector<HTMLElement>("[aria-pressed='true']");
+    if (t) place(tabsEl.current!.querySelector("[data-ul]"), { "--x": `${t.offsetLeft}px`, "--w": `${t.offsetWidth}px` });
+    const v = viewsEl.current?.querySelector<HTMLElement>("[aria-pressed='true']");
+    if (v) place(viewsEl.current!.querySelector("[data-thumb]"), { "--x": `${v.offsetLeft}px` });
+  });
+
+  const sortKeyNow = tab === "albums" ? (aSort === "genre" ? `genre:${lens ?? "tags"}` : aSort) : rSort;
+  const sortName = (tab === "albums" ? ALBUM_SORTS : ARTIST_SORTS).find((s) => s[0] === sortKeyNow)?.[1] ?? "";
+  const changeTab = (t: Tab) => { if (t === tab) return; set({ tab: t, sort: undefined }); window.scrollTo(0, 0); };
+  const T: Record<Tab, [string, number | null]> = { albums: ["Альбомы", albums.length], artists: ["Артисты", artists.length], playlists: ["Плейлисты", null], stats: ["Статистика", null] };
 
   return (
-    <div className={css.page}>
-      <div className={css.readout}>
-        {counts && !syncing ? (
-          <>
-            <b>{num(counts.tracks)}</b> {plural(counts.tracks, "трек", "трека", "треков")} · <b>{num(counts.albums)}</b> {plural(counts.albums, "альбом", "альбома", "альбомов")} · <b>{num(counts.artists)}</b> {plural(counts.artists, "артист", "артиста", "артистов")}
-            {summary && <> · <b>{summary.genres.length}</b> {plural(summary.genres.length, "жанр", "жанра", "жанров")}</>}
-          </>
-        ) : "Собираю библиотеку…"}
+    <div className={css.page} style={{ ["--acc" as string]: acc }}>
+      <div className={css.bar} data-bar data-searching={searching ? "" : undefined}>
+        <span className={css.ttl}>Библиотека</span>
+        <div ref={tabsEl} className={css.tabs} data-tabs role="group" aria-label="Раздел">
+          {TABS.map((t) => (
+            <button key={t} type="button" className={css.tab} aria-pressed={t === tab} onClick={() => changeTab(t)}>
+              {T[t][0]}{T[t][1] != null && <small>{T[t][1]}</small>}
+            </button>
+          ))}
+          <span className={css.ul} data-ul />
+        </div>
+        <span className={css.grow} />
+        <div className={css.tools}>
+          {(tab === "albums" || tab === "artists") && (
+            <SortPill name={sortName} options={tab === "albums" ? ALBUM_SORTS : ARTIST_SORTS} current={sortKeyNow}
+              pick={(k) => { set({ sort: k === "plays" ? undefined : k }); window.scrollTo(0, 0); }} />
+          )}
+          {tab === "albums" && (
+            <button type="button" className={css.chip} data-tool aria-pressed={sealedOnly} title="Не распечатаны: альбомы, которые ты ещё не слушал"
+              onClick={() => { setSealedOnly((v) => !v); window.scrollTo(0, 0); }}>
+              <span className={css.wrap} /><span className={css.chipLbl}>Не распечатаны</span><small>{sealedCount}</small>
+            </button>
+          )}
+          {(tab === "albums" || tab === "artists") && (
+            <div ref={viewsEl} className={css.views} data-tool role="group" aria-label="Вид">
+              <span className={css.thumb} data-thumb />
+              <button type="button" aria-pressed={view === "grid"} aria-label="Плиткой" onClick={() => set({ view: undefined })}><Icon name="Grid" size={16} /></button>
+              <button type="button" aria-pressed={view === "rows"} aria-label="Строками" onClick={() => set({ view: "rows" })}><Icon name="List" size={16} /></button>
+            </div>
+          )}
+          <SearchButton onSearching={setSearching} />
+        </div>
       </div>
-      <label className={css.filter}>
-        <Icon name="Search" size={16} />
-        <input value={filter} onChange={(e) => setFilter(e.target.value)} placeholder="Поиск: песня, альбом или исполнитель" aria-label="Фильтр библиотеки" />
-      </label>
-      <div className={css.bar}>
-        <div className={css.tabs} role="tablist">
-          {([["albums", "Альбомы", "Grid"], ["artists", "Артисты", "Star"], ["tracks", "Треки", "List"], ["playlists", "Плейлисты", "Lyrics"]] as const).map(([t, label, icon]) => (
-            <button key={t} type="button" role="tab" aria-selected={tab === t} className={tab === t ? css.tabOn : css.tab} onClick={() => void nav({ search: (p) => ({ ...p, tab: t }) })}>
-              <Icon name={icon} size={15} /> {label}
-              {counts && <span className={css.count}>{num({ albums: counts.albums, artists: counts.artists, tracks: counts.tracks, playlists: counts.playlists }[t])}</span>}
+
+      {tab === "albums" && (
+        <Wall key={`a-${aSort}-${lens}-${sealedOnly}-${view}`} kind="album" sections={albumSecs} view={view} mx={maxA}
+          top={!sealedOnly ? <DayBand pick={summary?.dayPick ?? null} albums={albumById} /> : null}
+          otherOf={(a) => (aSort === "genre" && lens !== "sound" ? clusters.get(a.cluster ?? -1) ?? "—" : a.genre)} />
+      )}
+      {tab === "albums" && sealedOnly && !albumSecs.length && <p className={css.empty}>Всё распечатано: каждый альбом ты уже слушал.</p>}
+      {tab === "artists" && <Wall key={`r-${rSort}-${view}`} kind="artist" sections={artistSecs} view={view} mx={maxR} />}
+      {tab === "playlists" && <Lists />}
+      {tab === "stats" && <Stats />}
+      <div className={css.veil} aria-hidden />
+    </div>
+  );
+}
+
+function SortPill({ name, options, current, pick }: { name: string; options: [string, string, string][]; current: string; pick: (k: string) => void }) {
+  const btn = useRef<HTMLButtonElement>(null);
+  const [at, setAt] = useState<{ x: number; y: number } | null>(null);
+  const menu = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const m = menu.current;
+    if (!m) return;
+    if (!reduce()) {
+      m.animate([{ transform: "scale(.86)", opacity: 0 }, { transform: "none", opacity: 1 }], { duration: 380, easing: "cubic-bezier(.34,1.56,.64,1)" });
+      [...m.children].forEach((b, i) => b.animate([{ transform: "translateY(-4px)", opacity: 0 }, { transform: "none", opacity: 1 }], { duration: 260, delay: 30 + i * 24, easing: "cubic-bezier(.22,.9,.3,1)", fill: "backwards" }));
+    }
+    const off = (e: PointerEvent) => { if (!m.contains(e.target as Node) && !btn.current?.contains(e.target as Node)) setAt(null); };
+    const esc = (e: KeyboardEvent) => e.key === "Escape" && setAt(null);
+    const gone = () => setAt(null);
+    window.addEventListener("pointerdown", off); window.addEventListener("keydown", esc); window.addEventListener("scroll", gone, { passive: true });
+    return () => { window.removeEventListener("pointerdown", off); window.removeEventListener("keydown", esc); window.removeEventListener("scroll", gone); };
+  }, [at]);
+  return (
+    <>
+      <button ref={btn} type="button" className={css.pill} data-tool aria-haspopup="menu" aria-expanded={!!at}
+        onClick={() => { if (at) return setAt(null); const r = btn.current!.getBoundingClientRect(); setAt({ x: r.left, y: r.bottom + 8 }); }}>
+        <Icon name="Bars" size={15} /><span>{name}</span><span className={css.chev}><Icon name="ChevronDown" size={16} /></span>
+      </button>
+      {at && (
+        <div ref={menu} className={css.menu} role="menu" style={{ left: Math.min(at.x, innerWidth - 280), top: at.y }}>
+          {options.map(([k, n, d]) => (
+            <button key={k} type="button" role="menuitemradio" aria-pressed={k === current} onClick={() => { setAt(null); pick(k); }}>
+              <span className={css.nm}>{n}</span><small>{d}</small>
             </button>
           ))}
         </div>
-        {(tab === "albums" || tab === "tracks") && (
-          <div className={css.sorts} role="radiogroup" aria-label="Сортировка">
-            {([["az", "А–Я"], ["year", "год"], ["plays", "слушаю чаще"], ["added", "новые"]] as const)
-              .filter(([s]) => tab === "albums" || s !== "plays")
-              .map(([s, label]) => (
-                <button key={s} type="button" role="radio" aria-checked={sort === s} className={sort === s ? css.sortOn : css.sort} onClick={() => void nav({ search: (p) => ({ ...p, sort: s }) })}>{label}</button>
-              ))}
-          </div>
-        )}
-      </div>
-      {tab === "albums" && <Albums filter={filter} sort={sort} plays={summary?.albumPlays as Record<string, number> | undefined} />}
-      {tab === "artists" && <Artists filter={filter} />}
-      {tab === "tracks" && <Tracks filter={filter} sort={sort} />}
-      {tab === "playlists" && <Playlists filter={filter} />}
-    </div>
-  );
-}
-
-function useColumns(ref: React.RefObject<HTMLDivElement | null>, min: number, gap: number): number {
-  const [cols, setCols] = useState(5);
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    const ro = new ResizeObserver(([e]) => setCols(Math.max(2, Math.floor((e!.contentRect.width + gap) / (min + gap)))));
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, [ref, min, gap]);
-  return cols;
-}
-
-function Albums({ filter, sort, plays }: { filter: string; sort: Sort; plays?: Record<string, number> }) {
-  const all = useLive(albumCards, [], []) ?? [];
-  const f = sortKey(filter.trim());
-  const list = useMemo(() => {
-    const hit = f ? all.filter((a) => sortKey(a.title).includes(f) || sortKey(a.artist).includes(f)) : all;
-    const by: Record<Sort, (a: AlbumCard, b: AlbumCard) => number> = {
-      az: (a, b) => sortKey(a.title).localeCompare(sortKey(b.title), "ru"),
-      year: (a, b) => (b.year ?? 0) - (a.year ?? 0),
-      plays: (a, b) => (plays?.[b.id] ?? 0) - (plays?.[a.id] ?? 0),
-      added: (a, b) => b.addedAt - a.addedAt,
-    };
-    return [...hit].sort(by[sort]);
-  }, [all, f, sort, plays]);
-  const box = useRef<HTMLDivElement>(null);
-  const cols = useColumns(box, 170, 22);
-  const rows = Math.ceil(list.length / cols);
-  const v = useWindowVirtualizer({ count: rows, estimateSize: () => 250, overscan: 3, scrollMargin: box.current?.offsetTop ?? 0 });
-  useEffect(() => {
-    const vis = v.getVirtualItems();
-    void warmFromMirror(vis.flatMap((r) => list.slice(r.index * cols, r.index * cols + cols).map((a) => a.coverImageId)));
-  });
-  return (
-    <div ref={box} className={css.virtual} style={{ ["--h" as string]: `${v.getTotalSize()}px` }}>
-      {v.getVirtualItems().map((r) => (
-        <div key={r.key} className={css.gridRow} data-index={r.index} ref={v.measureElement}
-          style={{ ["--y" as string]: `${r.start - (v.options.scrollMargin ?? 0)}px`, ["--cols" as string]: String(cols) }}>
-          {list.slice(r.index * cols, r.index * cols + cols).map((a) => (
-            <AlbumCard key={a.id} id={a.id} coverImageId={a.coverImageId} title={a.title} badge={`${a.tracks} тр`}
-              sub={[a.artist, a.year].filter(Boolean).join(" · ")} />
-          ))}
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function Artists({ filter }: { filter: string }) {
-  const all = useLive(async () => {
-    const [artists, tracks] = await Promise.all([db.artists.toArray(), db.tracks.toArray()]);
-    const n = new Map<string, number>();
-    for (const t of tracks) for (const id of t.artistIds) n.set(id, (n.get(id) ?? 0) + 1);
-    return artists.filter((a) => n.has(a.id)).map((a) => ({ ...a, tracks: n.get(a.id)! })).sort((a, b) => a.sortName.localeCompare(b.sortName, "ru"));
-  }, [], []) ?? [];
-  const f = sortKey(filter.trim());
-  const list = f ? all.filter((a) => a.sortName.includes(f)) : all;
-  const box = useRef<HTMLDivElement>(null);
-  const cols = useColumns(box, 130, 22);
-  const rows = Math.ceil(list.length / cols);
-  const v = useWindowVirtualizer({ count: rows, estimateSize: () => 180, overscan: 3, scrollMargin: box.current?.offsetTop ?? 0 });
-  useEffect(() => {
-    void warmFromMirror(v.getVirtualItems().flatMap((r) => list.slice(r.index * cols, r.index * cols + cols).map((a) => a.imageId)));
-  });
-  return (
-    <div ref={box} className={css.virtual} style={{ ["--h" as string]: `${v.getTotalSize()}px` }}>
-      {v.getVirtualItems().map((r) => (
-        <div key={r.key} className={css.gridRow} data-index={r.index} ref={v.measureElement}
-          style={{ ["--y" as string]: `${r.start - (v.options.scrollMargin ?? 0)}px`, ["--cols" as string]: String(cols) }}>
-          {list.slice(r.index * cols, r.index * cols + cols).map((a) => (
-            <Link key={a.id} to="/artist/$id" params={{ id: a.id }} className={css.artist}>
-              <Cover id={a.imageId} size={120} radius={60} />
-              <span className={css.albumTitle}>{a.name}</span>
-              <span className={css.albumSub}>{a.tracks} {plural(a.tracks, "трек", "трека", "треков")}</span>
-            </Link>
-          ))}
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function Tracks({ filter, sort }: { filter: string; sort: Sort }) {
-  const all = useLive(() => db.tracks.orderBy("sortTitle").toArray(), [], []) ?? [];
-  const f = sortKey(filter.trim());
-  const list = useMemo(() => {
-    const hit = f ? all.filter((t) => t.sortTitle.includes(f) || sortKey(t.artist).includes(f) || sortKey(t.album ?? "").includes(f)) : all;
-    if (sort === "year") return [...hit].sort((a, b) => (b.year ?? 0) - (a.year ?? 0));
-    if (sort === "added") return [...hit].sort((a, b) => b.addedAt - a.addedAt);
-    return hit;
-  }, [all, f, sort]);
-  const box = useRef<HTMLDivElement>(null);
-  const v = useWindowVirtualizer({ count: list.length, estimateSize: () => 54, overscan: 12, scrollMargin: box.current?.offsetTop ?? 0 });
-  useEffect(() => {
-    void warmFromMirror(v.getVirtualItems().map((r) => list[r.index]?.coverImageId));
-  });
-  const play = (i: number) => {
-    const from = Math.max(0, i - 0);
-    const items: QueueItem[] = list.slice(from, from + 200).map((t) => ({ trackId: t.id, title: t.title, artist: t.artist, artistId: t.artistIds[0] ?? null, album: t.album, albumId: t.albumId, coverImageId: t.coverImageId, durationMs: t.durationMs, source: "manual", contextType: "queue" }));
-    void player.playTracks(items, 0);
-  };
-  return (
-    <div ref={box} className={css.virtual} style={{ ["--h" as string]: `${v.getTotalSize()}px` }}>
-      {v.getVirtualItems().map((r) => {
-        const t = list[r.index]!;
-        return (
-          <button key={t.id} type="button" className={css.trackRow} onClick={() => play(r.index)} style={{ ["--y" as string]: `${r.start - (v.options.scrollMargin ?? 0)}px` }}>
-            <Cover id={t.coverImageId} size={40} radius={6} />
-            <span className={css.trackText}>
-              <span className={css.trackTitle}>{t.title}</span>
-              <span className={css.trackSub}>{t.artist}</span>
-            </span>
-            <span className={css.trackAlbum}>{t.album}</span>
-            <span className={css.trackTime}>{clock(t.durationMs)}</span>
-          </button>
-        );
-      })}
-    </div>
-  );
-}
-
-function Playlists({ filter }: { filter: string }) {
-  const lists = useLive(() => db.playlists.toArray(), [], []) ?? [];
-  const covers = useLive(async () => {
-    const items = await db.items.toArray();
-    const tracks = new Map((await db.tracks.bulkGet([...new Set(items.map((i) => i.trackId))])).filter(Boolean).map((t) => [t!.id, t!.coverImageId]));
-    const by = new Map<string, string[]>();
-    for (const it of items.sort((a, b) => (a.position < b.position ? -1 : 1))) {
-      const c = tracks.get(it.trackId);
-      if (!c) continue;
-      const arr = by.get(it.playlistId) ?? [];
-      if (arr.length < 4 && !arr.includes(c)) arr.push(c);
-      by.set(it.playlistId, arr);
-    }
-    await warmFromMirror([...by.values()].flat());
-    return by;
-  }, [], new Map<string, string[]>());
-  const nav = useNavigate();
-  const [name, setName] = useState("");
-  const f = sortKey(filter.trim());
-  const shown = (f ? lists.filter((p) => sortKey(p.name).includes(f)) : lists).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
-  return (
-    <div className={css.playlists}>
-      <form className={css.newList} onSubmit={async (e) => { e.preventDefault(); if (!name.trim()) return; const id = await createPlaylist(name.trim()); setName(""); void nav({ to: "/playlist/$id", params: { id } }); }}>
-        <span className={css.plus}><Icon name="Plus" size={22} /></span>
-        <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Новый плейлист" aria-label="Название нового плейлиста" />
-      </form>
-      {shown.map((p) => (
-        <Link key={p.id} to="/playlist/$id" params={{ id: p.id }} className={css.playlist}>
-          <span className={css.mosaic}>
-            {(covers?.get(p.id) ?? []).slice(0, 4).map((c: string) => <Cover key={c} id={c} size={80} radius={0} />)}
-          </span>
-          <span className={css.albumTitle}>{p.name}</span>
-          <span className={css.albumSub}>{p.itemCount} {plural(p.itemCount, "трек", "трека", "треков")}</span>
-        </Link>
-      ))}
-    </div>
+      )}
+    </>
   );
 }

@@ -22,6 +22,7 @@
     "@tanstack/react-router": "1.170.40",
     "@tanstack/react-virtual": "3.14.13",
     "dexie": "4.4.6",
+    "flag-icons": "^7.2.3",
     "openapi-fetch": "0.17.0",
     "react": "19.3.0",
     "react-dom": "19.3.0",

@@ -234,6 +234,7 @@ async def library_summary(c: Ctx, head: int | None = None) -> S.LibrarySummaryOu
         album_cluster=more[0],
         clusters=more[1],
         artist_country=more[2],
+        artist_plays=more[3],
         day_pick=S.DayPick(album_id=pick[0], plays=pick[1], last_played_at=pick[2])
         if pick
         else None,
@@ -250,7 +251,7 @@ async def library_summary(c: Ctx, head: int | None = None) -> S.LibrarySummaryOu
 
 async def summary_extra(
     s: AsyncSession, c: Ctx
-) -> tuple[dict[str, int], list[S.ClusterName], dict[str, str]]:
+) -> tuple[dict[str, int], list[S.ClusterName], dict[str, str], dict[str, int]]:
     """Each album's commonest sound cluster (the taste map's, by its songs) with the clusters'
     names, and each artist's country (ISO code, cleaned: UK → GB, junk dropped)."""
     from musix.contexts.screens.achievements import country
@@ -283,7 +284,13 @@ async def summary_extra(
         )
     )
     land = {str(a): code for a, cc in arts if (code := country(cc))}
-    return cluster, names, land
+    plays = await s.execute(
+        sa.select(T.primary_artist_id, sa.func.sum(St.plays))
+        .join(account_track_stats, (St.track_id == T.id) & (St.account_id == c.account_id))
+        .where(c.live(), T.primary_artist_id.is_not(None))
+        .group_by(T.primary_artist_id)
+    )
+    return cluster, names, land, {str(a): int(n) for a, n in plays if n}
 
 
 async def album_cards(c: Ctx, where: sa.ColumnElement[bool], order: Any = None) -> list[S.AlbumOut]:

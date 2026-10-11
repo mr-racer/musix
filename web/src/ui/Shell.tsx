@@ -2,6 +2,7 @@ import { Link, Outlet, useRouterState } from "@tanstack/react-router";
 import { useRef } from "react";
 import { useAuth } from "../api/auth";
 import { MiniPlayer } from "../player/MiniPlayer";
+import { AchievementHost } from "./Achievements";
 import { BrandMark } from "./Brand";
 import { GatefoldHost } from "./Gatefold";
 import { Icon, type IconName } from "./icons";
@@ -52,6 +53,7 @@ export function Shell() {
       </main>
       <MiniPlayer />
       <GatefoldHost />
+      <AchievementHost />
       <nav className={css.tabbar} aria-label="Разделы">
         {tabs.map((t) => (
           <Link key={t.to} to={t.to} className={active(t.to) ? css.tabOn : css.tab}>

@@ -45,3 +45,10 @@ export const artistQuery = (id: string) =>
     queryKey: ["artist", id],
     queryFn: () => withImages(ok(api.GET("/api/v2/artists/{artist_id}/page", { params: { path: { artist_id: id } } }))),
   });
+
+/** The library's statistics tab, in the device's local days (streaks, hours, achievements). */
+export const statsQuery = queryOptions({
+  queryKey: ["stats"],
+  queryFn: () => withImages(ok(api.GET("/api/v2/stats", { params: { query: { tzOffsetMinutes: -new Date().getTimezoneOffset() } } }))),
+  staleTime: 60_000,
+});

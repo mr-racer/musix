@@ -2451,6 +2451,13 @@
             "title": "Artistcountry",
             "type": "object"
           },
+          "artistPlays": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Artistplays",
+            "type": "object"
+          },
           "clusters": {
             "items": {
               "$ref": "#/components/schemas/ClusterName"

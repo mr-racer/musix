@@ -21,10 +21,10 @@ type Hit =
 const PH: Record<Mode, string> = { lib: "Артист, альбом или песня", ai: "Строчка, звучание, плейлист…" };
 const SAYS = ["Найди песню, где поют про дождь и пустой город", "Что-нибудь похожее по звучанию", "Собери плейлист на вечер из спокойного"];
 
-type Index = { tracks: TrackRow[]; artists: (ArtistRow & { n: number; cover: string | null })[]; albums: (AlbumRow & { artist: string })[] };
+export type Index = { tracks: TrackRow[]; artists: (ArtistRow & { n: number; cover: string | null })[]; albums: (AlbumRow & { artist: string })[] };
 let index: Promise<Index> | null = null;
 /** The mirror, read once per session (a few thousand rows) and searched in memory. */
-function load(): Promise<Index> {
+export function load(): Promise<Index> {
   index ??= (async () => {
     const [tracks, artists, albums] = await Promise.all([db.tracks.toArray(), db.artists.toArray(), db.albums.toArray()]);
     const count = new Map<string, { n: number; cover: string | null }>();

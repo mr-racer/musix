@@ -15,6 +15,7 @@ export type Event =
   | { type: "playback.command"; command: "play" | "pause" | "toggle" | "next" | "prev" | "seek" | "signal"; positionMs?: number; kind?: "fire" | "water"; by: string }
   | { type: "assistant.stage"; turnId: string; frame: { stage?: string; text?: string; human?: string } }
   | { type: "assistant.done"; turnId: string; status: string }
+  | { type: "achievement.earned"; code: string; name: string; line: string; note?: string | null; coverImageId?: string | null }
   | { type: "error"; for: string; detail: string }
   | { type: "ping" };
 

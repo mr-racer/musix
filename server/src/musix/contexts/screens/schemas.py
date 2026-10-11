@@ -293,6 +293,7 @@ class LibrarySummaryOut(Model):
     played_ms: int
     album_plays: dict[str, int] = Field(default_factory=dict)  # album id → plays («слушаю чаще»)
     album_last: dict[str, dt.datetime] = Field(default_factory=dict)  # album id → last listen
+    artist_plays: dict[str, int] = Field(default_factory=dict)  # artist id → plays (primary artist)
     album_cluster: dict[str, int] = Field(
         default_factory=dict
     )  # album id → its songs' commonest sound cluster
