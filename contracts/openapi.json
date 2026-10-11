@@ -19,6 +19,82 @@
         "title": "Accent",
         "type": "object"
       },
+      "AchievementOut": {
+        "description": "One of the ten rules (screens/achievements.py): its best value so far, and the local day\nit was first reached (none: not earned yet). `note` says the record in words.",
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "coverImageId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Coverimageid"
+          },
+          "earnedOn": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Earnedon"
+          },
+          "line": {
+            "title": "Line",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "target": {
+            "title": "Target",
+            "type": "number"
+          },
+          "unit": {
+            "title": "Unit",
+            "type": "string"
+          },
+          "value": {
+            "title": "Value",
+            "type": "number"
+          }
+        },
+        "required": [
+          "code",
+          "name",
+          "line",
+          "target",
+          "unit",
+          "value",
+          "earnedOn",
+          "note",
+          "coverImageId"
+        ],
+        "title": "AchievementOut",
+        "type": "object"
+      },
       "ActiveDevice": {
         "properties": {
           "active": {
@@ -1163,6 +1239,24 @@
         "title": "ChatTurn",
         "type": "object"
       },
+      "ClusterName": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "ClusterName",
+        "type": "object"
+      },
       "Collection": {
         "description": "«Карта коллекции» (v1 `DistributionsPanel`): what the library is made of — not what\nis played. v1's definitions: top 5 genres, its six IQR duration buckets (commonest\nfirst), top 5 artists by tracks, formats by file extension with the lossless share.",
         "properties": {
@@ -1262,6 +1356,32 @@
           "count"
         ],
         "title": "DayCount",
+        "type": "object"
+      },
+      "DayPick": {
+        "description": "An album loved and left: played 8+ times, untouched the longest; one of the eight\noldest, by the day of the year.",
+        "properties": {
+          "albumId": {
+            "format": "uuid",
+            "title": "Albumid",
+            "type": "string"
+          },
+          "lastPlayedAt": {
+            "format": "date-time",
+            "title": "Lastplayedat",
+            "type": "string"
+          },
+          "plays": {
+            "title": "Plays",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "albumId",
+          "plays",
+          "lastPlayedAt"
+        ],
+        "title": "DayPick",
         "type": "object"
       },
       "DecadeShare": {
@@ -1577,6 +1697,33 @@
           "source"
         ],
         "title": "FactOut",
+        "type": "object"
+      },
+      "FavouriteArtist": {
+        "properties": {
+          "artist": {
+            "$ref": "#/components/schemas/ArtistOut"
+          },
+          "hours": {
+            "title": "Hours",
+            "type": "number"
+          },
+          "plays": {
+            "title": "Plays",
+            "type": "integer"
+          },
+          "share": {
+            "title": "Share",
+            "type": "number"
+          }
+        },
+        "required": [
+          "artist",
+          "plays",
+          "hours",
+          "share"
+        ],
+        "title": "FavouriteArtist",
         "type": "object"
       },
       "FeedbackIn": {
@@ -2275,6 +2422,21 @@
       },
       "LibrarySummaryOut": {
         "properties": {
+          "albumCluster": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Albumcluster",
+            "type": "object"
+          },
+          "albumLast": {
+            "additionalProperties": {
+              "format": "date-time",
+              "type": "string"
+            },
+            "title": "Albumlast",
+            "type": "object"
+          },
           "albumPlays": {
             "additionalProperties": {
               "type": "integer"
@@ -2282,8 +2444,32 @@
             "title": "Albumplays",
             "type": "object"
           },
+          "artistCountry": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Artistcountry",
+            "type": "object"
+          },
+          "clusters": {
+            "items": {
+              "$ref": "#/components/schemas/ClusterName"
+            },
+            "title": "Clusters",
+            "type": "array"
+          },
           "counts": {
             "$ref": "#/components/schemas/Counts"
+          },
+          "dayPick": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DayPick"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "durationMs": {
             "title": "Durationms",
@@ -4580,6 +4766,81 @@
         "title": "SourceOut",
         "type": "object"
       },
+      "StatsExtra": {
+        "description": "What the redesigned statistics tab adds (design/code/screens/library.md).",
+        "properties": {
+          "achievements": {
+            "items": {
+              "$ref": "#/components/schemas/AchievementOut"
+            },
+            "title": "Achievements",
+            "type": "array"
+          },
+          "artists": {
+            "items": {
+              "$ref": "#/components/schemas/FavouriteArtist"
+            },
+            "title": "Artists",
+            "type": "array"
+          },
+          "avgDayMs": {
+            "title": "Avgdayms",
+            "type": "integer"
+          },
+          "countries": {
+            "items": {
+              "$ref": "#/components/schemas/Share"
+            },
+            "title": "Countries",
+            "type": "array"
+          },
+          "decades": {
+            "items": {
+              "$ref": "#/components/schemas/DecadeShare"
+            },
+            "title": "Decades",
+            "type": "array"
+          },
+          "finishedPct": {
+            "title": "Finishedpct",
+            "type": "integer"
+          },
+          "genres": {
+            "items": {
+              "$ref": "#/components/schemas/Share"
+            },
+            "title": "Genres",
+            "type": "array"
+          },
+          "tracks": {
+            "items": {
+              "$ref": "#/components/schemas/TrackPlays"
+            },
+            "title": "Tracks",
+            "type": "array"
+          },
+          "years": {
+            "items": {
+              "$ref": "#/components/schemas/YearCount"
+            },
+            "title": "Years",
+            "type": "array"
+          }
+        },
+        "required": [
+          "artists",
+          "tracks",
+          "years",
+          "countries",
+          "genres",
+          "decades",
+          "avgDayMs",
+          "finishedPct",
+          "achievements"
+        ],
+        "title": "StatsExtra",
+        "type": "object"
+      },
       "StatsOut": {
         "properties": {
           "collection": {
@@ -4594,6 +4855,16 @@
           },
           "engagement": {
             "$ref": "#/components/schemas/Engagement"
+          },
+          "extra": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/StatsExtra"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "images": {
             "additionalProperties": {
@@ -5779,6 +6050,24 @@
           "imported"
         ],
         "title": "YandexTrackOut",
+        "type": "object"
+      },
+      "YearCount": {
+        "properties": {
+          "tracks": {
+            "title": "Tracks",
+            "type": "integer"
+          },
+          "year": {
+            "title": "Year",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "year",
+          "tracks"
+        ],
+        "title": "YearCount",
         "type": "object"
       }
     },

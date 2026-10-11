@@ -82,6 +82,21 @@ WHERE l.account_id = :a AND NOT l.skipped_early AND {LOCAL}::date = :d
 GROUP BY 1 ORDER BY n DESC, l.track_id LIMIT 1
 """)
 
+_TOP_ARTISTS = sa.text("""
+SELECT t.primary_artist_id, count(*) FILTER (WHERE NOT l.skipped_early) AS n, coalesce(sum(l.played_ms), 0) AS ms
+FROM listen_events l JOIN tracks t ON t.id = l.track_id
+WHERE l.account_id = :a AND t.primary_artist_id IS NOT NULL GROUP BY 1 ORDER BY n DESC, ms DESC LIMIT 3
+""")
+_YEARS = sa.text("""
+SELECT year, count(*) FROM tracks WHERE account_id = :a AND deleted_at IS NULL
+  AND year BETWEEN 1950 AND extract(year FROM now())::int GROUP BY 1 ORDER BY 1
+""")
+_BY_MS = sa.text("""
+SELECT t.genre, t.year, a.profile->>'countryCode' AS cc, coalesce(sum(l.played_ms), 0) AS ms
+FROM listen_events l JOIN tracks t ON t.id = l.track_id LEFT JOIN artists a ON a.id = t.primary_artist_id
+WHERE l.account_id = :a GROUP BY 1, 2, 3
+""")
+
 _LIBRARY = sa.text("""
 SELECT t.genre, t.duration_ms, t.year, t.primary_artist_id, m.path
 FROM tracks t LEFT JOIN media_files m ON m.id = t.media_file_id
@@ -336,14 +351,17 @@ async def stats(c: Ctx, tz: int) -> S.StatsOut:
     loved_out = [e for e in map(engaged, loved) if e]
     guilty_out = [e for e in map(engaged, guilty) if e]
     top_track = plays(top.track_id, top.kept) if top is not None and top.kept else None
+    ext, ext_images = await extra(c, tz, per, played_ms, len(days))
     images = await c.images(
         [
             *(t.cover_image_id for t in by.values()),
             top_artist.artist.image_id if top_artist else None,
             *faces,
+            *ext_images,
         ]
     )
     return S.StatsOut(
+        extra=ext,
         listening=S.Listening(
             played_ms=int(played_ms),
             since=since,
@@ -387,3 +405,80 @@ async def taste_map(c: Ctx) -> S.TasteMapOut:
     if row is None:
         return S.TasteMapOut(track_ids=[], x=[], y=[], cluster=[], clusters=[], updated_at=None)
     return S.TasteMapOut.model_validate({**row.data, "updatedAt": row.updated_at})
+
+
+def _pct(counter: Counter[Any], n: int) -> list[tuple[Any, float]]:
+    total = sum(counter.values()) or 1
+    return [(k, v / total * 100) for k, v in counter.most_common(n)]
+
+
+async def extra(
+    c: Ctx, tz: int, per: list[Any], played_ms: int, n_days: int
+) -> tuple[S.StatsExtra, list[str | None]]:
+    """The redesigned tab's additions: the top three of each kind, the library by year, the
+    listening by country, genre and decade, two facts and the achievements."""
+    from musix.contexts.screens import achievements
+    from musix.contexts.screens.service import artists_by_ids
+
+    p = {"a": c.account_id}
+
+    async def rows(q: sa.TextClause, s: AsyncSession) -> list[Any]:
+        return list((await s.execute(q, p)).all())
+
+    top_a, years, by_ms, achs = await asyncio.gather(
+        c.run(lambda s: rows(_TOP_ARTISTS, s)),
+        c.run(lambda s: rows(_YEARS, s)),
+        c.run(lambda s: rows(_BY_MS, s)),
+        achievements.states(c.sm, c.account_id, tz),
+    )
+    found = {a.id: a for a in await artists_by_ids(c, [r[0] for r in top_a])}
+    total_ms = max(1, int(played_ms))
+    fav_artists = [
+        S.FavouriteArtist(
+            artist=found[r[0]],
+            plays=int(r[1]),
+            hours=round(int(r[2]) / 3.6e6, 1),
+            share=round(int(r[2]) / total_ms * 100, 1),
+        )
+        for r in top_a
+        if r[0] in found
+    ]
+    kept = sorted((r for r in per if r.kept), key=lambda r: (r.kept, r.plays), reverse=True)[:3]
+    by = {t.id: t for t in await c.tracks([r.track_id for r in kept])}
+    fav_tracks = [
+        S.TrackPlays(track=by[r.track_id], plays=r.kept) for r in kept if r.track_id in by
+    ]
+    genre: Counter[str] = Counter()
+    decade: Counter[int] = Counter()
+    land: Counter[str] = Counter()
+    for g, y, cc, ms in by_ms:
+        genre[(g or "").strip() or "Other"] += int(ms)
+        if y:
+            decade[int(y) // 10 * 10] += int(ms)
+        code = achievements.country(cc)
+        land[code or "—"] += int(ms)
+    total_listens = sum(r.plays for r in per) or 1
+    ext = S.StatsExtra(
+        artists=fav_artists,
+        tracks=fav_tracks,
+        years=[S.YearCount(year=int(y), tracks=int(n)) for y, n in years],
+        countries=[
+            S.Share(key=k, count=int(land[k] // 60000), pct=round(v)) for k, v in _pct(land, 12)
+        ],
+        genres=[
+            S.Share(key=k, count=int(genre[k] // 60000), pct=round(v)) for k, v in _pct(genre, 12)
+        ],
+        decades=[
+            S.DecadeShare(decade=k, count=int(decade[k] // 60000), pct=round(v))
+            for k, v in _pct(decade, 10)
+        ],
+        avg_day_ms=int(played_ms) // max(1, n_days),
+        finished_pct=round(sum(r.kept for r in per) / total_listens * 100),
+        achievements=achs,
+    )
+    imgs = (
+        [a.artist.image_id for a in fav_artists]
+        + [t.track.cover_image_id for t in fav_tracks]
+        + [a.cover_image_id for a in achs]
+    )
+    return ext, imgs

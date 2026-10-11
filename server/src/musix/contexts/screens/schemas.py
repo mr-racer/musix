@@ -191,12 +191,54 @@ class Collection(Model):
     lossless_pct: int
 
 
+class AchievementOut(Model):
+    """One of the ten rules (screens/achievements.py): its best value so far, and the local day
+    it was first reached (none: not earned yet). `note` says the record in words."""
+
+    code: str
+    name: str
+    line: str
+    target: float
+    unit: str
+    value: float
+    earned_on: dt.date | None
+    note: str | None
+    cover_image_id: str | None
+
+
+class FavouriteArtist(Model):
+    artist: ArtistOut
+    plays: int
+    hours: float
+    share: float  # % of all listening time
+
+
+class YearCount(Model):
+    year: int
+    tracks: int
+
+
+class StatsExtra(Model):
+    """What the redesigned statistics tab adds (design/code/screens/library.md)."""
+
+    artists: list[FavouriteArtist]  # the top three
+    tracks: list[TrackPlays]  # the top three
+    years: list[YearCount]  # the library's songs per year
+    countries: list[Share]  # the artists' countries by listening time (key: ISO code)
+    genres: list[Share]  # by listening time
+    decades: list[DecadeShare]  # by listening time
+    avg_day_ms: int  # per day with music
+    finished_pct: int  # listens not skipped early
+    achievements: list[AchievementOut]
+
+
 class StatsOut(Model):
     listening: Listening
     rhythm: Rhythm
     engagement: Engagement
     images: dict[str, ImageData]
     collection: Collection | None = None
+    extra: StatsExtra | None = None
 
 
 class MapCluster(Model):
@@ -227,6 +269,20 @@ class GenreCount(Model):
     tracks: int
 
 
+class ClusterName(Model):
+    id: int
+    name: str
+
+
+class DayPick(Model):
+    """An album loved and left: played 8+ times, untouched the longest; one of the eight
+    oldest, by the day of the year."""
+
+    album_id: uuid.UUID
+    plays: int
+    last_played_at: dt.datetime
+
+
 class LibrarySummaryOut(Model):
     counts: Counts
     duration_ms: int
@@ -236,6 +292,13 @@ class LibrarySummaryOut(Model):
     plays: int
     played_ms: int
     album_plays: dict[str, int] = Field(default_factory=dict)  # album id → plays («слушаю чаще»)
+    album_last: dict[str, dt.datetime] = Field(default_factory=dict)  # album id → last listen
+    album_cluster: dict[str, int] = Field(
+        default_factory=dict
+    )  # album id → its songs' commonest sound cluster
+    clusters: list[ClusterName] = Field(default_factory=list)
+    artist_country: dict[str, str] = Field(default_factory=dict)  # artist id → ISO country code
+    day_pick: DayPick | None = None  # «Пластинка дня»: the same album on every device that day
 
 
 class AlbumCredit(Model):

@@ -1,11 +1,12 @@
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Query, Request
 
 from musix.api.deps import Auth, Session
 from musix.contexts.listening import schemas as S
 from musix.contexts.listening import service
+from musix.contexts.screens import achievements
 from musix.errors import Invalid
 from musix.schemas import ID_LIST
 
@@ -13,8 +14,11 @@ router = APIRouter(tags=["listening"])
 
 
 @router.post("/events/listens:batch", response_model=S.ListenBatchOut)
-async def listens(body: S.ListenBatchIn, p: Auth, s: Session) -> S.ListenBatchOut:
-    return await service.ingest_listens(s, p.account_id, p.device_id, body)
+async def listens(body: S.ListenBatchIn, p: Auth, s: Session, request: Request) -> S.ListenBatchOut:
+    out = await service.ingest_listens(s, p.account_id, p.device_id, body)
+    if out.accepted:  # the achievements are counted in the background, off this request
+        achievements.schedule(request.app.state.sessionmaker, p.account_id)
+    return out
 
 
 @router.post("/tracks/{track_id}/signals", response_model=S.SignalState)

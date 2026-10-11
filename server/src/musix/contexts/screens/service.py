@@ -6,8 +6,10 @@ A shape only ever holds the account's own tracks: every track query filters by
 from __future__ import annotations
 
 import asyncio
+import datetime as dt
 import re
 import uuid
+from collections import Counter
 from collections.abc import Awaitable, Callable, Iterable
 from dataclasses import dataclass
 from typing import Any, TypeVar
@@ -201,29 +203,87 @@ async def library_summary(c: Ctx, head: int | None = None) -> S.LibrarySummaryOu
             )
         ).one()
 
-    async def album_plays(s: AsyncSession) -> dict[str, int]:
-        # «слушаю чаще» on the album grid: the clients sort their offline mirror by it
+    async def album_plays(s: AsyncSession) -> list[Any]:
+        # «слушаю чаще» on the album grid (the clients sort their offline mirror by it), and
+        # the last listen of each album («Пластинка дня», «давно не ставил»)
         rows = await s.execute(
-            sa.select(T.album_id, sa.func.sum(St.plays).label("n"))
+            sa.select(T.album_id, sa.func.sum(St.plays).label("n"), sa.func.max(St.last_played_at))
             .join(account_track_stats, (St.track_id == T.id) & (St.account_id == c.account_id))
             .where(c.live(), T.album_id.is_not(None))
             .group_by(T.album_id)
         )
-        return {str(a): int(n) for a, n in rows if n}
+        return list(rows)
 
-    cnt, tot, gen, pl, ap = await asyncio.gather(
-        counts(c, head), c.run(totals), c.run(genres), c.run(plays), c.run(album_plays)
+    cnt, tot, gen, pl, ap, more = await asyncio.gather(
+        counts(c, head),
+        c.run(totals),
+        c.run(genres),
+        c.run(plays),
+        c.run(album_plays),
+        c.run(lambda s: summary_extra(s, c)),
     )
+    plays_by = {str(a): int(n) for a, n, _ in ap if n}
+    last_by = {str(a): last for a, n, last in ap if n and last is not None}
+    loved = sorted(
+        ((a, int(n), last) for a, n, last in ap if n and int(n) >= 8 and last is not None),
+        key=lambda r: r[2],
+    )[:8]
+    pick = loved[dt.date.today().toordinal() % len(loved)] if loved else None
     return S.LibrarySummaryOut(
+        album_last=last_by,
+        album_cluster=more[0],
+        clusters=more[1],
+        artist_country=more[2],
+        day_pick=S.DayPick(album_id=pick[0], plays=pick[1], last_played_at=pick[2])
+        if pick
+        else None,
         counts=cnt,
         duration_ms=int(tot[0]),
         first_added_at=tot[1],
         last_added_at=tot[2],
         genres=gen,
-        album_plays=ap,
+        album_plays=plays_by,
         plays=int(pl[0]),
         played_ms=int(pl[1]),
     )
+
+
+async def summary_extra(
+    s: AsyncSession, c: Ctx
+) -> tuple[dict[str, int], list[S.ClusterName], dict[str, str]]:
+    """Each album's commonest sound cluster (the taste map's, by its songs) with the clusters'
+    names, and each artist's country (ISO code, cleaned: UK → GB, junk dropped)."""
+    from musix.contexts.screens.achievements import country
+    from musix.contexts.stream.models import taste_maps
+
+    data = await s.scalar(
+        sa.select(taste_maps.c.data).where(taste_maps.c.account_id == c.account_id)
+    )
+    album_of = {
+        tid: al
+        for tid, al in await s.execute(
+            sa.select(T.id, T.album_id).where(c.live(), T.album_id.is_not(None))
+        )
+    }
+    votes: dict[Any, Counter[int]] = {}
+    names: list[S.ClusterName] = []
+    if data:
+        for tid, cl in zip(data.get("trackIds") or [], data.get("cluster") or [], strict=False):
+            al = album_of.get(uuid.UUID(str(tid)))
+            if al is not None:
+                votes.setdefault(al, Counter())[int(cl)] += 1
+        names = [
+            S.ClusterName(id=int(k["id"]), name=k.get("nameRu") or k.get("nameEn") or "")
+            for k in data.get("clusters") or []
+        ]
+    cluster = {str(al): v.most_common(1)[0][0] for al, v in votes.items()}
+    arts = await s.execute(
+        sa.select(Ar.id, Ar.profile["countryCode"].astext).where(
+            Ar.id.in_(sa.select(T.primary_artist_id).where(c.live()))
+        )
+    )
+    land = {str(a): code for a, cc in arts if (code := country(cc))}
+    return cluster, names, land
 
 
 async def album_cards(c: Ctx, where: sa.ColumnElement[bool], order: Any = None) -> list[S.AlbumOut]:

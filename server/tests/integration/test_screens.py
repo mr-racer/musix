@@ -147,3 +147,12 @@ def test_stats_and_the_weekly_pulse_count_local_days(client: TestClient, listene
     assert pulse["last7Ms"][-1] == pulse["last7PlayedMs"] == 2 * dur
     assert pulse["streakCurrent"] == 1
     assert client.get("/api/v2/stats/map", headers=h).json()["trackIds"] == []
+    # the redesigned tab (2026-10-11): the top three, the facts and the ten achievements
+    ex = st["extra"]
+    assert [t["track"]["id"] for t in ex["tracks"]] == [str(a)] and ex["tracks"][0]["plays"] == 2
+    assert ex["finishedPct"] == 100 and ex["avgDayMs"] == 2 * dur
+    assert len(ex["achievements"]) == 10 and all(x["earnedOn"] is None for x in ex["achievements"])
+    rep = next(x for x in ex["achievements"] if x["code"] == "repeat")
+    assert rep["value"] == 2 and rep["target"] == 5
+    summ = client.get("/api/v2/library/summary", headers=h).json()
+    assert summ["dayPick"] is None and summ["albumLast"]  # played twice: no pick yet, a last listen

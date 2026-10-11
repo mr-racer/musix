@@ -76,6 +76,11 @@ def route(payload: dict[str, Any]) -> dict[str, Any] | None:
             "deviceId": payload["device"],
             "online": payload["online"],
         }
+    if kind == "achievement":  # a rule reached for the first time (screens/achievements.py)
+        return {
+            "type": "achievement.earned",
+            **{k: payload.get(k) for k in ("code", "name", "line", "note", "coverImageId")},
+        }
     if kind in PLAYBACK:  # handoff (phase 8): the fields travel as they are
         return {
             "type": kind,

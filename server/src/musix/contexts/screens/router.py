@@ -1,3 +1,4 @@
+import datetime as dt
 import uuid
 from typing import Annotated, Any, Literal
 
@@ -9,8 +10,8 @@ from musix.api.deps import Auth
 from musix.contexts.identity.security import Principal
 from musix.contexts.identity.service import get_settings
 from musix.contexts.knowledge.service import knowledge_version
+from musix.contexts.screens import achievements, service, stats, weather
 from musix.contexts.screens import schemas as S
-from musix.contexts.screens import service, stats, weather
 from musix.contexts.stream.models import taste_maps, taste_profile
 from musix.errors import Invalid, NotFound
 from musix.schemas import ID_LIST
@@ -58,6 +59,7 @@ async def home(p: Auth, request: Request, response: Response, tz: TzOffset = 0) 
     wx = await weather.peek(
         weather.latlon_of(prefs, st.settings.weather_latlon), st.settings.proxy_url
     )
+    await achievements.remember_tz(st.sessionmaker, p.account_id, tz)
     shape = f"home:{tz}:{stats.local_today(tz)}:{wx.kind if wx else '-'}"
     tag, head = await etag.versioned_tag(
         request, p.account_id, shape, with_plays=True, also=(_profile_version(p.account_id),)
@@ -81,6 +83,7 @@ async def weather_places(
 @router.get("/stats", response_model=S.StatsOut, responses=etag.NOT_MODIFIED)
 async def stats_tab(p: Auth, request: Request, response: Response, tz: TzOffset = 0) -> Any:
     """Listening summary, rhythm and engagement (the current streak moves with the day)."""
+    await achievements.remember_tz(request.app.state.sessionmaker, p.account_id, tz)
     tag = await _tag(request, p, f"stats:{tz}:{stats.local_today(tz)}", with_plays=True)
     return await etag.conditional(request, response, tag, lambda: stats.stats(_ctx(request, p), tz))
 
@@ -103,7 +106,14 @@ def _map_version(account_id: uuid.UUID) -> Any:
 
 @router.get("/library/summary", response_model=S.LibrarySummaryOut, responses=etag.NOT_MODIFIED)
 async def library_summary(p: Auth, request: Request, response: Response) -> Any:
-    tag, head = await etag.versioned_tag(request, p.account_id, "summary", with_plays=True)
+    # «Пластинка дня» moves with the day, the albums' sound clusters with the nightly taste map
+    tag, head = await etag.versioned_tag(
+        request,
+        p.account_id,
+        f"summary:{dt.date.today()}",
+        with_plays=True,
+        also=(_map_version(p.account_id),),
+    )
     return await etag.conditional(
         request, response, tag, lambda: service.library_summary(_ctx(request, p), head)
     )
