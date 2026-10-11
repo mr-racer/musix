@@ -203,3 +203,175 @@ do not design a replacement.
 - «Немного странно выглядит, что она становится размытой до того как открылась»: the change
   from sharp to blurred must be smooth. Now the sleeve's back is the same sharp cover; the
   blur comes up with the text.
+
+## 2026-10-11 — the library and the statistics, the brief
+
+- The library is redone in stages. **A defect to design around:** the mini player covers the
+  bottom of today's library list.
+- **Albums stay**, «плиткой или строками, как было в V1 примерно», and **artists** stay.
+  **No tracks view:** search on the same page covers the tracks.
+- **Search of the library** on the page, no AI: albums, songs and artists, **the kind of
+  each result told apart clearly** (colour or otherwise). Not a field like today's: «заметной,
+  но не очень большой иконкой поиска».
+- **Playlists stay** on the page; the playlist's own screen is not redone yet.
+- Sorts: «слушаю чаще», «новые», «по алфавиту», «по году». A sort by genre is wanted, «но хз
+  как оформить».
+- **Statistics come back** (v1's), with the extra cut. Keep: listening time, listening
+  days, the favourite artist and song. Under the time, varying phrases that compare it
+  with something («столько же, сколько лететь до Луны»). Perhaps a listener's profile: a
+  short AI-written portrait («ты обожаешь слушать Канье и любишь экспериментальный
+  хип-хоп»), written properly, «без тезисных и водяных предложений». The LLM is not
+  available now, so it cannot be checked on Qwen. **No charts of library quality**; the
+  spread by years and genres as a short, good-looking summary is fine.
+- Before the design: a product manager's list of surfaces and engagement for the library,
+  for him to take or turn down.
+
+**His picks from the list (same day).** Taken: **«Пластинка дня»** and **«Не распечатаны»**
+(albums never played), «только надо не загромоздить и не сделать ощущение, что это одно и
+то же»; **genre as record-store dividers** and **shelves by sound** (the taste map's
+clusters), «мб вместе»; **a listener's portrait built from data, no LLM** (the LLM text
+later on top); **the streak of days and the best streak**. Not taken now: «Давно не ставил»,
+«Достать наугад», «Год назад», «Играть то, что на экране», the album's progress arc,
+«любимые и брошенные», the month's recap, «Общее с…», the release radar.
+
+**Achievements** (his turn of the «milestones» idea): «прослушал 200 треков в день, скипнул
+30 треков подряд, послушал одну песню 5 раз». **Ten to start**, each named by a short funny
+line; more later. They live in the statistics. When one is earned, **a pop-up comes in at
+the top right** with a small picture and the text, and **a quiet «бульк»** or a similar
+sound.
+
+## 2026-10-11 — the library, round 1 (`design/reference/library/`)
+
+**He chose «В · Стена»** («прикольно выглядит»). His fixes:
+- A click on the whole card must **open the gatefold**; only ▶ plays at once. (The mock played
+  a sealed album on any click: my error.)
+- The sealed look and the unwrapping were «довольно простые… выглядит дешево и плохо», the
+  film hardly noticeable: either the effects of really taking the film off a new product, or
+  drop it. **The gamification of unheard albums he likes.**
+- The sort switch, the tiles/rows switch and the search button are out of style: **softer**.
+- Groups for every sort: «Слушаю чаще» split by baseline bands (very often … never), by
+  quintiles for instance; А–Я too. **A way to jump between groups** (year and genre mean a lot
+  of scrolling).
+- Titles in the wall get cut: bigger tiles so the text fits. The page lags and the covers are
+  soft: he asked whether prod will be like that.
+- Rows: drop the number of songs; **bigger type everywhere**, the column headers above all
+  («плохо видно»).
+- Between the top bar and a sticky section header a strip of background leaks through: the
+  section header could be a floating block, «мб даже liquid glass блок», not a full band.
+- In the wall, Artists must match the albums' wall. Playlists: improve; the bar overlaps them,
+  and the page is filled a third, at the top: **«слишком много пустого места нельзя делать»**.
+- (later the same day) **Pictures must arrive organically**: «картинки одновременно быстро могут
+  не прогрузиться… прогрузка картинок не должна выглядеть плохо, а органично».
+
+Round 2 (same URL, version 2): «Стена» only. Groups for every sort (listening bands by
+quintiles: 14+, 7–13, 3–6, 1–2, never; letters; months; decades; genre by tags or sound), the
+in-flow heading in big type, the floating glass plate of the current group (opens the list
+of groups), the index rail at the right edge; the film redone (haze, light under the pointer,
+corners, seam, a shop sticker «не слушал»; the corner is pulled, the film peels back over
+itself, crumples and drops, a quiet synthesized crinkle; opening a sealed album unwraps it);
+soft pill controls; bigger tiles, two-line titles; rows without the song count and with
+bigger type; artists as the same wall (names always on); playlists sized to fill the screen;
+covers load as colour → 20 px sketch → develop, in a wave from the top left.
+
+## 2026-10-11 — the library, round 2
+
+«В остальном супер, молодец, так держать!» His fixes:
+- Scrolling the wall feels 30–40 fps on his 165 Hz screen (prod scrolls smoother). Maybe the
+  artifact; no big optimization now, but **if the built screen scrolls like that, optimize**.
+- The rail's groups are hardly visible until you look there: **bolder, the active one in the
+  playing song's accent**.
+- The list that opens from the glass plate must be **glass like the plate**.
+- The unwrapping is fine, but it stuttered badly the first times: optimize. **No falling ball**:
+  after the film comes off, its remains just **evaporate**, softly.
+- Artists: we know their **country** — a grouping by country as an option; the statistics can
+  play on it too («любимые артисты — американские»).
+- Playlists: the right half of the page was empty.
+- **An album unwrapped but not listened to is wrapped again** and put back.
+- «Пластинка дня» inside a group read as if it belonged there: **it must stand apart**; being
+  bigger is right. Its label a little bigger.
+
+Round 3 (same URL, version 3): the day's record in its own cover-lit band above the groups;
+the rail bolder with the open group in the playing song's accent; the jump list in glass; the
+peel on one canvas with the sound prepared at the first touch, remains evaporate; unheard
+albums re-wrapped; artists by country; playlists sized to fill the page; sketches dropped
+under developed covers, smaller atlases loaded near the screen.
+
+## 2026-10-11 — the library, round 3 → round 4
+
+- Flags for the countries («эмодзи или как-то еще… чтобы визуал был соответствующий»): real
+  SVG flags (emoji flags are two letters on Windows).
+- A soft move from group to group on a rail click.
+- Playlists in round 3 had no visible edges («тупо куча картинок»): each needs to read as one
+  thing.
+- **Liquid glass on floating blocks: «Запомни этот liquid glass эффект на блоках — мне он
+  очень зашел. Если его аккуратно добавлять к месту (не часто) — будет офигенно.»**
+- The search field must cover every block behind it.
+- The tab underline went to the left edge before travelling to the chosen tab: a bug.
+- «Поправь и погнали дальше»: the wall is approved with these fixes (round 4, version 5).
+- Asked what next (build the wall or design the statistics), he chose **the statistics mock
+  first**; the library and the statistics are then built together.
+
+## 2026-10-11 — the statistics, round 1 (same artifact, version 6)
+
+Shown: variant А «Разворот» (open: the time huge with a rotating comparison, the days as a
+calendar by weeks and the streak, the favourite artist and song big, the portrait as a
+paragraph built from data, a short summary of years, genres and the artists' countries, ten
+die-cut stickers for the achievements) and variant Б «Плитки» (the same as tiles of the wall).
+The achievements are counted on his real history (5 of 10 earned); the pop-up is a small
+glass card at the top right, the sticker slapped onto it with a quiet synthesized «бульк».
+Awaiting his reaction.
+
+## 2026-10-11 — the statistics, round 1 → round 2
+
+**He chose «А · Разворот»** (Б «Плитки» dropped). His fixes:
+- Labels and figures too small («Ты слушал музыку», «24,5 ч музыки»…); the favourite's name
+  needs an accent (bigger). The composition read «хаосно»; the days block too tall. **Colour
+  the days in shades of the favourite song's cover** («как акцент, хорошая штука»).
+- **More comparisons for the time**, «разнообразное и прикольное и неожиданное, мб пару штук с
+  приколом» (space was only his example).
+- The portrait took the left half, the right empty: optimize the composition. **Portrait under
+  the time, the favourites below it.**
+- Charts too small (text, bars); the years chart's columns thin: «более прогрессивный и стильный,
+  но чтобы был понятный».
+- Achievement icons too big; their text bigger.
+- More data: a careful **carousel for the top 2–3 artists and songs**.
+- **The achievement pop-up in liquid glass**, «как мы делали».
+
+Round 2 (version 7): time → portrait; days (smaller, in the cover's colour) and three facts
+(per day, the hour with a small 24-bar chart, finished share) on the right; favourites as a
+stack of the top three that turns; the years as a smooth landscape with the peak marked and a
+crosshair; genres and countries larger; smaller stickers; 14 comparisons (dumplings, Bohemian
+Rhapsody, a rickroll, Cage's 4′33″, Randy Gardner's sleepless record, a sloth, lectures,
+«Сапсан», Game of Thrones, Spanish vs his top artist, heartbeats, the Moon, the ISS, walking);
+the pop-up in the plate's glass with a sheen. Awaiting his reaction.
+
+## 2026-10-11 — the statistics, round 2 → round 3
+
+- «О, крутая анимация и стопка картинок альбомов, мне понравилась!» Bugs: the carousel's
+  text block changed height, so the arrows jumped and «следующий» was hard to hit; the text
+  moved vertically and was clipped at the top during the change, as if inside an invisible
+  box (the rank chip got eaten). The rank («место») bigger.
+- The years chart is fine, its type bigger.
+- **No pop-up tooltip repeating information on charts: the bars move as on the home's week**
+  (the bar under the pointer stretches and brightens, the number says its value in place).
+  The hours chart bigger, with the same move.
+- «Is this the real life» — «крутая, хорош, мне понравилась)) Надо еще таких.»
+- Small elements («в среднем за день», «дослушиваешь до конца», small captions) look small
+  against the rest: **balance the type**; the upper right has room.
+
+Round 3 (version 8): the three texts stacked in one cell (stable height, no clipping, the one
+leaving fades fast, the next arrives after it); rank chip 19 px; every chart grows in when
+first seen and answers the pointer in place (calendar → the day, hours → the hour, genres and
+countries → the caption, years → a dot along the curve and the caption); hours chart 88 px
+across the right column; facts 46 px; 21 comparisons (7 new music ones). Awaiting his reaction.
+
+## 2026-10-11 — the statistics, round 3 → **approved**
+
+Fixes asked and made (version 9): the comparison's change was jerky (the icon twitched, the
+text lagged and was clipped at the top) → two lines kept, the old one dissolves, the new one
+develops in place, the icon turns once on click; the hour bars answered the pointer a second
+late (the grow-in stagger delayed every transition) → the stagger only for the first growth;
+the year under the pointer **is said above its point**, not under the chart.
+**Liquid glass: «давай ВЕЗДЕ сделаем поисковую строку в стиле liquid glass» — in the library
+and later on the home; the left island in the same glass.**
+«В остальном — утверждаю»: the library «Стена» and the statistics «А» are approved.

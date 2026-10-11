@@ -114,7 +114,7 @@ They exist in v1 and in the Android app, not in the web today.
 | Stage | Screens | Why here |
 |---|---|---|
 | 1 | **Home**, with the frame it stands in: the nav island (now with Ассистент and Игра), the mini player, how pages change, and **quick search** (the home's field searches the library at once; a way to the assistant sits beside it) | the first thing seen; the frame is on every later screen. Variant A starts from v1's home |
-| 2 | **Library**: four tabs, the album card, the **gatefold**, the album page, and **statistics** | the most used after the player; the gatefold is the main way into an album from anywhere |
+| 2 | **Library**: albums (tiles or rows), artists, playlists, library search behind an icon (no tracks tab, 2026-10-11), the album card, the **gatefold** (done), the album page, and **statistics** | the most used after the player; the gatefold is the main way into an album from anywhere |
 | 3 | **Artist** | the richest page; shares the album card and the track rows with stage 2 |
 | 4 | **Playlist**, and the track row everywhere (hover, actions, drag) | the row is shared by five screens |
 | 5 | **Assistant**: first the check of the server (lyrics, sound, playlist, questions: as good as the old chat or better), then the page; the old search screen is removed | depends on the rows and cards of 2–4 |
