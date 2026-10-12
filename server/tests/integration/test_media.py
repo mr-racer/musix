@@ -49,7 +49,7 @@ async def _tiers(sm, settings: Settings, src: Path, owner: dict[str, str]) -> di
         }
 
 
-async def test_flac_gets_aac_high_and_economy(
+async def test_flac_streams_as_the_original_alone(
     sm, settings: Settings, tmp_path: Path, owner: dict[str, str]
 ) -> None:  # type: ignore[no-untyped-def]
     src = tmp_path / "long.flac"  # 5 s of tone: long enough for real AAC frames
@@ -69,9 +69,8 @@ async def test_flac_gets_aac_high_and_economy(
         check=True,
     )
     tiers = await _tiers(sm, settings, src, owner)
-    assert set(tiers) == {"high", "economy"}
-    assert codec(Path(tiers["high"])) == "aac"
-    assert Path(tiers["high"]).stat().st_size > Path(tiers["economy"]).stat().st_size
+    assert tiers == {}  # no lossy copies (2026-10-12): the original is the only stream
+    assert any(Path(settings.media_dir, "m").glob("*/*/lossless.flac"))
 
 
 async def test_alac_gets_a_flac_compat_rendition(

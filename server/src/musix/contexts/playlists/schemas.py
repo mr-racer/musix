@@ -35,6 +35,7 @@ class PlaylistOut(Model):
     name: str
     description: str | None
     cover_image_id: str | None
+    origin: str | None = None  # "yandex": made by the Yandex import (the clients' badge)
     item_count: int = 0
     created_at: dt.datetime
     updated_at: dt.datetime

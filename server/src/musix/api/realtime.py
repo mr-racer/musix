@@ -62,8 +62,11 @@ def route(payload: dict[str, Any]) -> dict[str, Any] | None:
         seq = int(payload["seq"])
         return {"type": "sync.changed", "seq": seq, "cursor": delta_cursor(seq)}
     if kind == "job":
-        t = "job.done" if payload.get("state") == "done" else "job.progress"
-        return {"type": t, **{k: payload[k] for k in ("job", "done", "total") if k in payload}}
+        t = "job.done" if payload.get("state") in ("done", "error") else "job.progress"
+        return {
+            "type": t,
+            **{k: payload[k] for k in ("job", "done", "total", "state", "error") if k in payload},
+        }
     if kind == "instance":
         return {"type": "instance.status", "status": payload.get("status")}
     if kind == "assistant.stage":  # one progress frame of a turn (v1's NDJSON status lines)

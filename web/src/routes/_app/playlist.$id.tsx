@@ -7,6 +7,7 @@ import { warmFromMirror } from "../../lib/images";
 import { useLive } from "../../lib/live";
 import { fromTrack, player } from "../../player/engine";
 import { Cover } from "../../ui/Cover";
+import { YandexBadge } from "../../ui/YandexBadge";
 import { Icon } from "../../ui/icons";
 import { TrackList } from "../../ui/TrackList";
 import css from "./detail.module.css";
@@ -38,9 +39,12 @@ function Playlist() {
   return (
     <div className={css.page}>
       <header className={css.head}>
-        <span className={css.mosaic}>{tracks.slice(0, 4).map((t) => <Cover key={t.id} id={t.coverImageId} size={130} radius={0} />)}</span>
+        <span className={css.mosaic}>
+          {tracks.slice(0, 4).map((t) => <Cover key={t.id} id={t.coverImageId} size={130} radius={0} />)}
+          {p.origin === "yandex" && <YandexBadge size={40} className={css.ym} />}
+        </span>
         <div className={css.headText}>
-          <div className={css.eyebrow}>Плейлист</div>
+          <div className={css.eyebrow}>{p.origin === "yandex" ? "Плейлист из Яндекс Музыки" : "Плейлист"}</div>
           {name === null ? (
             <h1 className={css.headTitle}><button type="button" className={css.renamable} onClick={() => setName(p.name)} title="Переименовать">{p.name}</button></h1>
           ) : (

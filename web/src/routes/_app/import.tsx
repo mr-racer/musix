@@ -1,25 +1,31 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { api, ok } from "../../api/client";
+import { api, ApiError, ok } from "../../api/client";
 import { clock, plural } from "../../lib/format";
 import { useJob } from "../../lib/jobs";
 import { controls } from "../../ui/controls";
 import { Icon } from "../../ui/icons";
+import { YandexBadge } from "../../ui/YandexBadge";
 import css from "./import.module.css";
 import base from "./settings.module.css";
 
 export const Route = createFileRoute("/_app/import")({ component: Import });
 
-type Source = { source: unknown; title: string; trackCount: number; cover?: string | null };
-type YTrack = { id: string; title: string; artists: string[]; album?: string | null; durationMs?: number | null; cover?: string | null; available: boolean; imported: boolean };
+type Source = { source: unknown; title: string; trackCount: number; cover?: string | null; playlistId?: string | null; syncedAt?: string | null };
+/** The server keeps every Yandex track's fate: here, new, failed on the network (tried again),
+ *  refused by Yandex, or brought and then deleted here (can be picked again). */
+type YState = "imported" | "new" | "failed" | "unavailable" | "removed";
+type YTrack = { id: string; title: string; artists: string[]; album?: string | null; durationMs?: number | null; cover?: string | null; available: boolean; imported: boolean; state: YState; reason?: string | null; trackId?: string | null; inPlaylist?: boolean };
 /** What is picked in one source: the whole source, or some of its tracks. */
 type Pick = "all" | Set<string>;
 
 const ROW = 56;
 const keyOf = (src: unknown) => (src === "likes" ? "likes" : String((src as { kind: number }).kind));
 const selectable = (t: YTrack) => t.available && !t.imported;
+/** What a whole-source import (a top-up) fetches: new tracks and network failures only. */
+const topUp = (t: YTrack) => t.available && (t.state === "new" || t.state === "failed");
 const tracksQuery = (key: string) => ({
   queryKey: ["ym-tracks", key],
   queryFn: () => ok(api.GET("/api/v2/imports/yandex/tracks", { params: { query: { source: key } } })) as Promise<YTrack[]>,
@@ -38,7 +44,10 @@ function Import() {
   const [jobId, setJobId] = useState<string | null>(null);
   const [error, setError] = useState("");
   const job = useJob(jobId);
-  const sources = (useQuery({ queryKey: ["ym-sources"], enabled: !!link?.linked, queryFn: () => ok(api.GET("/api/v2/imports/yandex/sources")) }).data ?? []) as Source[];
+  const sourcesQ = useQuery({ queryKey: ["ym-sources"], enabled: !!link?.linked, queryFn: () => ok(api.GET("/api/v2/imports/yandex/sources")) });
+  const sources = (sourcesQ.data ?? []) as Source[];
+  // the token Yandex gave has expired: the server says «link again» rather than failing
+  const relink = sourcesQ.error instanceof ApiError && sourcesQ.error.status === 400;
 
   useEffect(() => {
     if (!session) return;
@@ -56,7 +65,9 @@ function Import() {
   }, [session, qc]);
 
   useEffect(() => {
-    if (job?.finished) void qc.invalidateQueries({ queryKey: ["ym-tracks"] }); // fresh «уже здесь» marks
+    if (!job?.finished) return; // fresh «уже здесь» marks and the playlists just made
+    void qc.invalidateQueries({ queryKey: ["ym-tracks"] });
+    void qc.invalidateQueries({ queryKey: ["ym-sources"] });
   }, [job?.finished, qc]);
 
   async function start() {
@@ -81,7 +92,7 @@ function Import() {
     if (!p) return 0;
     if (p instanceof Set) return p.size;
     const list = qc.getQueryData<YTrack[]>(["ym-tracks", keyOf(s.source)]);
-    return list ? list.filter(selectable).length : s.trackCount;
+    return list ? list.filter(topUp).length : s.trackCount;
   };
   const total = sources.reduce((n, s) => n + count(s), 0);
 
@@ -98,12 +109,16 @@ function Import() {
         else {
           const list = await qc.fetchQuery(tracksQuery(keyOf(s.source))).catch(() => null);
           if (!list) return setError("Яндекс не отдал список треков — попробуй ещё раз");
-          tracks.push(...list.filter(selectable).map((t) => t.id));
+          tracks.push(...list.filter(topUp).map((t) => t.id));
         }
       }
     }
-    const r = await ok(api.POST("/api/v2/imports/yandex/import", { body: { sources: chosen.map((s) => s.source), tracks } })).catch(() => null);
-    if (!r) return setError("Не получилось запустить импорт");
+    let r: { jobId: string };
+    try {
+      r = await ok(api.POST("/api/v2/imports/yandex/import", { body: { sources: chosen.map((s) => s.source), tracks } }));
+    } catch (e) {
+      return setError(e instanceof ApiError && e.status === 409 ? "Импорт уже идёт — дождись его" : "Не получилось запустить импорт");
+    }
     setJobId(r.jobId);
     setPicks(new Map());
     setOpen(null);
@@ -138,7 +153,8 @@ function Import() {
       {link?.linked && (
         <section className={base.card}>
           <div className={base.eyebrow}>Что импортировать</div>
-          <p className={css.lead}>Отметь плейлист целиком или раскрой его и выбери треки. То, что уже здесь, повторно не качается.</p>
+          <p className={css.lead}>Отметь плейлист целиком — придут только новые треки и те, что не скачались в прошлый раз, — или раскрой его и выбери сам. Для каждого плейлиста здесь появится такой же, его треки лягут и в библиотеку; удалённое в Яндексе отсюда не пропадёт.</p>
+          {relink && <div className={controls.error}>Яндекс больше не принимает вход — отключи аккаунт и подключи заново</div>}
           <ul className={css.sources}>
             {sources.map((s) => {
               const key = keyOf(s.source);
@@ -153,7 +169,7 @@ function Import() {
             <span className={css.status}>
               {job ? (
                 <>
-                  <span>{job.finished ? "Готово — треки уже в библиотеке" : `Импортирую… ${job.total ? `${job.done} из ${job.total}` : ""}`}</span>
+                  <span>{job.failed ? "Импорт прервался — скачанное осталось, запусти ещё раз" : job.finished ? "Готово — треки в библиотеке и в плейлистах" : `Импортирую… ${job.total ? `${job.done} из ${job.total}` : ""}`}</span>
                   <span className={css.bar}><span style={{ transform: `scaleX(${job.finished ? 1 : job.total ? job.done / job.total : 0.02})` }} /></span>
                 </>
               ) : total ? (
@@ -208,12 +224,17 @@ function SourceRow({ source, pick, count, open, onToggleOpen, onPick }: {
             <span className={css.headTitle}>{source.title}</span>
             <span className={css.headSub}>
               {source.trackCount} {plural(source.trackCount, "трек", "трека", "треков")}
-              {state !== "none" && <>{" · "}<span key={count} className={css.picked}>выбрано {count}</span></>}
+              {state !== "none" && <>{" · "}<span key={count} className={css.picked}>{source.playlistId && pick === "all" ? `долить ${count}` : `выбрано ${count}`}</span></>}
             </span>
           </span>
           <span className={css.pickHint}>{open ? "Свернуть" : "Выбрать треки"}</span>
           <span className={css.chevron}><Icon name="ChevronDown" size={18} /></span>
         </button>
+        {source.playlistId && (
+          <Link to="/playlist/$id" params={{ id: source.playlistId }} className={css.mirror} title="Этот плейлист уже есть здесь — открыть">
+            <YandexBadge size={18} /> в MusiX
+          </Link>
+        )}
       </div>
       <div className={css.fold} inert={!open}>
         <div className={css.foldInner}>
@@ -290,7 +311,10 @@ function TrackPicker({ tracks, pick, selectableCount, onSet, onAll }: {
                   <span className={css.trackTitle}>{t.title}</span>
                   <span className={css.trackSub}>{[t.artists.join(", "), t.album].filter(Boolean).join(" · ")}</span>
                 </span>
-                {t.imported ? <span className={css.tag}>уже здесь</span> : !t.available ? <span className={css.tagOff}>недоступен</span> : null}
+                {t.imported ? <span className={css.tag}>уже здесь</span>
+                  : !t.available || t.state === "unavailable" ? <span className={css.tagOff} title={t.reason ?? undefined}>недоступен</span>
+                  : t.state === "failed" ? <span className={css.tagRetry} title={t.reason ?? undefined}>не скачался</span>
+                  : t.state === "removed" ? <span className={css.tagOff}>удалён здесь</span> : null}
                 <span className={css.time}>{t.durationMs ? clock(t.durationMs) : ""}</span>
               </button>
             );

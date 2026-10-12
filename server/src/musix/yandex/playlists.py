@@ -81,27 +81,51 @@ def _short_to_id(ts) -> str | int | None:
     return tid
 
 
+BATCH = 200  # one `client.tracks` call for a 3000-track «Мне нравится» timed out (prod, v1 data)
+
+
+def _tracks_with_retry(client, ids: list, tries: int = 3) -> list:
+    import time
+
+    from yandex_music.exceptions import NetworkError
+
+    for attempt in range(tries):
+        try:
+            return client.tracks(ids) or []
+        except NetworkError:  # TimedOutError is one; UnauthorizedError is not retried
+            if attempt == tries - 1:
+                raise
+            time.sleep(1.5 * (attempt + 1))
+    return []
+
+
 def _resolve_short_list(client, shorts: list) -> list:
     """Batch-fetch full Track objects for a list of TrackShort, order-preserving."""
     ids = [i for i in (_short_to_id(ts) for ts in shorts) if i is not None]
-    if not ids:
-        return []
-    # client.tracks accepts the whole id list in one request.
-    return client.tracks(ids) or []
+    out: list = []
+    for i in range(0, len(ids), BATCH):
+        out.extend(_tracks_with_retry(client, ids[i : i + BATCH]))
+    return out
 
 
-def resolve_tracks(client, source) -> list:
-    """Return full ``Track`` objects for ``source`` ("likes" | {"kind": N})."""
+def resolve_source(client, source) -> tuple[str, list]:
+    """(title, full ``Track`` objects in the source's order) for "likes" | {"kind": N}."""
     if source == "likes":
         likes = client.users_likes_tracks()
         shorts = list(likes.tracks) if likes and likes.tracks else []
-        return _resolve_short_list(client, shorts)
+        return LIKES_TITLE, _resolve_short_list(client, shorts)
 
     if isinstance(source, dict) and "kind" in source:
         playlist = client.users_playlists(source["kind"])
         if isinstance(playlist, list):
             playlist = playlist[0] if playlist else None
         shorts = list(playlist.tracks) if playlist and playlist.tracks else []
-        return _resolve_short_list(client, shorts)
+        title = (getattr(playlist, "title", None) or "").strip() or "Плейлист из Яндекса"
+        return title, _resolve_short_list(client, shorts)
 
     raise ValueError(f"unknown import source: {source!r}")
+
+
+def resolve_tracks(client, source) -> list:
+    """Return full ``Track`` objects for ``source`` ("likes" | {"kind": N})."""
+    return resolve_source(client, source)[1]

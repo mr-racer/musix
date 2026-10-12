@@ -8,6 +8,7 @@ import { useLive } from "../lib/live";
 import { fromTrack, player } from "../player/engine";
 import { flyToMini } from "../player/MiniPlayer";
 import { Icon } from "../ui/icons";
+import { YandexBadge } from "../ui/YandexBadge";
 import css from "./library.module.css";
 
 /** Playlists as plates of their own colour (the first cover's), a mosaic with gaps and the
@@ -77,7 +78,10 @@ export function Lists() {
         const pal = image(c[0])?.palette;
         return (
           <Link key={p.id} to="/playlist/$id" params={{ id: p.id }} className={css.pcard} style={{ ["--tint" as string]: pal?.dominant ?? pal?.muted ?? "#2a2a32" }}>
-            <span className={css.mosaic} data-n={c.length}>{c.map((id) => <img key={id} src={imageUrl(id, 256) ?? undefined} alt="" loading="lazy" />)}</span>
+            <span className={css.mosaic} data-n={c.length}>
+              {c.map((id) => <img key={id} src={imageUrl(id, 256) ?? undefined} alt="" loading="lazy" />)}
+              {p.origin === "yandex" && <YandexBadge size={34} className={css.ym} />}
+            </span>
             <span className={css.pmeta}><b>{p.name}</b><small>{p.itemCount} {plural(p.itemCount, "песня", "песни", "песен")} · обновлён {day(p.updatedAt)}</small></span>
             <button type="button" className={css.play} aria-label={`Слушать «${p.name}»`} onClick={(e) => { e.preventDefault(); e.stopPropagation(); void play(p.id, e.currentTarget.closest("a")); }}>
               <Icon name="Play" size={18} />

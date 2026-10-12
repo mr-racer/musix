@@ -1,13 +1,14 @@
 import datetime as dt
 import uuid
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
 
 from fastapi import APIRouter, Query, Request, Response
+from procrastinate.exceptions import AlreadyEnqueued
 from pydantic import Field
 
 from musix.api.deps import Auth, Keys, Session
 from musix.contexts.imports import yandex
-from musix.errors import Invalid
+from musix.errors import Conflict, Invalid
 from musix.schemas import Model
 
 router = APIRouter(prefix="/imports/yandex", tags=["imports"])
@@ -33,6 +34,8 @@ class SourceOut(Model):
     title: str
     track_count: int
     cover: str | None
+    playlist_id: uuid.UUID | None = None  # the MusiX playlist made for it by an import
+    synced_at: dt.datetime | None = None  # its last import
 
 
 class YandexTrackOut(Model):
@@ -43,7 +46,13 @@ class YandexTrackOut(Model):
     duration_ms: int | None
     cover: str | None
     available: bool
-    imported: bool  # this account already has it from Yandex
+    imported: bool  # this account has it (from Yandex, or the same song otherwise)
+    # imported | new | failed (a network error: the next import tries again) |
+    # unavailable (Yandex refused it) | removed (imported, then deleted here: pickable again)
+    state: Literal["imported", "new", "failed", "unavailable", "removed"]
+    reason: str | None = None
+    track_id: uuid.UUID | None = None  # the MusiX track, when `imported`
+    in_playlist: bool = False  # already placed in the source's MusiX playlist
 
 
 class ImportIn(Model):
@@ -104,10 +113,22 @@ async def tracks(
 
 @router.post("/import", response_model=ImportAccepted, status_code=202)
 async def start_import(body: ImportIn, p: Auth, s: Session, request: Request) -> Any:
-    """Downloads into the library; progress as `job.progress` / `job.done` events."""
-    await yandex.link_status(s, p.account_id)
+    """Downloads into the library and into one MusiX playlist per source; progress as
+    `job.progress` / `job.done` events (`state: "error"` when the job itself failed).
+    One import per account at a time: `lock` keeps a second from running beside the
+    first (they would fetch the same tracks), `queueing_lock` refuses a third (409)."""
+    if not (await yandex.link_status(s, p.account_id))["linked"]:
+        raise yandex.NotLinked("yandex account not linked")
+    for src in body.sources:
+        yandex.source_key(src)
     job = f"yandex:{uuid.uuid4().hex[:12]}"
-    await request.app.state.queue.configure_task(
-        "imports:yandex", queueing_lock=f"imports:yandex:{p.account_id}"
-    ).defer_async(account_id=str(p.account_id), job=job, sources=body.sources, tracks=body.tracks)
+    lock = f"imports:yandex:{p.account_id}"
+    try:
+        await request.app.state.queue.configure_task(
+            "imports:yandex", lock=lock, queueing_lock=lock
+        ).defer_async(
+            account_id=str(p.account_id), job=job, sources=body.sources, tracks=body.tracks
+        )
+    except AlreadyEnqueued as e:
+        raise Conflict("an import is already waiting for this account") from e
     return ImportAccepted(job_id=job)

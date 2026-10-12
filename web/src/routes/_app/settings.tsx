@@ -12,7 +12,6 @@ import css from "./settings.module.css";
 
 export const Route = createFileRoute("/_app/settings")({ component: SettingsView });
 
-const TIERS = [{ value: "economy", label: "Эконом" }, { value: "high", label: "Высокое" }, { value: "lossless", label: "Lossless" }];
 
 /** v1's settings panel as one quiet column: playback, the look, devices, the account. */
 function SettingsView() {
@@ -34,8 +33,6 @@ function SettingsView() {
 
       <section className={css.card}>
         <div className={css.eyebrow}>Воспроизведение</div>
-        <Row label="Качество по Wi-Fi"><Segmented label="Качество по Wi-Fi" value={s.quality?.wifi ?? "lossless"} options={TIERS} onChange={(v) => void setSetting(["quality", "wifi"], v)} /></Row>
-        <Row label="Качество в мобильной сети" hint="Браузер сообщает тип сети не везде — тогда действует Wi-Fi"><Segmented label="Качество в мобильной сети" value={s.quality?.cellular ?? "high"} options={TIERS} onChange={(v) => void setSetting(["quality", "cellular"], v)} /></Row>
         <Row label="Выравнивать громкость" hint="Все треки звучат одинаково громко (−14 LUFS)">
           <label className={css.switch}>
             <input type="checkbox" checked={s.playback?.normalize ?? true} onChange={(e) => void setSetting(["playback", "normalize"], e.target.checked)} />

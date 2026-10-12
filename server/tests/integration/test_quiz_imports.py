@@ -2,6 +2,7 @@
 
 import shutil
 import uuid
+from pathlib import Path
 
 import pytest
 import sqlalchemy as sa
@@ -115,8 +116,8 @@ async def test_a_yandex_track_whose_content_the_server_has_is_not_stored_twice(
     first, second = tmp_path / "dl1.flac", tmp_path / "dl2.flac"
     shutil.copy(AUDIO / "tiny.flac", first)
     shutil.copy(AUDIO / "tiny.flac", second)
-    a = await store(sm, media, acct, first)
-    b = await store(sm, media, acct, second)
+    a, _ = await store(sm, media, acct, first)
+    b, _ = await store(sm, media, acct, second)
     assert a is not None
     assert a == b
     assert not second.exists()  # the duplicate download is dropped, not kept
@@ -125,51 +126,120 @@ async def test_a_yandex_track_whose_content_the_server_has_is_not_stored_twice(
         assert await s.scalar(sa.select(sa.func.count()).where(media_files.c.sha256 == sha)) == 1
 
 
-async def test_a_yandex_import_takes_only_the_picked_tracks_and_retries_a_failed_pick(
+def _tagged(dst: Path, title: str, artist: str) -> Path:
+    """tiny.flac with its own tags: its own content, as each Yandex download is."""
+    from mutagen.flac import FLAC
+
+    shutil.copy(AUDIO / "tiny.flac", dst)
+    f = FLAC(dst)
+    f["title"], f["artist"] = title, artist
+    f.save()
+    return dst
+
+
+async def test_a_yandex_import_tops_up_and_mirrors_the_playlist(
     sm, tmp_path, listener, monkeypatch
 ) -> None:  # type: ignore[no-untyped-def]
+    """Whole source = a top-up: new and network-failed tracks are fetched, refused ones are
+    not; a v1 import with no file id is recognised by its song; the MusiX playlist follows
+    the Yandex order, and a track removed from it is not put back."""
     from types import SimpleNamespace
 
     from musix.contexts.imports import yandex
     from musix.contexts.imports.models import yandex_imports
-    from musix.yandex import downloader, playlists
+    from musix.contexts.library.models import tracks
+    from musix.contexts.playlists.models import playlist_items, playlists
+    from musix.yandex import downloader
+    from musix.yandex import playlists as ym
 
     _, acct, _ = listener
-    src = [
-        SimpleNamespace(id=n, title=f"Song {n}", artists=[SimpleNamespace(name="Band")])
-        for n in (1, 2, 3)
-    ]
+    song = lambda n: SimpleNamespace(  # noqa: E731
+        id=n, title=f"Song {n}", artists=[SimpleNamespace(name="Band")]
+    )
+    src = [song(n) for n in (1, 2, 3, 4)]
+    fetched: list[int] = []
 
     async def client(*_a):  # type: ignore[no-untyped-def]
         return object()
 
     def download(t, tmp, throttle=None):  # type: ignore[no-untyped-def]
+        fetched.append(t.id)
+        if t.id == 4 and fetched.count(4) == 1:
+            return {"ok": False, "reason": "download failed: Timed out"}
         tmp.mkdir(parents=True, exist_ok=True)
-        out = tmp / f"{t.id}.flac"
-        shutil.copy(AUDIO / "tiny.flac", out)
-        return {"ok": True, "path": str(out)}
+        return {"ok": True, "path": str(_tagged(tmp / f"{t.id}.flac", t.title, "Band"))}
 
     monkeypatch.setattr(yandex, "_client", client)
-    monkeypatch.setattr(playlists, "resolve_tracks", lambda c, s: src)
+    monkeypatch.setattr(ym, "resolve_source", lambda c, s: ("Мне нравится", list(src)))
     monkeypatch.setattr(downloader, "download_track", download)
-    async with sm() as s:  # «3» failed in an earlier import
+    # «1» came in through v1 (no file id); «3» Yandex refused
+    await yandex.store(
+        sm, tmp_path / "media", acct, _tagged(tmp_path / "v1.flac", "Song 1", "Band")
+    )
+    async with sm() as s:
         await s.execute(
             sa.insert(yandex_imports).values(
-                account_id=acct, yandex_track_id="3", status="skipped", reason="no rights"
+                [
+                    {"account_id": acct, "yandex_track_id": "1", "status": "downloaded"},
+                    {
+                        "account_id": acct,
+                        "yandex_track_id": "3",
+                        "status": "unavailable",
+                        "reason": "track not available in catalog/region",
+                    },
+                ]
             )
         )
         await s.commit()
 
-    got = await yandex.run_import(
-        sm,
-        None,
-        tmp_path / "media",
-        acct,
-        "yandex:t",
-        ["likes"],
-        only=["2", "3"],  # type: ignore[arg-type]
-    )
-    assert (got["total"], got["downloaded"]) == (2, 2)  # «1» was not picked; «3» is retried
+    async def run():  # type: ignore[no-untyped-def]
+        return await yandex.run_import(sm, None, tmp_path / "media", acct, "yandex:t", ["likes"])  # type: ignore[arg-type]
+
+    async def order() -> list[str]:
+        async with sm() as s:
+            return list(
+                await s.scalars(
+                    sa.select(tracks.c.title)
+                    .join(playlist_items, playlist_items.c.track_id == tracks.c.id)
+                    .where(
+                        playlist_items.c.playlist_id == pid, playlist_items.c.deleted_at.is_(None)
+                    )
+                    .order_by(playlist_items.c.position)
+                )
+            )
+
+    got = await run()
+    assert fetched == [2, 4]  # «1» is here, «3» is refused
+    assert got["downloaded"] == 1
+    assert len(got["playlists"]) == 1
+    pid = uuid.UUID(got["playlists"][0]["playlist_id"])
+    async with sm() as s:
+        pl = (await s.execute(sa.select(playlists).where(playlists.c.id == pid))).one()
+    assert (pl.name, pl.origin) == ("Мне нравится из Яндекс Музыки", "yandex")
+    assert await order() == ["Song 1", "Song 2"]
+
+    async with sm() as s:  # the listener takes «2» out of the playlist
+        await s.execute(
+            sa.update(playlist_items)
+            .where(playlist_items.c.playlist_id == pid)
+            .where(
+                playlist_items.c.track_id
+                == sa.select(tracks.c.id)
+                .where(tracks.c.account_id == acct, tracks.c.title == "Song 2")
+                .scalar_subquery()
+            )
+            .values(deleted_at=sa.func.now())
+        )
+        await s.commit()
+    src.insert(0, song(5))  # a new like on top
+    got = await run()
+    assert fetched == [2, 4, 5, 4]  # the new one, and the timed-out one again
+    assert uuid.UUID(got["playlists"][0]["playlist_id"]) == pid
+    assert await order() == ["Song 5", "Song 1", "Song 4"]  # Yandex order; «2» stays out
+
+    got = await run()  # nothing new: nothing fetched, nothing added
+    assert fetched == [2, 4, 5, 4]
+    assert got["playlists"][0]["added"] == 0
     async with sm() as s:
         rows = dict(
             (
@@ -180,4 +250,14 @@ async def test_a_yandex_import_takes_only_the_picked_tracks_and_retries_a_failed
                 )
             ).all()
         )
-    assert rows == {"2": "downloaded", "3": "downloaded"}
+    assert rows == {
+        "1": "downloaded",
+        "2": "downloaded",
+        "3": "unavailable",
+        "4": "downloaded",
+        "5": "downloaded",
+    }
+    async with sm() as s:  # the shared database: the rollback export counts new playlists
+        await s.execute(sa.delete(playlist_items).where(playlist_items.c.playlist_id == pid))
+        await s.execute(sa.delete(playlists).where(playlists.c.id == pid))
+        await s.commit()

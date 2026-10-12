@@ -1,0 +1,23 @@
+/* a dark lens with the yellow burst; it sits on covers, so it carries its own ground */
+.badge {
+  display: inline-grid; place-items: center; flex-shrink: 0; border-radius: 50%;
+  background: radial-gradient(circle at 50% 40%, rgba(40, 34, 18, 0.88), rgba(10, 10, 12, 0.9));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14), 0 0 0 1px rgba(255, 214, 64, 0.16), 0 6px 16px -6px rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(8px) saturate(1.3); -webkit-backdrop-filter: blur(8px) saturate(1.3);
+  transition: transform 0.45s var(--mx-ease-spring), box-shadow 0.45s;
+}
+.badge svg { width: 84%; height: 84%; overflow: visible; }
+.rays { fill: #fed42b; transform-origin: 12px 12px; transition: transform 0.9s var(--mx-ease-spring), filter 0.45s; filter: drop-shadow(0 0 1.2px rgba(255, 196, 0, 0.55)); }
+
+/* the card it sits on answers the pointer: the flash turns a little and flares */
+:global(a:hover) .rays { transform: rotate(26deg) scale(1.08); filter: drop-shadow(0 0 3px rgba(255, 196, 0, 0.85)); }
+:global(a:hover) .badge { transform: scale(1.06); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18), 0 0 0 1px rgba(255, 214, 64, 0.32), 0 0 18px -4px rgba(255, 190, 0, 0.55); }
+.badge:hover .rays { transform: rotate(26deg) scale(1.08); filter: drop-shadow(0 0 3px rgba(255, 196, 0, 0.85)); }
+
+/* the first time it is drawn it lights up, as a flash does */
+.badge { animation: ymIn 0.7s var(--mx-ease-spring) backwards; }
+@keyframes ymIn { from { opacity: 0; transform: scale(0.6) rotate(-40deg); } to { opacity: 1; transform: none; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .badge, .rays { animation: none; transition: none; }
+}

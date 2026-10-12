@@ -1,8 +1,10 @@
 """Loudness (EBU R128) and renditions (spec §5.4), run by the `media` worker queue.
 
 All tiers of a file live under <media>/m/<sha[:2]>/<sha>/ so nginx serves them by path:
-  high.m4a (AAC-LC 320), economy.m4a (AAC-LC 128), lossless_compat.<ext>, and
-  lossless.<ext>, a symlink to the original (the file itself is never copied).
+  lossless.<ext>, a symlink to the original (the file itself is never copied), and
+  lossless_compat.<ext> where a client cannot play the original (ALAC, Dolby/DTS).
+  The lossy high (AAC 320) / economy (AAC 128) tiers were dropped on 2026-10-12 (the
+  owner: one copy of each song, the original, on every network).
 """
 
 from __future__ import annotations

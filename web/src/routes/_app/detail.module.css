@@ -9,9 +9,10 @@
 .eyebrow::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--mx-accent-light); box-shadow: 0 0 8px var(--mx-accent-light); }
 .head { display: flex; gap: 32px; align-items: flex-end; }
 .headCover { box-shadow: 0 30px 70px rgba(0,0,0,0.5); }
-.mosaic { display: grid; grid-template-columns: 1fr 1fr; width: 260px; height: 260px; border-radius: 18px; overflow: hidden; background: var(--mx-surface-2); box-shadow: 0 30px 70px rgba(0,0,0,0.45); flex-shrink: 0; }
+.mosaic { position: relative; display: grid; grid-template-columns: 1fr 1fr; width: 260px; height: 260px; border-radius: 18px; overflow: hidden; background: var(--mx-surface-2); box-shadow: 0 30px 70px rgba(0,0,0,0.45); flex-shrink: 0; }
 .headText { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
 .headTitle { font-family: var(--mx-font-serif-display); font-style: italic; font-weight: 400; font-size: clamp(34px, 4vw, 56px); line-height: 1.05; letter-spacing: -0.015em; text-wrap: balance; }
+.mosaic .ym { position: absolute; top: 12px; right: 12px; z-index: 2; }
 .headSub { color: var(--mx-text-muted); font-size: 14px; }
 .headSub a:hover { color: var(--mx-text); text-decoration: underline; }
 .actions { display: flex; gap: 10px; margin-top: 8px; flex-wrap: wrap; }

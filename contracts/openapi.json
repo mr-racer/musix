@@ -3737,6 +3737,17 @@
             "title": "Name",
             "type": "string"
           },
+          "origin": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Origin"
+          },
           "updatedAt": {
             "format": "date-time",
             "title": "Updatedat",
@@ -4752,8 +4763,32 @@
             ],
             "title": "Cover"
           },
+          "playlistId": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Playlistid"
+          },
           "source": {
             "title": "Source"
+          },
+          "syncedAt": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Syncedat"
           },
           "title": {
             "title": "Title",
@@ -6041,9 +6076,48 @@
             "title": "Imported",
             "type": "boolean"
           },
+          "inPlaylist": {
+            "default": false,
+            "title": "Inplaylist",
+            "type": "boolean"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "state": {
+            "enum": [
+              "imported",
+              "new",
+              "failed",
+              "unavailable",
+              "removed"
+            ],
+            "title": "State",
+            "type": "string"
+          },
           "title": {
             "title": "Title",
             "type": "string"
+          },
+          "trackId": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Trackid"
           }
         },
         "required": [
@@ -6054,7 +6128,8 @@
           "durationMs",
           "cover",
           "available",
-          "imported"
+          "imported",
+          "state"
         ],
         "title": "YandexTrackOut",
         "type": "object"
@@ -9872,7 +9947,7 @@
     },
     "/api/v2/imports/yandex/import": {
       "post": {
-        "description": "Downloads into the library; progress as `job.progress` / `job.done` events.",
+        "description": "Downloads into the library and into one MusiX playlist per source; progress as\n`job.progress` / `job.done` events (`state: \"error\"` when the job itself failed).\nOne import per account at a time: `lock` keeps a second from running beside the\nfirst (they would fetch the same tracks), `queueing_lock` refuses a third (409).",
         "operationId": "start_import_api_v2_imports_yandex_import_post",
         "requestBody": {
           "content": {

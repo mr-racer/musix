@@ -22,7 +22,7 @@ from musix.contexts.media.schemas import Gain, ImageData, ManifestItem, Source
 MEDIA_TTL = 6 * 3600
 IMAGE_SIZES = (96, 256, 512, 1024)
 IMAGE_TTL = 365 * 24 * 3600
-DEFAULT_QUALITY = {"wifi": "lossless", "cellular": "high"}  # economy is opt-in
+DEFAULT_QUALITY = {"wifi": "lossless", "cellular": "lossless"}  # lossy tiers are gone (2026-10-12)
 
 
 def sign(secret: bytes, path: str, ttl: int, now: float | None = None) -> str:

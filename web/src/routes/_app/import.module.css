@@ -96,7 +96,7 @@
 .trackTitle { font-size: 13.5px; }
 .trackSub { font-size: 12px; color: var(--mx-text-subtle); }
 .time { font-size: 12px; color: var(--mx-text-subtle); font-variant-numeric: tabular-nums; min-width: 36px; text-align: right; }
-.tag, .tagOff { font-size: 11px; padding: 3px 8px; border-radius: 999px; white-space: nowrap; }
+.tag, .tagOff, .tagRetry { font-size: 11px; padding: 3px 8px; border-radius: 999px; white-space: nowrap; }
 .tag { color: var(--mx-accent-light); background: oklch(68% 0.17 275 / 0.12); }
 .tagOff { color: var(--mx-text-subtle); background: oklch(100% 0 0 / 0.06); }
 
@@ -136,3 +136,8 @@ button.check:active { transform: scale(0.85); }
   .fold, .picker, .chevron, .check, .markAll, .markSome, .art, .artLikes, .cover, .pickHint { transition: none; }
   .list[data-fresh] .track, .list[data-fresh] .trackOn, .list[data-fresh] .trackOff, .picked, .tick, .check[data-state="all"], .loading span { animation: none; }
 }
+.tagRetry { color: oklch(82% 0.14 80); background: oklch(82% 0.14 80 / 0.12); }
+/* the source already has its playlist here: a small link with the Yandex mark */
+.mirror { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px 4px 4px; border-radius: 999px; font-size: 12px; color: var(--mx-text-muted); background: oklch(100% 0 0 / 0.05); white-space: nowrap; transition: background 0.3s, color 0.3s, transform 0.4s var(--mx-ease-spring); }
+.mirror:hover { color: var(--mx-text); background: oklch(100% 0 0 / 0.1); transform: translateY(-1px); }
+.mirror:active { transform: scale(0.96); }

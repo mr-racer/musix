@@ -6,7 +6,7 @@ import { refresh, useAuth } from "./auth";
 export type Event =
   | { type: "ready"; seq: number }
   | { type: "sync.changed"; seq: number; cursor: string }
-  | { type: "job.progress" | "job.done"; job: string; done?: number; total?: number }
+  | { type: "job.progress" | "job.done"; job: string; done?: number; total?: number; state?: "done" | "error"; error?: string }
   | { type: "instance.status"; status: { llm?: string } }
   | { type: "device.presence"; deviceId: string; online: boolean }
   | { type: "playback.state"; device: string; trackId: string | null; playing: boolean; positionMs: number }

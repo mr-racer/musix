@@ -14,6 +14,7 @@ playlists = sa.Table(
     sa.Column("name", sa.Text, nullable=False),
     sa.Column("description", sa.Text),
     sa.Column("cover_image_id", sa.Text),
+    sa.Column("origin", sa.Text),  # None: made here; "yandex": mirrors a Yandex source
     sa.Column("created_at", TS, server_default=sa.func.now()),
     sa.Column("updated_at", TS, server_default=sa.func.now()),
     sa.Column("deleted_at", TS),

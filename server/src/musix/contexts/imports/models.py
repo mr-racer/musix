@@ -37,5 +37,23 @@ yandex_imports = sa.Table(
     sa.Column("status", sa.Text, nullable=False),
     sa.Column("reason", sa.Text),
     sa.Column("media_file_id", U),
+    sa.Column("attempts", sa.Integer, nullable=False, server_default="1"),
     sa.Column("updated_at", TS, nullable=False, server_default=sa.func.now()),
+)
+yandex_playlists = sa.Table(
+    "yandex_playlists",
+    metadata,
+    sa.Column("account_id", U, primary_key=True),
+    sa.Column("source", sa.Text, primary_key=True),  # "likes" | the playlist kind
+    sa.Column("playlist_id", U, nullable=False),
+    sa.Column("title", sa.Text, nullable=False),
+    sa.Column("synced_at", TS, nullable=False, server_default=sa.func.now()),
+)
+yandex_playlist_tracks = sa.Table(
+    "yandex_playlist_tracks",
+    metadata,
+    sa.Column("account_id", U, primary_key=True),
+    sa.Column("source", sa.Text, primary_key=True),
+    sa.Column("yandex_track_id", sa.Text, primary_key=True),
+    sa.Column("placed_at", TS, nullable=False, server_default=sa.func.now()),
 )

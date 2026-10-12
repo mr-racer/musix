@@ -114,11 +114,6 @@ async def _cover(s: AsyncSession, media_dir: Path, mf_id: uuid.UUID, src: Path) 
     return iid
 
 
-async def _budget_left(s: AsyncSession, budget_gb: int) -> bool:
-    used = await s.scalar(sa.select(sa.func.coalesce(sa.func.sum(renditions.c.size_bytes), 0)))
-    return int(used or 0) < budget_gb * 1024**3
-
-
 async def process_media(
     sm: async_sessionmaker[AsyncSession], media_dir: Path, mf_id: uuid.UUID, budget_gb: int = 150
 ) -> None:
@@ -158,22 +153,15 @@ async def process_media(
                 .values(lufs_integrated=lo.lufs, true_peak_dbtp=lo.true_peak, loudness_range=lo.lra)
             )
         await s.commit()
-    plan: list[tuple[str, str, int | None]] = [
-        ("high", "aac", 320)
-    ]  # high first: it is always kept
+    # Only the original streams (the owner, 2026-10-12: no lossy tiers, mobile included);
+    # a copy is made just where a client cannot play the original — ALAC → FLAC, Dolby → AAC
+    plan: list[tuple[str, str, int | None]] = []
     compat = audio.compat_kind(codec)
     if compat:
         plan.append(("lossless_compat", compat, 320 if compat == "aac" else None))
-    plan.append(("economy", "aac", 128))
     for tier, codec, kbps in plan:
         if tier in have:
             continue
-        async with sm() as s:
-            if tier == "economy" and not await _budget_left(s, budget_gb):
-                log.info(
-                    "rendition_budget_full", media_file=str(mf_id)
-                )  # economy becomes on-demand
-                continue
         dst = tdir / (f"{tier}.m4a" if codec == "aac" else f"{tier}.flac")
         # the tier dir is content-addressed and encodes land by rename, so a file already
         # there is complete: a database rebuilt over the same media dir (the cutover's
