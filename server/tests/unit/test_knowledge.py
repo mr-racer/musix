@@ -103,3 +103,11 @@ def test_a_bio_loses_the_agents_english_preface_but_keeps_latin_names() -> None:
     assert clean_bio(leaked, "en") == leaked
     ruled = "Here is the refined Russian biography.\n\n---\n\n**P$C** — рэп-группа из Атланты."
     assert clean_bio(ruled, "ru") == "P$C — рэп-группа из Атланты."
+
+
+def test_vibe_tag_names_accept_both_sonic_tag_shapes() -> None:
+    from musix.contexts.knowledge.jobs import tag_names
+
+    assert tag_names(["warm", "lo-fi"]) == ["warm", "lo-fi"]  # migrated from v1
+    assert tag_names([{"tag": "warm", "score": 0.4}, {"tag": "", "score": 0.1}]) == ["warm"]
+    assert tag_names(None) == [] and tag_names([]) == []

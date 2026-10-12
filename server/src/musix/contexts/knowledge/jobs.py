@@ -587,6 +587,16 @@ async def relations(sm: SM, llm: Llm, song_id: uuid.UUID) -> int:
 # ── the sonic vibe line (ai queue) ───────────────────────────────────────────
 
 
+def tag_names(raw: Any) -> list[str]:
+    """`media_files.sonic_tags` holds two shapes: strings (migrated from v1) and
+    {"tag", "score"} objects (the intel pipeline); the prompt wants plain names. 31 vibe
+    jobs died on `', '.join(objects)` before this (2026-10-10)."""
+    if not isinstance(raw, list):
+        return []
+    names = (t.get("tag") if isinstance(t, dict) else t for t in raw)
+    return [str(n) for n in names if n]
+
+
 async def vibe(sm: SM, llm: Llm, song_id: uuid.UUID, lang: str) -> str | None:
     """v1 `ai_tasks/sonic_vibe.run` for one song: pick the best fact by key, write one
     line from it alone; one validation retry, then an empty slot."""
@@ -615,7 +625,7 @@ async def vibe(sm: SM, llm: Llm, song_id: uuid.UUID, lang: str) -> str | None:
         return None
     lang = lang if lang in SV._LANG_NAMES else "en"
     system = SV._SYSTEM_PROMPT.format(lang_name=SV._LANG_NAMES[lang])
-    tags = row.sonic_tags if isinstance(row.sonic_tags, list) else []
+    tags = tag_names(row.sonic_tags)
     payload = {"artist": row.artist or "", "title": row.title, "year": row.year}
     user = SV._build_user_prompt(tags=tags, payload=payload, window=window, lang=lang)
     by_key = {item["key"]: item for item in window}
