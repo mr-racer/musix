@@ -101,3 +101,11 @@ html[data-nav="player-close"]::view-transition-old(np-controls) { --vt-y: 12px; 
 /* the library has no browser scrollbar: its rail of groups is the page's scrollbar (the owner) */
 html[data-bare] { scrollbar-width: none; }
 html[data-bare]::-webkit-scrollbar { display: none; }
+
+/* the theme switch (ui/ThemeButton.tsx): the new theme opens as a circle from the button over the
+   whole window; the named shell parts are not pictures of their own for it, or they would only
+   cross-fade while the page is revealed */
+html[data-vt="theme"] * { view-transition-name: none !important; }
+html[data-vt="theme"]::view-transition-old(root) { animation: none; }
+html[data-vt="theme"]::view-transition-new(root) { animation: mx-reveal 0.7s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+@keyframes mx-reveal { from { clip-path: circle(0 at var(--rx) var(--ry)); } to { clip-path: circle(var(--rr) at var(--rx) var(--ry)); } }

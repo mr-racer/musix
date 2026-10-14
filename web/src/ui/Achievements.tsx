@@ -3,6 +3,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { useEffect, useLayoutEffect, useRef } from "react";
 import { create } from "zustand";
 import { subscribe } from "../api/realtime";
+import { readSettings } from "../api/settings";
 import { bulk } from "../library/film";
 import glass from "./glass.module.css";
 import css from "./Achievements.module.css";
@@ -85,7 +86,8 @@ export function AchievementHost() {
         { transform: "scale(.9) rotate(-2deg)", opacity: 1, offset: 0.72 }, { transform: "scale(1) rotate(-6deg)", opacity: 1 }], { duration: 640, easing: "cubic-bezier(.3,.7,.3,1)", fill: "forwards" });
       p.animate([{ transform: "none" }, { transform: "translateY(3px) scale(.985)", offset: 0.5 }, { transform: "none" }], { duration: 260, delay: 470, easing: "ease-out" });
     }
-    const t = setTimeout(bulk, still ? 0 : 450);
+    // the «бульк» unless the settings turned it off
+    const t = setTimeout(() => void readSettings().then((s) => { if (s.sound?.achievements ?? true) bulk(); }), still ? 0 : 450);
     timer.current = setTimeout(leave, 5200);
     return () => { clearTimeout(t); clearTimeout(timer.current); };
     // eslint-disable-next-line react-hooks/exhaustive-deps

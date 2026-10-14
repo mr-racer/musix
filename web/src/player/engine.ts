@@ -85,6 +85,12 @@ function network(): "wifi" | "cellular" {
   return "wifi";
 }
 
+/** «Автоплейлист» (the settings): a finished list or album goes on with similar songs. */
+async function autoplayOn(): Promise<boolean> {
+  const s = (await db.kv.get("settings"))?.value as { playback?: { autoplay?: boolean } } | undefined;
+  return s?.playback?.autoplay ?? true;
+}
+
 async function normalizeOn(): Promise<boolean> {
   const s = (await db.kv.get("settings"))?.value as { playback?: { normalize?: boolean } } | undefined;
   return s?.playback?.normalize ?? true;
@@ -581,7 +587,7 @@ class Engine {
       }
       if (mode === "list" && queue.length > 0 && index >= queue.length - 1) {
         const seed = queue[index]!.trackId;
-        if (seed !== this.toppedUpFrom) {
+        if (seed !== this.toppedUpFrom && (await autoplayOn())) {
           this.toppedUpFrom = seed;
           const out = await ok(api.POST("/api/v2/stream/autoplay", { body: { seedTrackId: seed, excludeIds: this.played.slice(-200), limit: 20 } }));
           remember(out.images);

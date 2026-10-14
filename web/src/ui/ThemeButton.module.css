@@ -1,0 +1,36 @@
+/* The theme button (design/reference/settings): the gear's sibling in the top right corner, the
+   same quiet glyph with a hairline ring under the pointer. */
+.theme { position: relative; width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center; color: var(--mx-text-subtle);
+  box-shadow: 0 0 0 1px transparent; transition: transform .25s var(--mx-ease-spring), color .2s var(--mx-ease-standard), box-shadow .25s var(--mx-ease-standard), background .25s var(--mx-ease-standard); }
+.theme:hover { color: var(--mx-text); background: color-mix(in srgb, var(--mx-text) 7%, transparent); box-shadow: 0 0 0 1px var(--mx-border-strong); }
+.theme:active { transform: scale(.9); }
+/* one sun that becomes a moon (a bite slides in, the rays draw in) */
+.glyph { width: 20px; height: 20px; overflow: visible; }
+.core { transform-origin: 12px 12px; transition: transform .6s var(--mx-ease-spring); fill: currentColor; }
+.bite { transition: transform .6s var(--mx-ease-spring); }
+.rays { transform-origin: 12px 12px; transition: transform .6s var(--mx-ease-spring), opacity .3s var(--mx-ease-standard); stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
+.half { transform-origin: 12px 12px; transition: opacity .3s var(--mx-ease-standard), transform .5s var(--mx-ease-spring); fill: currentColor; opacity: 0; }
+.star { transform-origin: 20.5px 4.5px; transform: scale(0); transition: transform .45s var(--mx-ease-spring); fill: currentColor; }
+[data-t="light"] .core { transform: scale(.55); }
+[data-t="light"] .bite { transform: translate(10px, -10px); }
+[data-t="light"] .rays { transform: none; opacity: 1; }
+.theme:hover[data-t="light"] .rays { transform: rotate(45deg); }
+[data-t="dark"] .core { transform: scale(.82) rotate(-10deg); }
+[data-t="dark"] .bite { transform: none; }
+[data-t="dark"] .rays { transform: rotate(-90deg) scale(.4); opacity: 0; }
+.theme:hover[data-t="dark"] .core { transform: scale(.82) rotate(-28deg); }
+.theme:hover[data-t="dark"] .star { transform: scale(1); }
+[data-t="system"] .core { transform: scale(.7); fill: none; stroke: currentColor; stroke-width: 2.6; }
+[data-t="system"] .bite { transform: translate(10px, -10px); }
+[data-t="system"] .rays { transform: scale(.5); opacity: 0; }
+[data-t="system"] .half { opacity: 1; }
+.theme:hover[data-t="system"] .half { transform: rotate(180deg); }
+/* holding: a ring fills around the button, then the theme follows the system */
+.hold { position: absolute; inset: -3px; pointer-events: none; }
+.hold circle { fill: none; stroke: oklch(70% .16 270); stroke-width: 2; stroke-linecap: round; stroke-dasharray: 120; stroke-dashoffset: 120; transform: rotate(-90deg); transform-origin: 50% 50%; }
+.hold[data-on] circle { transition: stroke-dashoffset .55s linear; stroke-dashoffset: 0; }
+.tip { position: absolute; top: 46px; right: 0; padding: 9px 13px 10px; border-radius: 14px; white-space: nowrap; pointer-events: none; text-align: right; color: var(--glass-ink);
+  font: 500 13px/1.3 var(--mx-font-sans); transform-origin: top right; opacity: 0; transform: scale(.88) translateY(-4px); filter: blur(4px);
+  transition: opacity .18s var(--mx-ease-standard), transform .18s var(--mx-ease-standard), filter .18s var(--mx-ease-standard); }
+.tip small { display: block; font-size: 12px; color: var(--glass-ink2); font-weight: 400; margin-top: 2px; }
+.tip[data-on] { opacity: 1; transform: none; filter: none; transition: opacity .3s var(--mx-ease-standard), transform .45s var(--mx-ease-spring), filter .3s var(--mx-ease-standard); }

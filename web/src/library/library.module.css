@@ -7,7 +7,7 @@
 /* between tabs the bar stays and its underline glides (styles/pages.css) */
 :global(html[data-nav^="tab"]) .bar, :global(html[data-nav="regroup"]) .bar { view-transition-name: lib-bar; }
 :global(html[data-nav^="tab"]) .ul { view-transition-name: lib-ul; transition: none; }
-.bar { position: sticky; top: 0; z-index: 20; height: var(--bar-h); display: flex; align-items: center; gap: 14px; padding-right: 52px; }
+.bar { position: sticky; top: 0; z-index: 20; height: var(--bar-h); display: flex; align-items: center; gap: 14px; padding-right: 96px; /* the corner: theme + gear */ }
 .bar::before { content: ""; position: absolute; inset: 0 -200px -18px -200px; z-index: -1; pointer-events: none;
   background: linear-gradient(var(--mx-bg) 0, var(--mx-bg) 70%, color-mix(in srgb, var(--mx-bg) 70%, transparent) 84%, transparent); }
 .ttl { font: 650 26px/1 var(--mx-font-sans); letter-spacing: -0.03em; margin-right: 6px; white-space: nowrap; }

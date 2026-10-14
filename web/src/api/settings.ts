@@ -3,11 +3,26 @@ import { db } from "./db";
 
 export type Settings = {
   quality?: { wifi?: string; cellular?: string };
-  playback?: { normalize?: boolean };
+  /** `autoplay`: «Автоплейлист», a finished list or album goes on with similar songs */
+  playback?: { normalize?: boolean; autoplay?: boolean };
   /** the city the home's sky follows; none means Istanbul (design/code/screens/home.md) */
-  weather?: { place?: { name: string; country?: string | null; admin?: string | null; lat: number; lon: number } | null };
+  weather?: { place?: { name: string; country?: string | null; admin?: string | null; lat: number; lon: number; timezone?: string | null } | null };
+  /** `precip`: snow and rain fall on the home (off: only the sky's colour stays) */
+  home?: { precip?: boolean };
+  /** `achievements`: the quiet «бульк» when an achievement arrives */
+  sound?: { achievements?: boolean };
+  /** «Слушать инкогнито»: listens inside [from, until) stay out of the history (the server drops them) */
+  privacy?: { incognito?: { from: string; until: string } | null };
   [k: string]: unknown;
 };
+
+/** The incognito window's end while it is on, else null. */
+export function incognitoUntil(s: Settings | undefined, now = Date.now()): number | null {
+  const w = s?.privacy?.incognito;
+  if (!w) return null;
+  const a = Date.parse(w.from), b = Date.parse(w.until);
+  return a <= now && now < b ? b : null;
+}
 
 /** The account's settings live in the mirror (synced); a change writes the whole value
  *  (PUT is a replace) and updates the mirror at once so the UI does not wait for /sync. */

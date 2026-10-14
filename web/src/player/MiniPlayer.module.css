@@ -38,3 +38,9 @@
   .mini { left: 8px; right: 8px; bottom: calc(66px + env(safe-area-inset-bottom, 0px)); }
   .spectrum, .tools { display: none; }
 }
+
+/* incognito (the settings): a mask pill beside the title, counting down */
+.left { display: flex; align-items: center; min-width: 0; }
+.incog { flex: none; margin-left: 6px; display: inline-flex; align-items: center; gap: 7px; height: 28px; padding: 0 11px 0 9px; border-radius: 999px; font: 500 12.5px/1 var(--mx-font-sans);
+  color: var(--mx-text); background: color-mix(in srgb, var(--mx-text) 9%, transparent); box-shadow: inset 0 0 0 1px var(--mx-border-strong); white-space: nowrap; }
+.incogT { font: 11.5px var(--mx-font-mono); font-variant-numeric: tabular-nums; color: var(--mx-text-subtle); }

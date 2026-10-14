@@ -55,23 +55,26 @@
 @media (prefers-reduced-motion: reduce) { .railItem svg, .railOn svg { transition: none; } .railItem:hover svg, .railOn:hover svg { transform: none; } }
 .railOn { color: var(--mx-text); }
 @media (prefers-reduced-motion: reduce) { .blob { transition-duration: 0.01s; } }
-/* settings: a quiet glyph in the top right corner, no plate; a hairline ring appears under
-   the pointer and the cog turns (the owner found the raised button «неактуальной и не к месту») */
+/* the top right corner: the theme button and the settings, quiet glyphs with no plate; a hairline
+   ring appears under the pointer and the cog turns (the owner found the raised button
+   «неактуальной и не к месту»; the theme moved out of the settings into its own button, 2026-10-12) */
+.corner { view-transition-name: gear; position: fixed; right: 22px; top: 16px; z-index: 30; display: flex; gap: 6px; }
 .settings {
-  view-transition-name: gear;
-  position: fixed; right: 22px; top: 16px; z-index: 30;
   width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: var(--mx-text-subtle);
   box-shadow: 0 0 0 1px transparent;
   transition: transform 0.25s var(--mx-ease-spring), color 0.2s var(--mx-ease-standard), box-shadow 0.25s var(--mx-ease-standard), background 0.25s var(--mx-ease-standard);
 }
-.settings:hover { color: var(--mx-text); background: rgba(255,255,255,0.06); box-shadow: 0 0 0 1px var(--mx-border-strong); }
+.settings:hover, .settings[aria-current] { color: var(--mx-text); background: color-mix(in srgb, var(--mx-text) 7%, transparent); box-shadow: 0 0 0 1px var(--mx-border-strong); }
 .settings svg { transition: rotate 0.6s var(--mx-ease-spring); }
 .settings:hover svg { rotate: 60deg; }
-.settings:active { transform: scale(0.92); }
+.settings:active { transform: scale(0.9); }
+/* the library out of focus behind the Yandex window or dropped files: the frame stays sharp above */
+:global(html[data-lib-focus]) :is(.rail, .corner, .brand) { z-index: 33; }
 .tabbar { display: none; view-transition-name: tabbar; }
 @media (max-width: 760px) {
   .main, .mainStage { padding-left: 0; padding-bottom: calc(var(--player-h, 0px) + 72px + env(safe-area-inset-bottom, 0px)); }
   .rail, .settings, .brand { display: none; }
+  .corner { top: 12px; right: 12px; }
   .tabbar {
     position: fixed; left: 0; right: 0; bottom: 0; z-index: 40; display: flex; justify-content: space-around;
     padding: 8px 4px calc(8px + env(safe-area-inset-bottom, 0px)); background: var(--mx-tab-bar-bg); border-top: 1px solid var(--mx-border);

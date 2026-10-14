@@ -1,5 +1,7 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { useLayoutEffect, useRef } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { incognitoUntil, readSettings } from "../api/settings";
+import { useLive } from "../lib/live";
 import { image } from "../lib/images";
 import { clock } from "../lib/format";
 import { Cover } from "../ui/Cover";
@@ -58,6 +60,7 @@ export function MiniPlayer() {
         <Spectrum trackId={item.trackId} className={css.spectrum} />
       </SeekLine>
       <div className={css.row}>
+        <div className={css.left}>
         <Link to="/player" className={css.now}>
           <Cover id={item.coverImageId} size={44} radius={9} className={css.cover} seed={item.albumId ?? item.title} />
           <span className={css.text}>
@@ -65,6 +68,8 @@ export function MiniPlayer() {
             <span className={css.artist}>{item.artist}</span>
           </span>
         </Link>
+        <Incognito />
+        </div>
         <div className={css.transport}>
           <button type="button" className={css.ic} onClick={() => void player.prev()} aria-label="Предыдущий"><Icon name="ChevronLeft" size={22} /></button>
           <button type="button" className={css.big} onClick={() => player.toggle()} aria-label={playing ? "Пауза" : "Играть"} aria-busy={buffering}>
@@ -101,4 +106,36 @@ export function flyToMini(from: HTMLElement | null): void {
     cv.remove();
     to.animate([{ transform: "scale(1)" }, { transform: "scale(1.18)" }, { transform: "scale(1)" }], { duration: 420, easing: "cubic-bezier(.34,1.56,.64,1)" });
   };
+}
+
+/** While «Слушать инкогнито» is on (the settings), the bar wears a mask and counts down to the
+ *  moment it switches itself off; it comes in with a spring and leaves quickly. */
+function Incognito() {
+  const s = useLive(readSettings, [], undefined);
+  const [now, setNow] = useState(Date.now());
+  const until = incognitoUntil(s, now);
+  useEffect(() => {
+    if (!until) return;
+    const t = setInterval(() => setNow(Date.now()), 30_000);
+    return () => clearInterval(t);
+  }, [until]);
+  const pill = useRef<HTMLSpanElement>(null);
+  const [shown, setShown] = useState(!!until);
+  useLayoutEffect(() => {
+    const el = pill.current, still = matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (until && !shown) setShown(true);
+    else if (until && el && !still) el.animate([{ opacity: 0, transform: "scale(.6) translateY(6px)" }, { opacity: 1, transform: "none" }], { duration: 520, easing: "cubic-bezier(.34,1.56,.64,1)" });
+    else if (!until && shown) {
+      if (!el || still) return setShown(false);
+      el.animate([{ opacity: 1, transform: "none" }, { opacity: 0, transform: "scale(.8)" }], { duration: 180, easing: "cubic-bezier(.4,0,1,1)", fill: "forwards" }).onfinish = () => setShown(false);
+    }
+  }, [!!until, shown]); // eslint-disable-line react-hooks/exhaustive-deps
+  if (!shown) return null;
+  const left = Math.max(0, (until ?? now) - now);
+  return (
+    <span ref={pill} className={css.incog} title="Слушаешь инкогнито: это не попадёт в историю">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M3 11h18" /><path d="M6 11l1.5-5.5h9L18 11" /><circle cx="7.5" cy="16" r="2.6" /><circle cx="16.5" cy="16" r="2.6" /><path d="M10.1 16h3.8" /></svg>
+      инкогнито <span className={css.incogT}>{Math.floor(left / 3_600_000)}:{String(Math.floor((left % 3_600_000) / 60_000)).padStart(2, "0")}</span>
+    </span>
+  );
 }

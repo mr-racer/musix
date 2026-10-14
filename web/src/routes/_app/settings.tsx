@@ -1,102 +1,84 @@
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { logout } from "../../api/auth";
-import { api, ok } from "../../api/client";
-import { db } from "../../api/db";
-import { readSettings, setSetting, type Settings } from "../../api/settings";
+import { queryOptions, useQuery } from "@tanstack/react-query";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
+import { api, ok, type Schemas } from "../../api/client";
+import { statsQuery } from "../../api/queries";
+import { readSettings, type Settings } from "../../api/settings";
+import { image, remember } from "../../lib/images";
 import { useLive } from "../../lib/live";
-import { setThemePref, themePref, useTheme, type ThemePref } from "../../lib/theme";
-import { Segmented } from "../../ui/controls";
-import { type Place, PlacePicker } from "../../ui/PlacePicker";
-import css from "./settings.module.css";
+import { Account } from "../../settings/Account";
+import { Options, type Tab, TABS } from "../../settings/Options";
+import { Promo } from "../../settings/Promo";
+import css from "../../settings/settings.module.css";
 
-export const Route = createFileRoute("/_app/settings")({ component: SettingsView });
+/** The settings (design/reference/settings, approved 2026-10-14 after two rounds): open space,
+ *  no cards. On top the one object, the phone banner lit by the listener's favourite song;
+ *  under it the account; then the options as tabs. Adding music lives in the library now,
+ *  the theme is its own button beside the gear (ui/ThemeButton.tsx). */
 
+const meQuery = queryOptions({ queryKey: ["me"], queryFn: () => ok(api.GET("/api/v2/me")), staleTime: 3_600_000 });
+const devicesQuery = queryOptions({ queryKey: ["devices"], queryFn: () => ok(api.GET("/api/v2/devices")) });
+const appQuery = queryOptions({
+  queryKey: ["app", "android"],
+  queryFn: async () => (await api.GET("/api/v2/app/{platform}/latest", { params: { path: { platform: "android" } } })).data ?? null,
+  staleTime: 3_600_000,
+});
 
-/** v1's settings panel as one quiet column: playback, the look, devices, the account. */
-function SettingsView() {
-  const s = useLive(readSettings, [], {} as Settings) ?? {};
-  useTheme(); // re-render on a theme change
-  const pref = themePref();
-  const nav = useNavigate();
-  const qc = useQueryClient();
-  const devices = useQuery({ queryKey: ["devices"], queryFn: () => ok(api.GET("/api/v2/devices")) });
-  const cacheRows = useLive(() => db.tracks.count(), [], 0);
-  const apps = useQuery({ queryKey: ["apps"], queryFn: async () => {
-    const one = async (platform: "android" | "windows") => (await api.GET("/api/v2/app/{platform}/latest", { params: { path: { platform } } })).data ?? null;
-    return { android: await one("android"), windows: await one("windows") };
-  }, staleTime: 3_600_000 });
-
-  return (
-    <div className={css.page}>
-      <h1 className={css.title}>Настройки</h1>
-
-      <section className={css.card}>
-        <div className={css.eyebrow}>Воспроизведение</div>
-        <Row label="Выравнивать громкость" hint="Все треки звучат одинаково громко (−14 LUFS)">
-          <label className={css.switch}>
-            <input type="checkbox" checked={s.playback?.normalize ?? true} onChange={(e) => void setSetting(["playback", "normalize"], e.target.checked)} />
-            <span />
-          </label>
-        </Row>
-      </section>
-
-      <section className={css.card}>
-        <div className={css.eyebrow}>Главная</div>
-        <Row label="Город для погоды" hint="Небо на главной следует погоде этого города. Без выбора — Стамбул; по IP не определяем">
-          <PlacePicker compact value={(s.weather?.place as Place | undefined) ?? null}
-            onChange={(p) => { void setSetting(["weather", "place"], p); void qc.invalidateQueries({ queryKey: ["home"] }); }} />
-        </Row>
-      </section>
-
-      <section className={css.card}>
-        <div className={css.eyebrow}>Вид</div>
-        <Row label="Тема"><Segmented<ThemePref> label="Тема" value={pref} onChange={setThemePref} options={[{ value: "system", label: "Как в системе" }, { value: "dark", label: "Тёмная" }, { value: "light", label: "Светлая" }]} /></Row>
-      </section>
-
-      <section className={css.card}>
-        <div className={css.eyebrow}>Устройства</div>
-        {(devices.data ?? []).map((d) => (
-          <div key={d.id} className={css.device}>
-            <span>
-              <span className={css.deviceName}>{d.name}{d.current && <em> · это устройство</em>}</span>
-              <span className={css.deviceSub}>{d.platform} · был {new Date(d.lastSeenAt).toLocaleDateString("ru")}</span>
-            </span>
-            {!d.current && (
-              <button type="button" className={css.revoke} onClick={async () => { await ok(api.DELETE("/api/v2/devices/{device_id}", { params: { path: { device_id: d.id } } })); void qc.invalidateQueries({ queryKey: ["devices"] }); }}>Отключить</button>
-            )}
-          </div>
-        ))}
-      </section>
-
-      <section className={css.card}>
-        <div className={css.eyebrow}>Музыка</div>
-        <Row label="Загрузить файлы с компьютера"><Link to="/upload" className={css.link}>Открыть →</Link></Row>
-        <Row label="Импорт из Яндекс Музыки"><Link to="/import" className={css.link}>Открыть →</Link></Row>
-        <Row label="В этом браузере" hint="Копия библиотеки для мгновенного открытия">{(cacheRows ?? 0).toLocaleString("ru")} треков</Row>
-      </section>
-
-      {(apps.data?.android || apps.data?.windows) && (
-        <section className={css.card}>
-          <div className={css.eyebrow}>Приложения</div>
-          {apps.data.android && <Row label="Android" hint={`Версия ${apps.data.android.versionName}`}><a href={apps.data.android.url} className={css.link}>Скачать APK →</a></Row>}
-          {apps.data.windows && <Row label="Windows" hint={`Версия ${apps.data.windows.versionName} · обновляется само`}><a href={apps.data.windows.url} className={css.link}>Скачать установщик →</a></Row>}
-        </section>
-      )}
-
-      <section className={css.card}>
-        <div className={css.eyebrow}>Аккаунт</div>
-        <button type="button" className={css.signout} onClick={async () => { await logout(); void nav({ to: "/login" }); }}>Выйти из аккаунта</button>
-      </section>
-    </div>
-  );
+/** The favourite song is kept here between visits (its image urls are content-addressed and
+ *  signed for a year): the banner is lit from the first frame, /stats only refreshes it. */
+type Fav = { track: Schemas["TrackOut"]; img?: Schemas["ImageData"] };
+const FAV = "musix.fav";
+function cachedFav(): Fav | null {
+  try {
+    const f = JSON.parse(localStorage.getItem(FAV) ?? "null") as Fav | null;
+    if (f?.img && f.track.coverImageId) remember({ [f.track.coverImageId]: f.img });
+    return f;
+  } catch {
+    return null;
+  }
 }
 
-function Row({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
+export const Route = createFileRoute("/_app/settings")({
+  validateSearch: (s: Record<string, unknown>): { tab?: Tab } => ({ tab: TABS.some(([k]) => k === s.tab) ? (s.tab as Tab) : undefined }),
+  loader: async ({ context }) => {
+    const qc = context.queryClient;
+    void qc.prefetchQuery(meQuery);
+    void qc.prefetchQuery(appQuery);
+    if (!qc.getQueryData(statsQuery.queryKey)) setTimeout(() => void qc.prefetchQuery(statsQuery), 600); // after the page change
+    // the banner's fold depends on an Android device being there: known before the first frame
+    await Promise.race([qc.ensureQueryData(devicesQuery).catch(() => undefined), new Promise((r) => setTimeout(r, 500))]);
+  },
+  component: SettingsView,
+});
+
+function SettingsView() {
+  const search = Route.useSearch();
+  const nav = useNavigate({ from: "/settings" });
+  // the tab is the page's own state (the switch animates against it), mirrored into the address
+  const [tab, setTab] = useState<Tab>(search.tab ?? "sound");
+  const s = useLive(readSettings, [], {} as Settings) ?? {};
+  const me = useQuery(meQuery).data;
+  const devices = useQuery(devicesQuery).data;
+  const app = useQuery(appQuery).data;
+  const stats = useQuery({ ...statsQuery, enabled: false }).data; // the loader asks, once the page has changed
+  const top = stats?.listening.topTrack?.track;
+  const fav = top ? { track: top } : cachedFav();
+  useEffect(() => {
+    if (!top) return;
+    const img = top.coverImageId ? image(top.coverImageId) : undefined;
+    try { localStorage.setItem(FAV, JSON.stringify({ track: top, img: img && { urls: img.urls, blurhash: img.blurhash, palette: img.palette } })); } catch { /* private mode */ }
+  }, [top]);
+  const acc = image(fav?.track.coverImageId)?.palette?.accent.dark ?? "hsl(351, 72%, 52%)";
+
   return (
-    <div className={css.row}>
-      <span className={css.label}>{label}{hint && <span className={css.hint}>{hint}</span>}</span>
-      <span className={css.control}>{children}</span>
+    <div className={css.page} style={{ ["--fav" as string]: acc }}>
+      <div className={css.in}>
+        <header className={css.head}><h1>Настройки</h1></header>
+        <Promo fav={fav?.track} app={app} androidHere={(devices ?? []).some((d) => d.platform === "android")} />
+        <Account me={me} />
+        <Options s={s} tab={tab} devices={devices} setTab={(t) => { setTab(t); void nav({ search: { tab: t === "sound" ? undefined : t }, replace: true, resetScroll: false }); }} />
+      </div>
+      <div className={css.veil} aria-hidden />
     </div>
   );
 }

@@ -1,12 +1,14 @@
-import { Link, Outlet, useRouterState } from "@tanstack/react-router";
-import { useRef } from "react";
+import { Link, Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
+import { useEffect, useRef } from "react";
 import { useAuth } from "../api/auth";
+import { installHotkeys } from "../lib/hotkeys";
 import { MiniPlayer } from "../player/MiniPlayer";
 import { AchievementHost } from "./Achievements";
 import { BrandMark } from "./Brand";
 import { GatefoldHost } from "./Gatefold";
 import { Icon, type IconName } from "./icons";
 import css from "./Shell.module.css";
+import { ThemeButton } from "./ThemeButton";
 
 type Tab = { to: string; label: string; short: string; icon: IconName; owner?: boolean };
 const TABS: Tab[] = [
@@ -32,6 +34,22 @@ export function Shell() {
   const on = tabs.findIndex((t) => active(t.to));
   const stood = useRef(0);
   if (on >= 0) stood.current = on;
+  const nav = useNavigate();
+  const here = useRef(path);
+  here.current = path;
+  useEffect(() => installHotkeys({
+    libraryHasSearch: () => here.current === "/library",
+    search: () => {
+      const quick = document.querySelector<HTMLInputElement>("input[data-hotkey-search]");
+      if (quick) quick.focus();
+      else void nav({ to: "/search" });
+    },
+    // the player's queue window listens for this; elsewhere the player opens with it
+    queue: () => {
+      if (here.current === "/player") window.dispatchEvent(new Event("mx:queue"));
+      else void nav({ to: "/player" }).then(() => setTimeout(() => window.dispatchEvent(new Event("mx:queue")), 700));
+    },
+  }), [nav]);
   return (
     <div className={css.shell} data-mx-theme={path === "/player" || path === "/" ? "dark" : undefined}>
       <Link to="/" className={css.brand} aria-label="MusiX — главная">
@@ -47,9 +65,12 @@ export function Shell() {
           </Link>
         ))}
       </nav>
-      <Link to="/settings" className={css.settings} aria-label="Настройки" title="Настройки">
-        <Icon name="Settings" size={18} />
-      </Link>
+      <div className={css.corner}>
+        <ThemeButton />
+        <Link to="/settings" className={css.settings} aria-label="Настройки" title="Настройки" aria-current={path === "/settings" ? "page" : undefined}>
+          <Icon name="Settings" size={18} />
+        </Link>
+      </div>
       <main className={path === "/player" ? css.mainStage : css.main}>
         <Outlet />
       </main>

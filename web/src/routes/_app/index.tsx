@@ -1,3 +1,5 @@
+import { readSettings } from "../../api/settings";
+import { useLive } from "../../lib/live";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -46,11 +48,12 @@ function Home() {
     return { colors: cs.length >= 2 ? [...cs, ...BRAND_BLOBS].slice(0, 4) : BRAND_BLOBS, taste: vib.length ? vib : BRAND_BLOBS };
   }, [home]);
   const [pace, setPace] = useState(1);
+  const precip = useLive(readSettings, [], undefined)?.home?.precip ?? true;
   const live = streaming && playing;
 
   return (
     <div className={css.home}>
-      <Sky weather={skyOverride() ?? home.weather?.kind ?? "clear"} taste={taste} />
+      <Sky weather={skyOverride() ?? home.weather?.kind ?? "clear"} taste={taste} precip={precip} />
       <header className={css.top}><Wordmark /></header>
 
       <div className={css.grid}>

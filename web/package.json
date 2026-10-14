@@ -24,6 +24,7 @@
     "dexie": "4.4.6",
     "flag-icons": "^7.2.3",
     "openapi-fetch": "0.17.0",
+    "qrcode-generator": "1.4.4",
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "zustand": "5.0.15"

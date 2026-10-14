@@ -264,6 +264,12 @@ function Playing({ trackId }: { trackId: string }) {
     void player.react(kind);
   };
   const toggle = (which: Exclude<Sheet, null>) => setSheet((cur) => (cur === which ? null : which));
+  // Q anywhere (lib/hotkeys.ts): the queue window opens or closes
+  useEffect(() => {
+    const q = () => setSheet((cur) => (cur === "queue" ? null : "queue"));
+    window.addEventListener("mx:queue", q);
+    return () => window.removeEventListener("mx:queue", q);
+  }, []);
   /** A click on a lyric line: the assistant's window opens with the line quoted and explains it. */
   const askLine = (line: string) => {
     setSheet("ai");

@@ -140,6 +140,7 @@ async def places(q: str, proxy: str | None, lang: str = "ru") -> list[S.PlaceOut
                     admin=x.get("admin1"),
                     lat=float(x["latitude"]),
                     lon=float(x["longitude"]),
+                    timezone=x.get("timezone"),
                 )
                 for x in rows
                 if "latitude" in x and "longitude" in x

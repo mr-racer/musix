@@ -91,11 +91,11 @@ function findEdges(): Edge[] {
   return out;
 }
 
-export function Sky({ weather, taste }: { weather: Weather; taste: string[] }) {
+export function Sky({ weather, taste, precip = true }: { weather: Weather; taste: string[]; precip?: boolean }) {
   const sky = useRef<HTMLCanvasElement>(null);
   const wx = useRef<HTMLCanvasElement>(null);
-  const state = useRef({ weather, taste });
-  state.current = { weather, taste };
+  const state = useRef({ weather, taste, precip });
+  state.current = { weather, taste, precip };
 
   useEffect(() => {
     const cv = sky.current, wc = wx.current;
@@ -160,7 +160,8 @@ export function Sky({ weather, taste }: { weather: Weather; taste: string[] }) {
     };
     const weatherFrame = (dt: number, now: number) => {
       const W = window.innerWidth, H = window.innerHeight;
-      const snowing = state.current.weather === "snow", raining = state.current.weather === "rain";
+      // «Снег и дождь» off (the settings): the sky keeps the weather's colour, nothing falls
+      const snowing = state.current.precip && state.current.weather === "snow", raining = state.current.precip && state.current.weather === "rain";
       const lying = Object.values(caps).some((c) => c.cells.some((v) => v > 0.05));
       if (!(snowing || raining || falls.length || splash.length || lying)) { if (wc.width) wc.width = 0; return; }
       if (wc.width !== W || wc.height !== H) { wc.width = W; wc.height = H; }

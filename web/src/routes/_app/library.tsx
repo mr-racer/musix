@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { statsQuery, summaryQuery } from "../../api/queries";
 import { image } from "../../lib/images";
 import { morph } from "../../lib/pageMotion";
@@ -15,6 +15,9 @@ import {
 import { SearchButton } from "../../library/Search";
 import { Stats } from "../../library/Stats";
 import { Wall } from "../../library/Wall";
+import { AddMusic, DropPanel, useDrop } from "../../library/AddMusic";
+import addCss from "../../library/add.module.css";
+import yCss from "../../library/yandex.module.css";
 import css from "../../library/library.module.css";
 import glass from "../../ui/glass.module.css";
 
@@ -26,10 +29,12 @@ type View = "grid" | "rows";
 const TABS: Tab[] = ["albums", "artists", "playlists", "stats"];
 
 export const Route = createFileRoute("/_app/library")({
-  validateSearch: (s: Record<string, unknown>): { tab?: Tab; sort?: string; view?: View } => ({
+  validateSearch: (s: Record<string, unknown>): { tab?: Tab; sort?: string; view?: View; add?: "yandex" | "files" } => ({
     tab: TABS.includes(s.tab as Tab) ? (s.tab as Tab) : undefined,
     sort: typeof s.sort === "string" ? s.sort : undefined,
     view: s.view === "rows" ? "rows" : undefined,
+    // «Добавить» opened from elsewhere (the settings' «Подключить», the old /import and /upload)
+    add: s.add === "yandex" || s.add === "files" ? s.add : undefined,
   }),
   // the page's first render is what a page change shows (lib/pageMotion.ts), so the wall and its
   // order are read before it; the statistics are asked for here too, so the tab is ready when
@@ -47,6 +52,8 @@ export const Route = createFileRoute("/_app/library")({
 });
 
 const reduce = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
+// the Yandex window is fetched when it is first opened (a rare visit), not with the wall
+const YandexWindow = lazy(() => import("../../library/YandexWindow").then((m) => ({ default: m.YandexWindow })));
 /** A mark placed for the first time appears where it belongs; after that it glides. */
 function place(el: HTMLElement | null, props: Record<string, string>) {
   if (!el) return;
@@ -57,8 +64,20 @@ function place(el: HTMLElement | null, props: Record<string, string>) {
 }
 
 function Library() {
-  const { tab = "albums", sort, view = "grid" } = Route.useSearch();
+  const { tab = "albums", sort, view = "grid", add } = Route.useSearch();
   const nav = useNavigate({ from: "/library" });
+  // the Yandex window and files dragged over the page take the library out of focus
+  const [yandex, setYandex] = useState(add === "yandex");
+  const [over, dropPanel] = useDrop(!yandex);
+  useEffect(() => {
+    if (add) void nav({ search: (s) => ({ ...s, add: undefined }), replace: true, resetScroll: false });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    const root = document.documentElement;
+    if (yandex || over) root.dataset.libFocus = "";
+    else delete root.dataset.libFocus;
+    return () => { delete root.dataset.libFocus; };
+  }, [yandex, over]);
   const set = (p: { tab?: Tab; sort?: string; view?: View }) => void nav({ search: (s) => ({ ...s, ...p }), replace: true, resetScroll: false });
   const summary = useQuery({ ...summaryQuery, refetchOnMount: false }).data; // the loader refreshes it
   const mirror = useMirror();
@@ -132,6 +151,7 @@ function Library() {
             </div>
           )}
           <SearchButton onSearching={setSearching} />
+          <span className={addCss.wrap} data-tool><AddMusic onYandex={() => setYandex(true)} drop={over} startOpen={add === "files"} /></span>
         </div>
       </div>
 
@@ -145,6 +165,8 @@ function Library() {
       {tab === "playlists" && <Lists />}
       {tab === "stats" && <Stats />}
       <div className={css.veil} aria-hidden />
+      {yandex && <Suspense fallback={<div className={yCss.scrim} aria-hidden />}><YandexWindow onClose={() => setYandex(false)} /></Suspense>}
+      {over && <><div className={yCss.scrimDrop} aria-hidden /><DropPanel panel={dropPanel} /></>}
     </div>
   );
 }

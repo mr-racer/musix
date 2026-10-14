@@ -89,6 +89,7 @@ class PlaceOut(Model):
     admin: str | None  # the region
     lat: float
     lon: float
+    timezone: str | None = None  # IANA: the settings' little sky shows its local hour
 
 
 class WaveOut(Model):

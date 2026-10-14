@@ -127,7 +127,7 @@ export function QuickSearch({ className, edge }: { className?: string; edge?: bo
           </button>
         ))}
       </span>
-      <input ref={input} id="home-find" value={q} placeholder={PH[mode]} autoComplete="off" spellCheck={false} aria-label="Поиск"
+      <input ref={input} id="home-find" data-hotkey-search value={q} placeholder={PH[mode]} autoComplete="off" spellCheck={false} aria-label="Поиск"
         onChange={(e) => { setQ(e.target.value); setOpen(true); }} onFocus={() => setOpen(true)}
         onKeyDown={(e) => {
           if (e.key === "ArrowDown") { e.preventDefault(); setSel((s) => Math.min(hits.length - 1, s + 1)); }
