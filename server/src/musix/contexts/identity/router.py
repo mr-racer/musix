@@ -78,6 +78,37 @@ async def logout(p: Auth, s: Session) -> Response:
     return out
 
 
+@router.get("/me", response_model=S.MeOut)
+async def me(p: Auth, s: Session) -> S.MeOut:
+    return await service.me(s, p.account_id)
+
+
+@router.post("/auth/password", status_code=204, responses={403: {}})
+async def change_password(body: S.PasswordIn, p: Auth, s: Session) -> Response:
+    await service.change_password(s, p.account_id, p.device_id, body)
+    return Response(status_code=204)
+
+
+@router.get(
+    "/me/export",
+    response_class=Response,
+    responses={
+        200: {"content": {"application/zip": {"schema": {"type": "string", "format": "binary"}}}}
+    },
+)
+async def export(p: Auth, s: Session) -> Response:
+    """The listener's own data: the listening history (CSV), the library (CSV) and every
+    playlist (M3U), in one zip."""
+    from musix.contexts.identity.export import build
+
+    body = await build(s, p.account_id)
+    return Response(
+        body,
+        media_type="application/zip",
+        headers={"content-disposition": 'attachment; filename="musix-export.zip"'},
+    )
+
+
 @router.get("/devices", response_model=list[S.DeviceOut])
 async def devices(p: Auth, s: Session) -> list[S.DeviceOut]:
     return await service.list_devices(s, p.account_id, p.device_id)

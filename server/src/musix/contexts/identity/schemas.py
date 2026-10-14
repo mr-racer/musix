@@ -67,6 +67,18 @@ class InviteOut(Model):
     consumed: bool
 
 
+class MeOut(Model):
+    email: str
+    role: str
+    created_at: dt.datetime | None
+    listening_since: dt.datetime | None  # the first listen (v1's history counts)
+
+
+class PasswordIn(Model):
+    current: str = Field(min_length=1, max_length=256)
+    new: str = Field(min_length=8, max_length=256)
+
+
 class SettingsIO(Model):
     value: dict[str, Any]
 

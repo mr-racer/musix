@@ -37,12 +37,15 @@ async def ingest_file(account_id: str, path: str, storage: str = "reference") ->
     return str(t) if t else None
 
 
-async def register_existing(account_id: str, media_file_id: str) -> str | None:
+async def register_existing(
+    account_id: str, media_file_id: str, upload_id: str | None = None
+) -> str | None:
     """A second account adds content the server already has: tags are re-read from the
-    stored file, nothing is re-encoded."""
+    stored file, nothing is re-encoded. The upload row (if the client made one) learns
+    the track, so the library's inbox can follow it."""
     import sqlalchemy as sa
 
-    from musix.contexts.library.models import media_files
+    from musix.contexts.library.models import media_files, uploads
 
     sm = sessionmaker()
     async with sm() as s:
@@ -50,6 +53,14 @@ async def register_existing(account_id: str, media_file_id: str) -> str | None:
             sa.select(media_files.c.path).where(media_files.c.id == uuid.UUID(media_file_id))
         )
     t = await ingest.ingest_file(sm, uuid.UUID(account_id), Path(str(path)), on_registered=media)
+    if upload_id:
+        async with sm() as s:
+            await s.execute(
+                sa.update(uploads)
+                .where(uploads.c.id == uuid.UUID(upload_id))
+                .values(state="done" if t else "failed", track_id=t, updated_at=sa.func.now())
+            )
+            await s.commit()
     return str(t) if t else None
 
 

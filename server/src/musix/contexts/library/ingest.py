@@ -495,7 +495,7 @@ async def finalize_upload(
         await s.execute(
             sa.update(uploads)
             .where(uploads.c.id == upload_id)
-            .values(state="done" if track else "failed", updated_at=sa.func.now())
+            .values(state="done" if track else "failed", track_id=track, updated_at=sa.func.now())
         )
         await s.commit()
     return track

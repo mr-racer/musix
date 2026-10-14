@@ -94,6 +94,18 @@ async def sources(p: Auth, s: Session, keys: Keys) -> Any:
     return await yandex.sources(s, keys.fernet, p.account_id)
 
 
+class FreshOut(Model):
+    source: Any  # "likes" | {"kind": N}
+    fresh: int  # what a top-up would bring
+    track_count: int
+
+
+@router.get("/fresh", response_model=list[FreshOut])
+async def fresh(p: Auth, s: Session, keys: Keys) -> Any:
+    """The mirrored sources' new songs: the «+N» of «Обновить из Яндекса» in the library."""
+    return await yandex.fresh(s, keys.fernet, p.account_id)
+
+
 @router.get("/tracks", response_model=list[YandexTrackOut])
 async def tracks(
     p: Auth,

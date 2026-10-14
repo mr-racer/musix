@@ -275,6 +275,55 @@ async def revoke_invite(s: AsyncSession, owner: uuid.UUID, code: str) -> None:
     await s.commit()
 
 
+async def me(s: AsyncSession, account_id: uuid.UUID) -> S.MeOut:
+    from musix.contexts.listening.models import account_track_stats as ats
+
+    row = (
+        await s.execute(
+            sa.select(
+                accounts.c.email,
+                accounts.c.role,
+                accounts.c.created_at,
+                sa.select(sa.func.min(ats.c.first_played_at))
+                .where(ats.c.account_id == account_id)
+                .scalar_subquery()
+                .label("since"),
+            ).where(accounts.c.id == account_id)
+        )
+    ).one()
+    return S.MeOut(
+        email=row.email, role=row.role, created_at=row.created_at, listening_since=row.since
+    )
+
+
+async def change_password(
+    s: AsyncSession, account_id: uuid.UUID, device_id: uuid.UUID, body: S.PasswordIn
+) -> None:
+    """A new password; every other device is signed out (a leaked password stops working
+    everywhere at once), this one stays."""
+    pw = await s.scalar(sa.select(accounts.c.password_hash).where(accounts.c.id == account_id))
+    if pw is None or not await asyncio.to_thread(sec.verify_password, pw, body.current):
+        raise Forbidden("the current password is wrong")
+    new = await asyncio.to_thread(sec.hash_password, body.new)
+    await s.execute(
+        sa.update(accounts).where(accounts.c.id == account_id).values(password_hash=new)
+    )
+    others = sa.select(devices.c.id).where(
+        devices.c.account_id == account_id, devices.c.id != device_id
+    )
+    await s.execute(
+        sa.update(refresh_tokens)
+        .where(refresh_tokens.c.device_id.in_(others), refresh_tokens.c.revoked_at.is_(None))
+        .values(revoked_at=now())
+    )
+    await s.execute(
+        sa.update(devices)
+        .where(devices.c.id.in_(others), devices.c.revoked_at.is_(None))
+        .values(revoked_at=now())
+    )
+    await s.commit()
+
+
 async def get_settings(s: AsyncSession, account_id: uuid.UUID) -> dict[str, Any]:
     return dict(
         await s.scalar(

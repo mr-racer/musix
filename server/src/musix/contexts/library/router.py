@@ -57,9 +57,24 @@ async def start_upload(body: S.UploadIn, p: Auth, s: Session, request: Request) 
         await (
             _queue(request)
             .configure_task("library:register_existing")
-            .defer_async(account_id=str(p.account_id), media_file_id=str(existing))
+            .defer_async(
+                account_id=str(p.account_id), media_file_id=str(existing), upload_id=str(out.id)
+            )
         )
     return out
+
+
+@router.get("/uploads", response_model=list[S.UploadStatus])
+async def upload_statuses(
+    p: Auth, s: Session, ids: Annotated[str, Query(description="comma-separated upload ids, ≤ 200")]
+) -> list[S.UploadStatus]:
+    """The library's inbox asks where its songs are: on a `sync` event and every few seconds
+    while one is still on the server's side."""
+    try:
+        want = [uuid.UUID(x) for x in ids.split(",") if x][:200]
+    except ValueError as e:
+        raise Invalid("ids must be upload ids") from e
+    return await service.upload_statuses(s, p.account_id, want)
 
 
 @router.patch(

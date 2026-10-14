@@ -169,6 +169,9 @@ async def song(sm: SM, http: httpx.AsyncClient, song_id: uuid.UUID) -> bool:
     async with sm() as s:
         row = await _song_row(s, song_id)
         if row is None or not row.artist:
+            if row is not None:  # nothing to look up: the song is as known as it gets
+                await _touch(s, songs, song_id)
+                await s.commit()
             return False
         have_sf = await s.scalar(
             sa.select(sa.literal(True)).where(
@@ -220,6 +223,9 @@ async def song(sm: SM, http: httpx.AsyncClient, song_id: uuid.UUID) -> bool:
             await _touch(s, songs, song_id)
             await s.commit()
     async with sm() as s:
+        if skip_sf and skip_g:  # both looked up before: still, this pass is done
+            await _touch(s, songs, song_id)
+            await s.commit()
         return bool(
             await s.scalar(
                 sa.select(sa.literal(True)).where(

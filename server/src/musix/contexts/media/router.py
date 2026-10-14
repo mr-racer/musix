@@ -1,4 +1,5 @@
 import asyncio
+import contextlib
 import json
 from pathlib import Path
 from typing import Literal
@@ -28,9 +29,13 @@ async def manifest(
 @router.get("/app/{platform}/latest", response_model=S.AppRelease)
 async def latest(platform: Literal["android", "windows"], request: Request) -> S.AppRelease:
     """Read from downloads/manifest.json; publishing a release = copying files + manifest."""
-    f = Path(request.app.state.settings.media_dir) / "downloads" / "manifest.json"
+    d = Path(request.app.state.settings.media_dir) / "downloads"
     try:
-        data = json.loads(await asyncio.to_thread(f.read_text))[platform]
+        data = json.loads(await asyncio.to_thread((d / "manifest.json").read_text))[platform]
     except (FileNotFoundError, KeyError) as e:
         raise NotFound(f"no {platform} release") from e
-    return S.AppRelease.model_validate(data)
+    out = S.AppRelease.model_validate(data)
+    if out.size_bytes is None:
+        with contextlib.suppress(OSError):
+            out.size_bytes = (await asyncio.to_thread((d / Path(out.url).name).stat)).st_size
+    return out

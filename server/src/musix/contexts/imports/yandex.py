@@ -384,6 +384,37 @@ async def source_tracks(
     return out
 
 
+async def fresh(s: AsyncSession, fernet: Fernet, account_id: uuid.UUID) -> list[dict[str, Any]]:
+    """How many new songs each mirrored source has in Yandex: what «Обновить из Яндекса»
+    would bring (new tracks and network failures; Yandex's refusals never count). The
+    sources are read from Yandex side by side; the fates here one after another."""
+    from musix.yandex import playlists
+
+    keys: list[str] = list(
+        await s.scalars(
+            sa.select(yandex_playlists.c.source)
+            .join(playlists_t, playlists_t.c.id == yandex_playlists.c.playlist_id)
+            .where(yandex_playlists.c.account_id == account_id, playlists_t.c.deleted_at.is_(None))
+        )
+    )
+    if not keys:
+        return []
+    client = await _client(s, fernet, account_id)
+    srcs: list[Any] = ["likes" if k == "likes" else {"kind": int(k)} for k in keys]
+    got = await asyncio.gather(*(_ym(playlists.resolve_source, client, x) for x in srcs))
+    out = []
+    for src, (_, ts) in zip(srcs, got, strict=True):
+        st = await _states(s, account_id, ts)
+        n = sum(
+            1
+            for t in ts
+            if playlists.track_row(t)["available"] and st[str(t.id)]["state"] in ("new", "failed")
+        )
+        out.append({"source": src, "fresh": n, "track_count": len(ts)})
+    await s.commit()  # the links `_states` found
+    return out
+
+
 class _BucketThrottle:
     """v1's `Throttle.wait()` shape over the shared bucket, called from worker threads."""
 

@@ -423,3 +423,64 @@ player. Awaiting his check before prod.
 - «Убери полоску скролла на библиотеке — там уже есть полоска с группировкой» → no browser
   scrollbar on the library.
 
+
+## 2026-10-12 — the settings, the brief
+
+- The settings page is redone now (stage 7, brought forward): «выглядит перегруженной и не
+  соответствующей текущим гайдлайнам и дизайну остальных обновленных страниц». Apple style
+  welcome.
+- **Adding music moves to the library**, where it is organic: from the computer or from Yandex
+  — «в основном, люди всегда будут хотеть из яндекса добавлять/актуализировать свои плейлисты».
+- **The quality sliders go** (no backend behind them; the web lost them in 33d1a09, the Android
+  app still shows them).
+- Stay in the settings: **volume levelling, the city, the devices, sign out**.
+- **The theme leaves the settings**: its own button beside the settings one, in the app's
+  style, with animations on hover and press.
+- **The Android app as a QR code** instead of a download button, fitted organically into an
+  inviting banner, «А ещё можно кайфовать от музыки и на телефоне».
+- He asked what settings he may have forgotten.
+
+Round 1 (`design/reference/settings/`, https://claude.ai/artifact/9BbWFUbTxUt2QNmrADaki9):
+the open page with a cover-lit phone card and a QR sticker; the sun/moon button beside the
+gear (click toggles with a circular reveal, hold for «как в системе»); in the library a glass
+«+» beside search (menu: Яндекс / обновить из Яндекса / с компьютера; its ring is the progress
+of everything coming in; files can be dropped on the page); the Yandex window over the library.
+Proposed, each marked «идея»: continue with similar when the queue ends (server ready),
+crossfade with gapless albums, the achievement sound, snow and rain on the home, listening
+incognito, password change, data export, a keys list. Awaiting his reaction.
+
+## 2026-10-13 — the settings, round 1 → round 2
+
+«Кайф». His fixes:
+- The mini player looked like it rode over the page: **more room above it, nothing goes under it.**
+- The phone banner hung at the side and distracted: **horizontal, at the top**. The phone and
+  the QR are fine. On the phone's screen no words under the transport («текст» and the rest
+  out); **its album, artist and colour are the listener's own favourite song.**
+- The banner's copy: no paragraph under the title, instead «Та же библиотека, «Поток» и
+  статистика доступна на Android с бесшовным прослушиванием любимых песен»; under it only the
+  Android version, the app's size and its version («обновляется из приложения» out).
+- Settings: crossfade **yes, with its own setting, if it is not costly — confirm with him first**;
+  the achievement sound stays; «когда очередь кончилась» is called **«Автоплейлист»**: it
+  continues a finished playlist or album with similar songs automatically; snow and rain stay as
+  an option; incognito stays.
+- Too much scrolling — «может вкладки сделаем?»; **the account (name, Yandex Music, password,
+  data export) goes to the top**, under the banner; the rest ranked as I see fit; the keys stay.
+- The library's adding logic «зашла»: **the ring around the button showing progress and the
+  one-button refresh are needed.** Every song must show the right status as the backend gives
+  it (sending, sound processing, facts), **never several statuses at once.**
+- The list of uploads in the menu: better, at least **the app's own scrollbar** instead of the
+  browser's.
+
+Round 2 (same artifact, version 2; `design/reference/settings/README.md`): all of the above;
+columns by default with tabs as a switch for him to compare. Awaiting his reaction and his yes
+on the crossfade.
+
+**Crossfade: no** (2026-10-13). Told it is cheap on the web but needs a second player in the
+Android app: «Не, тогда плавный переход не надо, если на андроиде два плеера». Taken out of the
+mock (version 3); Приватность moved under Звук to balance the columns.
+
+## 2026-10-14 — the settings, decided → build
+
+He chose **tabs** over columns («давай вкладки сделаем») and **the phone banner starts folded
+when the account already has an Android device**. Build the mock as is (round 2 minus the
+crossfade); loading may be optimised as long as nothing in the design is lost.

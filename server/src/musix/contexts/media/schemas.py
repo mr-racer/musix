@@ -48,6 +48,7 @@ class AppRelease(Model):
     url: str
     sha256: str
     notes: str = ""
+    size_bytes: int | None = None  # the file's own size (the settings' banner shows it)
 
 
 class Accent(Model):

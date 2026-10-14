@@ -28,23 +28,40 @@ MAX_CHUNK = 16 * 1024 * 1024
 async def start_upload(
     s: AsyncSession, account_id: uuid.UUID, body: S.UploadIn
 ) -> tuple[S.UploadOut, uuid.UUID | None]:
-    """Returns the upload and, when the content is already on the server, the media file
-    to register for this account (the transfer is skipped entirely)."""
+    """Returns the upload and, when the content is already on the server but not in this
+    account, the media file to register for it (the transfer is skipped entirely; the upload
+    row, born `verifying`, lets the client follow it like any other)."""
     known = await s.scalar(
         sa.select(media_files.c.id).where(
             media_files.c.sha256 == body.sha256, media_files.c.state != "failed"
         )
     )
     if known:
-        return S.UploadOut(exists=True, state="done"), uuid.UUID(str(known))
+        own = await s.scalar(
+            sa.select(tracks.c.id).where(
+                tracks.c.account_id == account_id,
+                tracks.c.media_file_id == known,
+                tracks.c.deleted_at.is_(None),
+            )
+        )
+        if own:  # already in this library: nothing to do
+            return S.UploadOut(exists=True, state="done", track_id=own), None
     uid = await s.scalar(
         sa.insert(uploads)
         .values(
-            account_id=account_id, sha256=body.sha256, size_bytes=body.size, filename=body.filename
+            account_id=account_id,
+            sha256=body.sha256,
+            size_bytes=body.size,
+            filename=body.filename,
+            **({"state": "verifying", "offset_bytes": body.size} if known else {}),
         )
         .returning(uploads.c.id)
     )
     await s.commit()
+    if known:
+        return S.UploadOut(id=uid, exists=True, offset=body.size, state="verifying"), uuid.UUID(
+            str(known)
+        )
     return S.UploadOut(id=uid), None
 
 
@@ -100,6 +117,53 @@ async def get_upload(s: AsyncSession, account_id: uuid.UUID, upload_id: uuid.UUI
     if up is None:
         raise NotFound("upload")
     return S.UploadOut(id=up.id, offset=up.offset_bytes, state=up.state)
+
+
+async def upload_statuses(
+    s: AsyncSession, account_id: uuid.UUID, ids: list[uuid.UUID]
+) -> list[S.UploadStatus]:
+    """Where each upload is now, read from the rows the pipeline already writes: the upload,
+    its track's media file (`state`, `intel_state`) and the song's `knowledge_at`."""
+    from musix.contexts.knowledge.models import facts
+    from musix.contexts.library.models import songs
+
+    U, T, M = uploads.c, tracks.c, media_files.c
+    n_facts = (
+        sa.select(sa.func.count())
+        .where(facts.c.subject_kind == "song", facts.c.subject_id == T.song_id)
+        .scalar_subquery()
+    )
+    q = (
+        sa.select(
+            U.id,
+            U.state,
+            U.error,
+            U.track_id,
+            M.state.label("media"),
+            M.intel_state,
+            songs.c.knowledge_at,
+            n_facts.label("facts"),
+        )
+        .select_from(uploads)
+        .outerjoin(tracks, T.id == U.track_id)
+        .outerjoin(media_files, M.id == T.media_file_id)
+        .outerjoin(songs, songs.c.id == T.song_id)
+        .where(U.account_id == account_id, U.id.in_(ids))
+    )
+    out = []
+    for r in await s.execute(q):
+        st = S.UploadStatus(id=r.id, stage="send", track_id=r.track_id, facts=r.facts or 0)
+        if r.state == "failed" or r.media == "failed":
+            st.stage = "error"
+            st.error = "mismatch" if r.error == "sha256 mismatch" else "unreadable"
+        elif r.state in ("verifying", "done") and r.track_id is None:
+            st.stage = "sound"
+        elif r.track_id is not None:
+            # a failed CLAP never holds the song: it plays without its sound map
+            sounded = r.media == "media_done" and r.intel_state in ("indexed", "failed")
+            st.stage = "sound" if not sounded else "facts" if r.knowledge_at is None else "done"
+        out.append(st)
+    return out
 
 
 async def get_tracks(

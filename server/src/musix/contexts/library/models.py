@@ -144,6 +144,7 @@ uploads = sa.Table(
     sa.Column("filename", sa.Text, nullable=False),
     sa.Column("state", sa.Text, nullable=False, server_default="receiving"),
     sa.Column("error", sa.Text),
+    sa.Column("track_id", U, sa.ForeignKey("tracks.id")),  # what it became (0025)
     sa.Column("created_at", TS, server_default=sa.func.now()),
     sa.Column("updated_at", TS, server_default=sa.func.now()),
 )

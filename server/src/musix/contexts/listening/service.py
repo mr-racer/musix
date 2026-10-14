@@ -9,6 +9,7 @@ from __future__ import annotations
 import datetime as dt
 import json
 import uuid
+from typing import Any
 
 import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import JSONB, distinct_on
@@ -133,12 +134,36 @@ SELECT
 """).bindparams(sa.bindparam("events", type_=JSONB))
 
 
+async def _incognito(
+    s: AsyncSession, account_id: uuid.UUID
+) -> tuple[dt.datetime, dt.datetime] | None:
+    """The settings' «Слушать инкогнито» window, `privacy.incognito = {from, until}`: the
+    clients write it (until = from + 6 h, or the moment it is switched off), the server
+    keeps what was heard inside it out of the history, the statistics and «Поток»."""
+    from musix.contexts.identity.models import account_settings
+
+    v: Any = await s.scalar(
+        sa.select(account_settings.c.value["privacy"]["incognito"]).where(
+            account_settings.c.account_id == account_id
+        )
+    )
+    try:
+        return dt.datetime.fromisoformat(v["from"]), dt.datetime.fromisoformat(v["until"])
+    except (TypeError, KeyError, ValueError):
+        return None
+
+
 async def ingest_listens(
     s: AsyncSession, account_id: uuid.UUID, device_id: uuid.UUID, body: S.ListenBatchIn
 ) -> S.ListenBatchOut:
+    window = await _incognito(s, account_id)
+    heard = [e for e in body.events if not (window and window[0] <= e.started_at < window[1])]
+    hidden = len(body.events) - len(heard)  # the client forgets them like duplicates
+    if not heard:
+        return S.ListenBatchOut(accepted=0, duplicates=hidden, rejected=[])
     events = [
         {**e.model_dump(mode="json", exclude={"end_reason"}), "end_reason": _end_reason(e)}
-        for e in body.events
+        for e in heard
     ]
     row = (
         await s.execute(
@@ -154,7 +179,9 @@ async def ingest_listens(
     ).one()
     await s.commit()
     return S.ListenBatchOut(
-        accepted=row.inserted, duplicates=row.valid - row.inserted, rejected=list(row.rejected)
+        accepted=row.inserted,
+        duplicates=row.valid - row.inserted + hidden,
+        rejected=list(row.rejected),
     )
 
 

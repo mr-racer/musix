@@ -1,5 +1,6 @@
 import datetime as dt
 import uuid
+from typing import Literal
 
 from pydantic import Field
 
@@ -26,6 +27,19 @@ class UploadOut(Model):
     exists: bool = False
     offset: int = 0
     state: str = "receiving"
+    track_id: uuid.UUID | None = None  # `exists` and this account has it already: the track
+
+
+class UploadStatus(Model):
+    """One song in the library's inbox, one step at a time, in the server's order:
+    `send` (bytes arriving) → `sound` (sha checked, tags read, loudness, cover, spectrum,
+    CLAP) → `facts` (playable; facts on their way) → `done`; or `error`."""
+
+    id: uuid.UUID
+    stage: Literal["send", "sound", "facts", "done", "error"]
+    track_id: uuid.UUID | None = None
+    error: Literal["mismatch", "unreadable"] | None = None
+    facts: int = 0
 
 
 class TrackArtist(Model):
