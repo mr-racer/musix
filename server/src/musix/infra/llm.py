@@ -38,6 +38,13 @@ DEFAULT_KEY = "lm-studio"  # v1's: local servers want *a* key
 TIMEOUT = httpx.Timeout(600.0, connect=5.0)  # a 27b model writes a bio in minutes
 
 
+class LlmRejected(Unavailable):
+    """The LLM answered and refused this request (a 4xx: the prompt overflows the context,
+    a bad parameter): asking again later gets the same answer. Still an Unavailable, so
+    every caller that degrades on «no LLM» degrades the same; only the knowledge queue's
+    wait-for-the-LLM retry tells the two apart."""
+
+
 @dataclass(frozen=True)
 class LlmConfig:
     base_url: str | None
@@ -201,6 +208,10 @@ class Llm:
                 raw = r.json()["choices"][0]["message"].get("content") or ""
             else:
                 raw = await self._stream(cfg, body, request_timeout, on_delta)
+        except httpx.HTTPStatusError as e:
+            code = e.response.status_code
+            err = Unavailable if code >= 500 or code in (408, 429) else LlmRejected
+            raise err(f"LLM: HTTP {code}") from e  # the key is in headers, never in str(e)
         except httpx.HTTPError as e:
             raise Unavailable(
                 f"LLM: {type(e).__name__}"

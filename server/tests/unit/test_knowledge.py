@@ -111,3 +111,51 @@ def test_vibe_tag_names_accept_both_sonic_tag_shapes() -> None:
     assert tag_names(["warm", "lo-fi"]) == ["warm", "lo-fi"]  # migrated from v1
     assert tag_names([{"tag": "warm", "score": 0.4}, {"tag": "", "score": 0.1}]) == ["warm"]
     assert tag_names(None) == [] and tag_names([]) == []
+
+
+async def test_ai_jobs_wait_for_an_llm_that_is_off_but_not_for_one_that_refuses() -> None:
+    """The owner turns the LLM off: its jobs must wait (every 10 min, no limit), while a
+    request the LLM answered with a 4xx fails at once — it would be refused again."""
+    from types import SimpleNamespace
+
+    import httpx
+    import pytest
+
+    from musix.contexts.knowledge.tasks import LLM_RETRY
+    from musix.errors import Unavailable
+    from musix.infra.llm import Llm, LlmConfig, LlmRejected
+
+    async def chat_with(handler):  # type: ignore[no-untyped-def]
+        llm = Llm(None, None, transport=httpx.MockTransport(handler))  # type: ignore[arg-type]
+
+        async def config() -> LlmConfig:
+            return LlmConfig(base_url="http://llm/v1", model="m", api_key="k")
+
+        llm.config = config  # type: ignore[method-assign]
+        try:
+            await llm.ask("hi", kind="t", cache=False)
+        finally:
+            await llm.close()
+
+    def down(_r: httpx.Request) -> httpx.Response:
+        raise httpx.ConnectError("refused")
+
+    errors = []
+    for handler in (down, lambda r: httpx.Response(503), lambda r: httpx.Response(400)):
+        with pytest.raises(Unavailable) as e:
+            await chat_with(handler)
+        errors.append(e.value)
+    off, loading, refused = errors
+    assert not isinstance(off, LlmRejected)
+    assert not isinstance(loading, LlmRejected)
+    assert isinstance(refused, LlmRejected)
+
+    import datetime as dt
+
+    job = SimpleNamespace(attempts=500)
+    for err in (off, loading):
+        decision = LLM_RETRY.get_retry_decision(exception=err, job=job)  # type: ignore[arg-type]
+        assert decision is not None
+        assert decision.retry_at is not None
+        assert 590 < (decision.retry_at - dt.datetime.now(dt.UTC)).total_seconds() <= 600
+    assert LLM_RETRY.get_retry_decision(exception=refused, job=job) is None  # type: ignore[arg-type]

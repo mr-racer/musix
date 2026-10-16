@@ -7,6 +7,7 @@ from __future__ import annotations
 import uuid
 from functools import cache
 from pathlib import Path
+from typing import Any
 
 import httpx
 import procrastinate
@@ -14,11 +15,29 @@ import sqlalchemy as sa
 
 from musix.contexts.knowledge import jobs
 from musix.errors import Unavailable
+from musix.infra.llm import LlmRejected
 from musix.workers.context import llm, sessionmaker, settings
 
+# a source that fails trips its breaker and every queued job sees Unavailable at once: the
+# old 6 tries in ~3.5 min lost 1 537 song and artist jobs to one evening of a choking VPN
+# during a Yandex import (2026-10-15). 60 s + 5 min more each time: ~3 h of trouble survived.
 RETRY = procrastinate.RetryStrategy(
-    max_attempts=6, wait=30, exponential_wait=2, retry_exceptions={Unavailable}
+    max_attempts=10, wait=60, linear_wait=300, retry_exceptions={Unavailable}
 )
+
+
+class _LlmRetry(procrastinate.RetryStrategy):
+    """The LLM lives on the owner's GPU and he turns it off: its jobs wait for it, every
+    10 min, forever (intel's GPU_RETRY); a few quick tries left vibes and bios undone for
+    good. A request the LLM refused (LlmRejected) fails at once: it would be refused again."""
+
+    def get_retry_decision(self, *, exception: BaseException, job: Any) -> Any:
+        if isinstance(exception, LlmRejected):
+            return None
+        return super().get_retry_decision(exception=exception, job=job)
+
+
+LLM_RETRY = _LlmRetry(wait=600, retry_exceptions={Unavailable})
 BULK = 0  # interactive LLM work defers with priority INTERACTIVE (Task 8)
 INTERACTIVE = 10
 
@@ -140,8 +159,8 @@ def register(app: procrastinate.App) -> None:
     app.task(name="knowledge:song", queue="net", retry=RETRY)(song)
     app.task(name="knowledge:artist", queue="net", retry=RETRY)(artist)
     app.task(name="knowledge:verify", queue="net", retry=RETRY)(verify)
-    app.task(name="knowledge:refine", queue="ai", retry=RETRY)(refine)
-    app.task(name="knowledge:relations", queue="ai", retry=RETRY)(relations)
-    app.task(name="knowledge:vibe", queue="ai", retry=RETRY)(vibe)
-    app.task(name="knowledge:bio", queue="ai", retry=RETRY)(bio)
+    app.task(name="knowledge:refine", queue="ai", retry=LLM_RETRY)(refine)
+    app.task(name="knowledge:relations", queue="ai", retry=LLM_RETRY)(relations)
+    app.task(name="knowledge:vibe", queue="ai", retry=LLM_RETRY)(vibe)
+    app.task(name="knowledge:bio", queue="ai", retry=LLM_RETRY)(bio)
     app.task(name="knowledge:backfill", queue="default")(backfill)

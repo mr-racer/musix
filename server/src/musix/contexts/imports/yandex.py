@@ -203,8 +203,14 @@ async def _ym(fn: Any, *args: Any) -> Any:
         raise Unavailable(f"yandex: {type(e).__name__}") from e
 
 
+# (connect, read) for every Yandex call: the library's 5 s for both dropped a quarter of a
+# top-up whenever the host's VPN tunnel stalled for a moment under load (2026-10-15)
+TIMEOUT = (10, 30)
+
+
 async def _client(s: AsyncSession, fernet: Fernet, account_id: uuid.UUID) -> Any:
     from yandex_music import Client
+    from yandex_music.utils.request import Request
 
     enc = await s.scalar(
         sa.select(yandex_links.c.token_enc).where(yandex_links.c.account_id == account_id)
@@ -212,7 +218,7 @@ async def _client(s: AsyncSession, fernet: Fernet, account_id: uuid.UUID) -> Any
     if enc is None:
         raise NotLinked("yandex account not linked")
     token = fernet.decrypt(enc.encode()).decode()
-    return await _ym(lambda: Client(token).init())
+    return await _ym(lambda: Client(token, request=Request(timeout=TIMEOUT)).init())
 
 
 def source_key(source: Any) -> str:
@@ -460,6 +466,12 @@ async def store(
 LIKES_PLAYLIST = "Мне нравится из Яндекс Музыки"
 PERMANENT = ("not available", "no full audio", "no title/artist")
 MIN_FREE = 3 * 1024**3  # the disk guard's floor (ops/disk-guard.sh): stop before Postgres starves
+# A track the network dropped is tried again at once, then in passes over the leftovers after
+# these pauses: one press brings the whole source. Before, a failure waited for the next
+# press, and three presses in a row still left 70 tracks of the owner's likes (2026-10-15).
+RETRY_IN = 5.0
+PASSES = (0.0, 60.0, 300.0)
+STREAK, STREAK_PAUSE = 5, 30.0  # this many network failures in a row: the link is down, wait
 
 
 def fate(reason: str | None) -> str:
@@ -581,8 +593,9 @@ async def run_import(
 
     `only`: the tracks picked in the web's list (None = the whole sources: a top-up that
     fetches what is new or failed before, never what Yandex refused or the listener deleted
-    here). A failure of one track never stops the rest; the job always ends with `done` or
-    `error`, so the progress bar never hangs."""
+    here). A failure of one track never stops the rest; one the network dropped is tried
+    again in the same run (`PASSES`), so a press brings everything Yandex gives. The job
+    always ends with `done` or `error`, so the progress bar never hangs."""
     try:
         return await _run(sm, fernet, media_dir, account_id, job, selected, on_registered, only)
     except Exception as e:
@@ -684,46 +697,81 @@ async def _run(
     def skip(t: Any, artist: str, reason: str | None) -> None:
         report["skipped"].append({"artist": artist, "title": t.title, "reason": reason})
 
+    async def fetch(t: Any) -> dict[str, Any]:
+        res: dict[str, Any] = {}
+        for attempt in range(2):
+            if attempt:
+                await asyncio.sleep(RETRY_IN)
+            res = await asyncio.to_thread(downloader.download_track, t, tmp, throttle=throttle)
+            if res.get("ok") or fate(res.get("reason")) != "failed":
+                break
+        return res
+
+    async def one(t: Any, last: bool) -> bool:
+        """One track's turn. → True when the network dropped it and a later pass may bring it."""
+        ytid = str(t.id)
+        artist = ", ".join(a.name for a in (t.artists or []) if getattr(a, "name", None))
+        try:
+            mf = await restore(ytid) if st[ytid]["state"] == "removed" else None
+            if mf is not None:
+                await record(ytid, "downloaded", None, mf)
+                report["downloaded"] += 1
+                return False
+            if not artist.strip() or not (t.title or "").strip():
+                await record(ytid, "unavailable", "no title/artist")
+                skip(t, artist, "no title/artist")
+                return False
+            res = await fetch(t)
+            if not res.get("ok"):
+                await record(ytid, fate(res.get("reason")), res.get("reason"))
+                if fate(res.get("reason")) == "failed" and not last:
+                    return True
+                skip(t, artist, res.get("reason"))
+                return False
+            mf, tid = await store(sm, media_dir, account_id, Path(res["path"]), on_registered)
+            if tid is None:
+                await record(ytid, "failed", "the file could not be read", mf)
+                skip(t, artist, "the file could not be read")
+            else:
+                await record(ytid, "downloaded", None, mf)
+                report["downloaded"] += 1
+            return False
+        except Exception as e:  # one track's trouble is not the job's
+            log.warning("[yandex] track %s failed", ytid, exc_info=True)
+            await record(ytid, "failed", f"{type(e).__name__}: {e}"[:300])
+            if not last:
+                return True
+            skip(t, artist, type(e).__name__)
+            return False
+
+    settled = 0  # tracks with their final fate: the progress bar never runs backwards
+    pending = todo
     try:
-        for i, t in enumerate(todo, 1):
-            ytid = str(t.id)
-            artist = ", ".join(a.name for a in (t.artists or []) if getattr(a, "name", None))
-            try:
+        for n, pause in enumerate(PASSES):
+            if not pending or report.get("stopped"):
+                break
+            if pause:
+                log.info("[yandex] import %s: %d tracks again in %.0f s", job, len(pending), pause)
+                await asyncio.sleep(pause)
+            again: list[Any] = []
+            streak = 0
+            for t in pending:
                 if (await asyncio.to_thread(shutil.disk_usage, media_dir)).free < MIN_FREE:
                     report["stopped"] = "disk full"
                     log.warning("[yandex] import %s stopped: under 3 GB free", job)
                     break
-                mf = await restore(ytid) if st[ytid]["state"] == "removed" else None
-                if mf is not None:
-                    await record(ytid, "downloaded", None, mf)
-                    report["downloaded"] += 1
-                elif not artist.strip() or not (t.title or "").strip():
-                    await record(ytid, "unavailable", "no title/artist")
-                    skip(t, artist, "no title/artist")
+                if await one(t, last=n == len(PASSES) - 1):
+                    again.append(t)
+                    streak += 1
+                    if streak % STREAK == 0:
+                        await asyncio.sleep(STREAK_PAUSE)
                 else:
-                    res = await asyncio.to_thread(
-                        downloader.download_track, t, tmp, throttle=throttle
-                    )
-                    if not res.get("ok"):
-                        await record(ytid, fate(res.get("reason")), res.get("reason"))
-                        skip(t, artist, res.get("reason"))
-                    else:
-                        mf, tid = await store(
-                            sm, media_dir, account_id, Path(res["path"]), on_registered
-                        )
-                        if tid is None:
-                            await record(ytid, "failed", "the file could not be read", mf)
-                            skip(t, artist, "the file could not be read")
-                        else:
-                            await record(ytid, "downloaded", None, mf)
-                            report["downloaded"] += 1
-            except Exception as e:  # one track's trouble is not the job's
-                log.warning("[yandex] track %s failed", ytid, exc_info=True)
-                await record(ytid, "failed", f"{type(e).__name__}: {e}"[:300])
-                skip(t, artist, type(e).__name__)
-            async with sm() as s:
-                await notify(s, account_id, "job", job=job, done=i, total=len(todo))
-                await s.commit()
+                    settled += 1
+                    streak = 0
+                async with sm() as s:
+                    await notify(s, account_id, "job", job=job, done=settled, total=len(todo))
+                    await s.commit()
+            pending = again
     finally:
         await asyncio.to_thread(shutil.rmtree, tmp, True)
     async with sm() as s:

@@ -141,8 +141,9 @@ async def test_a_yandex_import_tops_up_and_mirrors_the_playlist(
     sm, tmp_path, listener, monkeypatch
 ) -> None:  # type: ignore[no-untyped-def]
     """Whole source = a top-up: new and network-failed tracks are fetched, refused ones are
-    not; a v1 import with no file id is recognised by its song; the MusiX playlist follows
-    the Yandex order, and a track removed from it is not put back."""
+    not, and a track the network drops again is retried in the same run until it comes (one
+    press brings everything); a v1 import with no file id is recognised by its song; the
+    MusiX playlist follows the Yandex order, and a track removed from it is not put back."""
     from types import SimpleNamespace
 
     from musix.contexts.imports import yandex
@@ -164,7 +165,7 @@ async def test_a_yandex_import_tops_up_and_mirrors_the_playlist(
 
     def download(t, tmp, throttle=None):  # type: ignore[no-untyped-def]
         fetched.append(t.id)
-        if t.id == 4 and fetched.count(4) == 1:
+        if t.id == 4 and fetched.count(4) <= 2:  # both tries of the first pass
             return {"ok": False, "reason": "download failed: Timed out"}
         tmp.mkdir(parents=True, exist_ok=True)
         return {"ok": True, "path": str(_tagged(tmp / f"{t.id}.flac", t.title, "Band"))}
@@ -172,7 +173,10 @@ async def test_a_yandex_import_tops_up_and_mirrors_the_playlist(
     monkeypatch.setattr(yandex, "_client", client)
     monkeypatch.setattr(ym, "resolve_source", lambda c, s: ("Мне нравится", list(src)))
     monkeypatch.setattr(downloader, "download_track", download)
-    # «1» came in through v1 (no file id); «3» Yandex refused
+    for name in ("RETRY_IN", "STREAK_PAUSE"):
+        monkeypatch.setattr(yandex, name, 0.0)
+    monkeypatch.setattr(yandex, "PASSES", (0.0, 0.0, 0.0))
+    # «1» came in through v1 (no file id); «3» Yandex refused; «4» timed out last time
     await yandex.store(
         sm, tmp_path / "media", acct, _tagged(tmp_path / "v1.flac", "Song 1", "Band")
     )
@@ -186,6 +190,12 @@ async def test_a_yandex_import_tops_up_and_mirrors_the_playlist(
                         "yandex_track_id": "3",
                         "status": "unavailable",
                         "reason": "track not available in catalog/region",
+                    },
+                    {
+                        "account_id": acct,
+                        "yandex_track_id": "4",
+                        "status": "failed",
+                        "reason": "download failed: Timed out",
                     },
                 ]
             )
@@ -209,14 +219,15 @@ async def test_a_yandex_import_tops_up_and_mirrors_the_playlist(
             )
 
     got = await run()
-    assert fetched == [2, 4]  # «1» is here, «3» is refused
-    assert got["downloaded"] == 1
+    assert fetched == [2, 4, 4, 4]  # «1» is here, «3» refused; «4» came in the second pass
+    assert got["downloaded"] == 2
+    assert got["skipped"] == []
     assert len(got["playlists"]) == 1
     pid = uuid.UUID(got["playlists"][0]["playlist_id"])
     async with sm() as s:
         pl = (await s.execute(sa.select(playlists).where(playlists.c.id == pid))).one()
     assert (pl.name, pl.origin) == ("Мне нравится из Яндекс Музыки", "yandex")
-    assert await order() == ["Song 1", "Song 2"]
+    assert await order() == ["Song 1", "Song 2", "Song 4"]
 
     async with sm() as s:  # the listener takes «2» out of the playlist
         await s.execute(
@@ -233,12 +244,12 @@ async def test_a_yandex_import_tops_up_and_mirrors_the_playlist(
         await s.commit()
     src.insert(0, song(5))  # a new like on top
     got = await run()
-    assert fetched == [2, 4, 5, 4]  # the new one, and the timed-out one again
+    assert fetched == [2, 4, 4, 4, 5]  # only the new one
     assert uuid.UUID(got["playlists"][0]["playlist_id"]) == pid
     assert await order() == ["Song 5", "Song 1", "Song 4"]  # Yandex order; «2» stays out
 
     got = await run()  # nothing new: nothing fetched, nothing added
-    assert fetched == [2, 4, 5, 4]
+    assert fetched == [2, 4, 4, 4, 5]
     assert got["playlists"][0]["added"] == 0
     async with sm() as s:
         rows = dict(

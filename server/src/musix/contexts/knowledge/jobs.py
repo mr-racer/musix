@@ -38,8 +38,9 @@ from musix.contexts.knowledge.models import (
 from musix.contexts.library import artist_split
 from musix.contexts.library.models import artists, media_files, songs, track_artists, tracks
 from musix.contexts.library.slug import slugify, song_key
+from musix.errors import Unavailable
 from musix.infra.changelog import record_change
-from musix.infra.llm import Llm
+from musix.infra.llm import Llm, LlmRejected
 from musix.knowledge import sonic_vibe as SV
 from musix.knowledge.fact_relations.service import song_producers
 from musix.knowledge.facts_v2 import pipeline as fv2
@@ -318,9 +319,19 @@ async def artist(sm: SM, http: httpx.AsyncClient, media_dir: Path, artist_id: uu
 # ── facts_v2 (ai queue) ──────────────────────────────────────────────────────
 
 
-def asker(llm: Llm, kind: str) -> Callable[..., Awaitable[str]]:
+def asker(llm: Llm, kind: str, down: list[str] | None = None) -> Callable[..., Awaitable[str]]:
+    """`down` collects the LLM's Unavailable errors: the facts_v2 and bio pipelines swallow
+    a failed call, so without it a job run while the LLM was off ends «done» with nothing."""
+
     async def ask(prompt: str, temperature: float = 0.3) -> str:
-        return await llm.ask(prompt, kind=kind, temperature=temperature)
+        try:
+            return await llm.ask(prompt, kind=kind, temperature=temperature)
+        except LlmRejected:
+            raise  # this prompt's own fault: the pipeline skips it, as before
+        except Unavailable as e:
+            if down is not None:
+                down.append(str(e))
+            raise
 
     return ask
 
@@ -378,9 +389,10 @@ async def refine(sm: SM, llm: Llm, kind: str, subject_id: uuid.UUID, lang: str) 
             ).one()
             entity = {"slug": a.slug, "name": a.name}
     done: list[dict[str, Any]] = []
+    down: list[str] = []
     cfg = await llm.config()
     recs = await fv2.process_entity(
-        asker(llm, "facts_v2"),
+        asker(llm, "facts_v2", down),
         entity,
         kind,
         todo,
@@ -416,6 +428,8 @@ async def refine(sm: SM, llm: Llm, kind: str, subject_id: uuid.UUID, lang: str) 
             links = await _store_links(s, subject_id, entity, recs)
         await _touch(s, songs if kind == "song" else artists, subject_id)
         await s.commit()
+    if down:  # the refined ones are stored; the retry asks only for the rest
+        raise Unavailable(f"refine: {down[0]}")
     return {"facts": len(done), "failed": sum(1 for r in recs if r.get("error")), "links": links}
 
 
@@ -570,15 +584,24 @@ async def relations(sm: SM, llm: Llm, song_id: uuid.UUID) -> int:
     if row is None or not texts:
         return 0
     loop = asyncio.get_running_loop()
+    down: list[str] = []
 
     def ask(messages: list[dict[str, str]]) -> Any:
         system = next((m["content"] for m in messages if m.get("role") == "system"), None)
         user = next((m["content"] for m in messages if m.get("role") == "user"), "")
-        return asyncio.run_coroutine_threadsafe(
-            llm.ask_json(user, system=system, temperature=0, kind="fact_relations"), loop
-        ).result()
+        try:
+            return asyncio.run_coroutine_threadsafe(
+                llm.ask_json(user, system=system, temperature=0, kind="fact_relations"), loop
+            ).result()
+        except LlmRejected:
+            raise
+        except Unavailable as e:
+            down.append(str(e))
+            raise
 
     producers = await asyncio.to_thread(song_producers, texts, row.title, row.artist or "", ask)
+    if down:  # song_producers skips a failed call: «done» now would mean «no producers» forever
+        raise Unavailable(f"relations: {down[0]}")
     async with sm() as s:
         for name in producers:
             await _add_relation(
@@ -728,8 +751,9 @@ async def bio(sm: SM, llm: Llm, artist_id: uuid.UUID, lang: str) -> bool:
     from musix.workers.context import settings
 
     bind(sm, llm, settings().procrastinate_conninfo, asyncio.get_running_loop())
+    down: list[str] = []
     result = await bio2.build(
-        asker(llm, "bio"),
+        asker(llm, "bio", down),
         a.name,
         lang_name=LANG_NAME.get(lang, "Russian"),
         lang_code=lang,
@@ -740,6 +764,8 @@ async def bio(sm: SM, llm: Llm, artist_id: uuid.UUID, lang: str) -> bool:
 
     text, facets = clean_bio(result.get("bio") or "", lang), result.get("facets") or {}
     if not text:
+        if down:
+            raise Unavailable(f"bio: {down[0]}")
         log.info("[bio] %s: %s", a.name, result.get("error"))
         return False
     sources = {
