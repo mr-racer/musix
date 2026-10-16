@@ -4,8 +4,9 @@ track chat — defer with a higher priority than this bulk enrichment)."""
 
 from __future__ import annotations
 
+import contextlib
 import uuid
-from functools import cache
+from collections.abc import AsyncIterator
 from pathlib import Path
 from typing import Any
 
@@ -42,11 +43,15 @@ BULK = 0  # interactive LLM work defers with priority INTERACTIVE (Task 8)
 INTERACTIVE = 10
 
 
-@cache
-def http() -> httpx.AsyncClient:
+@contextlib.asynccontextmanager
+async def http() -> AsyncIterator[httpx.AsyncClient]:
+    """A client per job. One cached for the worker's life collected lost pool slots: after
+    two days every request waited 15 s for a slot with no socket open (PoolTimeout), each
+    one counted against the source, and its breaker stayed open (2026-10-16)."""
     from musix.contexts.knowledge.sources import client
 
-    return client(settings().proxy_url)
+    async with client(settings().proxy_url) as c:
+        yield c
 
 
 async def _defer(name: str, lock: str, **kw: str) -> None:
@@ -64,7 +69,9 @@ async def start(media_file_id: str) -> None:
 
 
 async def song(song_id: str) -> None:
-    if await jobs.song(sessionmaker(), http(), uuid.UUID(song_id)):
+    async with http() as h:
+        found = await jobs.song(sessionmaker(), h, uuid.UUID(song_id))
+    if found:
         for lang in settings().knowledge_langs:
             await _defer(
                 "knowledge:refine",
@@ -78,9 +85,10 @@ async def song(song_id: str) -> None:
 
 
 async def artist(artist_id: str) -> None:
-    has_facts = await jobs.artist(
-        sessionmaker(), http(), Path(settings().media_dir), uuid.UUID(artist_id)
-    )
+    async with http() as h:
+        has_facts = await jobs.artist(
+            sessionmaker(), h, Path(settings().media_dir), uuid.UUID(artist_id)
+        )
     for lang in settings().knowledge_langs:
         if has_facts:
             await _defer(
@@ -105,7 +113,8 @@ async def refine(kind: str, subject_id: str, lang: str) -> dict[str, int]:
 
 
 async def verify(song_id: str) -> dict[str, int]:
-    return await jobs.verify(sessionmaker(), http(), uuid.UUID(song_id))
+    async with http() as h:
+        return await jobs.verify(sessionmaker(), h, uuid.UUID(song_id))
 
 
 async def relations(song_id: str) -> int:
