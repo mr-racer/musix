@@ -127,9 +127,14 @@ async def genius_song(
     except (KeyError, TypeError):
         refs = []
 
+    # every annotation at once filled the shared pool whenever the proxy stalled (PoolTimeout
+    # for every other source); 8 in flight is still twice the bucket's 4/s
+    gate = asyncio.Semaphore(8)
+
     async def one(rid: str, link: str) -> tuple[str, str] | None:
         try:
-            rr, _ = await _get(sm, GENIUS, http, link)
+            async with gate:
+                rr, _ = await _get(sm, GENIUS, http, link)
         except Unavailable:
             return None  # v1: a referent that fails is skipped, the song is not
         return G.parse_referent(rr.text, rid) if rr else None

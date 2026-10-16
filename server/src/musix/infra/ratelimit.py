@@ -14,6 +14,7 @@ import asyncio
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 
+import httpx
 import sqlalchemy as sa
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
@@ -98,12 +99,16 @@ async def guard[T](
 ) -> T:
     """Run one call against `src` within its budget. A source error (an exception from
     `call`) counts toward its breaker and is re-raised; "no result" should be returned
-    as None by `call`, not raised."""
+    as None by `call`, not raised. A PoolTimeout is our own client's pool, full of another
+    source's requests (Genius asks for every annotation at once): it says nothing about
+    `src`, and counting it opened songfacts' breaker for 5 minutes on 2026-10-16."""
     if await is_open(sm, src.name):
         raise Unavailable(f"{src.name} is failing; skipped", source=src.name)
     await acquire(sm, src)
     try:
         out = await call()
+    except httpx.PoolTimeout:
+        raise
     except Exception as e:
         await record(sm, src.name, ok=False, error=f"{type(e).__name__}: {e}")
         raise
