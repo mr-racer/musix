@@ -86,6 +86,67 @@ async def test_the_lyrics_chain_falls_through_in_order(sm) -> None:  # type: ign
             sa.text("select failures from source_health where source = :s"), {"s": f"down-{tag}"}
         )
     assert fails == 1  # the failing source counts toward its breaker
+    # nobody answered: not «no lyrics» but «ask again later»; one «no» is an answer
+    with pytest.raises(Unavailable):
+        await online.find(sm, online.Query("Song", "Artist", None, 180.0), chain[:1])
+    assert await online.find(sm, online.Query("Song", "Artist", None, 180.0), chain[:2]) is None
+
+
+async def test_lyrics_the_network_could_not_give_come_later(
+    sm, settings: Settings, listener, monkeypatch
+) -> None:  # type: ignore[no-untyped-def]
+    """No source answered at ingest: the song still goes on to be ready, and the late job
+    asks again until the lyrics come — then BM25 has them and the player is told."""
+    from musix.contexts.library.models import lyrics
+    from musix.infra.changelog import change_log
+
+    _, acct, ids = listener
+    async with sm() as s:
+        mf = await s.scalar(sa.select(tracks.c.media_file_id).where(tracks.c.id == ids[0]))
+        await s.execute(sa.delete(lyrics).where(lyrics.c.media_file_id == mf))
+        await s.execute(
+            sa.update(media_files).where(media_files.c.id == mf).values(intel_state="pending")
+        )
+        await s.commit()
+    answers: list[online.Found | None] = []
+
+    async def find(sm_, q):  # type: ignore[no-untyped-def]
+        if not answers:
+            raise Unavailable("lyrics: no source answered")
+        return answers.pop()
+
+    monkeypatch.setattr(online, "find", find)
+    assert await pipeline.lyrics_step(sm, mf) is True  # late, but not in the way
+    async with sm() as s:
+        assert (
+            await s.scalar(sa.select(media_files.c.intel_state).where(media_files.c.id == mf))
+            == "lyrics"
+        )
+    q = vectors.client(settings.qdrant_url)
+    await vectors.ensure(q)
+    text = np.random.default_rng(2).standard_normal(1024).tolist()
+    await q.upsert(
+        vectors.TRACKS,
+        [vectors.models.PointStruct(id=str(mf), vector={"text": text}, payload={})],
+        wait=True,
+    )
+    with pytest.raises(Unavailable):  # still nobody: the retry asks again later
+        await pipeline.late_lyrics_step(sm, q, mf)
+    async with sm() as s:
+        head = await s.scalar(
+            sa.select(sa.func.max(change_log.c.seq)).where(change_log.c.account_id == acct)
+        )
+    answers.append(online.Found("Line one\n\nLine two", "lrclib"))
+    assert await pipeline.late_lyrics_step(sm, q, mf) is True
+    async with sm() as s:
+        assert await s.scalar(sa.select(lyrics.c.text).where(lyrics.c.media_file_id == mf))
+        moved = await s.scalar(
+            sa.select(sa.func.max(change_log.c.seq)).where(change_log.c.account_id == acct)
+        )
+    assert moved > head  # the player's ETag moves: it fetches the lyrics
+    got = (await q.retrieve(vectors.TRACKS, [str(mf)], with_vectors=True))[0]
+    assert got.vector["bm25"]  # the lyrics are searchable
+    await q.close()
 
 
 def test_envelope_is_ten_hz_by_four_bands(tmp_path: Path) -> None:

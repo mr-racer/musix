@@ -94,11 +94,19 @@ async def find(
     q: Query,
     chain: tuple[tuple[Source, Fetch], ...] = CHAIN,
 ) -> Found | None:
+    """The first source's lyrics; None when a source answered and none had them. Raises
+    Unavailable when no source answered at all: «not found» then would be a guess, and it
+    was taken for the truth — 399 of the owner's Yandex imports were left without lyrics
+    by one evening of network trouble (2026-10-14..15)."""
+    answered = False
     for src, fetch in chain:
         try:
             got = await guard(sm, src, lambda fetch=fetch: fetch(q))  # type: ignore[misc]
         except (Unavailable, httpx.HTTPError, ValueError, OSError):
             continue  # an open breaker, a network error, a bad body: the next source
+        answered = True
         if got and (clean := sanitize_lyrics(got.text)):
             return Found(clean, got.source, got.synced_lrc)
+    if not answered:
+        raise Unavailable("lyrics: no source answered")
     return None

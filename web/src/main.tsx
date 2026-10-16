@@ -47,7 +47,12 @@ useAuth.subscribe((s, prev) => {
   void router.invalidate();
 });
 subscribe((e) => {
-  if (e.type === "sync.changed") void sync().then(() => queryClient.invalidateQueries({ queryKey: ["mirror"] }));
+  // the player's context too: lyrics found after the import mark their track changed, and a
+  // context cached for 10 min kept showing «тексты ещё не добавлены» (an unchanged one is a 304)
+  if (e.type === "sync.changed") void sync().then(() => Promise.all([
+    queryClient.invalidateQueries({ queryKey: ["mirror"] }),
+    queryClient.invalidateQueries({ queryKey: ["player-context"] }),
+  ]));
   if (e.type === "instance.status") void queryClient.invalidateQueries({ queryKey: ["instance"] });
 });
 

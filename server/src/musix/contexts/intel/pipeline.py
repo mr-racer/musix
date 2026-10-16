@@ -33,7 +33,8 @@ from musix.contexts.library.models import (
     track_artists,
     tracks,
 )
-from musix.infra.changelog import notify
+from musix.errors import Unavailable
+from musix.infra.changelog import notify, record_change
 from musix.infra.ml_client import MlClient
 from musix.infra.vectors import BM25, TRACKS, ensure
 
@@ -123,29 +124,56 @@ async def set_owners(q: AsyncQdrantClient, mf_id: uuid.UUID, own: list[str]) -> 
     await q.set_payload(TRACKS, payload={"owners": own}, points=[str(mf_id)], wait=True)
 
 
-async def lyrics_step(sm: SM, mf_id: uuid.UUID) -> None:
+LYRICS_MISS = "lyrics"  # source_fetch_log: every source answered «no lyrics» for this file
+
+
+async def _lookup(sm: SM, mf_id: uuid.UUID, m: Meta) -> bool:
+    """The online chain for one file: stores what it finds, logs a real miss. → found.
+    Raises Unavailable when no source answered (online.find)."""
+    from musix.contexts.knowledge.models import source_fetch_log
+
+    found = await online.find(
+        sm, online.Query(m.title, m.artist, m.album, (m.duration_ms or 0) / 1000 or None)
+    )
+    async with sm() as s:
+        if found:
+            await s.execute(
+                pg_insert(lyrics)
+                .values(
+                    media_file_id=mf_id,
+                    text=found.text,
+                    source=found.source,
+                    synced_lrc=found.synced_lrc,
+                    sanitized_at=sa.func.now(),
+                )
+                .on_conflict_do_nothing(index_elements=["media_file_id"])
+            )
+        else:
+            row = {"source": LYRICS_MISS, "key": str(mf_id), "status": "miss"}
+            await s.execute(
+                pg_insert(source_fetch_log)
+                .values(**row)
+                .on_conflict_do_update(
+                    index_elements=["source", "key"], set_={"fetched_at": sa.func.now()}
+                )
+            )
+        await s.commit()
+    return found is not None
+
+
+async def lyrics_step(sm: SM, mf_id: uuid.UUID) -> bool:
+    """The lyrics before the embedding. → True when no source answered: the song goes on
+    to be ready without them, and `late_lyrics_step` asks again later."""
     async with sm() as s:
         m = await meta(s, mf_id)
     if m is None:
-        return
+        return False
+    late = False
     if not m.lyrics:
-        found = await online.find(
-            sm, online.Query(m.title, m.artist, m.album, (m.duration_ms or 0) / 1000 or None)
-        )
-        if found:
-            async with sm() as s:
-                await s.execute(
-                    pg_insert(lyrics)
-                    .values(
-                        media_file_id=mf_id,
-                        text=found.text,
-                        source=found.source,
-                        synced_lrc=found.synced_lrc,
-                        sanitized_at=sa.func.now(),
-                    )
-                    .on_conflict_do_nothing(index_elements=["media_file_id"])
-                )
-                await s.commit()
+        try:
+            await _lookup(sm, mf_id, m)
+        except Unavailable:
+            late = True
     async with sm() as s:
         await s.execute(
             sa.update(media_files)
@@ -153,6 +181,45 @@ async def lyrics_step(sm: SM, mf_id: uuid.UUID) -> None:
             .values(intel_state="lyrics")
         )
         await s.commit()
+    return late
+
+
+async def late_lyrics_step(sm: SM, q: AsyncQdrantClient, mf_id: uuid.UUID) -> bool:
+    """Lyrics the sources could not give at ingest (Unavailable again = retry later). When
+    they come, the lyrics part of the search vectors is rebuilt (BM25 here, the dense one
+    by `text_step`), and the file's tracks are marked changed so players fetch them.
+    → whether lyrics came (the caller then queues the dense vector)."""
+    async with sm() as s:
+        m = await meta(s, mf_id)
+        own = await owners(s, mf_id)
+    if m is None or m.lyrics or not own:
+        return False
+    if not await _lookup(sm, mf_id, m):
+        return False
+    async with sm() as s:
+        m = await meta(s, mf_id)
+    assert m is not None
+    text = text_for_embedding(m.title, m.artist_display, m.album, m.genre, m.lyrics)
+    try:
+        await q.update_vectors(
+            TRACKS,
+            [
+                models.PointVectors(
+                    id=str(mf_id), vector={"bm25": models.Document(text=text, model=BM25)}
+                )
+            ],
+            wait=True,
+        )
+    except UnexpectedResponse as e:  # not embedded yet: `embed_step` reads the lyrics itself
+        if e.status_code != 404:
+            raise
+    async with sm() as s:
+        for acct, tid in await s.execute(
+            sa.select(T.account_id, T.id).where(T.media_file_id == mf_id, T.deleted_at.is_(None))
+        ):
+            await record_change(s, acct, "track", tid)
+        await s.commit()
+    return True
 
 
 async def _prompts(ml: MlClient, key: str, texts: tuple[str, ...]) -> np.ndarray:

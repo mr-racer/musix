@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import contextlib
 import uuid
+from typing import Any
 
 import procrastinate
 import sqlalchemy as sa
@@ -23,6 +24,11 @@ RETRY = procrastinate.RetryStrategy(
 )
 # the GPU host is optional (the owner turns it off): its jobs wait for it, every 10 min, forever
 GPU_RETRY = procrastinate.RetryStrategy(wait=600, retry_exceptions={Unavailable})
+# lyrics no source could give at ingest: asked again over ~11 h (10 min, then 10 min more each
+# time), so an evening of a choking network does not leave a song without them for good
+LATE_RETRY = procrastinate.RetryStrategy(
+    max_attempts=12, wait=600, linear_wait=600, retry_exceptions={Unavailable}
+)
 
 
 async def _defer(name: str, mf: str) -> None:
@@ -45,8 +51,51 @@ async def start(media_file_id: str) -> None:
 
 
 async def lyrics(media_file_id: str) -> None:
-    await pipeline.lyrics_step(sessionmaker(), uuid.UUID(media_file_id))
+    late = await pipeline.lyrics_step(sessionmaker(), uuid.UUID(media_file_id))
     await _defer("intel:embed", media_file_id)
+    if late:
+        await _later_lyrics(media_file_id, schedule_in={"minutes": 10})
+
+
+async def _later_lyrics(mf: str, **kw: Any) -> None:
+    from musix.workers.app import app
+
+    task = app.configure_task(
+        "intel:lyrics_late", queueing_lock=f"intel:lyrics_late:{mf}", priority=-10, **kw
+    )
+    with contextlib.suppress(AlreadyEnqueued):
+        await task.defer_async(media_file_id=mf)
+
+
+async def lyrics_late(media_file_id: str) -> None:
+    if await pipeline.late_lyrics_step(sessionmaker(), await qdrant(), uuid.UUID(media_file_id)):
+        with contextlib.suppress(AlreadyEnqueued):  # already waiting for the GPU: it reads them
+            await _defer("intel:embed_text", media_file_id)
+
+
+async def lyrics_backfill() -> int:
+    """Lyrics for every indexed file that has none and was never a real miss (every source
+    said «no lyrics»): the files whose lookups failed on the network before
+    `intel:lyrics_late` existed. `procrastinate defer intel:lyrics_backfill {}`."""
+    from musix.contexts.knowledge.models import source_fetch_log
+    from musix.contexts.library.models import lyrics as lyrics_t
+    from musix.contexts.library.models import tracks
+
+    M = media_files.c
+    q = sa.select(M.id).where(
+        M.intel_state == "indexed",
+        sa.exists().where(tracks.c.media_file_id == M.id, tracks.c.deleted_at.is_(None)),
+        ~sa.exists().where(lyrics_t.c.media_file_id == M.id),
+        ~sa.exists().where(
+            source_fetch_log.c.source == pipeline.LYRICS_MISS,
+            source_fetch_log.c.key == sa.cast(M.id, sa.Text),
+        ),
+    )
+    async with sessionmaker()() as s:
+        ids: list[uuid.UUID] = list(await s.scalars(q))
+    for mf in ids:
+        await _later_lyrics(str(mf))
+    return len(ids)
 
 
 async def embed(media_file_id: str) -> None:
@@ -146,6 +195,8 @@ def register(app: procrastinate.App) -> None:
     app.task(name="intel:start", queue="default")(start)
     app.task(name="intel:reown", queue="default")(reown)
     app.task(name="intel:lyrics", queue="net", retry=RETRY)(lyrics)
+    app.task(name="intel:lyrics_late", queue="net", retry=LATE_RETRY)(lyrics_late)
+    app.task(name="intel:lyrics_backfill", queue="default")(lyrics_backfill)
     app.task(name="intel:embed", queue="ml", retry=RETRY)(embed)
     app.task(name="intel:embed_text", queue="gpu", retry=GPU_RETRY)(embed_text)
     app.task(name="intel:envelope", queue="media", retry=2)(envelope)
