@@ -484,3 +484,154 @@ mock (version 3); Приватность moved under Звук to balance the col
 He chose **tabs** over columns («давай вкладки сделаем») and **the phone banner starts folded
 when the account already has an Android device**. Build the mock as is (round 2 minus the
 crossfade); loading may be optimised as long as nothing in the design is lost.
+
+## 2026-10-14 — the artist page, the brief
+
+- **The composition he likes stays:** the name big at the top, the picture, the basic facts —
+  **the flag and the country of origin are required**.
+- **The cut-out** (the photo without background) must not feel «будто картинку просто прикрепили
+  рандомно на экран». **The rays behind the artist go** («слишком цыганский»).
+- **The short history and the Grammys stay**: «прикольно, полезная фича, которой у других нет» —
+  an accent on it, «немного завлекающе оформить».
+- **Albums in chronological order stay**; how they look is my call, organic with the rest of v2.
+- Wanted: other ideas for the screen, gamification, a local LLM generating something interesting.
+- Look for other image sources (fresher, better), but design on the data we have.
+  **«У audiodb старые картинки»** (his words, same day).
+
+Found while preparing: Apple Music's artist page carries current editorial photos (square up to
+4906 px, a wide 4320×2160 frame for big artists, a transparent logo for some, a bg colour); Deezer's
+1000 px picture is current too (official API, free). Kanye's profile on both is a black square:
+any source needs an «empty picture» check with a fallback. Data defects for this page: reissue
+years break the chronology (College Dropout 2007, Thriller 2008, Eminem Show 2022), Kanye's bio has
+no facets (no Grammy) and starts with the agent's English note in v1's copy, bios mix Latin place
+names, songfacts facts are English.
+
+Round 1 (`design/reference/artist/`, https://claude.ai/artifact/QnFQWiKA3J18pmMbHF7VTe): А «Сцена»,
+Б «Обложка», В «Кадр» (Apple photos); the Grammy case; the discography as a timeline or a grid;
+ideas marked. Awaiting his reaction.
+
+## 2026-10-15 — the artist page, round 1 → round 2
+
+**He chose «В · Кадр»** («самый оптимальный»); «Б · Обложка» also fine for the giant name and the
+play with the photo, «но там сами фотки хуже вписываются». The album timeline («Лента») he liked.
+His fixes:
+- The background photo ran too far down onto the page: shorten the bleed.
+- The Grammy plate felt «недоделанная, синтетическая»: **no hover glow; liquid glass v2**. The rank
+  among his own artists stays.
+- No label; the city only in the hero (not repeated below); the genre only in the hero.
+- Asked how «Поток артиста» works and where the missing albums and «Слим Шейди» come from (answered:
+  the missing albums and eras were typed by me as examples; real sources = MusicBrainz release
+  groups and an LLM over the discography).
+- The AI line under the name: fine. The assistant questions: fine, but at the bottom they looked
+  bad — **more accent, a fitting design; the quiz separate from them**.
+- Too much scrolling; facts and the achievements («ты и артист») were far down and hidden.
+- **The name sometimes read badly over the photo and the wide frame covered it.**
+- «Глобально дорефайни и улучши дизайн варианта В … с использованием высокооцененных и дорогих
+  эффектов и компоновки страницы».
+
+Round 2 (version 2 of the same artifact; round-1 sources in `design/reference/artist/round1/`):
+only «Кадр»; the photo's bleed cut to a 28 px fade; a 2:1 frame shifted so the subject sits at ~62 %
+and the left is the name's; a five-step progressive blur + scrim under the name's corner; light
+photos tamed; the Grammy case in liquid glass v2 floating over the photo (gold count, statuettes on
+black plinths placed one by one, the rank); a glass head (photo, name, play) floats in once the frame
+scrolls away; under the frame one row of three: «Коротко» + «А ты знал», «Спроси про …» (an aurora
+card, three questions, a glass field), «Ты и …» (level sticker, progress) + the quiz card (a stack of
+blurred covers that fans out); then the timeline (drawn when seen), then the songs in two columns +
+«Рядом в библиотеке». Dossier removed. Awaiting his reaction.
+
+## 2026-10-15 — the artist page, round 2 → round 3
+
+His fixes to «Кадр»:
+- The Grammy plate covered the artist's picture: move or shrink it; no «у лидера», rather **«место N
+  из M лауреатов твоей библиотеки»**.
+- Below the frame it became too dense (bio, facts, the assistant, the achievement): **keep the albums
+  high on the page**; the biography behind a window or a spoiler; **the assistant block goes** («много
+  ллм жрать и не такой полезный»).
+- The achievement must look **more elite, in our style**: minimal text, show graphically how much of
+  the artist I have explored and heard. **The quiz widget: liked.**
+- The timeline that starts long before the first album wastes width: a break, without breaking the
+  sense of the line (Michael Jackson).
+- Kanye's square photo took exactly half the frame: continue it softly to the left edge or fill the
+  surface with colour; think how to lay out a page with such a photo.
+- No source caption on the page; the way back more visible, bigger type.
+- (mid-round) **No photo shift on scroll.**
+
+Round 3 (version 3 of the same artifact): the frame is still; the Grammy is a compact glass case at the
+lower right (gold count, «№6 из 101 лауреата твоей библиотеки», statuettes); a square photo lights the
+whole frame with a deep blur of itself and melts into it; «Артисты» is a glass pill, 15 px; the source
+caption is gone; «Биография и N факта» under the facts line opens a window grown from the link (bio,
+the name's origin, the facts), the page out of focus behind; the discography right under the frame;
+«Ты и …» = a record whose grooves are the albums (oldest at the rim, each filled as far as heard, in its
+cover's colour; hover says the album in the label), the label in the level's metal (slate, bronze,
+silver, gold, platinum), five pips for the ladder, three numbers and one bar to the next level; the quiz
+beside it with «Рядом в библиотеке»; the timeline folds gaps over 6 years into a break «18 лет». The
+assistant block is removed.
+
+## 2026-10-16 — the artist page, round 3 → round 4
+
+His fixes to round 3:
+- Kanye on a big screen: **a hard colour break in the middle of the screen where the photo's left edge
+  is** — «это плохо».
+- «Ты и …» (the record): «немного тяжеловато понять, но в целом прикольная идея геймификации» → asked
+  for **a couple of alternative designs** of the block that describes his discovery of the artist.
+- **«Рядом в библиотеке» is not needed.** Put the facts there instead («убирать их под спойлер жалко,
+  там есть прикольные данные»), beside the quiz, compact, fitting the page; the quiz loses «10 песен из
+  твоей библиотеки».
+- Michael Jackson on a big screen: **the Grammy plate runs over the photo.** Show it on the left, or as
+  **a mini icon that tells at a glance how big the artist is at the Grammys, the details on hover**, fitted
+  softly into the interface, «не тупо поверх фотки».
+
+Round 4 (version 4 of the same artifact):
+- A square photo continues to the frame's left edge: its own left edge, row by row (canvas), stretched,
+  softened and darkened towards the name; the photo melts into it along an eased (smootherstep) ramp.
+  Lesson: a linear mask ramp shows its first stop as a seam on a big screen (the Mach band), and an
+  ambient blur of the whole picture does not match the colour at the edge.
+- The Grammys are **a gold laurel in the facts line** (flag · genre · years · laurel): the count inside,
+  the branches grow with the wins (a full wreath from 12), a hollow laurel with the nominations for zero
+  wins. The case (count, «№N из M лауреатов твоей библиотеки», the statuettes placed one by one) grows out
+  of it on hover, focus or click, in liquid glass v2, over the name's zone, never over the photo.
+- «Ты и …» in four designs behind a mock switch in the heading: **Коллекция** (the covers coloured in as
+  far as heard, a water line where the colour stops, a metal check on a finished album; my pick),
+  **Шкала** (one share in the level's metal, one bar of all the albums by songs, the path of five
+  levels with what is left), **История** (the first song and its day, days together, plays by week with
+  coins on the weeks a level was reached), **Пластинка** (round 3, for comparison). What is under the
+  pointer is said in the caption line, no pop-ups.
+- «А ты знал» beside the quiz: one fact at a time in a box of stable height, the next develops in place
+  (click or →), the counter turns; the facts left the biography window; the link reads «Биография».
+- Fixed on the way: the name's word-in animation kept a compositing layer that showed through the glass
+  as a lighter rectangle → entry animations fill `backwards` only.
+Awaiting his reaction.
+
+## 2026-10-16 — the artist page, round 4 → round 5
+
+- «Да, норм». **«Ты и …» = «Коллекция»** (Шкала, История, Пластинка dropped; sources in
+  `design/reference/artist/round4/`). Without the caption «в цвете …»; the line about the next level at
+  the bottom bigger.
+- **Not the place in the top («№4 из 311»), but how often he plays the artist against the others**,
+  «не сухо … прикольно и с вайбом, но не перегибая».
+- **The level names more vibey, «Легенда» the top one** (mid-round).
+- The quiz's cover stack with one album went askew to the left: **one cover stands straight and only
+  hops up** on hover.
+- Maroon 5: **the edge treatment washed out the left of a photo whose subject runs to its edge** (the
+  wide ramp and the progressive blur reached the people).
+
+Round 5 (version 5): the levels are a fan's way to the stage — **На разогреве → Танцпол → Первый ряд →
+Бэкстейдж → Легенда** (same thresholds and metals; at the top «Легенда — выше только сцена»); how often =
+radio words with a five-bar on-air meter — **Не сходит с эфира** (the most played), **Тяжёлая ротация**
+(top 2 %), **В ротации** (top 10 %), **Частый гость эфира** (30 %), **Иногда в эфире** (60 %), **Редко в
+эфире**, with «чаще, чем 99 % твоих артистов» under it. The square photo: an 8 % ramp, no progressive
+blur, a scrim that stops near its edge, narrower on small screens so the text keeps ≈620 px; the edge
+continuation is sharp at the photo and blurs 0.6 px per px of distance (a contour crossing the edge turns
+to soft light, not streaks). Awaiting his reaction.
+
+## 2026-10-17 — the artist page, approved → build
+
+«Так, вроде норм, давай внедрять соответствуя артифакту + возможные оптимизации без вреда визуалу для
+быстродействия, и деплоим в design-refresh». Built on `v2` (rules: `screens/artist.md`): the server
+fetches Apple Music's editorial photos and MusicBrainz's first release years (migration 0026, a
+backfill task), the page gets «Ты и …», the Grammy rank and the facts, «Поток артиста» and the
+artist quiz are new endpoints. Speed: the progressive blur is masked copies with `filter` instead of
+five `backdrop-filter` layers, the head arrives by an observer, the photo is decoded before it fades
+in, pictures load at their drawn size, the songs are laid out only when near. The quiz window
+(the card only said «Играть» in the mock) is my design: ten rounds, a ring that fills for three
+seconds, four covers, the score with a line.

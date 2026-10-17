@@ -83,7 +83,7 @@ Routes of the web app (`web/src/routes`), with what each holds and where it lead
 | **Player** | `/player` | done: `screens/player.md` | an artist, an album, search (a producer), the queue and assistant windows |
 | **Library** | `/library` | built on `v2` 2026-10-11, awaiting the owner's check: `screens/library.md` (the wall «Стена» of albums and artists with groups, the glass plate and the rail, the film «Не распечатаны», «Пластинка дня», the glass search, playlists filling the page, the statistics «А» with achievements) | the gatefold (an album), an artist, a playlist, the player (a song) |
 | **Album** | `/album/$id` | the cover in its light, play, shuffle, «В плейлист», numbered tracks | the artist, the player |
-| **Artist** | `/artist/$id` | the name, the photo or cut-out figure in its light, the dossier, the AI bio, top tracks, albums | the gatefold, the player, the library |
+| **Artist** | `/artist/$id` | built 2026-10-17: `screens/artist.md` («Кадр»: the editorial photo, the Grammy laurel, the discography by year, «Ты и …» as a collection, the quiz, the facts, the songs) | the gatefold, the player, the library |
 | **Playlist** | `/playlist/$id` | rename in place, delete with a second click, drag to reorder, remove a row | the player, the library |
 | **Search** | `/search` | the composer with its modes (всё, по тексту, по звучанию), year and sound chips, results: artists, tracks, by lyrics, by sound, albums | an artist, the gatefold, the player |
 
