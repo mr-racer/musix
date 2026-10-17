@@ -210,3 +210,16 @@ async def test_artist_page_knows_you_the_grammys_and_the_stream(
         "/api/v2/quiz/rounds", json={"mode": "artist_snippet", "artistId": str(artist)}, headers=h
     )
     assert quiz.status_code in (200, 409)  # four songs of the artist make a round; fewer → 409
+
+
+async def test_editorial_image_kinds_pass_the_kind_check(sm) -> None:  # type: ignore[no-untyped-def]
+    """The Apple Music images are rows of their own kinds; the first prod fetches failed on images'
+    kind check (2026-10-17). (The host has no libvips, so store_image itself is not run here.)"""
+    import sqlalchemy as sa
+
+    from musix.contexts.library.models import images
+
+    async with sm() as s:
+        for k in ("artist_photo", "artist_wide", "artist_logo"):
+            await s.execute(sa.insert(images).values(id=f"{k:0<64}"[:64], kind=k, variants={}))
+        await s.rollback()

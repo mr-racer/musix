@@ -55,9 +55,14 @@ async def http() -> AsyncIterator[httpx.AsyncClient]:
 
 
 async def _defer(name: str, lock: str, **kw: str) -> None:
+    from procrastinate.exceptions import AlreadyEnqueued
+
     from musix.workers.app import app
 
-    await app.configure_task(name, queueing_lock=f"{name}:{lock}", priority=BULK).defer_async(**kw)
+    task = app.configure_task(name, queueing_lock=f"{name}:{lock}", priority=BULK)
+    # already waiting: a backfill re-run must not stop at the first one
+    with contextlib.suppress(AlreadyEnqueued):
+        await task.defer_async(**kw)
 
 
 async def start(media_file_id: str) -> None:
