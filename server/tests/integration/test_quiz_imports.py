@@ -22,7 +22,7 @@ def test_every_quiz_mode_is_served(client: TestClient, listener) -> None:  # typ
     assert (
         {m["key"] for m in got}
         == set(MODES)
-        == {"track_snippet", "producer", "blind_year", "lineage"}
+        == {"track_snippet", "producer", "blind_year", "lineage", "artist_snippet"}
     )
 
 

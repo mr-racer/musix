@@ -40,6 +40,16 @@ async def feedback(body: S.FeedbackIn, p: Auth, s: Session) -> Response:
     return Response(status_code=204)
 
 
+@router.post("/artist", response_model=S.AutoplayOut)
+async def artist(body: S.ArtistStreamIn, p: Auth, request: Request) -> S.AutoplayOut:
+    """«Поток артиста»: the artist's songs, the heard ones more often, two at a time with
+    one of the library's songs that sound like them (CLAP neighbours of the most played)."""
+    c = _ctx(request, p)
+    ids = await service.artist_stream(c, request.app.state.qdrant, body.artist_id, body.limit)
+    ts = await c.tracks(ids)
+    return S.AutoplayOut(tracks=ts, images=await c.images([t.cover_image_id for t in ts]))
+
+
 @router.post("/autoplay", response_model=S.AutoplayOut)
 async def autoplay(body: S.AutoplayIn, p: Auth, request: Request) -> S.AutoplayOut:
     c = _ctx(request, p)

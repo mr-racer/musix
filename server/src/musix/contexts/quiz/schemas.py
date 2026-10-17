@@ -20,6 +20,7 @@ class QuizMode(Model):
 class RoundIn(Model):
     mode: str = Field(max_length=40)
     snippet_sec: int = 3  # 3 | 5 | 10
+    artist_id: uuid.UUID | None = None  # artist_snippet: whose songs
 
 
 class RoundOut(Model):

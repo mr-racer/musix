@@ -319,6 +319,7 @@ async def album_cards(c: Ctx, where: sa.ColumnElement[bool], order: Any = None) 
             id=r.id,
             title=r.title,
             year=r.year,
+            original_year=r.original_year,
             album_artist=S.ArtistRef(id=r.album_artist_id, name=r.aa_name)
             if r.album_artist_id
             else None,
@@ -431,7 +432,54 @@ async def artists_by_ids(c: Ctx, ids: list[uuid.UUID]) -> list[S.ArtistOut]:
     return [S.ArtistOut.model_validate(r._mapping) for r in rows]
 
 
+# «Ты и …»: the artist's own songs, heard and played; the artist's place among the library's
+# artists by plays (ties share a place); the library's artists = those with songs of their own
+_YOU = sa.text("""
+WITH per AS (
+  SELECT ta.artist_id, sum(coalesce(st.plays, 0)) AS p
+  FROM tracks t JOIN track_artists ta ON ta.track_id = t.id AND ta.role = 'main'
+  LEFT JOIN account_track_stats st ON st.account_id = t.account_id AND st.track_id = t.id
+  WHERE t.account_id = :a AND t.deleted_at IS NULL GROUP BY ta.artist_id
+), me AS (SELECT p FROM per WHERE artist_id = :ar)
+SELECT (SELECT p FROM me) AS plays,
+       (SELECT count(*) FROM per WHERE p > (SELECT p FROM me)) + 1 AS rank,
+       (SELECT count(*) FROM per) AS artists,
+       (SELECT count(*) FROM tracks t
+          JOIN track_artists ta ON ta.track_id = t.id AND ta.artist_id = :ar AND ta.role = 'main'
+          JOIN account_track_stats st ON st.account_id = t.account_id AND st.track_id = t.id
+        WHERE t.account_id = :a AND t.deleted_at IS NULL AND st.plays > 0) AS heard
+""")
+_HEARD = sa.text("""
+SELECT t.album_id, count(*) FILTER (WHERE st.plays > 0) AS heard
+FROM tracks t
+LEFT JOIN account_track_stats st ON st.account_id = t.account_id AND st.track_id = t.id
+WHERE t.account_id = :a AND t.deleted_at IS NULL AND t.album_id = ANY(:albums)
+GROUP BY t.album_id
+""")
+# the Grammy wins of the library's artists, from their bios (any language; Russian first)
+_GRAMMY = sa.text("""
+WITH lib AS (
+  SELECT DISTINCT ta.artist_id FROM tracks t
+  JOIN track_artists ta ON ta.track_id = t.id AND ta.role = 'main'
+  WHERE t.account_id = :a AND t.deleted_at IS NULL
+), w AS (
+  SELECT DISTINCT ON (b.artist_id) b.artist_id,
+         round((b.facets ->> 'grammy_wins')::numeric)::int AS wins,
+         CASE WHEN jsonb_typeof(b.facets -> 'grammy_nominations') = 'number'
+              THEN round((b.facets ->> 'grammy_nominations')::numeric)::int END AS noms
+  FROM artist_bios b JOIN lib ON lib.artist_id = b.artist_id
+  WHERE jsonb_typeof(b.facets -> 'grammy_wins') = 'number'
+  ORDER BY b.artist_id, (b.lang = 'ru') DESC
+), me AS (SELECT wins, noms FROM w WHERE artist_id = :ar)
+SELECT (SELECT wins FROM me) AS wins, (SELECT noms FROM me) AS noms,
+       (SELECT count(*) FROM w WHERE wins > 0) AS laureates,
+       (SELECT count(*) FROM w WHERE wins > (SELECT wins FROM me)) + 1 AS position
+""")
+
+
 async def artist_page(c: Ctx, artist_id: uuid.UUID) -> S.ArtistPageOut:
+    from musix.contexts.knowledge.service import subject_facts
+
     def by_role(role: str) -> sa.Select[Any]:
         return (
             sa.select(T.id)
@@ -439,7 +487,8 @@ async def artist_page(c: Ctx, artist_id: uuid.UUID) -> S.ArtistPageOut:
             .where(c.live(), Ta.artist_id == artist_id, Ta.role == role)
         )
 
-    found, cards, top_ids, feat_ids, n, profile = await asyncio.gather(
+    args = {"a": c.account_id, "ar": artist_id}
+    page = asyncio.gather(
         artists_by_ids(c, [artist_id]),
         album_cards(c, Al.album_artist_id == artist_id, [Al.year.desc().nulls_last(), Al.title]),
         _ids(
@@ -455,21 +504,59 @@ async def artist_page(c: Ctx, artist_id: uuid.UUID) -> S.ArtistPageOut:
         c.run(
             lambda s: s.scalar(sa.select(sa.func.count()).select_from(by_role("main").subquery()))
         ),
-        c.run(lambda s: s.scalar(sa.select(Ar.profile).where(Ar.id == artist_id))),
+        c.run(
+            lambda s: s.execute(
+                sa.select(Ar.profile, Ar.photo_id, Ar.wide_id, Ar.logo_id, Ar.editorial).where(
+                    Ar.id == artist_id
+                )
+            )
+        ),
+    )
+    mine = asyncio.gather(
+        c.run(lambda s: s.execute(_YOU, args)),
+        c.run(lambda s: s.execute(_GRAMMY, args)),
+        c.run(lambda s: subject_facts(s, "artist", artist_id, "ru")),
+    )
+    (found, cards, top_ids, feat_ids, n, row), (you, grammy, facts) = await asyncio.gather(
+        page, mine
     )
     if not found:
         raise NotFound("artist")
-    profile = profile or {}
+    r = row.first()
+    profile, editorial = (r.profile if r else None) or {}, (r.editorial if r else None) or {}
+    y, g = you.first(), grammy.first()
+    album_ids = [a.id for a in cards]
+    heard_rows = (
+        await c.run(lambda s: s.execute(_HEARD, {"a": c.account_id, "albums": album_ids}))
+        if album_ids
+        else None
+    )
+    plays_rows = (
+        await c.run(
+            lambda s: s.execute(
+                sa.select(St.track_id, St.plays).where(
+                    St.account_id == c.account_id, St.track_id.in_(top_ids)
+                )
+            )
+        )
+        if top_ids
+        else None
+    )
     top, feat = await asyncio.gather(c.tracks(top_ids), c.tracks(feat_ids))
+    photo, wide, logo = (r.photo_id, r.wide_id, r.logo_id) if r else (None, None, None)
     imgs = await c.images(
         [
             found[0].image_id,
             found[0].cutout_id,
+            photo,
+            wide,
+            logo,
             *(a.cover_image_id for a in cards),
             *_covers(top),
             *_covers(feat),
         ]
     )
+    plays = int(y.plays or 0) if y else 0
     return S.ArtistPageOut(
         artist=found[0],
         albums=cards,
@@ -479,6 +566,27 @@ async def artist_page(c: Ctx, artist_id: uuid.UUID) -> S.ArtistPageOut:
         images=imgs,
         country=profile.get("country"),
         country_code=profile.get("countryCode"),
+        photo_id=photo,
+        wide_id=wide,
+        logo_id=logo,
+        page_color=editorial.get("bg"),
+        you=S.ArtistYou(
+            plays=plays,
+            heard_tracks=int(y.heard or 0) if y else 0,
+            rank=int(y.rank) if y and plays > 0 else None,
+            artists=int(y.artists or 0) if y else 0,
+        ),
+        heard={str(h.album_id): int(h.heard) for h in heard_rows or []},
+        plays={str(p.track_id): int(p.plays) for p in plays_rows or []},
+        grammy=S.GrammyOut(
+            wins=int(g.wins),
+            nominations=g.noms,
+            position=int(g.position),
+            laureates=int(g.laureates),
+        )
+        if g is not None and g.wins is not None
+        else None,
+        facts=facts[0][:8],
     )
 
 

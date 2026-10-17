@@ -35,6 +35,7 @@ class RoundContext:
     sample_links: list[dict] = field(default_factory=list)
     rng: object = _random
     now: float = 0.0
+    artist_id: str | None = None  # artist_snippet: the artist whose songs the round is about
 
     def __post_init__(self) -> None:
         self._index = {t.get("track_id"): t for t in self.tracks}

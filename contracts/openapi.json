@@ -290,6 +290,17 @@
             "title": "Id",
             "type": "string"
           },
+          "originalYear": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Originalyear"
+          },
           "title": {
             "title": "Title",
             "type": "string"
@@ -728,11 +739,75 @@
             ],
             "title": "Countrycode"
           },
+          "facts": {
+            "items": {
+              "$ref": "#/components/schemas/FactOut"
+            },
+            "title": "Facts",
+            "type": "array"
+          },
+          "grammy": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/GrammyOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "heard": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Heard",
+            "type": "object"
+          },
           "images": {
             "additionalProperties": {
               "$ref": "#/components/schemas/ImageData"
             },
             "title": "Images",
+            "type": "object"
+          },
+          "logoId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Logoid"
+          },
+          "pageColor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pagecolor"
+          },
+          "photoId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Photoid"
+          },
+          "plays": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Plays",
             "type": "object"
           },
           "topTracks": {
@@ -745,6 +820,27 @@
           "trackCount": {
             "title": "Trackcount",
             "type": "integer"
+          },
+          "wideId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Wideid"
+          },
+          "you": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ArtistYou"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [
@@ -814,6 +910,63 @@
           "pct"
         ],
         "title": "ArtistShare",
+        "type": "object"
+      },
+      "ArtistStreamIn": {
+        "properties": {
+          "artistId": {
+            "format": "uuid",
+            "title": "Artistid",
+            "type": "string"
+          },
+          "limit": {
+            "default": 40,
+            "maximum": 80.0,
+            "minimum": 4.0,
+            "title": "Limit",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "artistId"
+        ],
+        "title": "ArtistStreamIn",
+        "type": "object"
+      },
+      "ArtistYou": {
+        "description": "«Ты и …» on the artist page: how far the account has gone into the artist.",
+        "properties": {
+          "artists": {
+            "title": "Artists",
+            "type": "integer"
+          },
+          "heardTracks": {
+            "title": "Heardtracks",
+            "type": "integer"
+          },
+          "plays": {
+            "title": "Plays",
+            "type": "integer"
+          },
+          "rank": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rank"
+          }
+        },
+        "required": [
+          "plays",
+          "heardTracks",
+          "rank",
+          "artists"
+        ],
+        "title": "ArtistYou",
         "type": "object"
       },
       "AssistantTurnIn": {
@@ -1835,6 +1988,41 @@
           "tracks"
         ],
         "title": "GenreCount",
+        "type": "object"
+      },
+      "GrammyOut": {
+        "properties": {
+          "laureates": {
+            "title": "Laureates",
+            "type": "integer"
+          },
+          "nominations": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nominations"
+          },
+          "position": {
+            "title": "Position",
+            "type": "integer"
+          },
+          "wins": {
+            "title": "Wins",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "wins",
+          "nominations",
+          "position",
+          "laureates"
+        ],
+        "title": "GrammyOut",
         "type": "object"
       },
       "Health": {
@@ -4274,6 +4462,18 @@
       },
       "RoundIn": {
         "properties": {
+          "artistId": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Artistid"
+          },
           "mode": {
             "maxLength": 40,
             "title": "Mode",
@@ -14452,6 +14652,113 @@
         "summary": "Taste Map",
         "tags": [
           "screens"
+        ]
+      }
+    },
+    "/api/v2/stream/artist": {
+      "post": {
+        "description": "«Поток артиста»: the artist's songs, the heard ones more often, two at a time with\none of the library's songs that sound like them (CLAP neighbours of the most played).",
+        "operationId": "artist_api_v2_stream_artist_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ArtistStreamIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AutoplayOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Validation failed"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Rate limited"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Artist",
+        "tags": [
+          "stream"
         ]
       }
     },

@@ -44,7 +44,8 @@ SHRINKAGE_PSEUDO_N = 100  # v1: λ = n / (n + 100)
 _LIBRARY = sa.text("""
 SELECT t.id::text AS track_id, t.title, t.title_display, t.artist_display AS artist, al.title AS album,
        t.year, t.genre, coalesce(t.duration_ms, 0) / 1000.0 AS duration, t.cover_image_id AS cover_art_path,
-       pa.slug AS primary_artist_slug, mf.axes AS sonic_axes
+       pa.slug AS primary_artist_slug, t.primary_artist_id::text AS primary_artist_id,
+       mf.axes AS sonic_axes
 FROM tracks t JOIN media_files mf ON mf.id = t.media_file_id
 LEFT JOIN albums al ON al.id = t.album_id LEFT JOIN artists pa ON pa.id = t.primary_artist_id
 WHERE t.account_id = :a AND t.deleted_at IS NULL
@@ -174,7 +175,12 @@ async def _skill(s: AsyncSession, account_id: uuid.UUID, mode: str) -> dict[str,
 
 
 async def _context(
-    s: AsyncSession, snap: _Snapshot, account_id: uuid.UUID, mode: str, rng: Any = None
+    s: AsyncSession,
+    snap: _Snapshot,
+    account_id: uuid.UUID,
+    mode: str,
+    rng: Any = None,
+    artist_id: uuid.UUID | None = None,
 ) -> RoundContext:
     skill = await _skill(s, account_id, mode)
     if len(snap.tracks) < MIN_LIBRARY_FOR_ADAPTIVITY:
@@ -203,6 +209,7 @@ async def _context(
         sample_links=snap.sample_links,
         rng=rng or _random,
         now=snap.now,
+        artist_id=str(artist_id) if artist_id else None,
     )
 
 
@@ -219,20 +226,25 @@ async def list_modes(s: AsyncSession, account_id: uuid.UUID) -> list[dict[str, A
     out = []
     for key, mode in MODES.items():
         size = int(mode.pool_size(await _context(s, snap, account_id, key)))  # type: ignore[attr-defined]
-        out.append({"key": key, "pool_size": size, "available": size >= MIN_POOL, **_flags(mode)})
+        gate = getattr(mode, "MIN_POOL", MIN_POOL)
+        out.append({"key": key, "pool_size": size, "available": size >= gate, **_flags(mode)})
     return out
 
 
 async def build_round(
-    s: AsyncSession, account_id: uuid.UUID, mode: str, snippet_sec: int = DEFAULT_SNIPPET_SEC
+    s: AsyncSession,
+    account_id: uuid.UUID,
+    mode: str,
+    snippet_sec: int = DEFAULT_SNIPPET_SEC,
+    artist_id: uuid.UUID | None = None,
 ) -> dict[str, Any]:
     m = get_mode(mode)
     if m is None:
         raise NoRoundAvailable(f"unknown mode: {mode}")
     snippet_sec = snippet_sec if snippet_sec in ALLOWED_SNIPPET_SEC else DEFAULT_SNIPPET_SEC
     snap = await _snapshot(s, account_id)
-    ctx = await _context(s, snap, account_id, mode)
-    if m.pool_size(ctx) < MIN_POOL:  # type: ignore[attr-defined]
+    ctx = await _context(s, snap, account_id, mode, artist_id=artist_id)
+    if m.pool_size(ctx) < getattr(m, "MIN_POOL", MIN_POOL):  # type: ignore[attr-defined]
         raise NoRoundAvailable("not enough material for this mode yet")
     spec = m.build(ctx, snippet_sec=snippet_sec)  # type: ignore[attr-defined]
     expires = dt.datetime.fromtimestamp(snap.now + ROUND_TTL_SEC, dt.UTC)

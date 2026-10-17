@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import datetime as dt
 import json
+import logging
 import uuid
 from typing import Any
 
@@ -25,6 +26,8 @@ from musix.infra.vectors import TRACKS, owned_by
 from musix.recsys import features, policy, reasons
 from musix.recsys.autoplay import order as autoplay_order
 from musix.recsys.train import Model
+
+log = logging.getLogger(__name__)
 
 TOP_LOGGED = 30
 _model: dict[str, Any] = {"version": None, "model": None, "checked": 0.0}
@@ -363,3 +366,49 @@ async def autoplay(c: screens.Ctx, q: AsyncQdrantClient, body: S.AutoplayIn) -> 
         (str(rows[m].id), rows[m].primary_artist_id, rows[m].duration_ms) for m in mfs if m in rows
     ]
     return [uuid.UUID(i) for i in autoplay_order(cands, skip, body.limit)]
+
+
+_ARTIST_SONGS = sa.text("""
+SELECT t.id, coalesce(st.plays, 0) AS plays
+FROM tracks t JOIN track_artists ta ON ta.track_id = t.id AND ta.artist_id = :ar AND ta.role = 'main'
+LEFT JOIN account_track_stats st ON st.account_id = t.account_id AND st.track_id = t.id
+WHERE t.account_id = :a AND t.deleted_at IS NULL
+""")
+
+
+async def artist_stream(
+    c: screens.Ctx, q: AsyncQdrantClient, artist_id: uuid.UUID, limit: int = 40
+) -> list[uuid.UUID]:
+    """The artist's songs in a weighted shuffle (Efraimidis–Spirakis: a song played often comes
+    early more often, an unheard one still can), two at a time with one neighbour by sound of
+    the four most played; neighbours by the same artist are left out, «вода» rules as in
+    autoplay. No CLAP vectors yet → the artist's songs alone."""
+    import math
+    import random
+
+    async with c.sm() as s:
+        own = list(await s.execute(_ARTIST_SONGS, {"a": c.account_id, "ar": artist_id}))
+    if not own:
+        raise NotFound("artist")
+    rng = random.Random()  # noqa: S311 — a play order, not a secret
+    ordered = sorted(
+        own, key=lambda r: -(rng.random() ** (1.0 / (1.0 + 2.0 * math.log1p(r.plays))))
+    )
+    mine = [r.id for r in ordered][: max(2, limit * 2 // 3)]
+    own_ids = {r.id for r in own}
+    others: list[uuid.UUID] = []
+    for seed in [r.id for r in sorted(own, key=lambda r: -r.plays)[:4]]:
+        try:
+            got = await autoplay(c, q, S.AutoplayIn(seed_track_id=seed, limit=12))
+        except Exception:  # Qdrant away: the artist's own songs still make a stream
+            log.warning("artist stream: no neighbours for %s", seed, exc_info=True)
+            break
+        others += [i for i in got if i not in own_ids and i not in others]
+    rng.shuffle(others)
+    out: list[uuid.UUID] = []
+    while (mine or others) and len(out) < limit:
+        out += mine[:2]
+        mine = mine[2:]
+        if others:
+            out.append(others.pop(0))
+    return out[:limit]

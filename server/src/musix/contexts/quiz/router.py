@@ -40,7 +40,9 @@ async def modes(p: Auth, s: Session) -> Any:
 @router.post("/rounds", response_model=S.RoundOut)
 async def create_round(body: S.RoundIn, p: Auth, s: Session, request: Request) -> Any:
     try:
-        built = await service.build_round(s, p.account_id, body.mode, body.snippet_sec)
+        built = await service.build_round(
+            s, p.account_id, body.mode, body.snippet_sec, artist_id=body.artist_id
+        )
     except NoRoundAvailable as e:
         raise Conflict(str(e)) from e  # a thin library is a normal state, said in plain words
     rid = built["round_id"]

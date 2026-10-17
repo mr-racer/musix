@@ -82,6 +82,11 @@ artists = sa.Table(
     sa.Column("cutout_id", sa.Text, sa.ForeignKey("images.id")),
     sa.Column("knowledge_at", TS),
     sa.Column("profile", JSONB),
+    # Apple Music's editorial images for the artist page (0026); the app elsewhere keeps image_id
+    sa.Column("photo_id", sa.Text, sa.ForeignKey("images.id")),
+    sa.Column("wide_id", sa.Text, sa.ForeignKey("images.id")),
+    sa.Column("logo_id", sa.Text, sa.ForeignKey("images.id")),
+    sa.Column("editorial", JSONB),  # {source, url, bg, fetchedAt}
 )
 songs = sa.Table(
     "songs",
@@ -102,6 +107,8 @@ albums = sa.Table(
     sa.Column("album_artist_id", U, sa.ForeignKey("artists.id")),
     sa.Column("year", sa.Integer),
     sa.Column("cover_image_id", sa.Text, sa.ForeignKey("images.id")),
+    # MusicBrainz's first release, when the tags carry a reissue's year (0026)
+    sa.Column("original_year", sa.Integer),
 )
 tracks = sa.Table(
     "tracks",

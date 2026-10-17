@@ -156,3 +156,57 @@ def test_stats_and_the_weekly_pulse_count_local_days(client: TestClient, listene
     assert rep["value"] == 2 and rep["target"] == 5
     summ = client.get("/api/v2/library/summary", headers=h).json()
     assert summ["dayPick"] is None and summ["albumLast"]  # played twice: no pick yet, a last listen
+
+
+async def test_artist_page_knows_you_the_grammys_and_the_stream(
+    sm, client: TestClient, listener
+) -> None:  # type: ignore[no-untyped-def]
+    import sqlalchemy as sa
+    from sqlalchemy.dialects.postgresql import insert as pg_insert
+
+    from musix.contexts.knowledge.models import artist_bios
+    from musix.contexts.library.models import tracks
+
+    tok, _, (a, *_) = listener
+    h = bearer(tok)
+    async with sm() as s:
+        artist = await s.scalar(sa.select(tracks.c.primary_artist_id).where(tracks.c.id == a))
+        row = {
+            "artist_id": artist,
+            "lang": "ru",
+            "text": "Биография.",
+            "facets": {"grammy_wins": 3, "grammy_nominations": 7},
+            "sources": {},
+        }
+        await s.execute(  # the session's database is shared: another test may have a bio here
+            pg_insert(artist_bios)
+            .values(**row)
+            .on_conflict_do_update(index_elements=["artist_id", "lang"], set_=row)
+        )
+        await s.commit()
+    ev = {
+        "clientEventId": str(uuid.uuid4()),
+        "sessionId": "s",
+        "trackId": str(a),
+        "startedAt": "2026-09-30T10:00:00Z",
+        "playedMs": 180_000,
+        "endReason": "ended",
+    }
+    client.post("/api/v2/events/listens:batch", json={"events": [ev]}, headers=h)
+    page = client.get(f"/api/v2/artists/{artist}/page", headers=h).json()
+    you = page["you"]
+    assert you["artists"] >= 1
+    assert you["heardTracks"] <= page["trackCount"]
+    g = page["grammy"]
+    assert (g["wins"], g["nominations"]) == (3, 7)
+    assert 1 <= g["position"] <= g["laureates"]
+    assert all(int(v) >= 0 for v in page["heard"].values())
+    stream = client.post("/api/v2/stream/artist", json={"artistId": str(artist)}, headers=h)
+    assert stream.status_code == 200
+    mine = {t["id"] for t in stream.json()["tracks"]}
+    assert mine
+    assert all(any(x["id"] == str(artist) for x in t["artists"]) for t in stream.json()["tracks"])
+    quiz = client.post(
+        "/api/v2/quiz/rounds", json={"mode": "artist_snippet", "artistId": str(artist)}, headers=h
+    )
+    assert quiz.status_code in (200, 409)  # four songs of the artist make a round; fewer → 409

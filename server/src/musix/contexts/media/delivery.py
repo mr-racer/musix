@@ -20,7 +20,7 @@ from musix.contexts.media import audio
 from musix.contexts.media.schemas import Gain, ImageData, ManifestItem, Source
 
 MEDIA_TTL = 6 * 3600
-IMAGE_SIZES = (96, 256, 512, 1024)
+IMAGE_SIZES = (96, 256, 512, 1024, 2048)  # 2048: the artist page's editorial photos only
 IMAGE_TTL = 365 * 24 * 3600
 DEFAULT_QUALITY = {"wifi": "lossless", "cellular": "lossless"}  # lossy tiers are gone (2026-10-12)
 

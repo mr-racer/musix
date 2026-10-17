@@ -66,6 +66,16 @@ async def start(media_file_id: str) -> None:
         await _defer("knowledge:song", str(sid), song_id=str(sid))
     for aid in artist_ids:
         await _defer("knowledge:artist", str(aid), artist_id=str(aid))
+    async with sessionmaker()() as s:
+        album_ids = list(
+            await s.scalars(
+                sa.text("""SELECT DISTINCT album_id FROM tracks WHERE media_file_id = :m
+                           AND album_id IS NOT NULL AND deleted_at IS NULL"""),
+                {"m": uuid.UUID(media_file_id)},
+            )
+        )
+    for alid in album_ids:
+        await _defer("knowledge:album_year", str(alid), album_id=str(alid))
 
 
 async def song(song_id: str) -> None:
@@ -99,6 +109,51 @@ async def artist(artist_id: str) -> None:
                 lang=lang,
             )
         await _defer("knowledge:bio", f"{artist_id}:{lang}", artist_id=artist_id, lang=lang)
+    await _defer("knowledge:apple", artist_id, artist_id=artist_id)
+
+
+async def apple(artist_id: str) -> bool:
+    async with http() as h:
+        return await jobs.apple(sessionmaker(), h, Path(settings().media_dir), uuid.UUID(artist_id))
+
+
+async def album_year(album_id: str) -> int | None:
+    async with http() as h:
+        return await jobs.album_year(sessionmaker(), h, uuid.UUID(album_id))
+
+
+async def editorial_backfill(limit: int = 100_000) -> int:
+    """The artist page's data for what came before it: Apple Music photos for every artist
+    with songs of their own, first release years for every album, both once (the fetch
+    log remembers hits and misses). `procrastinate defer knowledge:editorial_backfill '{}'`."""
+    async with sessionmaker()() as s:
+        artist_ids = list(
+            await s.scalars(
+                sa.text("""
+                SELECT a.id FROM artists a WHERE EXISTS
+                  (SELECT 1 FROM track_artists ta JOIN tracks t ON t.id = ta.track_id
+                   WHERE ta.artist_id = a.id AND ta.role = 'main' AND t.deleted_at IS NULL)
+                  AND NOT EXISTS (SELECT 1 FROM source_fetch_log l WHERE l.source = 'apple' AND l.key = a.slug)
+                LIMIT :n"""),
+                {"n": limit},
+            )
+        )
+        album_ids = list(
+            await s.scalars(
+                sa.text("""
+                SELECT al.id FROM albums al WHERE al.album_artist_id IS NOT NULL AND EXISTS
+                  (SELECT 1 FROM tracks t WHERE t.album_id = al.id AND t.deleted_at IS NULL)
+                  AND NOT EXISTS (SELECT 1 FROM source_fetch_log l
+                                  WHERE l.source = 'mb-album' AND l.key = al.id::text)
+                LIMIT :n"""),
+                {"n": limit},
+            )
+        )
+    for aid in artist_ids:
+        await _defer("knowledge:apple", str(aid), artist_id=str(aid))
+    for alid in album_ids:
+        await _defer("knowledge:album_year", str(alid), album_id=str(alid))
+    return len(artist_ids) + len(album_ids)
 
 
 async def bio(artist_id: str, lang: str) -> bool:
@@ -168,6 +223,9 @@ def register(app: procrastinate.App) -> None:
     app.task(name="knowledge:song", queue="net", retry=RETRY)(song)
     app.task(name="knowledge:artist", queue="net", retry=RETRY)(artist)
     app.task(name="knowledge:verify", queue="net", retry=RETRY)(verify)
+    app.task(name="knowledge:apple", queue="net", retry=RETRY)(apple)
+    app.task(name="knowledge:album_year", queue="net", retry=RETRY)(album_year)
+    app.task(name="knowledge:editorial_backfill", queue="default")(editorial_backfill)
     app.task(name="knowledge:refine", queue="ai", retry=LLM_RETRY)(refine)
     app.task(name="knowledge:relations", queue="ai", retry=LLM_RETRY)(relations)
     app.task(name="knowledge:vibe", queue="ai", retry=LLM_RETRY)(vibe)

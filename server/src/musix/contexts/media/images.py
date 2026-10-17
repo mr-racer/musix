@@ -12,6 +12,9 @@ from typing import Any
 import numpy as np
 
 SIZES = (96, 256, 512, 1024)
+# the artist page's hero spans a 2560 px screen: its editorial photos get one more step
+HERO_SIZES = (*SIZES, 2048)
+HERO_KINDS = frozenset({"artist_photo", "artist_wide"})
 # The backdrop (design/code/color-and-backdrop.md): size, blur sigma at that size, saturation,
 # and the highlight knee. The executable reference is design/reference/player-kino/bake_assets.py.
 BG_SIZE, BG_BLUR, BG_SAT, BG_KNEE, BG_SLOPE = 192, 4.6, 1.4, 0.30, 0.18
@@ -22,7 +25,9 @@ def image_id(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 
 
-def variants(data: bytes, out_dir: Path) -> tuple[int, int, dict[str, str]]:
+def variants(
+    data: bytes, out_dir: Path, sizes: tuple[int, ...] = SIZES
+) -> tuple[int, int, dict[str, str]]:
     """WebP at 96/256/512/1024, never upscaled. The first step at or above the source holds
     the source's own resolution: a 500 px cutout is served at 500 px as "512", not capped
     at 256 (it used to stop below the source, so most 600–1000 px covers topped out at 512
@@ -32,7 +37,7 @@ def variants(data: bytes, out_dir: Path) -> tuple[int, int, dict[str, str]]:
     src = pyvips.Image.new_from_buffer(data, "")
     out_dir.mkdir(parents=True, exist_ok=True)
     paths: dict[str, str] = {}
-    for size in SIZES:
+    for size in sizes:
         thumb = pyvips.Image.thumbnail_buffer(data, size, height=size, size="down")
         p = out_dir / f"{size}.webp"
         thumb.webpsave(str(p), Q=82, strip=True)

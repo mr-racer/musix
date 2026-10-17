@@ -316,6 +316,109 @@ async def artist(sm: SM, http: httpx.AsyncClient, media_dir: Path, artist_id: uu
         )
 
 
+# ── the artist page: Apple Music's editorial photos, albums' first release years ──
+
+
+def _empty(data: bytes) -> bool:
+    """A picture with nothing in it: Kanye's Apple Music and Deezer profiles are one black
+    square (2026-10-14). Grey levels at 64 px barely vary → empty."""
+    import numpy as np
+
+    from musix.contexts.media import images as img
+
+    px = img.pixels(data, 64).astype(np.float32)
+    return float((px @ np.array([0.299, 0.587, 0.114], np.float32)).std()) < 6.0
+
+
+async def apple(sm: SM, http: httpx.AsyncClient, media_dir: Path, artist_id: uuid.UUID) -> bool:
+    """The artist page's photos from Apple Music: a square portrait, the wide frame big
+    artists have, the transparent logo, the page colour. A miss or an empty picture leaves
+    the page on the AudioDB/Deezer one. → whether anything was stored."""
+    from musix.contexts.media.process import store_image
+
+    async with sm() as s:
+        a = (await s.execute(sa.select(artists).where(artists.c.id == artist_id))).first()
+        if a is None or await _logged(s, "apple", a.slug):
+            return False
+    found, definitive = await src.apple_artist(sm, http, src.canonical_artist_name(a.name))
+    if found is None and not definitive:
+        return False  # unreachable: nothing written, the next pass retries
+    got: dict[str, bytes] = {}
+    for key in ("photo", "wide", "logo"):
+        data = await src.download(sm, http, (found or {}).get(key))
+        if data and (key == "logo" or not await asyncio.to_thread(_empty, data)):
+            got[key] = data
+    async with sm() as s:
+        values: dict[str, Any] = {}
+        for key, kind in (
+            ("photo", "artist_photo"),
+            ("wide", "artist_wide"),
+            ("logo", "artist_logo"),
+        ):
+            if key in got:
+                values[f"{key}_id"] = await store_image(s, media_dir, got[key], kind)
+        if found:
+            values["editorial"] = {
+                "source": "apple-music",
+                "url": found.get("url"),
+                "bg": found.get("bg"),
+                "fetchedAt": dt.datetime.now(dt.UTC).isoformat(),
+            }
+        if values:
+            values["knowledge_at"] = sa.func.now()
+            await s.execute(sa.update(artists).where(artists.c.id == artist_id).values(**values))
+            owners: sa.ScalarResult[uuid.UUID] = await s.scalars(
+                sa.select(tracks.c.account_id)
+                .join(track_artists, track_artists.c.track_id == tracks.c.id)
+                .where(track_artists.c.artist_id == artist_id, tracks.c.deleted_at.is_(None))
+                .distinct()
+            )
+            for acct in owners:
+                await record_change(s, acct, "artist", artist_id)
+        await _log(s, "apple", a.slug, "hit" if got else "miss")
+        await s.commit()
+    return bool(got)
+
+
+async def album_year(sm: SM, http: httpx.AsyncClient, album_id: uuid.UUID) -> int | None:
+    """The album's first release year from MusicBrainz, kept only when it is earlier than
+    the tags' (a reissue's: Thriller 2008, The College Dropout 2007). → the year stored."""
+    from musix.contexts.library.models import albums
+
+    key = str(album_id)
+    async with sm() as s:
+        al = (
+            await s.execute(
+                sa.select(albums.c.title, albums.c.year, artists.c.name)
+                .join(artists, artists.c.id == albums.c.album_artist_id)
+                .where(albums.c.id == album_id)
+            )
+        ).first()
+        if al is None or await _logged(s, "mb-album", key):
+            return None
+    year, definitive = await src.musicbrainz_first_year(
+        sm, http, src.canonical_artist_name(al.name), al.title
+    )
+    if year is None and not definitive:
+        return None
+    keep = year if year is not None and (al.year is None or year < al.year) else None
+    async with sm() as s:
+        if keep is not None:
+            await s.execute(
+                sa.update(albums).where(albums.c.id == album_id).values(original_year=keep)
+            )
+            owners: sa.ScalarResult[uuid.UUID] = await s.scalars(
+                sa.select(tracks.c.account_id)
+                .where(tracks.c.album_id == album_id, tracks.c.deleted_at.is_(None))
+                .distinct()
+            )
+            for acct in owners:
+                await record_change(s, acct, "album", album_id)
+        await _log(s, "mb-album", key, "hit" if year is not None else "miss")
+        await s.commit()
+    return keep
+
+
 # ── facts_v2 (ai queue) ──────────────────────────────────────────────────────
 
 

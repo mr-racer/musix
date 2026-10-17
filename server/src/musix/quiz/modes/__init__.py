@@ -16,13 +16,14 @@ from __future__ import annotations
 
 from typing import Dict, Optional
 
-from musix.quiz.modes import blind_year, lineage, producer, track_snippet
+from musix.quiz.modes import artist_snippet, blind_year, lineage, producer, track_snippet
 
 MODES: dict[str, object] = {
     track_snippet.KEY: track_snippet,
     producer.KEY: producer,
     blind_year.KEY: blind_year,
     lineage.KEY: lineage,
+    artist_snippet.KEY: artist_snippet,  # the artist page's card: needs RoundIn.artist_id
 }
 
 

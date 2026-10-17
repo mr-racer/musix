@@ -12,6 +12,7 @@ unreachable site is not (v1's rule: one bad night upstream must not bury a page)
 from __future__ import annotations
 
 import asyncio
+import json
 import re
 from html import unescape
 from typing import Any
@@ -33,6 +34,8 @@ AUDIODB = Source("theaudiodb", rate=2.0, burst=2)
 DEEZER = Source("deezer", rate=5.0, burst=5)
 IMAGES = Source("artist-images", rate=4.0, burst=4)
 MUSICBRAINZ = Source("musicbrainz", rate=1.0, burst=1)  # their limit is per IP
+ITUNES = Source("itunes", rate=0.3, burst=2)  # the search API allows ~20 calls a minute
+APPLE_MUSIC = Source("apple-music", rate=1.0, burst=2)
 UA = "MusiX/2.0 ( https://musixai.ru )"  # MusicBrainz answers 503 to a bare agent
 BROWSER = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124.0 Safari/537.36"
 
@@ -208,6 +211,155 @@ async def download(sm: SM, http: httpx.AsyncClient, url: str | None) -> bytes | 
     except Unavailable:
         return None  # best effort, as v1
     return r.content if r is not None and r.content else None
+
+
+# ── Apple Music (the artist page's editorial photos) ─────────────────────────
+
+ITUNES_SEARCH_URL = "https://itunes.apple.com/search"
+_SERVER_DATA = re.compile(r'<script[^>]*id="serialized-server-data"[^>]*>(.*?)</script>', re.S)
+
+
+def _art(v: Any) -> dict[str, Any] | None:
+    a = v.get("dictionary") if isinstance(v, dict) else None
+    return (
+        a if isinstance(a, dict) and isinstance(a.get("url"), str) and "{w}" in a["url"] else None
+    )
+
+
+def _sized(a: dict[str, Any], w: int, h: int, ext: str) -> str:
+    """Apple's artwork template `…/{w}x{h}{c}.{f}`: `bb` is the plain (uncropped) image."""
+    return str(a["url"]).split("{w}")[0] + f"{w}x{h}bb.{ext}"
+
+
+def apple_images(html_text: str) -> dict[str, Any] | None:
+    """The artist header of a music.apple.com artist page (its serialized-server-data):
+    the square `artwork`, the wide 2:1 `wideArtwork` big artists have, the transparent
+    `artistLogo` and the page's `bgColor`. None when the page has no such header."""
+    m = _SERVER_DATA.search(html_text)
+    if not m:
+        return None
+    try:
+        data = json.loads(m.group(1))
+        item = data["data"][0]["data"]["sections"][0]["items"][0]
+    except (ValueError, KeyError, IndexError, TypeError):
+        return None
+    out: dict[str, Any] = {}
+    sq, wide, logo = (
+        _art(item.get("artwork")),
+        _art(item.get("wideArtwork")),
+        _art(item.get("artistLogo")),
+    )
+    if sq:
+        side = min(2400, int(sq.get("width") or 2400), int(sq.get("height") or 2400))
+        out["photo"] = _sized(sq, side, side, "jpg")
+    if wide and (wide.get("width") or 0) > (wide.get("height") or 0):
+        w, h = int(wide["width"]), int(wide["height"])
+        tw = min(2400, w)
+        out["wide"] = _sized(wide, tw, round(tw * h / w), "jpg")
+    if logo and logo.get("width") and logo.get("height"):
+        w, h = int(logo["width"]), int(logo["height"])
+        tw = min(1440, w)
+        out["logo"] = _sized(logo, tw, round(tw * h / w), "png")
+    bg = next((a.get("bgColor") for a in (wide, sq) if a and a.get("bgColor")), None)
+    if isinstance(bg, str) and re.fullmatch(r"[0-9a-fA-F]{6}", bg):
+        out["bg"] = "#" + bg.lower()
+    return out or None
+
+
+async def apple_artist(
+    sm: SM, http: httpx.AsyncClient, canonical: str
+) -> tuple[dict[str, Any] | None, bool]:
+    """(images, definitive): the iTunes search finds the artist's page by its exact name
+    (folded; the search is fuzzy and a tribute act or a duo comes second), the page gives
+    the editorial images. No match is a definitive miss."""
+    from musix.contexts.search.normalize import fold
+
+    r, definitive = await _get(
+        sm,
+        ITUNES,
+        http,
+        ITUNES_SEARCH_URL,
+        params={"term": canonical, "entity": "musicArtist", "limit": 5},
+    )
+    if r is None:
+        return None, definitive
+    try:
+        results = (r.json() or {}).get("results") or []
+    except ValueError:
+        return None, False
+    want = fold(canonical)
+    hit = next((x for x in results if fold(str(x.get("artistName") or "")) == want), None)
+    link = str((hit or {}).get("artistLinkUrl") or "").split("?")[0]
+    if not link.startswith("https://music.apple.com/"):
+        return None, True
+    page, definitive = await _get(sm, APPLE_MUSIC, http, link)
+    if page is None:
+        return None, definitive
+    got = apple_images(page.text)
+    if got is not None:
+        got["url"] = link
+    return got, True
+
+
+# ── MusicBrainz: an album's first release ────────────────────────────────────
+
+# what tags add to a reissue's title: «(Deluxe Edition)», «[Tour Edition]», «(40th Anniversary)»
+_EDITION = re.compile(
+    r"\s*[(\[][^)\]]*(?:edition|deluxe|version|remaster|anniversary|expanded|tour|bonus|"
+    r"explicit|special|super)[^)\]]*[)\]]\s*$",
+    re.IGNORECASE,
+)
+_BAD_SECONDARY = {"Compilation", "Live", "Remix", "Demo", "DJ-mix", "Interview", "Spokenword"}
+
+
+def album_base_title(title: str) -> str:
+    t = title
+    while (m := _EDITION.search(t)) is not None:
+        t = t[: m.start()]
+    return re.sub(r"\s*[-–]\s*(?:EP|Single)$", "", t).strip() or title
+
+
+async def musicbrainz_first_year(
+    sm: SM, http: httpx.AsyncClient, artist: str, title: str
+) -> tuple[int | None, bool]:
+    """The earliest first-release year of the release groups called exactly `title` (its
+    edition words dropped) by `artist` that are albums or EPs and not compilations, live,
+    remixes or demos. (None, True) = MusicBrainz has no such album."""
+    from musix.contexts.search.normalize import fold
+
+    base = album_base_title(title)
+    q = f'releasegroup:"{_lucene(base)}" AND artist:"{_lucene(artist)}"'
+    r, definitive = await _get(
+        sm,
+        MUSICBRAINZ,
+        http,
+        "https://musicbrainz.org/ws/2/release-group",
+        params={"query": q, "limit": 10, "fmt": "json"},
+        headers={"User-Agent": UA},
+    )
+    if r is None:
+        return None, definitive
+    try:
+        groups = (r.json() or {}).get("release-groups") or []
+    except ValueError:
+        return None, False
+    want_t, want_a = fold(base), fold(artist)
+    years: list[int] = []
+    for g in groups:
+        credit = " ".join(
+            (c.get("name") or c.get("artist", {}).get("name", "")) if isinstance(c, dict) else ""
+            for c in g.get("artist-credit") or []
+        )
+        date = str(g.get("first-release-date") or "")
+        if (
+            fold(str(g.get("title") or "")) == want_t
+            and want_a in fold(credit)
+            and g.get("primary-type") in ("Album", "EP")
+            and not _BAD_SECONDARY & set(g.get("secondary-types") or [])
+            and re.match(r"\d{4}", date)
+        ):
+            years.append(int(date[:4]))
+    return (min(years) if years else None), True
 
 
 # ── MusicBrainz (v1 facts_v2.sample_links.MusicBrainz.verify) ────────────────

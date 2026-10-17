@@ -59,6 +59,11 @@ class AutoplayIn(Model):
     limit: int = Field(default=20, ge=1, le=50)
 
 
+class ArtistStreamIn(Model):
+    artist_id: uuid.UUID
+    limit: int = Field(default=40, ge=4, le=80)
+
+
 class AutoplayOut(Model):
     tracks: list[TrackOut]
     images: dict[str, ImageData]

@@ -7,7 +7,7 @@ from typing import Any, Literal
 
 from pydantic import Field
 
-from musix.contexts.knowledge.schemas import TrackKnowledge
+from musix.contexts.knowledge.schemas import FactOut, TrackKnowledge
 from musix.contexts.library.schemas import TrackOut
 from musix.contexts.media.schemas import ImageData
 from musix.contexts.playlists.schemas import PlaylistOut
@@ -29,6 +29,7 @@ class AlbumOut(Model):
     id: uuid.UUID
     title: str
     year: int | None
+    original_year: int | None = None  # MusicBrainz's first release when `year` is a reissue's
     album_artist: ArtistRef | None
     cover_image_id: str | None
     track_count: int  # the account's own tracks in it
@@ -321,6 +322,22 @@ class AlbumPageOut(Model):
     label: str | None = None
 
 
+class ArtistYou(Model):
+    """«Ты и …» on the artist page: how far the account has gone into the artist."""
+
+    plays: int  # counted plays of the artist's own songs
+    heard_tracks: int  # of `track_count`, played at least once
+    rank: int | None  # by plays among the library's artists, 1 = the most played; None = unplayed
+    artists: int  # artists with songs of their own in the library
+
+
+class GrammyOut(Model):
+    wins: int
+    nominations: int | None
+    position: int  # among the library's laureates by wins (ties share a place)
+    laureates: int  # artists of the library with at least one win
+
+
 class ArtistPageOut(Model):
     artist: ArtistOut
     albums: list[AlbumOut]  # newest first
@@ -330,6 +347,16 @@ class ArtistPageOut(Model):
     images: dict[str, ImageData]
     country: str | None = None  # the artist's profile (AudioDB): where they are from
     country_code: str | None = None  # ISO 3166-1 alpha-2, for the flag
+    # the page «Кадр» (2026-10-17)
+    photo_id: str | None = None  # Apple Music's square portrait (None → artist.image_id)
+    wide_id: str | None = None  # Apple Music's wide 2:1 editorial frame, big artists only
+    logo_id: str | None = None  # a transparent logo, drawn instead of the typed name
+    page_color: str | None = None  # Apple Music's background colour of the artist's page
+    you: ArtistYou | None = None
+    heard: dict[str, int] = Field(default_factory=dict)  # album id → its songs heard
+    plays: dict[str, int] = Field(default_factory=dict)  # top track id → plays
+    grammy: GrammyOut | None = None
+    facts: list[FactOut] = Field(default_factory=list)  # «А ты знал»
 
 
 class LyricsOut(Model):
