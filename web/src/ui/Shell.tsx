@@ -51,7 +51,7 @@ export function Shell() {
     },
   }), [nav]);
   return (
-    <div className={css.shell} data-mx-theme={path === "/player" || path === "/" ? "dark" : undefined}>
+    <div className={css.shell} data-mx-theme={path === "/player" || path === "/" || path.startsWith("/artist/") ? "dark" : undefined}>
       <Link to="/" className={css.brand} aria-label="MusiX — главная">
         <BrandMark size={30} />
       </Link>
