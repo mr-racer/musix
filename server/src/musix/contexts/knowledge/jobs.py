@@ -123,12 +123,32 @@ async def _add_relation(
     )
 
 
+def _same_link(text: str, artist: str, title: str) -> bool:
+    """One sampled record written two ways: v1's extraction and the facts spell it from
+    prose («Continent Number 6 — Afroamerica», «It’s Your Thing»), Genius from its catalogue
+    («Continent n° 6 — Afromerica», «It's Your Thing»). Titles near-equal after dropping
+    punctuation, artists alike."""
+    from difflib import SequenceMatcher
+
+    def n(x: str) -> str:
+        return "".join(ch for ch in x.casefold() if ch.isalnum())
+
+    a2, _, t2 = text.partition(" — ")
+    ta, tb, aa, ab = n(t2), n(title), n(a2), n(artist)
+    if not ta or not tb:
+        return False
+    return SequenceMatcher(None, ta, tb).ratio() >= 0.85 and (
+        aa == ab or SequenceMatcher(None, aa, ab).ratio() >= 0.6
+    )
+
+
 async def _store_genius_page(
     s: AsyncSession, song: uuid.UUID, slug: str, parsed: GeniusSongData
 ) -> None:
     """Samples / interpolations, credits and tags of the Genius page (2026-10-18). A rerun
-    replaces what Genius said before. A link the facts already gave keeps its row (the
-    unique index is per kind and text) and counts as confirmed: Genius lists it too."""
+    replaces what Genius said before. A link the facts or v1's extraction already gave
+    keeps its row and counts as confirmed — Genius lists it too — instead of a second row
+    spelled differently (Power showed «It’s Your Thing» twice)."""
     await s.execute(
         sa.delete(song_relations).where(
             song_relations.c.song_id == song,
@@ -136,8 +156,26 @@ async def _store_genius_page(
             song_relations.c.kind.in_(("sample", "interpolation")),
         )
     )
+    older = (
+        await s.execute(
+            sa.select(song_relations.c.id, song_relations.c.target_text).where(
+                song_relations.c.song_id == song,
+                song_relations.c.kind.in_(("sample", "interpolation")),
+            )
+        )
+    ).all()
     for lk in parsed["links"]:
         text = f"{lk['artist']} — {lk['title']}"
+        twin = next(
+            (r for r in older if _same_link(r.target_text, lk["artist"], lk["title"])), None
+        )
+        if twin is not None:
+            await s.execute(
+                sa.update(song_relations)
+                .where(song_relations.c.id == twin.id, song_relations.c.verified.is_(None))
+                .values(verified=True)
+            )
+            continue
         await _add_relation(
             s,
             song,
@@ -148,16 +186,6 @@ async def _store_genius_page(
             target_artist_id=await _artist_id(s, lk["artist"]),
             evidence=parsed["url"],
             verified=True,
-        )
-        await s.execute(
-            sa.update(song_relations)
-            .where(
-                song_relations.c.song_id == song,
-                song_relations.c.kind == lk["kind"],
-                sa.func.lower(song_relations.c.target_text) == text.lower(),
-                song_relations.c.verified.is_(None),
-            )
-            .values(verified=True)
         )
     await s.execute(
         sa.delete(song_credits).where(

@@ -274,7 +274,7 @@ def _extract_links(data: dict, song_id: str) -> list[GeniusLink]:
     songs = data.get("entities", {}).get("songs", {})
     song = songs.get(song_id, {}) if song_id else {}
     out: list[GeniusLink] = []
-    seen: set[tuple[str, str, str]] = set()
+    seen: set[tuple[str, str]] = set()
     # a version of this very song is not a sample of it (Frozen "interpolates" Frozen (Demo))
     own = (_plain(song.get("title")).lower(), _plain(song.get("artistNames")).lower())
     for rel in song.get("songRelationships") or []:
@@ -287,7 +287,8 @@ def _extract_links(data: dict, song_id: str) -> list[GeniusLink]:
             artist = _plain(other.get("artistNames") or other.get("primaryArtistNames"))
             if not artist and " by " in str(other.get("fullTitle") or ""):
                 title, artist = (_plain(x) for x in str(other["fullTitle"]).rsplit(" by ", 1))
-            key = (kind, artist.lower(), title.lower())
+            # one record both sampled and interpolated (Power: Afromerica) is one link, the first kind
+            key = (artist.lower(), title.lower())
             if own[0] and artist.lower() == own[1] and title.lower().startswith(own[0]):
                 continue
             if title and artist and key not in seen:

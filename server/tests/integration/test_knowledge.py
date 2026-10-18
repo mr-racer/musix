@@ -187,12 +187,13 @@ async def test_the_genius_page_gives_samples_credits_and_tags_and_a_rerun_replac
     async with sm() as s:
         song_id = await s.scalar(sa.select(tracks.c.song_id).where(tracks.c.id == a))
         slug = await s.scalar(sa.select(songs.c.slug).where(songs.c.id == song_id))
-        # the facts already named one of them, unchecked: Genius confirms it, no second row
+        # the facts already named one of them, unchecked and spelled their way: Genius
+        # confirms it, no second row
         await s.execute(
             sa.insert(song_relations).values(
                 song_id=song_id,
                 kind="sample",
-                target_text="King Crimson — 21st Century Schizoid Man",
+                target_text="King Crimson — 21st Century Schizoid-Man",
                 source="facts",
             )
         )
@@ -211,7 +212,7 @@ async def test_the_genius_page_gives_samples_credits_and_tags_and_a_rerun_replac
             )
         ).all()
         assert [tuple(r) for r in rel] == [
-            ("sample", "King Crimson — 21st Century Schizoid Man", "facts", True),
+            ("sample", "King Crimson — 21st Century Schizoid-Man", "facts", True),
             ("sample", "Cold Grits — It's Your Thing", "genius", True),
             ("interpolation", "JAY-Z — 99 Problems", "genius", True),
         ]
@@ -244,4 +245,4 @@ async def test_the_genius_page_gives_samples_credits_and_tags_and_a_rerun_replac
             await s.scalars(sa.select(song_tags.c.tag).where(song_tags.c.song_id == song_id))
         ) == ["Rap"]
     k = client.get(f"/api/v2/tracks/{a}/knowledge", headers=bearer(tok)).json()
-    assert [x["text"] for x in k["samples"]] == ["King Crimson — 21st Century Schizoid Man"]
+    assert [x["text"] for x in k["samples"]] == ["King Crimson — 21st Century Schizoid-Man"]
