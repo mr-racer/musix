@@ -54,12 +54,12 @@ async def http() -> AsyncIterator[httpx.AsyncClient]:
         yield c
 
 
-async def _defer(name: str, lock: str, **kw: str) -> None:
+async def _defer(name: str, lock: str, prio: int = BULK, **kw: str) -> None:
     from procrastinate.exceptions import AlreadyEnqueued
 
     from musix.workers.app import app
 
-    task = app.configure_task(name, queueing_lock=f"{name}:{lock}", priority=BULK)
+    task = app.configure_task(name, queueing_lock=f"{name}:{lock}", priority=prio)
     # already waiting: a backfill re-run must not stop at the first one
     with contextlib.suppress(AlreadyEnqueued):
         await task.defer_async(**kw)
@@ -161,6 +161,35 @@ async def editorial_backfill(limit: int = 100_000) -> int:
     return len(artist_ids) + len(album_ids)
 
 
+async def genius_page(song_id: str) -> bool:
+    async with http() as h:
+        return await jobs.genius_page(sessionmaker(), h, uuid.UUID(song_id))
+
+
+async def genius_backfill(limit: int = 100_000) -> int:
+    """Samples, credits and tags for the songs whose Genius page was read before they were
+    kept (2026-10-18): the page once more, without annotations, once (the fetch log keeps
+    hits and misses). Behind new imports on the net queue. Songs migrated from v1 have
+    Genius facts but no fetch-log hit. `procrastinate defer knowledge:genius_backfill '{}'`."""
+    async with sessionmaker()() as s:
+        song_ids = list(
+            await s.scalars(
+                sa.text("""
+                SELECT s.id FROM songs s
+                WHERE EXISTS (SELECT 1 FROM tracks t WHERE t.song_id = s.id AND t.deleted_at IS NULL)
+                  AND (EXISTS (SELECT 1 FROM source_fetch_log l WHERE l.source = 'genius' AND l.key = s.slug AND l.status = 'hit')
+                       OR EXISTS (SELECT 1 FROM facts f WHERE f.subject_kind = 'song' AND f.subject_id = s.id
+                                  AND f.source = 'genius.com'))
+                  AND NOT EXISTS (SELECT 1 FROM source_fetch_log l WHERE l.source = 'genius-page' AND l.key = s.slug)
+                LIMIT :n"""),
+                {"n": limit},
+            )
+        )
+    for sid in song_ids:
+        await _defer("knowledge:genius_page", str(sid), prio=BULK - 1, song_id=str(sid))
+    return len(song_ids)
+
+
 async def bio(artist_id: str, lang: str) -> bool:
     return await jobs.bio(sessionmaker(), llm(), uuid.UUID(artist_id), lang)
 
@@ -231,6 +260,8 @@ def register(app: procrastinate.App) -> None:
     app.task(name="knowledge:apple", queue="net", retry=RETRY)(apple)
     app.task(name="knowledge:album_year", queue="net", retry=RETRY)(album_year)
     app.task(name="knowledge:editorial_backfill", queue="default")(editorial_backfill)
+    app.task(name="knowledge:genius_page", queue="net", retry=RETRY)(genius_page)
+    app.task(name="knowledge:genius_backfill", queue="default")(genius_backfill)
     app.task(name="knowledge:refine", queue="ai", retry=LLM_RETRY)(refine)
     app.task(name="knowledge:relations", queue="ai", retry=LLM_RETRY)(relations)
     app.task(name="knowledge:vibe", queue="ai", retry=LLM_RETRY)(vibe)

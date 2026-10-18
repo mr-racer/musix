@@ -4,6 +4,8 @@ and a rerun of a half-done one is almost free — every LLM answer is in `llm_ca
 
     intel:embed done ─→ knowledge:start ─┬→ knowledge:song   (net: songfacts, Genius)
                                           └→ knowledge:artist (net: songfacts, AudioDB)
+    knowledge:genius_backfill ─→ knowledge:genius_page (net: the Genius page alone — samples,
+                                 credits, tags for songs read before they were kept)
     knowledge:song   ─→ knowledge:refine (ai) ─→ knowledge:verify (net, MusicBrainz)
                      ─→ knowledge:relations (ai: the LLM)
                      ─→ knowledge:vibe (ai)
@@ -30,7 +32,9 @@ from musix.contexts.knowledge import sources as src
 from musix.contexts.knowledge.models import (
     fact_refinements,
     facts,
+    song_credits,
     song_relations,
+    song_tags,
     song_vibes,
     source_fetch_log,
     verification_cache,
@@ -45,6 +49,7 @@ from musix.knowledge import sonic_vibe as SV
 from musix.knowledge.fact_relations.service import song_producers
 from musix.knowledge.facts_v2 import pipeline as fv2
 from musix.knowledge.facts_v2 import sample_links as sl
+from musix.knowledge.genius import GeniusSongData
 
 SM = async_sessionmaker[AsyncSession]
 log = logging.getLogger(__name__)
@@ -116,6 +121,83 @@ async def _add_relation(
         .values(song_id=song, kind=kind, target_text=text.strip(), source=source, **kw)
         .on_conflict_do_nothing()
     )
+
+
+async def _store_genius_page(
+    s: AsyncSession, song: uuid.UUID, slug: str, parsed: GeniusSongData
+) -> None:
+    """Samples / interpolations, credits and tags of the Genius page (2026-10-18). A rerun
+    replaces what Genius said before. A link the facts already gave keeps its row (the
+    unique index is per kind and text) and counts as confirmed: Genius lists it too."""
+    await s.execute(
+        sa.delete(song_relations).where(
+            song_relations.c.song_id == song,
+            song_relations.c.source == "genius",
+            song_relations.c.kind.in_(("sample", "interpolation")),
+        )
+    )
+    for lk in parsed["links"]:
+        text = f"{lk['artist']} — {lk['title']}"
+        await _add_relation(
+            s,
+            song,
+            lk["kind"],
+            text,
+            "genius",
+            target_song_id=await _song_id(s, lk["artist"], lk["title"]),
+            target_artist_id=await _artist_id(s, lk["artist"]),
+            evidence=parsed["url"],
+            verified=True,
+        )
+        await s.execute(
+            sa.update(song_relations)
+            .where(
+                song_relations.c.song_id == song,
+                song_relations.c.kind == lk["kind"],
+                sa.func.lower(song_relations.c.target_text) == text.lower(),
+                song_relations.c.verified.is_(None),
+            )
+            .values(verified=True)
+        )
+    await s.execute(
+        sa.delete(song_credits).where(
+            song_credits.c.song_id == song, song_credits.c.source == "genius"
+        )
+    )
+    credits = [
+        {
+            "song_id": song,
+            "source": "genius",
+            "role": role,
+            "name": name,
+            "artist_id": await _artist_id(s, name),
+        }
+        for role, names in parsed["credits"]
+        for name in names
+    ]
+    if credits:
+        await s.execute(pg_insert(song_credits).values(credits).on_conflict_do_nothing())
+    await s.execute(
+        sa.delete(song_tags).where(song_tags.c.song_id == song, song_tags.c.source == "genius")
+    )
+    if parsed["tags"]:
+        await s.execute(
+            pg_insert(song_tags)
+            .values(
+                [
+                    {
+                        "song_id": song,
+                        "source": "genius",
+                        "tag": tag,
+                        "pos": i,
+                        "is_primary": primary,
+                    }
+                    for i, (tag, primary) in enumerate(parsed["tags"])
+                ]
+            )
+            .on_conflict_do_nothing()
+        )
+    await _log(s, "genius-page", slug, "hit")
 
 
 async def _artist_id(s: AsyncSession, name: str) -> uuid.UUID | None:
@@ -219,6 +301,7 @@ async def song(sm: SM, http: httpx.AsyncClient, song_id: uuid.UUID) -> bool:
                     )
                 if parsed["label"]:
                     await _add_relation(s, song_id, "label", parsed["label"], "genius")
+                await _store_genius_page(s, song_id, row.slug, parsed)
             if parsed is not None or definitive:
                 await _log(s, "genius", row.slug, "hit" if parsed is not None else "miss")
             await _touch(s, songs, song_id)
@@ -234,6 +317,24 @@ async def song(sm: SM, http: httpx.AsyncClient, song_id: uuid.UUID) -> bool:
                 )
             )
         )
+
+
+async def genius_page(sm: SM, http: httpx.AsyncClient, song_id: uuid.UUID) -> bool:
+    """The Genius page alone (no annotations: one request) for a song whose page was read
+    before samples, credits and tags were kept. → whether Genius had the page."""
+    async with sm() as s:
+        row = await _song_row(s, song_id)
+    if row is None or not row.artist:
+        return False
+    parsed, definitive = await src.genius_page(sm, http, row.artist, row.title)
+    async with sm() as s:
+        if parsed is not None:
+            await _store_genius_page(s, song_id, row.slug, parsed)
+            await _touch(s, songs, song_id)
+        elif definitive:
+            await _log(s, "genius-page", row.slug, "miss")
+        await s.commit()
+    return parsed is not None
 
 
 async def artist(sm: SM, http: httpx.AsyncClient, media_dir: Path, artist_id: uuid.UUID) -> bool:

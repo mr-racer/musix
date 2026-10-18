@@ -197,7 +197,8 @@ def _split(text: str) -> tuple[str, str]:
 def sample_links(collection_name: str, src_slug: str) -> dict[str, list[dict[str, Any]]]:
     """v1 `get_sample_links`: facts_v2 links of this song, both directions, plus the
     account's own songs whose links point here. A target's slug is given only when the
-    account owns that song (v1: dst_slug was resolved against the library)."""
+    account owns that song (v1: dst_slug was resolved against the library). Genius's own
+    sample list (source 'genius', 2026-10-18) counts too and wins when both name a link."""
     a = _acct(collection_name)
     own = dicts(
         f"""SELECT r.kind, r.target_text, r.evidence,
@@ -205,20 +206,26 @@ def sample_links(collection_name: str, src_slug: str) -> dict[str, list[dict[str
                       (SELECT 1 FROM tracks o WHERE o.account_id = %(a)s AND o.song_id = s2.id
                        AND o.deleted_at IS NULL)) AS slug
             FROM song_relations r JOIN songs s ON s.id = r.song_id
-            WHERE s.slug = %(slug)s AND r.source = 'facts' AND {OWNS_SONG} ORDER BY r.id""",
+            WHERE s.slug = %(slug)s AND r.source IN ('facts', 'genius') AND {OWNS_SONG}
+            ORDER BY r.source <> 'genius', r.id""",
         {"a": a, "slug": src_slug},
     )
     back = dicts(
         f"""SELECT s.title, ar.name AS artist, s.slug, r.kind, r.evidence FROM song_relations r
             JOIN songs t ON t.id = r.target_song_id JOIN songs s ON s.id = r.song_id
             LEFT JOIN artists ar ON ar.id = s.primary_artist_id
-            WHERE t.slug = %(slug)s AND r.source = 'facts' AND r.kind IN ('sample', 'interpolation')
-              AND {OWNS_SONG} ORDER BY r.id""",
+            WHERE t.slug = %(slug)s AND r.source IN ('facts', 'genius') AND r.kind IN ('sample', 'interpolation')
+              AND {OWNS_SONG} ORDER BY r.source <> 'genius', r.id""",
         {"a": a, "slug": src_slug},
     )
     samples, sampled_by = [], []
+    taken: set[tuple[str, str, str]] = set()
     for r in own:
         artist, song = _split(r["target_text"])
+        once = (r["kind"], _dedup_key(artist), _dedup_key(song))
+        if once in taken:  # the same link from Genius and from the facts
+            continue
+        taken.add(once)
         relation = (
             "interpolation" if r["kind"] in ("interpolation", "interpolated_by") else "sample"
         )
@@ -234,6 +241,7 @@ def sample_links(collection_name: str, src_slug: str) -> dict[str, list[dict[str
     for r in back:
         if (r["title"] or "", r["artist"] or "") in seen:
             continue
+        seen.add((r["title"] or "", r["artist"] or ""))
         sampled_by.append(
             {
                 "song": r["title"],
@@ -285,6 +293,7 @@ def song_relations_bulk(slugs: list[str]) -> dict[str, dict[str, Any]]:
     for slug, rs in _relations(slugs).items():
         producers: list[str] = []
         seen: set[str] = set()
+        seen_samples: set[str] = set()
         label = None
         samples, sampled_by = [], []
         for r in rs:
@@ -293,8 +302,10 @@ def song_relations_bulk(slugs: list[str]) -> dict[str, dict[str, Any]]:
                 producers.append(r["target_text"])
             elif r["kind"] == "label" and label is None:
                 label = r["target_text"]
-            elif r["kind"] in ("sample", "interpolation") and r["source"] == "extract":
-                samples.append(r["target_text"])
+            elif r["kind"] in ("sample", "interpolation") and r["source"] in ("extract", "genius"):
+                if _dedup_key(r["target_text"]) not in seen_samples:
+                    seen_samples.add(_dedup_key(r["target_text"]))
+                    samples.append(r["target_text"])
             elif r["kind"] in ("sampled_by", "interpolated_by") and r["source"] == "extract":
                 sampled_by.append(r["target_text"])
         if producers or label or samples or sampled_by:

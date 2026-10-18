@@ -127,3 +127,121 @@ async def test_an_llm_answer_is_cached_by_its_input_and_the_key_never_leaks(sm) 
         await llm.ask("fail", kind="t")
     assert "sk-secret" not in str(e.value)
     await llm.close()
+
+
+async def test_the_genius_page_gives_samples_credits_and_tags_and_a_rerun_replaces_them(
+    sm, client: TestClient, listener
+) -> None:  # type: ignore[no-untyped-def]
+    from musix.contexts.knowledge import jobs
+    from musix.contexts.knowledge.models import song_credits, song_relations, song_tags
+    from musix.contexts.library.models import songs, tracks
+    from musix.knowledge import genius as G
+
+    tok, _, (a, *_) = listener
+    page = {
+        "songPage": {"song": 1},
+        "entities": {
+            "songs": {
+                "1": {
+                    "id": 1,
+                    "songRelationships": [
+                        {"relationshipType": "samples", "songs": [2, 3]},
+                        {"relationshipType": "interpolates", "songs": [4]},
+                        {"relationshipType": "sampled_in", "songs": [2]},
+                    ],
+                    "customPerformances": [
+                        {"label": "Bass", "artists": [10]},
+                        {"label": "Guitar", "artists": [10]},
+                        {"label": "Vocal Samples", "artists": [11]},
+                        {"label": "Video Director", "artists": [12]},
+                        {"label": "Mixed At", "artists": [12]},
+                    ],
+                    "tags": [7, 8],
+                    "primaryTag": 8,
+                },
+                "2": {"title": "21st Century Schizoid Man", "artistNames": "King Crimson"},
+                "3": {"title": "It’s Your Thing", "artistNames": "Cold Grits"},
+                "4": {"fullTitle": "99 Problems by JAY-Z"},
+            },
+            "artists": {
+                "10": {"name": "Mike Dean"},
+                "11": {"name": "Greg Lake"},
+                "12": {"name": "X"},
+            },
+            "tags": {"7": {"id": 7, "name": "Experimental"}, "8": {"id": 8, "name": "Rap"}},
+        },
+    }
+    parsed = G.song_data("https://genius.com/x", "<html></html>", page, [])
+    assert [(lk["kind"], lk["artist"], lk["title"]) for lk in parsed["links"]] == [
+        ("sample", "King Crimson", "21st Century Schizoid Man"),
+        ("sample", "Cold Grits", "It's Your Thing"),
+        ("interpolation", "JAY-Z", "99 Problems"),
+    ]
+    assert parsed["credits"] == [
+        ("Bass", ["Mike Dean"]),
+        ("Guitar", ["Mike Dean"]),
+        ("Vocal Samples", ["Greg Lake"]),
+    ]
+    assert parsed["tags"] == [("Rap", True), ("Experimental", False)]
+
+    async with sm() as s:
+        song_id = await s.scalar(sa.select(tracks.c.song_id).where(tracks.c.id == a))
+        slug = await s.scalar(sa.select(songs.c.slug).where(songs.c.id == song_id))
+        # the facts already named one of them, unchecked: Genius confirms it, no second row
+        await s.execute(
+            sa.insert(song_relations).values(
+                song_id=song_id,
+                kind="sample",
+                target_text="King Crimson — 21st Century Schizoid Man",
+                source="facts",
+            )
+        )
+        await jobs._store_genius_page(s, song_id, slug, parsed)
+        await s.commit()
+        rel = (
+            await s.execute(
+                sa.select(
+                    song_relations.c.kind,
+                    song_relations.c.target_text,
+                    song_relations.c.source,
+                    song_relations.c.verified,
+                )
+                .where(song_relations.c.song_id == song_id)
+                .order_by(song_relations.c.id)
+            )
+        ).all()
+        assert [tuple(r) for r in rel] == [
+            ("sample", "King Crimson — 21st Century Schizoid Man", "facts", True),
+            ("sample", "Cold Grits — It's Your Thing", "genius", True),
+            ("interpolation", "JAY-Z — 99 Problems", "genius", True),
+        ]
+        roles = (
+            await s.execute(
+                sa.select(song_credits.c.role, song_credits.c.name).where(
+                    song_credits.c.song_id == song_id
+                )
+            )
+        ).all()
+        assert sorted(tuple(r) for r in roles) == [
+            ("Bass", "Mike Dean"),
+            ("Guitar", "Mike Dean"),
+            ("Vocal Samples", "Greg Lake"),
+        ]
+
+        parsed["links"] = parsed["links"][:1]  # Genius dropped two links and a tag
+        parsed["tags"] = [("Rap", True)]
+        await jobs._store_genius_page(s, song_id, slug, parsed)
+        await s.commit()
+        assert (
+            await s.scalar(
+                sa.select(sa.func.count())
+                .select_from(song_relations)
+                .where(song_relations.c.song_id == song_id)
+            )
+            == 1
+        )
+        assert list(
+            await s.scalars(sa.select(song_tags.c.tag).where(song_tags.c.song_id == song_id))
+        ) == ["Rap"]
+    k = client.get(f"/api/v2/tracks/{a}/knowledge", headers=bearer(tok)).json()
+    assert [x["text"] for x in k["samples"]] == ["King Crimson — 21st Century Schizoid Man"]

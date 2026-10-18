@@ -248,6 +248,91 @@ def _extract_label(data: dict, html: str) -> str | None:
     return None
 
 
+# ---------------------------------------------------------------------------
+# Samples, credits and tags (v2, 2026-10-18): the same page carries them as structured data;
+# the sound-stage research found them the best outside source for the sound of a record
+# (Power: «Vocal Samples: Greg Lake», handclaps by four people, a cello; style tags such as
+# Experimental). Read from the page prod already downloads, so they cost no request.
+# ---------------------------------------------------------------------------
+
+_LINK_KINDS = {"samples": "sample", "interpolates": "interpolation"}
+# credit roles that say nothing about the sound: the video crew, the business side, the studios
+_NOT_SOUND_ROLE = re.compile(
+    r"^video\b|label|publisher|copyright|phonographic|distributor|manufacturer|artwork|graphic|"
+    r"art direct|photograph|a&r|manage|marketing|tie-in|\bat$",
+    re.I,
+)
+
+
+def _plain(text: object) -> str:
+    """Genius writes typographic apostrophes and no-break spaces into titles and names."""
+    s = str(text or "").replace("\u2019", "'").replace("\u00a0", " ")
+    return re.sub(r"\s+", " ", s).strip()
+
+
+def _extract_links(data: dict, song_id: str) -> list[GeniusLink]:
+    songs = data.get("entities", {}).get("songs", {})
+    song = songs.get(song_id, {}) if song_id else {}
+    out: list[GeniusLink] = []
+    seen: set[tuple[str, str, str]] = set()
+    # a version of this very song is not a sample of it (Frozen "interpolates" Frozen (Demo))
+    own = (_plain(song.get("title")).lower(), _plain(song.get("artistNames")).lower())
+    for rel in song.get("songRelationships") or []:
+        kind = _LINK_KINDS.get(rel.get("relationshipType") or rel.get("type") or "")
+        if not kind:
+            continue
+        for ref in rel.get("songs") or []:
+            other = ref if isinstance(ref, dict) else songs.get(str(ref), {})
+            title = _plain(other.get("title"))
+            artist = _plain(other.get("artistNames") or other.get("primaryArtistNames"))
+            if not artist and " by " in str(other.get("fullTitle") or ""):
+                title, artist = (_plain(x) for x in str(other["fullTitle"]).rsplit(" by ", 1))
+            key = (kind, artist.lower(), title.lower())
+            if own[0] and artist.lower() == own[1] and title.lower().startswith(own[0]):
+                continue
+            if title and artist and key not in seen:
+                seen.add(key)
+                out.append({"kind": kind, "title": title, "artist": artist, "url": other.get("url")})
+    return out
+
+
+def _extract_credits(data: dict, song_id: str) -> list[tuple[str, list[str]]]:
+    entities = data.get("entities", {})
+    artists = entities.get("artists", {})
+    song = entities.get("songs", {}).get(song_id, {}) if song_id else {}
+    out: list[tuple[str, list[str]]] = []
+    for perf in song.get("customPerformances") or []:
+        role = _plain(perf.get("label"))
+        if not role or _NOT_SOUND_ROLE.search(role):
+            continue
+        names = []
+        for ref in perf.get("artists") or []:
+            a = ref if isinstance(ref, dict) else artists.get(str(ref), {})
+            name = _plain(a.get("name"))
+            if name and name not in names:
+                names.append(name)
+        if names:
+            out.append((role, names))
+    return out
+
+
+def _extract_tags(data: dict, song_id: str) -> list[tuple[str, bool]]:
+    """(tag, is_primary), the primary genre first. Genius mixes genres with places and
+    languages ("In English", "USA"): all are kept, the reader picks."""
+    entities = data.get("entities", {})
+    tags = entities.get("tags", {})
+    song = entities.get("songs", {}).get(song_id, {}) if song_id else {}
+    primary = str(song.get("primaryTag") or "")
+    out: list[tuple[str, bool]] = []
+    for ref in song.get("tags") or []:
+        t = ref if isinstance(ref, dict) else tags.get(str(ref), {})
+        name = _plain(t.get("name"))
+        if name and all(name != n for n, _ in out):
+            out.append((name, str(t.get("id")) == primary))
+    out.sort(key=lambda x: not x[1])
+    return out
+
+
 def _get_referent_links(data: dict) -> dict:
     html = data["songPage"]["lyricsData"]["body"]["html"]
     soup = BeautifulSoup(html, "html.parser")
@@ -336,12 +421,22 @@ def referent_urls(data: dict) -> list[tuple[str, str]]:
 # ---------------------------------------------------------------------------
 
 
+class GeniusLink(TypedDict):
+    kind: str  # sample | interpolation
+    title: str
+    artist: str
+    url: str | None
+
+
 class GeniusSongData(TypedDict):
     url: str
     description: str | None
     annotations: list[tuple[str, str]]
     producers: list[str]
     label: str | None
+    links: list[GeniusLink]
+    credits: list[tuple[str, list[str]]]
+    tags: list[tuple[str, bool]]
 
 
 def song_data(
@@ -357,6 +452,9 @@ def song_data(
         "annotations": annotations,
         "producers": _extract_producers(data, song_id),
         "label": _extract_label(data, html),
+        "links": _extract_links(data, song_id),
+        "credits": _extract_credits(data, song_id),
+        "tags": _extract_tags(data, song_id),
     }
 
 

@@ -149,6 +149,21 @@ async def genius_song(
         return None, True
 
 
+async def genius_page(
+    sm: SM, http: httpx.AsyncClient, artist: str, title: str
+) -> tuple[G.GeniusSongData | None, bool]:
+    """The song page without its annotations: what `genius_song` reads in one request
+    (samples, credits, tags, producers, label, description)."""
+    url = G.build_genius_url(artist, title)
+    r, definitive = await _get(sm, GENIUS, http, url)
+    if r is None:
+        return None, definitive
+    try:
+        return G.song_data(url, r.text, G.parse_page(r.text), []), True
+    except G.GeniusParseError:
+        return None, True
+
+
 # ── TheAudioDB + Deezer (v1 audiodb_service) ─────────────────────────────────
 
 _FEAT_RE = re.compile(r"\s+(?:feat\.?|ft\.?|featuring|with)\s+.*$", re.IGNORECASE)

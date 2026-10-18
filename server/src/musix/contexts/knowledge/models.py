@@ -56,6 +56,26 @@ song_relations = sa.Table(
     sa.Column("source", sa.Text, nullable=False),
     sa.Column("created_at", TS, nullable=False, server_default=sa.func.now()),
 )
+song_credits = sa.Table(
+    "song_credits",
+    metadata,
+    sa.Column("song_id", U, sa.ForeignKey("songs.id"), primary_key=True),
+    sa.Column("source", sa.Text, primary_key=True),
+    sa.Column("role", sa.Text, primary_key=True),
+    sa.Column("name", sa.Text, primary_key=True),
+    sa.Column("artist_id", U, sa.ForeignKey("artists.id")),
+    sa.Column("created_at", TS, nullable=False, server_default=sa.func.now()),
+)
+song_tags = sa.Table(
+    "song_tags",
+    metadata,
+    sa.Column("song_id", U, sa.ForeignKey("songs.id"), primary_key=True),
+    sa.Column("source", sa.Text, primary_key=True),
+    sa.Column("tag", sa.Text, primary_key=True),
+    sa.Column("pos", sa.SmallInteger, nullable=False),
+    sa.Column("is_primary", sa.Boolean, nullable=False, server_default=sa.false()),
+    sa.Column("created_at", TS, nullable=False, server_default=sa.func.now()),
+)
 song_vibes = sa.Table(
     "song_vibes",
     metadata,
