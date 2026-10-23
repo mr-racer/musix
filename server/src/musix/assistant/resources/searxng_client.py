@@ -139,9 +139,8 @@ def fallback(q: str, limit: int = 10, engines: str | None = None) -> list[dict]:
     per query (the Queen playlist, 2026-10-02). Now:
     - a Wikipedia-pinned query asks Wikipedia's own search API (SearXNG's engine only
       answers an exact title);
-    - any other query goes to Bing directly;
-    - `ddgs` runs only when both come back empty, with a short timeout; Wikipedia's
-      API is the last resort for a general query.
+    - any other query asks DuckDuckGo (`ddgs`, short timeout), Bing and Wikipedia's API
+      at once, DuckDuckGo's rows first.
     """
     if engines and "wikipedia" in engines:
         rows = search_wikipedia(q, limit)
@@ -151,15 +150,20 @@ def fallback(q: str, limit: int = 10, engines: str | None = None) -> list[dict]:
 
     from musix.assistant.web_search import search_bing
 
-    # Bing and Wikipedia at once: Bing alone often serves geo-poisoned pages (max.ru for
-    # «Max Martin»), and waiting for it before asking Wikipedia doubled the wait.
-    with ThreadPoolExecutor(2) as pool:
+    # All three at once. Bing serves this host poisoned pages (max.ru for «Max Martin»,
+    # speedtest.net for anything with «Test» in it), and Wikipedia's title search always
+    # finds some article, so a DuckDuckGo asked only when both were empty never ran: the
+    # game soundtracks («Песни из TDU 2», «саундтрек GTA 5», 2026-10-24) were built from
+    # album articles while DDG alone had the fandom / IGN / Genius lists, in ~4 s.
+    with ThreadPoolExecutor(3) as pool:
+        ddg = pool.submit(search_ddg, q, limit)
         bing = pool.submit(search_bing, q, limit)
         wiki = pool.submit(search_wikipedia, q, min(limit, 5))
-        rows = [{**r, "engine": "bing"} for r in bing.result()]
-        seen = {r["url"] for r in rows}
-        rows += [r for r in wiki.result() if r["url"] not in seen]
-    return rows or search_ddg(q, limit)
+        rows: list[dict] = []
+        for part in (ddg.result(), [{**r, "engine": "bing"} for r in bing.result()], wiki.result()):
+            seen = {r["url"] for r in rows}
+            rows += [r for r in part if r["url"] not in seen]
+    return rows
 
 
 def search_wikipedia(q: str, limit: int = 10) -> list[dict]:
