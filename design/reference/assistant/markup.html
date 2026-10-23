@@ -1,0 +1,46 @@
+<div class="vp"><div class="app" data-v="b" data-k="idle">
+  <a class="brand" href="#" aria-label="MusiX — главная" data-toast="Главная"><i><b style="height:8px"></b><b style="height:14px"></b><b style="height:18px"></b><b style="height:11px"></b><b style="height:6px"></b></i></a>
+  <nav class="island lg" aria-label="Разделы">
+    <a href="#" data-toast="Главная"><span data-ic="Home"></span>Главная</a>
+    <a href="#" data-toast="Плеер"><span data-ic="Player"></span>Плеер</a>
+    <a href="#" data-toast="Библиотека" id="nav-lib"><span data-ic="Library"></span>Библ</a>
+    <a href="#" aria-current="page"><span data-ic="Assistant"></span>ИИ</a>
+    <a href="#" data-toast="Игра — следующий этап"><span data-ic="Quiz"></span>Игра</a>
+  </nav>
+  <div class="corner"><button class="cbtn gear" type="button" aria-label="Настройки" data-toast="Настройки"><span data-ic="Settings"></span></button></div>
+  <main class="page" id="page"><div class="inner" id="inner">
+    <div class="room" aria-hidden="true"><i data-n="idle" class="on"></i><i data-n="think"></i><i data-n="lyrics_search"></i><i data-n="audio_search"></i><i data-n="playlist"></i><i data-n="general"></i><i data-n="fail"></i></div>
+    <div class="sky" id="sky"></div>
+    <section class="stage" id="stage">
+      <div class="orbbox" id="orbbox">
+        <canvas id="orbgl"></canvas>
+        <div class="v1orb" id="v1orb"><div class="ring"></div><div class="ball"><span class="blob b1"></span><span class="blob b2"></span><span class="blob b3"></span><span class="blob b4"></span></div><div class="cap"></div></div>
+        <div class="inside" id="inside"></div>
+        <div class="dust" id="dust"></div>
+        <div class="orbhit" id="orbhit" title=""></div>
+      </div>
+      <div class="capt" id="capt"></div>
+      <div class="echo" id="echo"></div>
+      <div class="split" id="split"></div>
+      <form class="ask lg" id="ask" autocomplete="off"><input id="q" name="q" placeholder="Строчка из песни, настроение или вопрос…" aria-label="Запрос ассистенту"><button class="go" type="submit" aria-label="Спросить"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5.5 11.5 12 5l6.5 6.5"/></svg></button></form>
+    </section>
+    <section class="answer" id="answer" aria-live="polite"></section>
+    <section class="feed" id="feed"></section>
+  </div></main>
+  <div class="mini" data-toast="Откроется плеер">
+    <img id="mini-cover" src="" alt="">
+    <div class="t"><b id="mini-t"></b><span id="mini-a"></span></div>
+    <div class="tr"><span data-ic="Prev" data-s="18"></span><span class="pp"><span data-ic="Pause" data-s="18"></span></span><span data-ic="Next" data-s="18"></span></div>
+    <span class="tm">1:12 / 3:58</span>
+  </div>
+  <div class="pop lg" id="pop" role="status"></div>
+  <div class="toast lg" id="toast" role="status"></div>
+</div></div>
+<div class="mockbar lg" role="toolbar" aria-label="Макет">
+  <span class="mtag">Макет</span>
+  <button type="button" data-v="a">А · Как в v1</button><button type="button" data-v="b">Б · Хрусталь</button><button type="button" data-v="c">В · Лампа</button>
+  <hr><button type="button" data-run="playlist">Плейлист</button><button type="button" data-run="audio">Звук</button><button type="button" data-run="lyrics">Текст</button><button type="button" data-run="title">Ответ</button><button type="button" data-run="clarify">Уточнение</button>
+  <hr><button type="button" class="real-t">Реальное время</button>
+  <hr><button type="button" data-size="win">Окно</button><button type="button" data-size="14">14″</button><button type="button" data-size="16">16″</button><button type="button" data-size="32">32″</button>
+  <hr><button type="button" class="idea-t">Идеи</button>
+</div>

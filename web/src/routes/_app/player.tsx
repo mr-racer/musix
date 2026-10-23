@@ -534,7 +534,7 @@ function Credits({ k, genre }: { k: Schemas["TrackKnowledge"]; genre: string | n
                 {i > 0 && ", "}
                 {r.artistId
                   ? <Link to="/artist/$id" params={{ id: r.artistId }} className={css.lnk} title="Страница продюсера"><span>{r.text}</span></Link>
-                  : <Link to="/search" search={{ q: r.text }} className={css.lnk} title="Найти в фонотеке"><span>{r.text}</span></Link>}
+                  : <Link to="/assistant" search={{ q: `Песни с продюсером ${r.text}` }} className={css.lnk} title="Его песни в твоей библиотеке"><span>{r.text}</span></Link>}
               </span>
             ))}
           </dd>

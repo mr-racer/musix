@@ -10,7 +10,7 @@ import css from "./QuickSearch.module.css";
 
 /** The home's search (design/code/screens/home.md): the library at once by default, from
  *  the device's own mirror, no network and no AI; the «ИИ» side of the switch hands the
- *  words to the assistant (today the search page's lyrics mode). The thumb of the switch
+ *  words to the assistant page, which asks them at once. The thumb of the switch
  *  springs between the two like the island's blob. «/» focuses it from anywhere. */
 
 type Mode = "lib" | "ai";
@@ -110,7 +110,7 @@ export function QuickSearch({ className, edge }: { className?: string; edge?: bo
     else if (h.kind === "album") {
       if (e) openAlbum(e, h.row.id, h.row.coverImageId, (e.currentTarget as HTMLElement).querySelector("img"));
       else void nav({ to: "/album/$id", params: { id: h.row.id } });
-    } else void nav({ to: "/search", search: { q: h.q, sections: "lyrics" } });
+    } else void nav({ to: "/assistant", search: { q: h.q } });
   };
   const shown = open && hits.length > 0;
   const n = (s: number) => `${s} ${s % 10 === 1 && s % 100 !== 11 ? "трек" : s % 10 >= 2 && s % 10 <= 4 && (s % 100 < 10 || s % 100 >= 20) ? "трека" : "треков"}`;

@@ -18,7 +18,7 @@ import { flushSync } from "react-dom";
 
 export type Kind = "down" | "up" | "deeper" | "back" | "tab-next" | "tab-prev" | "regroup" | "player-open" | "player-close";
 
-const SECTIONS = ["/", "/player", "/library", "/search", "/admin"];
+const SECTIONS = ["/", "/player", "/library", "/assistant", "/admin"];
 const LIB_TABS = ["albums", "artists", "playlists", "stats"];
 const tabOf = (l: ParsedLocation) => Math.max(0, LIB_TABS.indexOf(String((l.search as { tab?: unknown }).tab ?? "albums")));
 const q = (l: ParsedLocation, k: string) => String((l.search as Record<string, unknown>)[k] ?? "");

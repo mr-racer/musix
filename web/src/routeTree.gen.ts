@@ -14,6 +14,7 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as SetupRouteImport } from './routes/setup'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
 import { Route as AppAdminRouteImport } from './routes/_app/admin'
+import { Route as AppAssistantRouteImport } from './routes/_app/assistant'
 import { Route as AppImportRouteImport } from './routes/_app/import'
 import { Route as AppLibraryRouteImport } from './routes/_app/library'
 import { Route as AppPlayerRouteImport } from './routes/_app/player'
@@ -52,6 +53,11 @@ const AppIndexRoute = AppIndexRouteImport.update({
 const AppAdminRoute = AppAdminRouteImport.update({
   id: '/admin',
   path: '/admin',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppAssistantRoute = AppAssistantRouteImport.update({
+  id: '/assistant',
+  path: '/assistant',
   getParentRoute: () => AppRoute,
 } as any)
 const AppImportRoute = AppImportRouteImport.update({
@@ -135,6 +141,7 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/setup': typeof SetupRoute
   '/admin': typeof AppAdminRouteWithChildren
+  '/assistant': typeof AppAssistantRoute
   '/import': typeof AppImportRoute
   '/library': typeof AppLibraryRoute
   '/player': typeof AppPlayerRoute
@@ -154,6 +161,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/setup': typeof SetupRoute
+  '/assistant': typeof AppAssistantRoute
   '/import': typeof AppImportRoute
   '/library': typeof AppLibraryRoute
   '/player': typeof AppPlayerRoute
@@ -177,6 +185,7 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/setup': typeof SetupRoute
   '/_app/admin': typeof AppAdminRouteWithChildren
+  '/_app/assistant': typeof AppAssistantRoute
   '/_app/import': typeof AppImportRoute
   '/_app/library': typeof AppLibraryRoute
   '/_app/player': typeof AppPlayerRoute
@@ -201,6 +210,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/setup'
     | '/admin'
+    | '/assistant'
     | '/import'
     | '/library'
     | '/player'
@@ -220,6 +230,7 @@ export interface FileRouteTypes {
   to:
     | '/login'
     | '/setup'
+    | '/assistant'
     | '/import'
     | '/library'
     | '/player'
@@ -242,6 +253,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/setup'
     | '/_app/admin'
+    | '/_app/assistant'
     | '/_app/import'
     | '/_app/library'
     | '/_app/player'
@@ -301,6 +313,13 @@ declare module '@tanstack/react-router' {
       path: '/admin'
       fullPath: '/admin'
       preLoaderRoute: typeof AppAdminRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/assistant': {
+      id: '/_app/assistant'
+      path: '/assistant'
+      fullPath: '/assistant'
+      preLoaderRoute: typeof AppAssistantRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/import': {
@@ -435,6 +454,7 @@ const AppAdminRouteWithChildren = AppAdminRoute._addFileChildren(
 
 interface AppRouteChildren {
   AppAdminRoute: typeof AppAdminRouteWithChildren
+  AppAssistantRoute: typeof AppAssistantRoute
   AppImportRoute: typeof AppImportRoute
   AppLibraryRoute: typeof AppLibraryRoute
   AppPlayerRoute: typeof AppPlayerRoute
@@ -449,6 +469,7 @@ interface AppRouteChildren {
 
 const AppRouteChildren: AppRouteChildren = {
   AppAdminRoute: AppAdminRouteWithChildren,
+  AppAssistantRoute: AppAssistantRoute,
   AppImportRoute: AppImportRoute,
   AppLibraryRoute: AppLibraryRoute,
   AppPlayerRoute: AppPlayerRoute,

@@ -969,6 +969,50 @@
         "title": "ArtistYou",
         "type": "object"
       },
+      "AssistantHomeOut": {
+        "description": "The assistant page at rest, built without an LLM: questions on the orbit and the\ncarousel's cards (each echoes its `hint` back in `POST /assistant/turns`), and the\nsky of questions asked this week.",
+        "properties": {
+          "cards": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Cards",
+            "type": "array"
+          },
+          "images": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/ImageData"
+            },
+            "title": "Images",
+            "type": "object"
+          },
+          "orbit": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Orbit",
+            "type": "array"
+          },
+          "sky": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Sky",
+            "type": "array"
+          }
+        },
+        "required": [
+          "orbit",
+          "cards",
+          "sky",
+          "images"
+        ],
+        "title": "AssistantHomeOut",
+        "type": "object"
+      },
       "AssistantTurnIn": {
         "description": "v1 `AssistantRequest`, minus the per-request LLM overrides (the instance's LLM\nis the admin's setting).",
         "properties": {
@@ -2051,6 +2095,97 @@
           "version"
         ],
         "title": "Health",
+        "type": "object"
+      },
+      "HomeOut": {
+        "properties": {
+          "albumPicks": {
+            "items": {
+              "$ref": "#/components/schemas/AlbumPick"
+            },
+            "title": "Albumpicks",
+            "type": "array"
+          },
+          "anchors": {
+            "items": {
+              "$ref": "#/components/schemas/TrackOut"
+            },
+            "title": "Anchors",
+            "type": "array"
+          },
+          "counts": {
+            "$ref": "#/components/schemas/Counts"
+          },
+          "images": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/ImageData"
+            },
+            "title": "Images",
+            "type": "object"
+          },
+          "playlists": {
+            "items": {
+              "$ref": "#/components/schemas/PlaylistOut"
+            },
+            "title": "Playlists",
+            "type": "array"
+          },
+          "pulse": {
+            "$ref": "#/components/schemas/WeeklyPulse"
+          },
+          "recent": {
+            "items": {
+              "$ref": "#/components/schemas/TrackOut"
+            },
+            "title": "Recent",
+            "type": "array"
+          },
+          "recentlyAdded": {
+            "items": {
+              "$ref": "#/components/schemas/TrackOut"
+            },
+            "title": "Recentlyadded",
+            "type": "array"
+          },
+          "vibes": {
+            "items": {
+              "$ref": "#/components/schemas/VibeOut"
+            },
+            "title": "Vibes",
+            "type": "array"
+          },
+          "wave": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WaveOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "weather": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WeatherOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "recent",
+          "recentlyAdded",
+          "playlists",
+          "counts",
+          "vibes",
+          "wave",
+          "pulse",
+          "images"
+        ],
+        "title": "HomeOut",
         "type": "object"
       },
       "Idea": {
@@ -6512,141 +6647,6 @@
         ],
         "title": "YearCount",
         "type": "object"
-      },
-      "musix__contexts__assistant__schemas__HomeOut": {
-        "description": "The assistant page at rest, built without an LLM: questions on the orbit and the\ncarousel's cards (each echoes its `hint` back in `POST /assistant/turns`), and the\nsky of questions asked this week.",
-        "properties": {
-          "cards": {
-            "items": {
-              "additionalProperties": true,
-              "type": "object"
-            },
-            "title": "Cards",
-            "type": "array"
-          },
-          "images": {
-            "additionalProperties": {
-              "$ref": "#/components/schemas/ImageData"
-            },
-            "title": "Images",
-            "type": "object"
-          },
-          "orbit": {
-            "items": {
-              "additionalProperties": true,
-              "type": "object"
-            },
-            "title": "Orbit",
-            "type": "array"
-          },
-          "sky": {
-            "items": {
-              "additionalProperties": true,
-              "type": "object"
-            },
-            "title": "Sky",
-            "type": "array"
-          }
-        },
-        "required": [
-          "orbit",
-          "cards",
-          "sky",
-          "images"
-        ],
-        "title": "HomeOut",
-        "type": "object"
-      },
-      "musix__contexts__screens__schemas__HomeOut": {
-        "properties": {
-          "albumPicks": {
-            "items": {
-              "$ref": "#/components/schemas/AlbumPick"
-            },
-            "title": "Albumpicks",
-            "type": "array"
-          },
-          "anchors": {
-            "items": {
-              "$ref": "#/components/schemas/TrackOut"
-            },
-            "title": "Anchors",
-            "type": "array"
-          },
-          "counts": {
-            "$ref": "#/components/schemas/Counts"
-          },
-          "images": {
-            "additionalProperties": {
-              "$ref": "#/components/schemas/ImageData"
-            },
-            "title": "Images",
-            "type": "object"
-          },
-          "playlists": {
-            "items": {
-              "$ref": "#/components/schemas/PlaylistOut"
-            },
-            "title": "Playlists",
-            "type": "array"
-          },
-          "pulse": {
-            "$ref": "#/components/schemas/WeeklyPulse"
-          },
-          "recent": {
-            "items": {
-              "$ref": "#/components/schemas/TrackOut"
-            },
-            "title": "Recent",
-            "type": "array"
-          },
-          "recentlyAdded": {
-            "items": {
-              "$ref": "#/components/schemas/TrackOut"
-            },
-            "title": "Recentlyadded",
-            "type": "array"
-          },
-          "vibes": {
-            "items": {
-              "$ref": "#/components/schemas/VibeOut"
-            },
-            "title": "Vibes",
-            "type": "array"
-          },
-          "wave": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/WaveOut"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "weather": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/WeatherOut"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          }
-        },
-        "required": [
-          "recent",
-          "recentlyAdded",
-          "playlists",
-          "counts",
-          "vibes",
-          "wave",
-          "pulse",
-          "images"
-        ],
-        "title": "HomeOut",
-        "type": "object"
       }
     },
     "securitySchemes": {
@@ -8639,7 +8639,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/musix__contexts__assistant__schemas__HomeOut"
+                  "$ref": "#/components/schemas/AssistantHomeOut"
                 }
               }
             },
@@ -10185,7 +10185,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/musix__contexts__screens__schemas__HomeOut"
+                  "$ref": "#/components/schemas/HomeOut"
                 }
               }
             },

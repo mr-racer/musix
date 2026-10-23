@@ -113,7 +113,7 @@ class IdeasOut(Model):
     images: dict[str, ImageData]
 
 
-class HomeOut(Model):
+class AssistantHomeOut(Model):
     """The assistant page at rest, built without an LLM: questions on the orbit and the
     carousel's cards (each echoes its `hint` back in `POST /assistant/turns`), and the
     sky of questions asked this week."""

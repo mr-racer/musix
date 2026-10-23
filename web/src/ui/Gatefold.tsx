@@ -453,7 +453,7 @@ function Liner({ data, onArtist, onSwap, current }: {
             <span key={p.name}>{i > 0 && ", "}
               {p.artistId
                 ? <button type="button" className={css.lnk} onClick={() => onArtist(p.artistId!)}>{p.name}</button>
-                : <Link to="/search" search={{ q: p.name }} className={css.lnk}>{p.name}</Link>}
+                : <Link to="/assistant" search={{ q: `Песни с продюсером ${p.name}` }} className={css.lnk}>{p.name}</Link>}
             </span>))}</p>
         </div>
       )}

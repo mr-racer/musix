@@ -519,12 +519,12 @@ async def ideas(
 
 async def home(
     s: AsyncSession, base: str, secret: bytes, account_id: uuid.UUID, lang: str, hour: int | None
-) -> S.HomeOut:
+) -> S.AssistantHomeOut:
     from musix.contexts.assistant import home as H
     from musix.contexts.media.delivery import load_images
 
     got = await H.build(s, account_id, lang, hour)
-    return S.HomeOut(
+    return S.AssistantHomeOut(
         orbit=got["orbit"],
         cards=got["cards"],
         sky=got["sky"],

@@ -15,7 +15,7 @@ const TABS: Tab[] = [
   { to: "/", label: "Главная", short: "Главная", icon: "Home" },
   { to: "/player", label: "Плеер", short: "Плеер", icon: "Player" },
   { to: "/library", label: "Библиотека", short: "Библ", icon: "Library" },
-  { to: "/search", label: "Поиск", short: "Поиск", icon: "Search" },
+  { to: "/assistant", label: "Ассистент", short: "ИИ", icon: "Assistant" },
   { to: "/admin", label: "Админка", short: "Админ", icon: "Shield", owner: true },
 ];
 
@@ -42,7 +42,7 @@ export function Shell() {
     search: () => {
       const quick = document.querySelector<HTMLInputElement>("input[data-hotkey-search]");
       if (quick) quick.focus();
-      else void nav({ to: "/search" });
+      else void nav({ to: "/assistant" });
     },
     // the player's queue window listens for this; elsewhere the player opens with it
     queue: () => {
@@ -51,7 +51,7 @@ export function Shell() {
     },
   }), [nav]);
   return (
-    <div className={css.shell} data-mx-theme={path === "/player" || path === "/" || path.startsWith("/artist/") ? "dark" : undefined}>
+    <div className={css.shell} data-mx-theme={path === "/player" || path === "/" || path === "/assistant" || path.startsWith("/artist/") ? "dark" : undefined}>
       <Link to="/" className={css.brand} aria-label="MusiX — главная">
         <BrandMark size={30} />
       </Link>

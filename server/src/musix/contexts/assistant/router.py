@@ -61,10 +61,10 @@ async def release_context(context_id: str, p: Auth) -> Response:
     return Response(status_code=204)
 
 
-@router.get("/assistant/home", response_model=S.HomeOut)
+@router.get("/assistant/home", response_model=S.AssistantHomeOut)
 async def home(
     p: Auth, s: Session, request: Request, lang: str = "ru", hour: int | None = None
-) -> S.HomeOut:
+) -> S.AssistantHomeOut:
     """The assistant page at rest, without an LLM: the orbit's questions, the carousel's
     cards and the sky. `hour` is the listener's local hour (the mood question)."""
     st = request.app.state

@@ -635,3 +635,94 @@ five `backdrop-filter` layers, the head arrives by an observer, the photo is dec
 in, pictures load at their drawn size, the songs are laid out only when near. The quiz window
 (the card only said «Играть» in the mock) is my design: ten rounds, a ring that fills for three
 seconds, four covers, the score with a line.
+
+## 2026-10-23 — the assistant page (stage 5), the brief
+
+His brief, in short:
+- **One space for all AI**: search by lyrics, by sound, building playlists, answering facts,
+  «и все прочее».
+- **v1's page with the orb is close to what he wants**: «какой-то реалистичный шар в виде
+  ассистента и эффектно находящиеся примеры запросов вокруг шара, на которые можно нажать».
+- **The example questions are built per listener by heuristics** from his library and the
+  facts: the hits of «лучшего артиста», «почему {артист} так зовут» when a fact about it
+  exists and the artist is a favourite.
+- **v1's bottom section: samples go.** Producers stay as an idea: useful cards such as a
+  producer who made songs for several artists of the library, whose request lists his songs
+  («хотя тут ЛЛМ не нужна, но почему нет»). Such cards go into **a random carousel** of many
+  kinds, not producers only: anything an LLM could answer.
+- **The orb shows the progress**, and its **colour can say which kind of request it
+  understood**. Everything with smooth, striking, «дорогие» transitions.
+- **A card design per answer type**: a playlist = the playlist card + a few words from the
+  LLM; a question = text alone; lyrics search = song cards with the matching snippets;
+  sound search = just the songs. «Органично и к месту».
+- Asked for ideas to engage the listener on this screen, perhaps gamification.
+- Apple-style design welcome. Build on `v2`, he checks, then prod.
+
+Known before designing (earlier entries): no rendered gloss or plastic 3D (2026-10-06, the
+glossy ball); LLM cost matters («много ллм жрать», 2026-10-15) — suggestions and cards are
+built without the LLM, the LLM runs on a tap; search fields are liquid glass v2; every screen
+has its own composition (the home already has v1's wave orb, so this orb must not repeat it).
+
+**His answers (same day):** «Всё ок, собирай макет, ml можно поднять». **«Угадай по строчке» — нет**
+(«это не оч, тяжело довольно будет»). He did not find v1's orb page on today's front: the assistant tab
+there is the older lyrics/sound chat (v1's orb page was `AssistantSection` in v1's `main.jsx`).
+
+**Server check (2026-10-23, six real turns for his listening account, `ml` on the GPU):**
+- lyrics «песня, где поётся, что гравитация всегда выигрывает» → «Fake Plastic Trees», 6 s, with the
+  matched line: good;
+- sound «что-нибудь спокойное на вечер» → 15 calm songs (Sade, Men I Trust, The 1975), 32 s (CLAP 25 s,
+  probably cold): good list, slow;
+- «Почему Two Door Cinema Club так называются?» → right answer, 9 s; its follow-ups are made up
+  («канадские инди-рокеры»);
+- «Что значит название «Every Angel Is Terrifying»?» → rich answer, 15 s;
+- «Хиты Kanye West» → 10 songs in 72 s (rerank + embed on the GPU 41 s, likely cold), opens with the
+  skit «Graduation Day»; **the playlist has no words from the LLM at all** (only a title);
+- **«Что ещё спродюсировал Max Martin в моей музыке?» fails**: routed to `general`, web search, 57 s,
+  «Точного ответа в найденном нет». Producer questions must be answered from the library's credits;
+- found on the way: Genius credits show up in the answer's evidence as «X сэмплирует Y».
+
+Round 1 (`design/reference/assistant/`, https://claude.ai/artifact/MgnE4xLcdBZtur4M7uZPku): one
+composition, three orbs (А v1's sphere, Б «Хрусталь» a WebGL glass ball that refracts the room and the
+questions upside down with ink-like smoke inside, В «Лампа» frosted glass with a light inside); eight
+questions on a tilted orbit (behind the ball they are seen through it), built by heuristics with the
+reason under each; the field in liquid glass v2 with the orb's light on its edge; the carousel
+(question of the day, producers, guests, song stories, name origins, anniversaries) without the LLM;
+the sky of questions (a star per question asked); five answers (playlist, by sound, by lyrics, answer,
+clarify — the orb splits); the «Детектив» and «Куратор» stickers. Awaiting his reaction.
+
+## 2026-10-23 — the assistant page, round 1 → fixes (version 2)
+
+**He likes «Хрусталь» most.** His fixes:
+- While a request runs, **a lighter square «hitbox» around the orb** (the canvas's halo did not reach
+  zero at the canvas edge) → the halo fades out before the edge.
+- **Clarify without orbs** (they also covered the field) → three liquid-glass options where the field
+  stood.
+- **The field was sometimes too big and out of place in the middle of the page** → narrower, sized by
+  the orb; it leaves while the orb works (the question is shown over the orb); after the answer it
+  stands at the answer's end, in the flow — never over the text.
+- **The stage caption was centred neither on the page nor on the orb** → on the orb's axis, the kind's
+  dot hangs outside the text.
+- **The smoke must not «тормошиться»**: it moved too fast, especially on hovering a question or typing →
+  one slow, steady speed; hover and typing change colour and light only.
+- **The covers inside the orb looked synthetic** → blurred, they surface through the smoke.
+- **The ripple on the surface at a stage change is out of place** → removed (soft light pulses only).
+- **The question in the answer's head was not centred on the small orb vertically** → centred.
+- **No «с этой строки» in the lyrics answer**; «Вся песня» → «Слушать».
+- **In «Ответ» the subject's cover appeared elsewhere first** (flew from the orb to a place that was
+  still rising) → it develops in place.
+
+## 2026-10-23 — the assistant page, version 2 → version 3
+
+His fixes:
+- **No extra information on hovering a question** (the reason line under it) — removed.
+- **The songs should come out of the orb into the answer**: the covers turning inside it «появляются,
+  но потом исчезают тупо»; the playlist's mosaic already flew out → every answer now: a cover that was
+  inside flies from where it was, the others from the orb's heart, unused ones sink back into the smoke.
+- **«Ощущение недоделанности»: much emptiness, the page unevenly filled, many extra elements; the cards
+  ran off the right edge with no way to scroll, the left was empty; the page must scroll only when it
+  really has to.** → One group (orb, field, the row of cards) centred on the screen and on the orb's
+  axis; exactly as many cards as the width holds, «Другие» deals the next ones (no sideways scroll);
+  at rest the page fits the screen (checked 1280×720, 1512×982, 1728×1117, 2560×1440), it scrolls only
+  when an answer is taller. Removed: the sky's counter, the arrows, the streak, the cards' extra lines,
+  the mock's notes by default. A plain answer got its subject at the side (cover or photo, play).
+  Where two questions on the orbit cross, the one behind goes into the shade.
