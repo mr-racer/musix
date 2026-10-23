@@ -385,7 +385,12 @@ export function mountAssistant(host: HTMLElement, deps: AssistantDeps): () => vo
       if (tracks.length) return { kind: r.intent as Kind, q, secs, title: r.playlist?.title || q, blurb: r.playlist?.blurb, source: r.playlist?.source, tracks };
     }
     if (r?.intent === "lyrics_search") {
-      const hits = (r.search?.hits ?? []).filter((h: R) => T.has(String(h.track?.track_id)));
+      // the song is the one the server settled on (`best_hit`), not the top of `hits`: those are in
+      // retrieval order, and a line shared by several songs can rank another song first (Power's
+      // «The clock's ticking…» came third behind Dead by April's «Stronger», 2026-10-24)
+      const best: R | null = r.search?.best_hit ?? null, bid = String(best?.track?.track_id ?? "");
+      const hits = [...(best ? [best] : []), ...(r.search?.hits ?? []).filter((h: R) => String(h.track?.track_id) !== bid)]
+        .filter((h: R) => T.has(String(h.track?.track_id)));
       if (hits.length) return { kind: "lyrics_search", q, secs, hits, message: r.search?.message, confidence: r.search?.confidence };
       if (r.search?.message) return { kind: "fail", q, secs, text: r.search.message };
     }
