@@ -61,6 +61,23 @@ async def release_context(context_id: str, p: Auth) -> Response:
     return Response(status_code=204)
 
 
+@router.get("/assistant/home", response_model=S.HomeOut)
+async def home(
+    p: Auth, s: Session, request: Request, lang: str = "ru", hour: int | None = None
+) -> S.HomeOut:
+    """The assistant page at rest, without an LLM: the orbit's questions, the carousel's
+    cards and the sky. `hour` is the listener's local hour (the mood question)."""
+    st = request.app.state
+    return await service.home(
+        s,
+        st.settings.public_base_url,
+        st.secrets.media_hmac,
+        p.account_id,
+        lang if lang in ("ru", "en") else "ru",
+        hour if hour is not None and 0 <= hour <= 23 else None,
+    )
+
+
 @router.get("/assistant/discoveries", response_model=S.DiscoveriesOut)
 async def discoveries(
     p: Auth, s: Session, request: Request, lang: str = "ru", limit: int = 12

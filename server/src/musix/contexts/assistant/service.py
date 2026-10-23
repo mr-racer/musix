@@ -61,6 +61,7 @@ async def get(
         raise NotFound("turn")
     ids = _track_ids(row.result) if row.result else []
     ts = await get_tracks(s, account_id, ids) if ids else []
+    subject = ((row.result or {}).get("answer") or {}).get("subject") or {}
     return S.TurnOut(
         id=row.id,
         kind=row.kind,
@@ -68,7 +69,9 @@ async def get(
         result=row.result,
         error=row.error,
         tracks={str(t.id): t for t in ts},
-        images=await load_images(s, base_url, secret, [t.cover_image_id for t in ts]),
+        images=await load_images(
+            s, base_url, secret, [t.cover_image_id for t in ts] + [subject.get("image_id")]
+        ),
         created_at=row.created_at,
         finished_at=row.finished_at,
     )
@@ -178,7 +181,7 @@ async def run(
         if row.kind == "track_chat":
             result = await _track_chat(sm, row.account_id, req, sink)
         else:
-            result = await _assistant(sm, q, ml, row.account_id, req, sink)
+            result = await _assistant(sm, q, ml, llm, row.account_id, req, sink)
     except Exception as e:
         log.exception("[assistant] turn %s failed", turn_id)
         status, error = "error", f"{type(e).__name__}: {e}"[:500]
@@ -203,6 +206,7 @@ async def _assistant(
     sm: SM,
     q: AsyncQdrantClient,
     ml: MlClient,
+    llm: Llm,
     account_id: uuid.UUID,
     req: dict[str, Any],
     sink: Any,
@@ -210,7 +214,21 @@ async def _assistant(
     from musix.assistant.models import AssistantRequest, AssistantResponse
     from musix.assistant.search_adapter import SearchAdapter
     from musix.assistant.service import run_assistant
+    from musix.contexts.assistant import fast
 
+    try:
+        quick = await fast.answer(sm, q, llm, account_id, req, sink)
+    except Exception:  # the library path is a shortcut: the agent still answers
+        log.warning("[assistant] fast path failed — the agent takes the turn", exc_info=True)
+        quick = None
+    if quick is not None:
+        return AssistantResponse(**quick).model_dump(mode="json")
+
+    hint = req.get("hint") or {}
+    if hint.get("kind") == "about_artist" and hint.get("artist_slug"):
+        req = {**req, "subject_artist_slug": req.get("subject_artist_slug") or hint["artist_slug"]}
+    if hint.get("kind") == "about_song" and hint.get("track_id"):
+        req = {**req, "subject_track_id": req.get("subject_track_id") or hint["track_id"]}
     body = {k: (str(v) if isinstance(v, uuid.UUID) else v) for k, v in req.items() if v is not None}
     areq = AssistantRequest.model_validate(body)
     result = await run_assistant(
@@ -221,7 +239,145 @@ async def _assistant(
         current_user=SimpleNamespace(id=account_id),
         sink=sink,
     )
-    return AssistantResponse(**result).model_dump(mode="json")
+    out = AssistantResponse(**result).model_dump(mode="json")
+    try:
+        await _enrich(sm, llm, account_id, req, out)
+    except Exception:  # the extras are decoration: never cost the answer
+        log.warning("[assistant] enrich failed", exc_info=True)
+    return out
+
+
+_SOURCE_LABEL = {
+    "genius": "Genius",
+    "songfacts": "Songfacts",
+    "wikipedia": "Википедия",
+    "lastfm": "Last.fm",
+}
+
+
+async def _enrich(
+    sm: SM, llm: Llm, account_id: uuid.UUID, req: dict[str, Any], out: dict[str, Any]
+) -> None:
+    """What the v2 page shows around an agent's answer: the subject's picture, links to
+    the library's artists it names, its sources, what to ask next, and the few words
+    under a web-built playlist."""
+    from urllib.parse import urlparse
+
+    from musix.contexts.assistant import fast
+    from musix.contexts.library.models import artists
+    from musix.contexts.search.normalize import fold
+
+    ans = out.get("answer")
+    pl = out.get("playlist")
+    rows: list[dict[str, Any]] = []
+    facts: list[str] = []
+    async with sm() as s:
+        if ans and ans.get("answer"):
+            subj = ans.get("subject") or {}
+            if subj.get("track_id"):
+                with contextlib.suppress(ValueError):
+                    subj["image_id"] = await s.scalar(
+                        sa.select(tracks.c.cover_image_id).where(
+                            tracks.c.id == uuid.UUID(subj["track_id"]),
+                            tracks.c.account_id == account_id,
+                        )
+                    )
+            elif subj.get("artist_slug"):
+                a = artists.c
+                subj["image_id"] = await s.scalar(
+                    sa.select(sa.func.coalesce(a.photo_id, a.image_id, a.cutout_id)).where(
+                        a.slug == subj["artist_slug"]
+                    )
+                )
+            text = f" {fold(ans['answer'])} "
+            mine = (
+                await s.execute(
+                    sa.text(
+                        "SELECT DISTINCT ar.name, ar.slug FROM artists ar JOIN tracks t ON t.primary_artist_id = ar.id"
+                        " WHERE t.account_id = :a AND t.deleted_at IS NULL"
+                    ),
+                    {"a": account_id},
+                )
+            ).all()
+            out["links"] = [
+                {"name": n, "slug": sl}
+                for n, sl in mine
+                if len(fold(n)) >= 3 and f" {fold(n)} " in text
+            ][:8]
+            labels: list[str] = []
+            for e in ans.get("evidence") or []:
+                if not e.get("used"):
+                    continue
+                if e.get("url"):
+                    host = urlparse(e["url"]).netloc.removeprefix("www.")
+                    label = (
+                        "Википедия"
+                        if "wikipedia.org" in host
+                        else _SOURCE_LABEL.get(host.split(".")[0], host)
+                    )
+                else:
+                    label = _SOURCE_LABEL.get(
+                        str(e.get("source") or "").lower(), "Факты библиотеки"
+                    )
+                if label not in labels:
+                    labels.append(label)
+            out["sources"] = labels[:4]
+            nxt: list[dict[str, Any]] = []
+            if subj.get("kind") == "song" and subj.get("track_id"):
+                t = subj.get("title") or ""
+                nxt.append(
+                    {
+                        "q": f"Похожее по звуку на «{t}»",
+                        "intent": "audio_search",
+                        "hint": {"kind": "similar", "track_id": subj["track_id"]},
+                    }
+                )
+            if subj.get("artist_slug") and subj.get("kind") == "artist":
+                nxt.append(
+                    {
+                        "q": f"Хиты {subj.get('title')}",
+                        "intent": "playlist",
+                        "hint": {"kind": "hits", "artist_slug": subj["artist_slug"]},
+                    }
+                )
+            about = (
+                {"kind": "about_song", "track_id": subj["track_id"]}
+                if subj.get("track_id")
+                else {"kind": "about_artist", "artist_slug": subj["artist_slug"]}
+                if subj.get("artist_slug")
+                else None
+            )
+            for f in (ans.get("follow_ups") or [])[:2]:
+                nxt.append({"q": f, "intent": "general", "hint": about})
+            out["next"] = nxt
+        if pl and pl.get("tracks") and not pl.get("blurb") and out.get("intent") == "playlist":
+            ids = []
+            for t in pl["tracks"]:
+                with contextlib.suppress(ValueError, KeyError):
+                    ids.append(uuid.UUID(t["track_id"]))
+            rows = [
+                dict(r)
+                for r in (
+                    await s.execute(
+                        sa.text(f"{fast._TRACK} AND t.id = ANY(:ids)"),
+                        {"a": account_id, "ids": ids},
+                    )
+                ).mappings()
+            ]
+            order = {i: n for n, i in enumerate(ids)}
+            rows.sort(key=lambda r: order.get(r["id"], 0))
+            facts = await fast._facts(s, rows, req.get("lang") or "ru")
+            pl["source"] = pl.get("source") or "web"
+    if pl and pl.get("tracks") and not pl.get("blurb") and out.get("intent") == "playlist" and rows:
+        pl["blurb"] = await fast.write_blurb(
+            llm,
+            req.get("message", ""),
+            pl.get("title") or "",
+            rows,
+            facts,
+            "web",
+            req.get("lang") or "ru",
+        )
 
 
 async def _track_chat(
@@ -359,3 +515,18 @@ async def ideas(
             )
     imgs = await load_images(s, base, secret, [i.image_id for i in out])
     return S.IdeasOut(ideas=out, images=imgs)
+
+
+async def home(
+    s: AsyncSession, base: str, secret: bytes, account_id: uuid.UUID, lang: str, hour: int | None
+) -> S.HomeOut:
+    from musix.contexts.assistant import home as H
+    from musix.contexts.media.delivery import load_images
+
+    got = await H.build(s, account_id, lang, hour)
+    return S.HomeOut(
+        orbit=got["orbit"],
+        cards=got["cards"],
+        sky=got["sky"],
+        images=await load_images(s, base, secret, got["image_ids"]),
+    )

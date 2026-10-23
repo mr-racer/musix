@@ -137,3 +137,66 @@ def test_a_turn_streams_its_stages_then_done_over_the_websocket(
     got = client.get(f"/api/v2/assistant/turns/{turn}", headers=bearer(tok)).json()
     assert got["status"] == "done", got.get("error")
     assert got["result"]["intent"] == "general"
+
+
+async def test_the_library_answers_a_producer_question_without_the_agent(
+    sm, client: TestClient, listener
+) -> None:  # type: ignore[no-untyped-def]
+    """«Что ещё спродюсировал Max Martin в моей музыке?» went to the web for 57 s and
+    answered nothing while the credits named him (2026-10-23): now it is the credits."""
+    from musix.contexts.assistant import fast
+    from musix.contexts.knowledge.models import song_relations
+    from musix.contexts.library.models import tracks
+
+    tok, acct, (a, *_) = listener
+    async with sm() as s:
+        sid = await s.scalar(sa.select(tracks.c.song_id).where(tracks.c.id == a))
+        await s.execute(
+            sa.insert(song_relations).values(
+                song_id=sid, kind="producer", target_text="Max Martin", source="genius"
+            )
+        )
+        credited = {
+            str(t)
+            for t in await s.scalars(
+                sa.select(tracks.c.id).where(tracks.c.song_id == sid, tracks.c.account_id == acct)
+            )
+        }
+        await s.commit()
+
+    class NoLlm:  # the few words are optional: the list stands without them
+        async def ask(self, *a: object, **k: object) -> str:
+            raise RuntimeError("no llm in tests")
+
+    class Sink:
+        def __init__(self) -> None:
+            self.frames: list[dict[str, object]] = []
+
+        def on_status(self, e: dict[str, object]) -> None:
+            self.frames.append(e)
+
+    sink = Sink()
+    got = await fast.answer(
+        sm,
+        None,
+        NoLlm(),
+        acct,
+        {"message": "Что ещё спродюсировал Max Martin в моей музыке?"},
+        sink,
+    )  # type: ignore[arg-type]
+    assert got is not None
+    assert got["fast"] == "producer"
+    assert {t["track_id"] for t in got["playlist"]["tracks"]} == credited
+    assert got["playlist"]["blurb"] is None
+    assert sink.frames[0]["intent"] == "playlist"  # the orb's colour comes first
+    # a question the library cannot settle goes to the agent
+    assert (
+        await fast.answer(sm, None, NoLlm(), acct, {"message": "Почему небо синее?"}, sink) is None
+    )
+
+    home = client.get("/api/v2/assistant/home?hour=20", headers=bearer(tok))
+    assert home.status_code == 200
+    assert {"orbit", "cards", "sky", "images"} <= set(home.json())
+    async with sm() as s:  # the fixture's songs are shared with the knowledge tests
+        await s.execute(sa.delete(song_relations).where(song_relations.c.song_id == sid))
+        await s.commit()

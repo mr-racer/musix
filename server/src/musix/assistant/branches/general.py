@@ -543,7 +543,7 @@ def _fallback_answer(evidence: list, lang: str) -> str:
                 links.append(url)
         elif len(facts) < 2 and (getattr(e, "text", "") or "").strip():
             facts.append(_clip(e.text))
-    parts = ["Точного ответа в найденном нет — выдумывать не буду." if ru else "What I found doesn't answer this precisely, and I won't guess."]
+    parts = ["Точного ответа в найденном нет, выдумывать не буду." if ru else "What I found doesn't answer this precisely, and I won't guess."]
     if facts:
         parts.append(("Что известно: " if ru else "What is known: ") + " ".join(facts))
     if links:

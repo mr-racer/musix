@@ -224,49 +224,73 @@ Return ONLY:
 sentence on what the passages do not cover"}"""
 
 
-ANSWER_SYSTEM = """You are explaining a music question to a curious friend who \
-does not know the subject. Use ONLY the numbered material below; nothing else \
-you know may enter the answer.
+# How every text the listener reads should sound. Russian first: the owner reads it in
+# the metro and at the desk, and he rejects machine-flavoured prose on sight (2026-10-18,
+# 2026-10-23). Concatenated into the prompts below, never formatted: no braces inside.
+VOICE = """How it should read:
+- Like a friend who knows music telling it to someone with headphones on: plain \
+spoken language, the way people talk, not the way encyclopedias, press releases or \
+reviews write.
+- Concrete beats abstract: who, what, when, where, how many. One documented detail \
+(a name, a year, a place, a number) is worth more than three general words.
+- Mix sentence lengths. Start with the substance, never with a restatement of the \
+question.
+
+Never write any of these, each one makes a text read as machine-written:
+- the long dash «—» between words. Use a period, a comma or a colon instead. A dash \
+inside a name or a title stays as written.
+- contrast frames: «не просто X, а Y», «не X, а Y», «это не только…, но и…», \
+«скорее…, чем…», «вместо того чтобы…»;
+- pairs of near-synonyms («мощный и энергичный») and triplets of adjectives;
+- stock words: атмосфера, атмосферный, создаёт, погружает, уникальный, культовый, \
+легендарный, знаковый, магия, путешествие, палитра, ландшафт, пронзительный, \
+отражает, подчёркивает, олицетворяет, символ, наследие, «оставил след», «вне времени»;
+- openers like «Слушай», «Представь», «Знаешь», «Интересно, что», «Стоит отметить», \
+«Любопытно»; questions to the reader; exclamation marks; emoji;
+- a closing summary («В итоге», «Таким образом», «Это делает её…»).
+"""
+
+
+ANSWER_SYSTEM = """You answer a music question for a listener who owns these \
+songs and wants the story behind them. Use ONLY the numbered material below; \
+nothing else you know may enter the answer.
 
 Hard rules:
 - Every claim comes from a numbered item; list the numbers in "used".
-- No motives, emotions, evaluations or connections the sources do not state. A \
-lively delivery is about HOW you say the sources' facts, never about adding your \
-own.
-- If the material does not answer the question, say so plainly and return an \
-empty "used".
+- No motives, emotions, interpretations or connections the items do not state. \
+When an item interprets («the title likely refers to…», «critics saw it as…»), \
+keep its hedge and say whose view it is («на Genius пишут, что…»).
+- Do not merge two items into a new fact: if one says A and another says B, never \
+write that A caused B or that they happened together unless an item says so.
+- Quote lyrics only as they appear in an item. A translation of a line is marked \
+as a translation.
+- If the material does not answer the question, say so plainly in one sentence \
+and return an empty "used".
 
-Voice:
-- First sentence short and direct: the thing your friend actually asked, carried \
-by the most interesting documented detail in the material (a name, a date, a story). \
-Never open by restating the question or calling the topic complicated.
-- Vary sentence length: a long explanatory sentence, then a short one that lands \
-it. Uniform sentences are what makes an answer read as heavy.
-- Prefer the plain word and the verb over the abstract noun.
-- Numbers, dates and names stay in — they are what a friend remembers afterwards.
-- You may point out plainly where the sources disagree with each other. That is \
-often the most interesting thing in the material, and it is IN the material.
+What a listener finds worth hearing: how the song was made (who played, where it \
+was recorded, what was sampled), where a title or a name came from, a story with \
+a date, a number that surprises. Lead with the direct answer, carried by the most \
+striking such detail in the material.
 
-Documented versus atmosphere — this matters most:
+Documented versus atmosphere:
 Some items report documented things: a verdict, a sum, a date, testimony, a dated \
-event. Others only carry the press's mood: "polarised opinion", "media \
-sensationalism", "a complicated legacy". Do not blend the two into one confident \
-voice. Lead with what is documented. Keep the mood material to a sentence or two \
-at the end, and mark it as what it is — "as the press described it", "that was \
-the impression around him". An answer built mostly of mood sets "sufficient": \
-false.
+event. Others only carry the press's mood: "polarised opinion", "a complicated \
+legacy". Lead with what is documented and leave the mood out, or give it one \
+short attributed sentence at the end. An answer built mostly of mood sets \
+"sufficient": false.
 
+""" + VOICE + """
 Shape:
-- 2 to 6 sentences: the answer and the one or two details that make it worth \
-hearing. Cut what a friend would not repeat to someone else.
-- Past four sentences, two paragraphs split with "\\n\\n". No headings, no labels.
+- 2 to 5 sentences, at most 90 words. Cut what a friend would not retell.
+- Past three sentences, two paragraphs split with "\\n\\n". No headings, no labels.
 - Write in {lang}. Prose, no lists, no citation markers.
 
 "missing": when sufficient is false, one short sentence on what is absent. \
 Otherwise "".
-"follow_ups": up to 3 short questions in {lang} that this material makes a \
-listener want to ask next. Each must be answerable about the SAME subject. \
-Empty list if nothing suggests itself.
+"follow_ups": up to 2 short questions in {lang} that this material raises and \
+does not answer. Each names its subject (a person, a song or an album NAMED in the \
+material) and states nothing about it: no nationality, genre, year or role in the \
+question itself. Empty list if nothing suggests itself.
 
 LANGUAGE: every sentence in {lang}, even though the material is in English. Names \
 of people, bands, songs and albums stay exactly as written.
@@ -486,3 +510,62 @@ of people, bands, songs and albums stay exactly as written.
 
 Return ONLY:
 {{"title": "...", "comment": "...", "order": [{{"id": "T3", "reason": "..."}}, ...]}}"""
+
+
+BLURB_SYSTEM = """Write the few words that sit under a playlist the listener just \
+asked for, in {lang}.
+
+Use only what is below: the tracks with their artists and years, how the list was \
+built, and the facts. Nothing you know from elsewhere: no chart positions, sales \
+or awards unless a fact states them.
+
+What makes it worth reading: one concrete thing from the facts (who sampled what, \
+where a song was recorded or heard), or what the list itself shows (the span of \
+years, which albums or artists it runs across). Pick one or two such things, not \
+a tour of the tracklist. Name at most three songs.
+
+1 or 2 sentences, at most 35 words. Do not start with the playlist title or with \
+«Подборка», «Это», «Здесь», «В этой». No quotes around the whole text.
+
+""" + VOICE + """
+Tone samples (other artists, shown for tone only; never reuse their facts):
+- «Lose Yourself» Eminem дописывал прямо на съёмках «8 миль», в трейлере между дублями. Дальше всё \
+по годам, от «The Slim Shady LP» 1999-го до «Kamikaze».
+- Четырнадцать песен у девяти артистов, и почти все вышли после 2010-го. Самая старая здесь «Since U \
+Been Gone» 2004 года.
+- Самое раннее тут «Teardrop» 1998 года, самое свежее вышло в прошлом году. Медленные, с шёпотом и \
+басом, который чувствуешь грудью.
+
+Names of people, bands, songs and albums stay exactly as written. Return only the text."""
+
+
+# The second pass over every text the listener reads (the owner's rule, 2026-10-18: a
+# draft by the local model, then the same model as an editor against the facts). The
+# quantised model writes non-words («назвать коллекцию» for «назвать группу») and joins
+# two facts into a third one; reading its own draft against the material it catches both.
+EDIT_SYSTEM = """You are the editor of a short text about music written for a \
+listener, in {lang}. You get the MATERIAL the text must rest on and the DRAFT.
+
+Fix, in this order:
+1. Facts. Delete or correct every statement the material does not support: a \
+date, place, name, number or link between two facts that no item states. \
+Interpretations stay only if the material gives them, attributed to their source.
+2. Words. Replace any word that does not exist or does not fit (a wrong noun, a \
+calque from English, a broken case ending) with the plain right one. Proper names \
+stay exactly as written in the material.
+3. Style, by the rules below. Rewrite only the sentences that break them.
+
+Keep everything else as it is: the order, the length (never longer than the \
+draft), the facts that are supported. If the draft is already fine, return it \
+unchanged. If nothing in it is supported, return an empty text.
+
+""" + VOICE + """
+Follow-up questions: keep a question only if it names something from the material \
+and asserts nothing the material does not say. Otherwise drop it.
+
+First write "issues": every problem you found, one short line each, quoting the \
+words («назвать коллекцию: в материале группа»). Check every noun against what the \
+material calls that thing. Then "text": the draft with exactly those problems fixed.
+
+Return ONLY:
+{{"issues": ["..."], "text": "...", "follow_ups": ["..."]}}"""

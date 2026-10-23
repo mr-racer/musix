@@ -16,10 +16,10 @@ _MODE_LABEL_RU = {"text": "по тексту", "audio": "по звучанию",
 _MODE_LABEL_EN = {"text": "by lyrics", "audio": "by sound", "hybrid": "by lyrics and sound"}
 
 _INTENT_LABEL_RU = {
-    "lyrics_search": "Понял — ищу трек по тексту",
-    "audio_search": "Понял — ищу по звучанию",
-    "playlist": "Понял — собираю подборку",
-    "general": "Понял — рассказываю",
+    "lyrics_search": "Понял: ищу трек по тексту",
+    "audio_search": "Понял: ищу по звучанию",
+    "playlist": "Понял: собираю подборку",
+    "general": "Понял: рассказываю",
 }
 _INTENT_LABEL_EN = {
     "lyrics_search": "Got it — finding the track by its words",
@@ -85,7 +85,7 @@ def human(stage: str, lang: str | None = None, **kw) -> str:
         intent = kw.get("intent") or "search"
         return (_INTENT_LABEL_RU if ru else _INTENT_LABEL_EN).get(intent, "")
     if stage == "clarify":
-        return "Не уверен, что именно нужно — уточни" if ru else "Not sure what you need — pick one"
+        return "Не уверен, что именно нужно, уточни" if ru else "Not sure what you need — pick one"
     if stage == "disambiguate":
         return "Уточни, о ком речь" if ru else "Which one did you mean?"
     if stage == "thinking":
@@ -106,7 +106,7 @@ def human(stage: str, lang: str | None = None, **kw) -> str:
         return "Разбираю запрос" if ru else "Reading the request"
     if stage == "plan_failed":
         return (
-            "Не удалось составить план — модель не ответила"
+            "Не удалось составить план: модель не ответила"
             if ru
             else "Couldn't plan the run — the model didn't answer"
         )
@@ -127,7 +127,7 @@ def human(stage: str, lang: str | None = None, **kw) -> str:
         n = int(kw.get("count") or 0)
         if kw.get("refill"):
             return (
-                "Часть страниц не открылась — беру следующие"
+                "Часть страниц не открылась, беру следующие"
                 if ru
                 else "Some pages refused — taking the next ones"
             )
@@ -181,20 +181,20 @@ def human(stage: str, lang: str | None = None, **kw) -> str:
                 ("Ответил по библиотеке" if ru else "Answered from your library")
                 if kw.get("stop")
                 else (
-                    "В библиотеке этого нет — иду в интернет"
+                    "В библиотеке этого нет, иду в интернет"
                     if ru
                     else "Your library doesn't cover it — going to the web"
                 )
             )
         if kw.get("stop"):
             return "Материала достаточно" if ru else "That's enough material"
-        return "Материала мало — ищу ещё" if ru else "Not enough yet — searching again"
+        return "Материала мало, ищу ещё" if ru else "Not enough yet — searching again"
     if stage == "subject":
         return (
             (
                 "Понял, о ком речь"
                 if kw.get("artist") or kw.get("song")
-                else "Не понял, о ком речь — иду в интернет"
+                else "Не понял, о ком речь, иду в интернет"
             )
             if ru
             else (
@@ -212,13 +212,13 @@ def human(stage: str, lang: str | None = None, **kw) -> str:
                 else f"Found {n} fact{'' if n == 1 else 's'} in the library"
             )
         return (
-            "В библиотеке фактов нет — иду в интернет"
+            "В библиотеке фактов нет, иду в интернет"
             if ru
             else "No facts stored — going to the web"
         )
     if stage == "reddit_rescue":
         return (
-            "Больше нигде нет — смотрю обсуждения на Reddit"
+            "Больше нигде нет, смотрю обсуждения на Reddit"
             if ru
             else "Nothing anywhere else — checking Reddit threads"
         )
@@ -245,7 +245,7 @@ def human(stage: str, lang: str | None = None, **kw) -> str:
         )
     if stage == "discography":
         return (
-            f"Мало треков — читаю дискографию {kw.get('artist') or ''}"
+            f"Мало треков, читаю дискографию {kw.get('artist') or ''}"
             if ru
             else f"Thin so far — reading {kw.get('artist') or ''}'s discography"
         )
@@ -273,6 +273,8 @@ def human(stage: str, lang: str | None = None, **kw) -> str:
     if stage == "result":
         n = int(kw.get("tracks") or 0)
         return f"Готово: {_tracks_ru(n)}" if ru else f"Done: {n} track{'' if n == 1 else 's'}"
+    if stage == "editing":
+        return "Сверяю ответ с источниками" if ru else "Checking the answer against the sources"
     if stage == "engines_down":
         return "Часть поисковиков не ответила" if ru else "Some search engines didn't answer"
 
@@ -293,7 +295,7 @@ def human(stage: str, lang: str | None = None, **kw) -> str:
         return f"Searching the library… found {found} match{'' if found == 1 else 'es'}"
     if stage == "validate":
         if kw.get("valid", True):
-            return "Проверил — трек подходит" if ru else "Checked — the track fits"
+            return "Проверил: трек подходит" if ru else "Checked — the track fits"
         return "Проверяю точность совпадения" if ru else "Double-checking the match"
     if stage == "retry":
         return "Уточняю запрос и пробую снова" if ru else "Refining the query and retrying"
@@ -358,7 +360,7 @@ def human(stage: str, lang: str | None = None, **kw) -> str:
     if stage == "auto_matched":
         found = int(kw.get("found") or 0)
         return (
-            f"Сверил с библиотекой — {_matches_ru(found)}"
+            f"Сверил с библиотекой: {_matches_ru(found)}"
             if ru
             else f"Cross-checked the library — {found} match{'' if found == 1 else 'es'}"
         )
@@ -394,7 +396,7 @@ def human(stage: str, lang: str | None = None, **kw) -> str:
                 else f"Found {n} fact{'' if n == 1 else 's'} in the library"
             )
         return (
-            "В библиотеке фактов нет — иду в интернет"
+            "В библиотеке фактов нет, иду в интернет"
             if ru
             else "No facts stored — going to the web"
         )
@@ -403,14 +405,14 @@ def human(stage: str, lang: str | None = None, **kw) -> str:
         n = int(kw.get("found") or 0)
         if n:
             return (
-                f"Разбираю факт — рядом {_facts_ru(n)}"
+                f"Разбираю факт, рядом {_facts_ru(n)}"
                 if ru
                 else f"Working out the fact — {n} related note{'' if n == 1 else 's'}"
             )
         return "Разбираюсь, что значит этот факт" if ru else "Working out what this fact means"
     if stage == "no_explanation":
         return (
-            "Объяснения не нашлось — придумывать не буду"
+            "Объяснения не нашлось, придумывать не буду"
             if ru
             else "No explanation found — I won't invent one"
         )

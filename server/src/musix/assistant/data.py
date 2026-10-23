@@ -207,6 +207,9 @@ def sample_links(collection_name: str, src_slug: str) -> dict[str, list[dict[str
                        AND o.deleted_at IS NULL)) AS slug
             FROM song_relations r JOIN songs s ON s.id = r.song_id
             WHERE s.slug = %(slug)s AND r.source IN ('facts', 'genius') AND {OWNS_SONG}
+              -- Genius also writes producer and label rows (2026-10-18): unfiltered, every
+              -- credit came out as «The Weeknd сэмплирует Every Angel Is Terrifying»
+              AND r.kind IN ('sample', 'interpolation', 'sampled_by', 'interpolated_by')
             ORDER BY r.source <> 'genius', r.id""",
         {"a": a, "slug": src_slug},
     )

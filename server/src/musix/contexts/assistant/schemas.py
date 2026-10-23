@@ -14,6 +14,25 @@ class ChatTurn(Model):
     content: str = Field(max_length=12000)
 
 
+class TurnHint(Model):
+    """What the page knows about a question it built (`GET /assistant/home`)."""
+
+    kind: Literal[
+        "hits",
+        "best",
+        "producer",
+        "guest",
+        "similar",
+        "mood",
+        "lyrics",
+        "about_artist",
+        "about_song",
+    ]
+    artist_slug: str | None = Field(default=None, max_length=200)
+    track_id: uuid.UUID | None = None
+    name: str | None = Field(default=None, max_length=200)
+
+
 class AssistantTurnIn(Model):
     """v1 `AssistantRequest`, minus the per-request LLM overrides (the instance's LLM
     is the admin's setting)."""
@@ -32,6 +51,7 @@ class AssistantTurnIn(Model):
     context_id: str | None = Field(default=None, max_length=64)
     allow_web: bool | None = None
     now_playing_track_id: uuid.UUID | None = None
+    hint: TurnHint | None = None
     limit: int = Field(default=15, ge=1, le=40)
     lang: Literal["ru", "en"] = "ru"
 
@@ -90,4 +110,15 @@ class Idea(Model):
 
 class IdeasOut(Model):
     ideas: list[Idea]
+    images: dict[str, ImageData]
+
+
+class HomeOut(Model):
+    """The assistant page at rest, built without an LLM: questions on the orbit and the
+    carousel's cards (each echoes its `hint` back in `POST /assistant/turns`), and the
+    sky of questions asked this week."""
+
+    orbit: list[dict[str, Any]]
+    cards: list[dict[str, Any]]
+    sky: list[dict[str, Any]]
     images: dict[str, ImageData]

@@ -102,11 +102,13 @@ class Assistant:
         allow_web: Optional[bool] = None,
         context=None,
         context_id: Optional[str] = None,
+        hint: Optional[dict] = None,
     ):
         """Answer ``message``. Returns one of the four result contracts."""
         with self.timings.measure():
             result = await self._run(
                 message,
+                hint=hint,
                 focus_fact=focus_fact,
                 focus_kind=focus_kind,
                 subject_track_id=subject_track_id,
@@ -131,6 +133,7 @@ class Assistant:
         allow_web: Optional[bool] = None,
         context=None,
         context_id: Optional[str] = None,
+        hint: Optional[dict] = None,
     ):
         self.sink.put("start", message=message)
 
@@ -184,6 +187,21 @@ class Assistant:
             return await self._general(
                 message, plan, subject=pinned, allow_web=allow_web, context=context
             )
+
+        # A question the page built itself (the orbit, a card) already knows its kind
+        # and subject: the planner would spend 2–5 s re-deriving them from the sentence.
+        hinted = self._hinted_plan(message, hint, pinned)
+        if hinted is not None:
+            self.sink.put("plan", intent=hinted.intent, hint=(hint or {}).get("kind"))
+            if hinted.intent == "lyrics_search":
+                from musix.assistant.branches.lyrics import LyricsBranch
+
+                return await LyricsBranch(self).run(message, hinted, subject=pinned)
+            if hinted.intent == "audio_search":
+                from musix.assistant.branches.audio import AudioBranch
+
+                return await AudioBranch(self).run(message, hinted)
+            return await self._general(message, hinted, subject=pinned, allow_web=allow_web)
 
         with self.timings.span("llm.plan"):
             plan = await self.planner.plan(message)
@@ -263,7 +281,7 @@ class Assistant:
             fetcher or PageFetcher(self.cfg, self.sink),
         )
         self.last_branch = branch
-        return await branch.run(
+        result = await branch.run(
             message,
             plan,
             focus_fact=focus_fact,
@@ -272,6 +290,45 @@ class Assistant:
             allow_web=allow_web,
             context=context,
         )
+        if result.grounded and result.answer:
+            from musix.assistant.editor import edit
+
+            material = "\n\n".join(f"[{e.n}] {e.text}" for e in result.evidence)
+            self.sink.put("editing")
+            with self.timings.span("llm.edit"):
+                text, follow_ups = await edit(
+                    self.llm, self.cfg.lang, material, result.answer, result.follow_ups
+                )
+            if text:
+                result.answer, result.follow_ups = text, follow_ups
+            else:
+                result.notes.append("the editor found nothing in the draft supported")
+                result.answer, result.grounded = "", False
+        return result
+
+    def _hinted_plan(self, message: str, hint: Optional[dict], pinned: Optional[Subject]):
+        """The plan for a page-built question, or None when the hint does not settle it."""
+        import re
+
+        from musix.assistant.contracts import Filters
+
+        kind = (hint or {}).get("kind")
+        if kind in ("about_artist", "about_song") and pinned is not None:
+            return plan_for_followup(message, pinned)
+        if kind == "mood":
+            return Plan(intent="audio_search", filters=Filters(), web_queries=[], ce_query=message)
+        if kind == "lyrics":
+            m = re.search(r"[«\"“](.+?)[»\"”]", message)
+            if m:
+                line = m.group(1)
+                return Plan(
+                    intent="lyrics_search",
+                    filters=Filters(),
+                    web_queries=[],
+                    ce_query=line,
+                    lyrics_query=line,
+                )
+        return None
 
     # ── shared machinery ──────────────────────────────────────────────────
 

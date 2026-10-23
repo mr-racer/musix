@@ -144,6 +144,7 @@ async def run_assistant(
         allow_web=getattr(req, "allow_web", None),
         context=context,
         context_id=context_id,
+        hint=getattr(req, "hint", None),
     )
 
     slots = _merge_slots(req.slots)

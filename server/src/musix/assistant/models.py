@@ -127,6 +127,9 @@ class AssistantRequest(BaseModel):
     # What the player is on right now — lets "расскажи про этот трек" resolve
     # with no entity in the message at all.
     now_playing_track_id: Optional[str] = None
+    # What the assistant page already knows about a question it built itself (the
+    # orbit, a card): {"kind": "about_artist", "artist_slug": ...}. Skips the planner.
+    hint: Optional[Dict] = None
 
     limit: int = Field(15, ge=1, le=40)
     lang: str = "en"
@@ -197,6 +200,10 @@ class AIPlaylistResponse(BaseModel):
     title: str
     steps: List[AIPlaylistStep]
     tracks: List[AIPlaylistTrack]
+    # A sentence or two from the LLM under the playlist, from the list and its facts.
+    blurb: Optional[str] = None
+    # How the list was built: credits | chart | listens | clap | web.
+    source: Optional[str] = None
 
 
 class AssistantEvidenceItem(BaseModel):
@@ -233,6 +240,8 @@ class AssistantSubjectRef(BaseModel):
     artist_slug: Optional[str] = None
     track_id: Optional[str] = None
     image_path: Optional[str] = None
+    # v2: the artist's photo or the song's cover, resolved in `images` of the turn.
+    image_id: Optional[str] = None
 
 
 class AssistantAnswerPayload(BaseModel):
@@ -356,6 +365,14 @@ class AssistantResponse(BaseModel):
     clarify: Optional[List[AssistantClarifyOption]] = None
     # Set instead of a payload when the facts subject was ambiguous.
     disambiguate: Optional[List[AssistantSubjectOption]] = None
+
+    # v2 assistant page: what to ask next ({q, intent, hint}), library artists named
+    # in the answer ({name, slug}) to link, and where the answer came from (labels).
+    next: List[Dict] = Field(default_factory=list)
+    links: List[Dict] = Field(default_factory=list)
+    sources: List[str] = Field(default_factory=list)
+    # Set when the library answered by itself (contexts/assistant/fast.py): the kind.
+    fast: Optional[str] = None
 
 
 class TrackChatRequest(BaseModel):

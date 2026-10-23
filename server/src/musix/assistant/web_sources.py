@@ -56,6 +56,31 @@ JUNK_URL = re.compile(
 )
 
 
+# SearXNG from this host: Brave rate-limited, DuckDuckGo / Startpage / Qwant behind a
+# CAPTCHA, Google empty (2026-10-23). Every query still waited for it (and its 1.5 s
+# pacing) before the direct fallback. Two empty answers in a row rest it for ten minutes.
+_SEARX_REST = 600.0
+_searx_state = {"fails": 0, "until": 0.0}
+
+
+def _searx_resting() -> bool:
+    import time
+
+    return time.monotonic() < _searx_state["until"]
+
+
+def _searx_outcome(ok: bool) -> None:
+    import time
+
+    if ok:
+        _searx_state["fails"] = 0
+        return
+    _searx_state["fails"] += 1
+    if _searx_state["fails"] >= 2 and not _searx_resting():
+        _searx_state["until"] = time.monotonic() + _SEARX_REST
+        logger.info("[sources] SearXNG answers nothing — going direct for %.0f min", _SEARX_REST / 60)
+
+
 def _host(url: str) -> str:
     return (urlparse(url).netloc or "").lower()
 
@@ -265,7 +290,10 @@ class SearchSources:
         self._seen_queries.add(key)
         self.searches += 1
 
-        results = self._searx_raw(query, engines=engines, limit=limit, host_pinned=host_pinned)
+        results = None if _searx_resting() else self._searx_raw(
+            query, engines=engines, limit=limit, host_pinned=host_pinned
+        )
+        _searx_outcome(bool(results))
         if not results:
             # None (the instance or every engine it was asked failed) AND [] (it answered
             # with nothing): from this host Brave/DDG are blocked and Bing/Google return
@@ -274,7 +302,11 @@ class SearchSources:
             # (2026-10-02).
             logger.info("[sources] SearXNG had nothing for %r — Wikipedia/Bing directly", query)
             rows = searxng_client.fallback(query, limit=limit, engines=engines)
-            return self._clean(query, {"results": rows}, engines=engines, limit=limit, host_pinned=host_pinned, asked=engines) if rows else []
+            # Wikipedia's own search API answers from one host by definition: the takeover
+            # rule is for a scraper stuck on one site, and it dropped every Wikipedia
+            # fallback row («Max Martin production discography», 2026-10-23).
+            one_source = bool(rows) and all(r.get("engine") == "wikipedia" for r in rows)
+            return self._clean(query, {"results": rows}, engines=engines, limit=limit, host_pinned=host_pinned or one_source, asked=engines) if rows else []
         return results
 
     def _searx_raw(

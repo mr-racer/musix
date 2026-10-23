@@ -147,10 +147,19 @@ def fallback(q: str, limit: int = 10, engines: str | None = None) -> list[dict]:
         rows = search_wikipedia(q, limit)
         if rows:
             return rows
+    from concurrent.futures import ThreadPoolExecutor
+
     from musix.assistant.web_search import search_bing
 
-    rows = [{**r, "engine": "bing"} for r in search_bing(q, limit)]
-    return rows or search_ddg(q, limit) or (search_wikipedia(q, limit) if not (engines and "wikipedia" in engines) else [])
+    # Bing and Wikipedia at once: Bing alone often serves geo-poisoned pages (max.ru for
+    # «Max Martin»), and waiting for it before asking Wikipedia doubled the wait.
+    with ThreadPoolExecutor(2) as pool:
+        bing = pool.submit(search_bing, q, limit)
+        wiki = pool.submit(search_wikipedia, q, min(limit, 5))
+        rows = [{**r, "engine": "bing"} for r in bing.result()]
+        seen = {r["url"] for r in rows}
+        rows += [r for r in wiki.result() if r["url"] not in seen]
+    return rows or search_ddg(q, limit)
 
 
 def search_wikipedia(q: str, limit: int = 10) -> list[dict]:

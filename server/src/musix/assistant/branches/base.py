@@ -64,8 +64,14 @@ class WebBranch:
                 if plan.filters.work:
                     with self.timings.span("search.fandom"):
                         structured_hits += await asyncio.to_thread(self.sources.fandom, query)
-            with self.timings.span("search.wikipedia"):
-                structured_hits += await asyncio.to_thread(self.sources.wikipedia, query)
+
+        # All the queries at once: one after another they cost 2–5 s each from this
+        # host (SearXNG empty → Bing → Wikipedia), 19 s for four (2026-10-23 logs).
+        with self.timings.span("search.wikipedia"):
+            for hits in await asyncio.gather(
+                *(asyncio.to_thread(self.sources.wikipedia, q) for q in queries)
+            ):
+                structured_hits += hits
 
         # Start reading them NOW, with the web searches still to come. Nothing
         # about which structured pages get read depends on those searches — these
@@ -83,9 +89,11 @@ class WebBranch:
         )
 
         try:
-            for query in queries:
-                with self.timings.span("search.web"):
-                    web_hits += await asyncio.to_thread(self.sources.web, query)
+            with self.timings.span("search.web"):
+                for hits in await asyncio.gather(
+                    *(asyncio.to_thread(self.sources.web, q) for q in queries)
+                ):
+                    web_hits += hits
 
             kept: list = []
             if web_hits:

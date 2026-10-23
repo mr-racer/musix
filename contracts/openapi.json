@@ -1019,6 +1019,16 @@
             ],
             "title": "Focuskind"
           },
+          "hint": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TurnHint"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "history": {
             "items": {
               "$ref": "#/components/schemas/ChatTurn"
@@ -2041,97 +2051,6 @@
           "version"
         ],
         "title": "Health",
-        "type": "object"
-      },
-      "HomeOut": {
-        "properties": {
-          "albumPicks": {
-            "items": {
-              "$ref": "#/components/schemas/AlbumPick"
-            },
-            "title": "Albumpicks",
-            "type": "array"
-          },
-          "anchors": {
-            "items": {
-              "$ref": "#/components/schemas/TrackOut"
-            },
-            "title": "Anchors",
-            "type": "array"
-          },
-          "counts": {
-            "$ref": "#/components/schemas/Counts"
-          },
-          "images": {
-            "additionalProperties": {
-              "$ref": "#/components/schemas/ImageData"
-            },
-            "title": "Images",
-            "type": "object"
-          },
-          "playlists": {
-            "items": {
-              "$ref": "#/components/schemas/PlaylistOut"
-            },
-            "title": "Playlists",
-            "type": "array"
-          },
-          "pulse": {
-            "$ref": "#/components/schemas/WeeklyPulse"
-          },
-          "recent": {
-            "items": {
-              "$ref": "#/components/schemas/TrackOut"
-            },
-            "title": "Recent",
-            "type": "array"
-          },
-          "recentlyAdded": {
-            "items": {
-              "$ref": "#/components/schemas/TrackOut"
-            },
-            "title": "Recentlyadded",
-            "type": "array"
-          },
-          "vibes": {
-            "items": {
-              "$ref": "#/components/schemas/VibeOut"
-            },
-            "title": "Vibes",
-            "type": "array"
-          },
-          "wave": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/WaveOut"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "weather": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/WeatherOut"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          }
-        },
-        "required": [
-          "recent",
-          "recentlyAdded",
-          "playlists",
-          "counts",
-          "vibes",
-          "wave",
-          "pulse",
-          "images"
-        ],
-        "title": "HomeOut",
         "type": "object"
       },
       "Idea": {
@@ -6024,6 +5943,67 @@
         "title": "TurnAccepted",
         "type": "object"
       },
+      "TurnHint": {
+        "description": "What the page knows about a question it built (`GET /assistant/home`).",
+        "properties": {
+          "artistSlug": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Artistslug"
+          },
+          "kind": {
+            "enum": [
+              "hits",
+              "best",
+              "producer",
+              "guest",
+              "similar",
+              "mood",
+              "lyrics",
+              "about_artist",
+              "about_song"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "trackId": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Trackid"
+          }
+        },
+        "required": [
+          "kind"
+        ],
+        "title": "TurnHint",
+        "type": "object"
+      },
       "TurnOut": {
         "description": "`result` is v1's payload shape (AssistantResponse / TrackChatResponse); every\ntrack id it names is also in `tracks` as a v2 TrackOut, images in `images`.",
         "properties": {
@@ -6531,6 +6511,141 @@
           "tracks"
         ],
         "title": "YearCount",
+        "type": "object"
+      },
+      "musix__contexts__assistant__schemas__HomeOut": {
+        "description": "The assistant page at rest, built without an LLM: questions on the orbit and the\ncarousel's cards (each echoes its `hint` back in `POST /assistant/turns`), and the\nsky of questions asked this week.",
+        "properties": {
+          "cards": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Cards",
+            "type": "array"
+          },
+          "images": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/ImageData"
+            },
+            "title": "Images",
+            "type": "object"
+          },
+          "orbit": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Orbit",
+            "type": "array"
+          },
+          "sky": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Sky",
+            "type": "array"
+          }
+        },
+        "required": [
+          "orbit",
+          "cards",
+          "sky",
+          "images"
+        ],
+        "title": "HomeOut",
+        "type": "object"
+      },
+      "musix__contexts__screens__schemas__HomeOut": {
+        "properties": {
+          "albumPicks": {
+            "items": {
+              "$ref": "#/components/schemas/AlbumPick"
+            },
+            "title": "Albumpicks",
+            "type": "array"
+          },
+          "anchors": {
+            "items": {
+              "$ref": "#/components/schemas/TrackOut"
+            },
+            "title": "Anchors",
+            "type": "array"
+          },
+          "counts": {
+            "$ref": "#/components/schemas/Counts"
+          },
+          "images": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/ImageData"
+            },
+            "title": "Images",
+            "type": "object"
+          },
+          "playlists": {
+            "items": {
+              "$ref": "#/components/schemas/PlaylistOut"
+            },
+            "title": "Playlists",
+            "type": "array"
+          },
+          "pulse": {
+            "$ref": "#/components/schemas/WeeklyPulse"
+          },
+          "recent": {
+            "items": {
+              "$ref": "#/components/schemas/TrackOut"
+            },
+            "title": "Recent",
+            "type": "array"
+          },
+          "recentlyAdded": {
+            "items": {
+              "$ref": "#/components/schemas/TrackOut"
+            },
+            "title": "Recentlyadded",
+            "type": "array"
+          },
+          "vibes": {
+            "items": {
+              "$ref": "#/components/schemas/VibeOut"
+            },
+            "title": "Vibes",
+            "type": "array"
+          },
+          "wave": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WaveOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "weather": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WeatherOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "recent",
+          "recentlyAdded",
+          "playlists",
+          "counts",
+          "vibes",
+          "wave",
+          "pulse",
+          "images"
+        ],
+        "title": "HomeOut",
         "type": "object"
       }
     },
@@ -8487,6 +8602,131 @@
         ]
       }
     },
+    "/api/v2/assistant/home": {
+      "get": {
+        "description": "The assistant page at rest, without an LLM: the orbit's questions, the carousel's\ncards and the sky. `hour` is the listener's local hour (the mood question).",
+        "operationId": "home_api_v2_assistant_home_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "lang",
+            "required": false,
+            "schema": {
+              "default": "ru",
+              "title": "Lang",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "hour",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Hour"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/musix__contexts__assistant__schemas__HomeOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Validation failed"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Rate limited"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Home",
+        "tags": [
+          "assistant"
+        ]
+      }
+    },
     "/api/v2/assistant/ideas": {
       "get": {
         "description": "v1 `/metadata/random-facts` for the assistant's front page: refined facts in the\nlistener's language about songs and artists they own, one per subject, at most 220\ncharacters (length is held down by selection, never by an ellipsis).",
@@ -9945,7 +10185,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HomeOut"
+                  "$ref": "#/components/schemas/musix__contexts__screens__schemas__HomeOut"
                 }
               }
             },
