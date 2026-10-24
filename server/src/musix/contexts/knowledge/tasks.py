@@ -163,7 +163,10 @@ async def editorial_backfill(limit: int = 100_000) -> int:
 
 async def genius_page(song_id: str) -> bool:
     async with http() as h:
-        return await jobs.genius_page(sessionmaker(), h, uuid.UUID(song_id))
+        ok = await jobs.genius_page(sessionmaker(), h, uuid.UUID(song_id))
+    if ok:  # its style tags, credits and samples move the sound profile (no GPU)
+        await _defer("sound:derive_song", song_id, song_id=song_id)
+    return ok
 
 
 async def genius_backfill(limit: int = 100_000) -> int:

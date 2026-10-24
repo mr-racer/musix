@@ -31,6 +31,12 @@ class ModelOOM(ModelError):
     status, kind = 503, "model_oom"
 
 
+class ModelGpuLent(ModelError):
+    """The card is lent to ml-sound (spec sound-engine §4): retry after it comes back (503)."""
+
+    status, kind = 503, "gpu_lent"
+
+
 class ModelEncodeFailed(ModelError):
     """Anything else on the encode path (500)."""
 

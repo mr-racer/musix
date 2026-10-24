@@ -33,6 +33,7 @@ from musix.contexts.library.models import (
     track_artists,
     tracks,
 )
+from musix.contexts.sound.rows import queue_row
 from musix.errors import Unavailable
 from musix.infra.changelog import notify, record_change
 from musix.infra.ml_client import MlClient
@@ -268,6 +269,7 @@ async def embed_step(sm: SM, ml: MlClient, q: AsyncQdrantClient, mf_id: uuid.UUI
                 axes=axes or None, sonic_tags=tags or None, intel_state="indexed", intel_error=None
             )
         )
+        await queue_row(s, mf_id, m.duration_ms)  # the sound analysis; it never gates ready
         await _progress(s, own)
         await s.commit()
 

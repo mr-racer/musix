@@ -96,6 +96,16 @@ def create_app() -> FastAPI:
     async def health() -> dict[str, Any]:
         return {"status": "ok", **models.loaded(), "queue": ex.depth()}
 
+    @app.post("/v1/gpu/release")
+    async def gpu_release() -> dict[str, Any]:
+        return await run("gpu_release", "interactive", models.release)  # type: ignore[no-any-return]
+
+    @app.post("/v1/gpu/acquire")
+    async def gpu_acquire() -> dict[str, Any]:
+        out = await run("gpu_acquire", "interactive", models.acquire)
+        ex.submit("bulk", models.warm)  # in the background: the swap back doesn't wait for it
+        return out  # type: ignore[no-any-return]
+
     @app.get("/metrics")
     async def metrics() -> Response:
         return Response(generate_latest(), media_type=CONTENT_TYPE_LATEST)

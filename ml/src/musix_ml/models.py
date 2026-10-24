@@ -23,7 +23,7 @@ from typing import Any
 import numpy as np
 
 from musix_ml.breaker import CircuitBreaker
-from musix_ml.errors import ModelEncodeFailed, ModelOOM, ModelUnavailable
+from musix_ml.errors import ModelEncodeFailed, ModelGpuLent, ModelOOM, ModelUnavailable
 
 log = logging.getLogger("musix_ml")
 
@@ -41,6 +41,14 @@ CLAP_SR, CLAP_CHUNK_S, CLAP_MAX_S = 48_000, 10, 300
 
 breaker = CircuitBreaker()
 _loaded: dict[str, Any] = {}
+# The GPU lease (spec sound-engine §4): while new songs get their sound analysis the card is
+# lent to ml-sound, the GPU legs are dropped and refuse to load until it comes back. The
+# executor thread is the only one that touches these, so no lock.
+_lent = False
+GPU_LEGS = ("dense", "sparse", "cross_encoder")
+# what a leg needs free on the card to load and run (fp16 weights + activations): a restart
+# while ml-sound holds the card must not load into a full card
+NEED_MB = {"dense": 1600, "sparse": 1800, "cross_encoder": 1500}
 
 
 # CLAP always runs on the CPU, as in v1 (the owner's rule). The interactive trio (dense,
@@ -73,6 +81,14 @@ def _configure_torch() -> None:
 def _load(leg: str, name: str, loader: Callable[[], Any]) -> Any:
     if leg in _loaded:
         return _loaded[leg]
+    if _lent and leg not in CPU_LEGS:
+        raise ModelGpuLent(leg, "load", "the GPU is lent to ml-sound")
+    if device(leg) == "cuda":
+        import torch
+
+        free_mb = torch.cuda.mem_get_info()[0] // 2**20
+        if free_mb < NEED_MB.get(leg, 1024):
+            raise ModelUnavailable(leg, "load", f"{name}: {free_mb} MB free on the card")
     if breaker.is_open(leg):
         raise ModelUnavailable(leg, "load", f"{name}: {breaker.reason(leg)} (not retried yet)")
     if not _loaded:
@@ -113,7 +129,43 @@ def _guard(leg: str, op: str, fn: Callable[[], Any], small: Callable[[], Any] | 
 
 
 def loaded() -> dict[str, Any]:
-    return {"device": device(), "loaded": sorted(_loaded), "failed": breaker.open_legs()}
+    gpu = "lent" if _lent else "loaded" if any(g in _loaded for g in GPU_LEGS) else "empty"
+    return {"device": device(), "loaded": sorted(_loaded), "failed": breaker.open_legs(), "gpu": gpu}
+
+
+def release() -> dict[str, Any]:
+    """Drop the GPU legs and free the card for ml-sound (runs on the executor thread, so it
+    waits for the op in flight). CLAP stays: it lives on the CPU."""
+    global _lent
+    _lent = True
+    for leg in GPU_LEGS:
+        _loaded.pop(leg, None)
+    import gc
+
+    gc.collect()
+    if device() == "cuda":
+        import torch
+
+        torch.cuda.empty_cache()
+    log.info("GPU released to ml-sound")
+    return loaded()
+
+
+def acquire() -> dict[str, Any]:
+    """The card is back: the GPU legs may load again (the caller warms them in the background)."""
+    global _lent
+    _lent = False
+    log.info("GPU acquired back from ml-sound")
+    return loaded()
+
+
+def warm() -> None:
+    """Load the GPU trio now, so the first query after a lease doesn't pay the load."""
+    for load in (_text_model, _sparse_model, _reranker):
+        try:
+            load()
+        except Exception:  # a refusal is logged by _load; the next real call retries
+            log.warning("warm-up after the lease: a model would not load", exc_info=True)
 
 
 # ── dense text ────────────────────────────────────────────────────────────────

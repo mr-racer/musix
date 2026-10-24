@@ -150,6 +150,7 @@ def context_routers() -> list[APIRouter]:
     from musix.contexts.quiz.router import router as quiz
     from musix.contexts.screens.router import router as screens
     from musix.contexts.search.router import router as search
+    from musix.contexts.sound.router import router as sound
     from musix.contexts.stream.router import router as stream
     from musix.contexts.sync.router import router as sync
 
@@ -168,6 +169,7 @@ def context_routers() -> list[APIRouter]:
         imports,
         search,
         stream,
+        sound,
         sync,
         handoff,
         realtime,
