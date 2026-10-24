@@ -434,6 +434,116 @@
         "title": "AlbumPick",
         "type": "object"
       },
+      "AlbumPool": {
+        "properties": {
+          "albumId": {
+            "format": "uuid",
+            "title": "Albumid",
+            "type": "string"
+          },
+          "n": {
+            "title": "N",
+            "type": "integer"
+          },
+          "odd": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PoolScale"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "space": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PoolScale"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "tech": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PoolScale"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "tempo": {
+            "items": {
+              "$ref": "#/components/schemas/SoundLabel"
+            },
+            "title": "Tempo",
+            "type": "array"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "traits": {
+            "items": {
+              "$ref": "#/components/schemas/TraitShare"
+            },
+            "title": "Traits",
+            "type": "array"
+          },
+          "year": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Year"
+          }
+        },
+        "required": [
+          "albumId",
+          "title",
+          "year",
+          "n",
+          "tech",
+          "space",
+          "odd",
+          "traits",
+          "tempo"
+        ],
+        "title": "AlbumPool",
+        "type": "object"
+      },
+      "AlbumSound": {
+        "description": "The album's sound pooled from every analysed recording on it (≥3), and its validated\ntext: what the album sounds like and what moved since the artist's album before it.",
+        "properties": {
+          "pool": {
+            "$ref": "#/components/schemas/AlbumPool"
+          },
+          "text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Text"
+          }
+        },
+        "required": [
+          "pool",
+          "text"
+        ],
+        "title": "AlbumSound",
+        "type": "object"
+      },
       "AnswerIn": {
         "properties": {
           "optionId": {
@@ -910,6 +1020,35 @@
           "pct"
         ],
         "title": "ArtistShare",
+        "type": "object"
+      },
+      "ArtistSound": {
+        "description": "The artist's pooled albums by year and the timeline of how the sound moved.",
+        "properties": {
+          "albums": {
+            "items": {
+              "$ref": "#/components/schemas/AlbumPool"
+            },
+            "title": "Albums",
+            "type": "array"
+          },
+          "timeline": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Timeline"
+          }
+        },
+        "required": [
+          "albums",
+          "timeline"
+        ],
+        "title": "ArtistSound",
         "type": "object"
       },
       "ArtistStreamIn": {
@@ -4141,6 +4280,54 @@
         "title": "PlaylistPatch",
         "type": "object"
       },
+      "PoolEnd": {
+        "properties": {
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "value": {
+            "title": "Value",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "value",
+          "title"
+        ],
+        "title": "PoolEnd",
+        "type": "object"
+      },
+      "PoolScale": {
+        "description": "A scale pooled over an album: the mean, the songs at both ends, the mean facets.",
+        "properties": {
+          "facets": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Facets",
+            "type": "object"
+          },
+          "max": {
+            "$ref": "#/components/schemas/PoolEnd"
+          },
+          "mean": {
+            "title": "Mean",
+            "type": "integer"
+          },
+          "min": {
+            "$ref": "#/components/schemas/PoolEnd"
+          }
+        },
+        "required": [
+          "mean",
+          "min",
+          "max",
+          "facets"
+        ],
+        "title": "PoolScale",
+        "type": "object"
+      },
       "PresetOut": {
         "properties": {
           "icon": {
@@ -5054,6 +5241,224 @@
         "title": "SignalStatesOut",
         "type": "object"
       },
+      "SoundLabel": {
+        "description": "A word of the profile: `key` is stable (filters, clients' own wording), `label` is it\nin the request's language.",
+        "properties": {
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "label"
+        ],
+        "title": "SoundLabel",
+        "type": "object"
+      },
+      "SoundMoment": {
+        "description": "A moment worth hearing (≤ 8 a song), in its section.",
+        "properties": {
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "section": {
+            "title": "Section",
+            "type": "string"
+          },
+          "t": {
+            "title": "T",
+            "type": "number"
+          }
+        },
+        "required": [
+          "t",
+          "kind",
+          "label",
+          "section"
+        ],
+        "title": "SoundMoment",
+        "type": "object"
+      },
+      "SoundRatings": {
+        "description": "The three absolute 0–100 scales (library-independent, fixed formulas); `space` is null\nfor a mono file. Facets: space {width, spread, echo}, tech {layers, sound_work, playing,\ndevelopment}, odd {sounds, mix_extremes, form, style?}.",
+        "properties": {
+          "facets": {
+            "additionalProperties": {
+              "additionalProperties": {
+                "type": "integer"
+              },
+              "type": "object"
+            },
+            "title": "Facets",
+            "type": "object"
+          },
+          "odd": {
+            "title": "Odd",
+            "type": "integer"
+          },
+          "space": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Space"
+          },
+          "tech": {
+            "title": "Tech",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "space",
+          "tech",
+          "odd",
+          "facets"
+        ],
+        "title": "SoundRatings",
+        "type": "object"
+      },
+      "SoundSection": {
+        "properties": {
+          "end": {
+            "title": "End",
+            "type": "number"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "start": {
+            "title": "Start",
+            "type": "number"
+          }
+        },
+        "required": [
+          "start",
+          "end",
+          "kind",
+          "label"
+        ],
+        "title": "SoundSection",
+        "type": "object"
+      },
+      "SoundStatus": {
+        "properties": {
+          "batch": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Batch"
+          },
+          "done": {
+            "title": "Done",
+            "type": "integer"
+          },
+          "etaHours": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Etahours"
+          },
+          "failed": {
+            "title": "Failed",
+            "type": "integer"
+          },
+          "holder": {
+            "enum": [
+              "ml",
+              "sound"
+            ],
+            "title": "Holder",
+            "type": "string"
+          },
+          "leaseReason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Leasereason"
+          },
+          "leaseSince": {
+            "title": "Leasesince",
+            "type": "string"
+          },
+          "pendingBackfill": {
+            "title": "Pendingbackfill",
+            "type": "integer"
+          },
+          "pendingUploads": {
+            "title": "Pendinguploads",
+            "type": "integer"
+          },
+          "running": {
+            "title": "Running",
+            "type": "integer"
+          },
+          "skipped": {
+            "title": "Skipped",
+            "type": "integer"
+          },
+          "stage": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stage"
+          }
+        },
+        "required": [
+          "holder",
+          "leaseSince",
+          "leaseReason",
+          "batch",
+          "stage",
+          "pendingUploads",
+          "pendingBackfill",
+          "running",
+          "done",
+          "failed",
+          "skipped",
+          "etaHours"
+        ],
+        "title": "SoundStatus",
+        "type": "object"
+      },
       "Source": {
         "properties": {
           "bitrateKbps": {
@@ -5293,6 +5698,37 @@
           "images"
         ],
         "title": "StatsOut",
+        "type": "object"
+      },
+      "StemPlace": {
+        "properties": {
+          "name": {
+            "$ref": "#/components/schemas/SoundLabel"
+          },
+          "pan": {
+            "title": "Pan",
+            "type": "number"
+          },
+          "side": {
+            "$ref": "#/components/schemas/SoundLabel"
+          },
+          "stem": {
+            "title": "Stem",
+            "type": "string"
+          },
+          "width": {
+            "title": "Width",
+            "type": "number"
+          }
+        },
+        "required": [
+          "stem",
+          "name",
+          "side",
+          "pan",
+          "width"
+        ],
+        "title": "StemPlace",
         "type": "object"
       },
       "StreamItem": {
@@ -6019,6 +6455,139 @@
         "title": "TrackPlays",
         "type": "object"
       },
+      "TrackSound": {
+        "properties": {
+          "drums": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SoundLabel"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "echo": {
+            "$ref": "#/components/schemas/SoundLabel"
+          },
+          "feel": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SoundLabel"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "hasStage": {
+            "title": "Hasstage",
+            "type": "boolean"
+          },
+          "instruments": {
+            "items": {
+              "$ref": "#/components/schemas/SoundLabel"
+            },
+            "title": "Instruments",
+            "type": "array"
+          },
+          "moments": {
+            "items": {
+              "$ref": "#/components/schemas/SoundMoment"
+            },
+            "title": "Moments",
+            "type": "array"
+          },
+          "pace": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SoundLabel"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "ratings": {
+            "$ref": "#/components/schemas/SoundRatings"
+          },
+          "sections": {
+            "items": {
+              "$ref": "#/components/schemas/SoundSection"
+            },
+            "title": "Sections",
+            "type": "array"
+          },
+          "signature": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Signature"
+          },
+          "stems": {
+            "items": {
+              "$ref": "#/components/schemas/StemPlace"
+            },
+            "title": "Stems",
+            "type": "array"
+          },
+          "traits": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Traits",
+            "type": "array"
+          },
+          "ver": {
+            "title": "Ver",
+            "type": "integer"
+          },
+          "vocals": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SoundLabel"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "width": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SoundLabel"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "ratings",
+          "instruments",
+          "drums",
+          "vocals",
+          "pace",
+          "feel",
+          "echo",
+          "width",
+          "traits",
+          "sections",
+          "moments",
+          "stems",
+          "signature",
+          "hasStage",
+          "ver"
+        ],
+        "title": "TrackSound",
+        "type": "object"
+      },
       "TrackStats": {
         "properties": {
           "lastPlayedAt": {
@@ -6043,6 +6612,29 @@
           "lastPlayedAt"
         ],
         "title": "TrackStats",
+        "type": "object"
+      },
+      "TraitShare": {
+        "properties": {
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "share": {
+            "title": "Share",
+            "type": "number"
+          }
+        },
+        "required": [
+          "key",
+          "label",
+          "share"
+        ],
+        "title": "TraitShare",
         "type": "object"
       },
       "TransferIn": {
@@ -7584,6 +8176,103 @@
         ]
       }
     },
+    "/api/v2/admin/sound/status": {
+      "get": {
+        "description": "The engine at a glance (owner): who holds the card, the batch on ml-sound, the queue.",
+        "operationId": "get_sound_status_api_v2_admin_sound_status_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SoundStatus"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Validation failed"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Rate limited"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Sound Status",
+        "tags": [
+          "sound"
+        ]
+      }
+    },
     "/api/v2/albums": {
       "get": {
         "operationId": "albums_api_v2_albums_get",
@@ -7810,6 +8499,118 @@
         "summary": "Album Page",
         "tags": [
           "screens"
+        ]
+      }
+    },
+    "/api/v2/albums/{album_id}/sound": {
+      "get": {
+        "description": "The album's sound pooled over its analysed recordings (≥3) and the album text.",
+        "operationId": "get_album_sound_api_v2_albums__album_id__sound_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "album_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Album Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AlbumSound"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "304": {
+            "description": "Not modified"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Validation failed"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Rate limited"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Album Sound",
+        "tags": [
+          "sound"
         ]
       }
     },
@@ -8379,6 +9180,118 @@
         "summary": "Artist Page",
         "tags": [
           "screens"
+        ]
+      }
+    },
+    "/api/v2/artists/{artist_id}/sound": {
+      "get": {
+        "description": "The artist's pooled albums by year and how the sound moved between them.",
+        "operationId": "get_artist_sound_api_v2_artists__artist_id__sound_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "artist_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Artist Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ArtistSound"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "304": {
+            "description": "Not modified"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Validation failed"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Rate limited"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Artist Sound",
+        "tags": [
+          "sound"
         ]
       }
     },
@@ -16377,6 +17290,226 @@
         "summary": "Add Signal",
         "tags": [
           "listening"
+        ]
+      }
+    },
+    "/api/v2/tracks/{track_id}/sound": {
+      "get": {
+        "description": "The sound of a track (spec sound-engine §10): the three ratings with facets, the\ncertain instruments, tempo words, echo and width, sections, moments worth hearing, where\neach part sits, and the validated «изюминка». A 404 carries `state`: pending | running |\nfailed | skipped | none.",
+        "operationId": "get_track_sound_api_v2_tracks__track_id__sound_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "track_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Track Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TrackSound"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "304": {
+            "description": "Not modified"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Validation failed"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Rate limited"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Track Sound",
+        "tags": [
+          "sound"
+        ]
+      }
+    },
+    "/api/v2/tracks/{track_id}/sound/stage": {
+      "get": {
+        "description": "The live stage frames: where each stem sits and how loud, 10 times a second.",
+        "operationId": "get_track_stage_api_v2_tracks__track_id__sound_stage_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "track_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Track Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/octet-stream": {}
+            },
+            "description": "gzip(int8[frames][6 stems][level, pan]) at 10 fps; level in half-dB below the loudest stem frame (0..-120), pan -100..100; stems in X-Stage-Stems order"
+          },
+          "304": {
+            "description": "Not modified"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Validation failed"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Rate limited"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Track Stage",
+        "tags": [
+          "sound"
         ]
       }
     },

@@ -4,7 +4,7 @@ from typing import Literal
 from musix.schemas import Model
 
 
-class Label(Model):
+class SoundLabel(Model):
     """A word of the profile: `key` is stable (filters, clients' own wording), `label` is it
     in the request's language."""
 
@@ -12,7 +12,7 @@ class Label(Model):
     label: str
 
 
-class Ratings(Model):
+class SoundRatings(Model):
     """The three absolute 0–100 scales (library-independent, fixed formulas); `space` is null
     for a mono file. Facets: space {width, spread, echo}, tech {layers, sound_work, playing,
     development}, odd {sounds, mix_extremes, form, style?}."""
@@ -23,14 +23,14 @@ class Ratings(Model):
     facets: dict[str, dict[str, int]]
 
 
-class Section(Model):
+class SoundSection(Model):
     start: float
     end: float
     kind: str
     label: str
 
 
-class Moment(Model):
+class SoundMoment(Model):
     """A moment worth hearing (≤ 8 a song), in its section."""
 
     t: float
@@ -41,24 +41,24 @@ class Moment(Model):
 
 class StemPlace(Model):
     stem: str
-    name: Label
-    side: Label
+    name: SoundLabel
+    side: SoundLabel
     pan: float
     width: float
 
 
 class TrackSound(Model):
-    ratings: Ratings
-    instruments: list[Label]
-    drums: Label | None
-    vocals: Label | None
-    pace: Label | None
-    feel: Label | None
-    echo: Label
-    width: Label | None
+    ratings: SoundRatings
+    instruments: list[SoundLabel]
+    drums: SoundLabel | None
+    vocals: SoundLabel | None
+    pace: SoundLabel | None
+    feel: SoundLabel | None
+    echo: SoundLabel
+    width: SoundLabel | None
     traits: list[str]
-    sections: list[Section]
-    moments: list[Moment]
+    sections: list[SoundSection]
+    moments: list[SoundMoment]
     stems: list[StemPlace]
     signature: str | None
     has_stage: bool
@@ -109,7 +109,7 @@ class AlbumPool(Model):
     space: PoolScale | None  # null when every song is mono
     odd: PoolScale | None
     traits: list[TraitShare]
-    tempo: list[Label]  # most common first
+    tempo: list[SoundLabel]  # most common first
 
 
 class AlbumSound(Model):

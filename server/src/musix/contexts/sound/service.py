@@ -21,24 +21,24 @@ P, SA = sound_profiles.c, sound_analysis.c
 DAY_AGO = sa.func.now() - sa.text("interval '24 hours'")
 
 
-def _l(table: dict[str, str], key: str | None) -> S.Label | None:
-    return S.Label(key=key, label=table[key]) if key else None
+def _l(table: dict[str, str], key: str | None) -> S.SoundLabel | None:
+    return S.SoundLabel(key=key, label=table[key]) if key else None
 
 
 def _render(p: Any, signature: str | None) -> S.TrackSound:
     secs = p.sections
     return S.TrackSound(
-        ratings=S.Ratings(space=p.space, tech=p.tech, odd=p.odd, facets=p.facets),
-        instruments=[S.Label(key=k, label=W.NAMES[k]) for k in p.instruments],
+        ratings=S.SoundRatings(space=p.space, tech=p.tech, odd=p.odd, facets=p.facets),
+        instruments=[S.SoundLabel(key=k, label=W.NAMES[k]) for k in p.instruments],
         drums=_l({"live": W.NAMES["drums_live"], "machine": W.NAMES["drum_machine"]}, p.drums),
         vocals=None if p.vocals in (None, "none") else _l(W.NAMES, p.vocals),
         pace=_l(W.PACE, p.pace),
         feel=_l(W.FEEL, p.feel),
-        echo=S.Label(key=p.echo, label=W.ECHO[p.echo]),
+        echo=S.SoundLabel(key=p.echo, label=W.ECHO[p.echo]),
         width=_l(W.WIDTH, p.width),
         traits=list(p.traits),
         sections=[
-            S.Section(
+            S.SoundSection(
                 start=s["start"],
                 end=s["end"],
                 kind=s["kind"],
@@ -47,7 +47,7 @@ def _render(p: Any, signature: str | None) -> S.TrackSound:
             for s in secs
         ],
         moments=[
-            S.Moment(
+            S.SoundMoment(
                 t=m["t"],
                 kind=m["kind"],
                 label=D.moment_text(m, secs),
@@ -62,8 +62,8 @@ def _render(p: Any, signature: str | None) -> S.TrackSound:
         stems=[
             S.StemPlace(
                 stem=s["stem"],
-                name=S.Label(key=s["name"], label=W.NAMES[s["name"]]),
-                side=S.Label(key=s["side"], label=W.SIDES[s["side"]]),
+                name=S.SoundLabel(key=s["name"], label=W.NAMES[s["name"]]),
+                side=S.SoundLabel(key=s["side"], label=W.SIDES[s["side"]]),
                 pan=s["pan"],
                 width=s["width"],
             )
@@ -274,7 +274,7 @@ def pool_out(a: Pooled) -> S.AlbumPool:
             S.TraitShare(key=k, label=A.trait_ru(k), share=v)
             for k, v in sorted(p["share"].items(), key=lambda kv: -kv[1])
         ],
-        tempo=[S.Label(key=k, label=A.tempo_ru(k)) for k in p["tempo"]],
+        tempo=[S.SoundLabel(key=k, label=A.tempo_ru(k)) for k in p["tempo"]],
     )
 
 
