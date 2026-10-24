@@ -82,4 +82,3 @@ def create_app(runner: Runner | None = None) -> FastAPI:
         raise HTTPException(404, "no such batch (the service restarted?)")
 
     return app
-
