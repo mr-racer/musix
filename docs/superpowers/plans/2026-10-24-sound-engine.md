@@ -61,3 +61,41 @@ A ported piece is done when it gives the prototype's numbers on the prototype's 
   `/mnt/data/musix-v2-prod/sound-models`, queue `sound` on `worker`. Deploy order of spec
   §13, three-song upload test, 57 demo tracks first, fidelity report, then backfill.
 - **Done when:** spec §14 checks.
+
+## Status 2026-10-24 (evening): blocks 1–5 and block 6's code done, nothing deployed
+
+- Built and checked: 57/57 derive fidelity; album facts = album6 (differences: the two keys of
+  «струнные и медные духовые», tag ties in song order); live GPU batch of 3 tracks (190 s, all
+  SAME as the prototype; real VRAM peaks in `stages.PEAK_MB`); the image on CPU end to end;
+  `make lint`/`test` for server (131), ml (4), sound (5); C# and TS clients compile (Kotlin
+  codegen was already broken on `main`'s contract: `OffsetDateTime` serializer, not ours).
+- Measured, not as the spec guessed: 8 CPU workers peak at 21.6 GB → 4 workers (~11 GB),
+  `mem_limit: 16g`; NVML was missing in the prototype env (the guard ran blind in the live test)
+  → required on cuda now.
+
+## Rollout runbook (each step on the owner's word, in /mnt/data/v2-branch after merging)
+
+Never `make prod-up` (it builds web in the deployed checkout); compose per service:
+`P="docker compose --env-file /mnt/data/musix-v2-prod/prod.env -f deploy/compose.prod.yml -f deploy/compose.prod.gpu.yml"`
+
+0. Prep (no effect on prod): rollback tags `musix-v2-server:prod-MMDD-pre`, `musix-v2-ml:prod-MMDD-pre`;
+   `mkdir -p /mnt/data/musix-v2-prod/{sound-models,sound-scratch,sound-export}` (owner uid 1000);
+   models = `sep/` (BS-Roformer-SW, MDX23C-DrumSep, anvuew dereverb + their yaml +
+   download_checks.json, from /mnt/data/envs/sep-models), `beat_this/beat_this-final0.ckpt`,
+   `efficientat/` (/mnt/data/envs/v3-src/EfficientAT), `songformer/` (/mnt/data/envs/songformer-hf),
+   `hf/hub/models--facebook--wav2vec2-conformer-rope-large-960h-ft` (one config);
+   the 33 MB `sound-cuda` overlay (command in compose.prod.gpu.yml); `df -h /` ≥ 5 GB;
+   `$P build ml-sound`, then `docker builder prune -f`.
+1. Migration 0029: `$P run --rm migrate` (additive; rollback = leave the tables).
+2. ml with release/acquire: `$P build ml && $P up -d ml` (~1 min without vectors).
+3. Server: `$P build api && $P up -d api worker worker-media worker-ai`. With ml-sound absent the
+   tick sees it down and leaves the card with ml.
+4. ml-sound: `$P up -d ml-sound`; `/admin/sound/status` shows holder ml, nothing pending.
+5. Three-song upload test (spec §14.2): lease ml → sound → ml, profiles, waiting embed_text jobs
+   run after the swap, the assistant answers during and after, guard log, nvidia-smi ≤ 290 W.
+6. The 57 demo tracks (`sound:backfill` with `only`, priority 99), fidelity report vs prototype,
+   the owner reads 10 profiles and texts; the 10 songs' stems export.
+7. The library backfill — on his word.
+
+Rollback at any step: `$P stop ml-sound`; `update gpu_lease set holder='ml'`; `curl -X POST ml:8002/v1/gpu/acquire`
+(from a container on the network); server/ml images back to the `-pre` tags.
