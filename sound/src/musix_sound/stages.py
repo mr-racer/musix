@@ -60,8 +60,13 @@ KEEP = [
     "Bagpipes", "Theremin", "Scratching (performance technique)", "Electronic music", "Reverberation", "Echo",
     "Distortion", "Silence",
 ]  # fmt: skip
-# peak VRAM per stage (measured 2026-10-17/18): the NVML check before each load wants this + 512 MB
-PEAK_MB = {"sep": 1600, "drums": 850, "dereverb": 2050, "beats": 400, "tags": 350, "struct": 4900}
+# peak VRAM of the whole process per stage, CUDA context included (nvidia-smi over a 3-track GPU
+# batch, 2026-10-24; the 2026-10-17/18 figures counted tensors only and were ~2/3 of this)
+PEAK_MB = {"sep": 2400, "drums": 1350, "dereverb": 3150, "beats": 1000, "tags": 750, "struct": 7500}
+# what the NVML check before each load wants free: the peak + 512 MB, except SongFormer, whose
+# 240 s window peaks at 7.5 GB of the ~7.8 GB a lent card leaves; it starts on 6 GB and its OOM
+# fallback narrows the window. Either way a card ml still holds (~2 GB free) is refused.
+START_MB = {k: v + 512 for k, v in PEAK_MB.items()} | {"struct": 6000}
 ORDER = ("sep", "drums", "dereverb", "beats", "tags", "struct")
 
 

@@ -18,7 +18,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from musix_sound import guard as G
-from musix_sound.stages import ORDER, PEAK_MB, PARTS, STEMS, Item, Stages
+from musix_sound.stages import ORDER, PARTS, START_MB, STEMS, Item, Stages
 
 log = logging.getLogger("musix_sound")
 
@@ -146,9 +146,9 @@ class Runner:
             if not todo:
                 break
             free = G.gpu_free_mb()
-            if self.device == "cuda" and free is not None and free < PEAK_MB[stage] + 512:
+            if self.device == "cuda" and free is not None and free < START_MB[stage]:
                 for it in todo:
-                    b.fail(it.id, f"vram: {free} MB free, {stage} needs {PEAK_MB[stage] + 512}", True)
+                    b.fail(it.id, f"vram: {free} MB free, {stage} needs {START_MB[stage]}", True)
                 return []
             with b.lock:
                 b.stage = stage
