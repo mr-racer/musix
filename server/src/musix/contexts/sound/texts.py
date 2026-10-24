@@ -423,3 +423,87 @@ async def signature(llm: Llm, fl: list[tuple[str, str]], used: list[str]) -> tup
     if check_signature(phrase):  # the editor broke an explicit line: keep the judged draft
         phrase = good[best]
     return "ok", phrase
+
+
+# ── album and artist timeline (demo4/album6.py) ──────────────────────────────
+
+ALBUM_VER = 1  # part of facts_hash: a prompt change regenerates
+ALBUM_RULES = (
+    "Пиши по-русски для человека, который слушает музыку внимательно. 2–3 связных предложения "
+    "живым языком, как знакомый меломан рассказывает другу. Сначала — чем узнаётся звук этого "
+    "альбома (поле «характер»), потом — что изменилось по сравнению с предыдущим альбомом "
+    "артиста (поле «после_предыдущего», назови его и год и ВСЕ пункты из «изменения»). Если "
+    "поля «после_предыдущего» нет — просто опиши звук альбома и не упоминай никакие другие "
+    "альбомы. Слова «чуть» и «заметно» бери ровно из фактов, не усиливай. Метки слушателей "
+    "перескажи как звук (электро-хоп — клубный, качающий; синти-поп — много синтов), не "
+    "перечисляй их списком. Если предыдущего альбома нет — не сравнивай ни с чем. Никаких "
+    "чисел, оценок, ударов в минуту.\n"
+    "Нельзя: «звучание альбома», «характеризуется», «варьируется», «создавая», «атмосфера», "
+    "«бросается в глаза», «дымка», «тонкий слой», «прозрачн», «привычн», «чем его другие "
+    "работы», «где обычно», «это не просто», «пластинка», «Послушай», восклицания; не "
+    "выдумывай инструменты и истории, которых нет в фактах.\n"
+    "Образец тона (выдуманный альбом, бери манеру): «После камерного дебюта всё разрослось: "
+    "струнные и хор, бас стал главным, и музыка навалилась плотной стеной. По сравнению с "
+    "прошлым альбомом звук чуть шире — много эха, как в большом зале.»\n"
+    'Ответ — только JSON: {"text": "..."}'
+)
+TIMELINE_RULES = (
+    "Перескажи эти строки о том, как менялся звук {artist} от альбома к альбому, живым языком "
+    "для меломана, 3–4 предложения, по порядку и с годами. Слова «чуть» и «заметно» бери как "
+    "есть, не усиливай. Не добавляй фактов, не называй числа и не пиши слово «оценки». "
+    'Ответ — только JSON: {{"text": "..."}}'
+)
+NUMBERS = re.compile(r"\d:\d\d|\d+\s*(bpm|удар)", re.IGNORECASE)
+LATIN = re.compile(r"[A-Za-z][\w'’&.]*(?:\s+[A-Za-z0-9&][\w'’&.]*)*")
+
+
+def latin_not_in(text: str, known: str) -> list[str]:
+    """Latin names in the text that the facts don't carry (an album the model brought in from
+    its own memory)."""
+    k = known.lower()
+    return [n for n in LATIN.findall(text) if n.lower().rstrip(".") not in k]
+
+
+def check_album(text: str, known: str) -> list[str]:
+    """The owner's lines for album texts: no album or name from outside the facts, no numbers;
+    everything else is the editor's job."""
+    problems = [f"чужое имя: {n}" for n in latin_not_in(text, known)]
+    if NUMBERS.search(text):
+        problems.append("числа и таймкоды нельзя")
+    return problems
+
+
+async def album_text(
+    llm: Llm, artist: str, facts: dict[str, Any], used: list[str]
+) -> tuple[str, str | None]:
+    """(state, text): three drafts at rising temperature, each edited and checked."""
+    known = json.dumps(facts, ensure_ascii=False)
+    prompt = f"Альбом {artist} — «{facts['альбом']}». {ALBUM_RULES}\n\nФакты:\n{known}"
+    avoid = ("Начни иначе, чем другие альбомы: " + " | ".join(used[-12:])) if used else ""
+    for i in range(3):
+        try:
+            draft = str(
+                await _json(llm, prompt, "text", "sound_album", 0.6 + 0.1 * i, False)
+            ).strip()
+        except (ValueError, KeyError):
+            continue
+        text = await edit(llm, known, draft, avoid)
+        if not check_album(text, f"{known} {artist}"):
+            return "ok", text
+    return "rejected", None
+
+
+async def timeline_text(llm: Llm, artist: str, rows: list[str]) -> tuple[str, str | None]:
+    rows_text = "\n".join(rows)
+    prompt = TIMELINE_RULES.format(artist=artist) + "\nСтроки:\n" + rows_text
+    for i in range(3):
+        try:
+            draft = str(
+                await _json(llm, prompt, "text", "sound_timeline", 0.5 + 0.1 * i, False)
+            ).strip()
+        except (ValueError, KeyError):
+            continue
+        text = await edit(llm, rows_text, draft)
+        if not check_album(text, f"{rows_text} {artist}"):
+            return "ok", text
+    return "rejected", None

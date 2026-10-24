@@ -1,3 +1,4 @@
+import uuid
 from typing import Literal
 
 from musix.schemas import Model
@@ -77,3 +78,50 @@ class SoundStatus(Model):
     failed: int
     skipped: int
     eta_hours: float | None
+
+
+class PoolEnd(Model):
+    value: int
+    title: str
+
+
+class PoolScale(Model):
+    """A scale pooled over an album: the mean, the songs at both ends, the mean facets."""
+
+    mean: int
+    min: PoolEnd
+    max: PoolEnd
+    facets: dict[str, int]
+
+
+class TraitShare(Model):
+    key: str
+    label: str
+    share: float  # of the album's analysed songs
+
+
+class AlbumPool(Model):
+    album_id: uuid.UUID
+    title: str
+    year: int | None
+    n: int  # analysed recordings pooled
+    tech: PoolScale | None
+    space: PoolScale | None  # null when every song is mono
+    odd: PoolScale | None
+    traits: list[TraitShare]
+    tempo: list[Label]  # most common first
+
+
+class AlbumSound(Model):
+    """The album's sound pooled from every analysed recording on it (≥3), and its validated
+    text: what the album sounds like and what moved since the artist's album before it."""
+
+    pool: AlbumPool
+    text: str | None
+
+
+class ArtistSound(Model):
+    """The artist's pooled albums by year and the timeline of how the sound moved."""
+
+    albums: list[AlbumPool]
+    timeline: str | None

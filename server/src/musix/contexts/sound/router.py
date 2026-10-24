@@ -71,6 +71,50 @@ async def get_track_stage(track_id: uuid.UUID, p: Auth, s: Session, request: Req
     return Response(blob, media_type="application/octet-stream", headers=headers)
 
 
+@router.get(
+    "/albums/{album_id}/sound",
+    response_model=S.AlbumSound,
+    responses={**etag.NOT_MODIFIED, 404: {"description": "Fewer than 3 analysed recordings"}},
+)
+async def get_album_sound(
+    album_id: uuid.UUID, p: Auth, s: Session, request: Request, response: Response
+) -> Any:
+    """The album's sound pooled over its analysed recordings (≥3) and the album text."""
+    if not await service.has_album(s, p.account_id, album_id):
+        raise NotFound("no such album")
+    body, ver = await service.album_sound(s, album_id)
+    if body is None:
+        raise NotFound("too few analysed recordings on this album", state="too_few")
+    tag = etag.make("album_sound", album_id, *ver)
+
+    async def build() -> S.AlbumSound:
+        return body
+
+    return await etag.conditional(request, response, tag, build)
+
+
+@router.get(
+    "/artists/{artist_id}/sound",
+    response_model=S.ArtistSound,
+    responses={**etag.NOT_MODIFIED, 404: {"description": "No album with ≥3 analysed recordings"}},
+)
+async def get_artist_sound(
+    artist_id: uuid.UUID, p: Auth, s: Session, request: Request, response: Response
+) -> Any:
+    """The artist's pooled albums by year and how the sound moved between them."""
+    if not await service.has_artist(s, p.account_id, artist_id):
+        raise NotFound("no such artist")
+    body, ver = await service.artist_sound(s, artist_id)
+    if body is None:
+        raise NotFound("no album with enough analysed recordings", state="too_few")
+    tag = etag.make("artist_sound", artist_id, *ver)
+
+    async def build() -> S.ArtistSound:
+        return body
+
+    return await etag.conditional(request, response, tag, build)
+
+
 @router.get("/admin/sound/status", response_model=S.SoundStatus)
 async def get_sound_status(p: Owner, s: Session, request: Request) -> S.SoundStatus:
     """The engine at a glance (owner): who holds the card, the batch on ml-sound, the queue."""

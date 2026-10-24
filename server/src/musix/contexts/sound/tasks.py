@@ -15,6 +15,7 @@ import base64
 import contextlib
 import logging
 import uuid
+from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
 from typing import Any
 
@@ -25,7 +26,8 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from musix.contexts.knowledge.models import song_credits, song_relations, song_tags
-from musix.contexts.library.models import lyrics, media_files, renditions, tracks
+from musix.contexts.library.models import albums, artists, lyrics, media_files, renditions, tracks
+from musix.contexts.sound import albums as A
 from musix.contexts.sound import derive as D
 from musix.contexts.sound.client import SoundClient
 from musix.contexts.sound.lease import World, decide
@@ -213,7 +215,143 @@ async def _defer_texts() -> int:
             await app.configure_task(
                 "sound:signature", queueing_lock=f"sound:signature:{mf}", priority=-20
             ).defer_async(media_file_id=str(mf))
-    return len(ids)
+    artists = await _changed_artists()
+    for a in artists:
+        with contextlib.suppress(AlreadyEnqueued):
+            await app.configure_task(
+                "sound:artist_texts", queueing_lock=f"sound:artist_texts:{a}", priority=-20
+            ).defer_async(artist_id=str(a))
+    return len(ids) + len(artists)
+
+
+async def _changed_artists() -> list[uuid.UUID]:
+    """Artists with a pooled album (≥3 analysed recordings) whose text is missing or older
+    than one of its profiles. Their every album is redone: an album text compares with the
+    album before it and with the artist's others (the facts hash skips the unchanged)."""
+    X = sound_texts.c
+    mf = sa.func.count(sa.distinct(sound_profiles.c.media_file_id))
+    async with sessionmaker()() as s:
+        return list(
+            await s.scalars(
+                sa.select(albums.c.album_artist_id)
+                .distinct()
+                .select_from(albums)
+                .join(tracks, sa.and_(T.album_id == albums.c.id, T.deleted_at.is_(None)))
+                .join(sound_profiles, sound_profiles.c.media_file_id == T.media_file_id)
+                .outerjoin(
+                    sound_texts,
+                    sa.and_(
+                        X.subject_kind == "album",
+                        X.subject_id == albums.c.id,
+                        X.kind == "album_sound",
+                        X.lang == "ru",
+                    ),
+                )
+                .where(albums.c.album_artist_id.is_not(None))
+                .group_by(albums.c.id, albums.c.album_artist_id, X.generated_at)
+                .having(
+                    sa.and_(
+                        mf >= A.MIN_TRACKS,
+                        sa.or_(
+                            X.generated_at.is_(None),
+                            sa.func.max(sound_profiles.c.derived_at) > X.generated_at,
+                        ),
+                    )
+                )
+            )
+        )
+
+
+async def _save_text(
+    subject_kind: str,
+    subject: uuid.UUID,
+    kind: str,
+    facts: Any,
+    ver: int,
+    make: Callable[[], Awaitable[tuple[str, str | None]]],
+) -> str:
+    """The shared tail of every text: the same facts keep the old answer (now dated), new
+    facts go through `make()` → (state, text)."""
+    from musix.contexts.sound import texts as X
+    from musix.workers.context import llm
+
+    key = sa.and_(
+        sound_texts.c.subject_kind == subject_kind,
+        sound_texts.c.subject_id == subject,
+        sound_texts.c.kind == kind,
+        sound_texts.c.lang == "ru",
+    )
+    h = X.facts_hash(facts, ver)
+    async with sessionmaker()() as s:
+        prev = await s.scalar(sa.select(sound_texts.c.facts_hash).where(key))
+        if h == prev:
+            await s.execute(sa.update(sound_texts).where(key).values(generated_at=sa.func.now()))
+            await s.commit()
+            return "unchanged"
+    state, text = await make()
+    cfg = await llm().config()
+    row = dict(state=state, text=text, facts=facts, facts_hash=h, model=cfg.model)
+    async with sessionmaker()() as s:
+        await s.execute(
+            pg_insert(sound_texts)
+            .values(subject_kind=subject_kind, subject_id=subject, kind=kind, lang="ru", **row)
+            .on_conflict_do_update(
+                index_elements=["subject_kind", "subject_id", "kind", "lang"],
+                set_={**row, "generated_at": sa.func.now()},
+            )
+        )
+        await s.commit()
+    return state
+
+
+async def artist_texts(artist_id: str) -> str:
+    """The texts of every pooled album of the artist, then the artist's timeline."""
+    from musix.contexts.sound import service as V
+    from musix.contexts.sound import texts as X
+    from musix.workers.context import llm
+
+    aid = uuid.UUID(artist_id)
+    async with sessionmaker()() as s:
+        name = await s.scalar(sa.select(artists.c.name).where(artists.c.id == aid))
+        pooled = [a for a in await V.artist_albums(s, aid) if a.pool is not None]
+        recent: list[str] = list(
+            await s.scalars(
+                sa.select(sound_texts.c.text)
+                .where(sound_texts.c.kind == "album_sound", sound_texts.c.state == "ok")
+                .order_by(sound_texts.c.generated_at.desc())
+                .limit(12)
+            )
+        )
+    if name is None or not pooled:
+        return "nothing pooled"
+    used = [" ".join(t.split()[:3]) + "…" for t in recent[::-1]]
+    alb = [a.album for a in pooled]
+    states = []
+    for i, a in enumerate(pooled):
+        rest = [x[2] for j, x in enumerate(alb) if j != i]
+        facts = A.album_facts(alb[i], A.previous(alb, i), A.more_than_others(alb[i][2], rest))
+
+        async def make(facts: dict[str, Any] = facts) -> tuple[str, str | None]:
+            st, text = await X.album_text(llm(), name, facts, used)
+            if text:
+                used.append(" ".join(text.split()[:3]) + "…")
+            return st, text
+
+        states.append(await _save_text("album", a.id, "album_sound", facts, X.ALBUM_VER, make))
+    dated = [x for x in alb if x[1] is not None]
+    if len(dated) >= A.MIN_ALBUMS:
+        rows = A.timeline_rows(dated)
+        states.append(
+            await _save_text(
+                "artist",
+                aid,
+                "timeline",
+                rows,
+                X.ALBUM_VER,
+                lambda: X.timeline_text(llm(), name, rows),
+            )
+        )
+    return ", ".join(states)
 
 
 async def signature(media_file_id: str) -> str:
@@ -619,3 +757,10 @@ def register(app: procrastinate.App) -> None:
             max_attempts=10, wait=600, retry_exceptions={Unavailable}
         ),
     )(signature)
+    app.task(
+        name="sound:artist_texts",
+        queue="ai",
+        retry=procrastinate.RetryStrategy(
+            max_attempts=10, wait=600, retry_exceptions={Unavailable}
+        ),
+    )(artist_texts)
