@@ -1118,6 +1118,7 @@ def features(measures: dict[str, Any], g: Genius) -> dict[str, Any]:
         width10=o["width10"],
         stems=o["stems"],
         lanes=lanes,
+        lane_list=o["lanes"],
         claim_scores=o["claim_scores"],
         orch=orch,
         odd=odd,

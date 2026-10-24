@@ -29,7 +29,7 @@ from musix.contexts.library.models import lyrics, media_files, renditions, track
 from musix.contexts.sound import derive as D
 from musix.contexts.sound.client import SoundClient
 from musix.contexts.sound.lease import World, decide
-from musix.contexts.sound.models import gpu_lease, sound_analysis, sound_profiles
+from musix.contexts.sound.models import gpu_lease, sound_analysis, sound_profiles, sound_texts
 from musix.contexts.sound.rows import MAX_MS, MIN_MS, UPLOAD
 from musix.errors import Unavailable
 from musix.workers.context import sessionmaker, settings
@@ -180,6 +180,101 @@ async def _swap_back(c: SoundClient, reason: str) -> None:
             WHERE queue_name = 'gpu' AND status = 'todo' AND scheduled_at > now()""")
         )
         await s.commit()
+    await _defer_texts()
+
+
+async def _defer_texts() -> int:
+    """Texts for the profiles derived since their last text (spec §9). Deferred only while ml
+    holds the card, so the LLM's GPU load never meets the sound CPU phase."""
+    from musix.workers.app import app
+
+    async with sessionmaker()() as s:
+        ids: list[uuid.UUID] = list(
+            await s.scalars(
+                sa.select(sound_profiles.c.media_file_id)
+                .outerjoin(
+                    sound_texts,
+                    sa.and_(
+                        sound_texts.c.subject_kind == "media_file",
+                        sound_texts.c.subject_id == sound_profiles.c.media_file_id,
+                        sound_texts.c.kind == "signature",
+                    ),
+                )
+                .where(
+                    sa.or_(
+                        sound_texts.c.subject_id.is_(None),
+                        sound_texts.c.generated_at < sound_profiles.c.derived_at,
+                    )
+                )
+            )
+        )
+    for mf in ids:
+        with contextlib.suppress(AlreadyEnqueued):
+            await app.configure_task(
+                "sound:signature", queueing_lock=f"sound:signature:{mf}", priority=-20
+            ).defer_async(media_file_id=str(mf))
+    return len(ids)
+
+
+async def signature(media_file_id: str) -> str:
+    """The song's «изюминка»: regenerated only when its facts changed."""
+    from musix.contexts.sound import texts as X
+    from musix.workers.context import llm
+
+    mf = uuid.UUID(media_file_id)
+    async with sessionmaker()() as s:
+        measures = await s.scalar(
+            sa.select(SA.measures).where(SA.media_file_id == mf, SA.state == "done")
+        )
+        if measures is None:
+            return "no measures"
+        g = await genius(s, mf)
+        prev = await s.scalar(
+            sa.select(sound_texts.c.facts_hash).where(
+                sound_texts.c.subject_kind == "media_file",
+                sound_texts.c.subject_id == mf,
+                sound_texts.c.kind == "signature",
+                sound_texts.c.lang == "ru",
+            )
+        )
+        recent: list[str] = list(
+            await s.scalars(
+                sa.select(sound_texts.c.text)
+                .where(sound_texts.c.kind == "signature", sound_texts.c.state == "ok")
+                .order_by(sound_texts.c.generated_at.desc())
+                .limit(12)
+            )
+        )
+        used = [" ".join(t.split()[:3]) + "…" for t in recent]
+    fl = X.signature_facts(D.features(measures, g), g)
+    h = X.facts_hash(fl, X.SIGNATURE_VER)
+    if h == prev:
+        async with sessionmaker()() as s:  # same facts: the old answer stands, now dated
+            await s.execute(
+                sa.update(sound_texts)
+                .where(
+                    sound_texts.c.subject_kind == "media_file",
+                    sound_texts.c.subject_id == mf,
+                    sound_texts.c.kind == "signature",
+                )
+                .values(generated_at=sa.func.now())
+            )
+            await s.commit()
+        return "unchanged"
+    state, text = await X.signature(llm(), fl, used[::-1])
+    cfg = await llm().config()
+    row = dict(state=state, text=text, facts=fl, facts_hash=h, model=cfg.model)
+    async with sessionmaker()() as s:
+        await s.execute(
+            pg_insert(sound_texts)
+            .values(subject_kind="media_file", subject_id=mf, kind="signature", lang="ru", **row)
+            .on_conflict_do_update(
+                index_elements=["subject_kind", "subject_id", "kind", "lang"],
+                set_={**row, "generated_at": sa.func.now()},
+            )
+        )
+        await s.commit()
+    return state
 
 
 async def _retry_stalled_batch() -> None:
@@ -516,3 +611,11 @@ def register(app: procrastinate.App) -> None:
     app.task(name="sound:derive_backfill", queue="default")(derive_backfill)
     app.task(name="sound:derive_song", queue="default")(derive_song)
     app.task(name="sound:export_stems", queue="default")(export_stems)
+    # an unreachable LLM: wait for it like the other enrichment on the ai queue
+    app.task(
+        name="sound:signature",
+        queue="ai",
+        retry=procrastinate.RetryStrategy(
+            max_attempts=10, wait=600, retry_exceptions={Unavailable}
+        ),
+    )(signature)
