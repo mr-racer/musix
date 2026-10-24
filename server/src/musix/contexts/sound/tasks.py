@@ -606,12 +606,12 @@ async def _follow(c: SoundClient, batch_id: str) -> int:
     log.info("sound batch %s: %d written, %d failed", batch_id, written, len(seen_failed))
     from musix.workers.app import app
 
-    with contextlib.suppress(
-        AlreadyEnqueued
-    ):  # the next batch or the swap back, without a minute's wait
-        await app.configure_task("sound:tick", queueing_lock="sound:tick_now").defer_async(
-            timestamp=0
-        )
+    # the next batch or the swap back without a minute's wait; 5 s on, once this job is no
+    # longer `doing` (a tick that sees it still running leaves the card where it is)
+    with contextlib.suppress(AlreadyEnqueued):
+        await app.configure_task(
+            "sound:tick", queueing_lock="sound:tick_now", schedule_in={"seconds": 5}
+        ).defer_async(timestamp=0)
     return written
 
 
