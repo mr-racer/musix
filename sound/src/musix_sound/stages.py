@@ -49,7 +49,8 @@ TAG_SR = 32000
 KEEP = [
     "Music", "Speech", "Male speech, man speaking", "Female speech, woman speaking", "Singing", "Choir", "Male singing",
     "Female singing", "Child singing", "Synthetic singing", "Rapping", "Humming", "Whistling", "Clapping", "Beatboxing",
-    "Plucked string instrument", "Guitar", "Electric guitar", "Bass guitar", "Acoustic guitar", "Steel guitar, slide guitar",
+    "Plucked string instrument", "Guitar", "Electric guitar", "Bass guitar", "Acoustic guitar",
+    "Steel guitar, slide guitar",
     "Strum", "Banjo", "Sitar", "Mandolin", "Ukulele", "Keyboard (musical)", "Piano", "Electric piano", "Organ",
     "Electronic organ", "Hammond organ", "Synthesizer", "Sampler", "Harpsichord", "Percussion", "Drum kit",
     "Drum machine", "Drum", "Snare drum", "Rimshot", "Drum roll", "Bass drum", "Timpani", "Tabla", "Cymbal", "Hi-hat",
@@ -244,8 +245,8 @@ class Stages:
         keep = np.array([m["labels"].index(c) for c in KEEP if c in m["labels"]])
 
         def one(it: Item) -> None:
-            arrs, mix = {}, None
-            starts = None
+            arrs: dict[str, Any] = {}
+            mix = starts = None
             for name in ["mix", *STEMS, *(f"dr_{p}" for p in PARTS)]:
                 path = it.src if name == "mix" else os.path.join(it.work, f"{name}.flac")
                 if not os.path.exists(path):
@@ -255,6 +256,7 @@ class Stages:
                 arrs[name] = P[:, keep].astype(np.float16)
                 if name == "mix":
                     mix = P.astype(np.float16)
+            assert starts is not None and mix is not None  # the mix itself is always there
             dst = os.path.join(it.work, "tags.npz")
             np.savez_compressed(
                 dst + ".part.npz", starts=starts, classes=np.array([m["labels"][i] for i in keep]), **arrs
@@ -348,7 +350,9 @@ def _load_efficientat(root: str, device: str) -> dict[str, Any]:
     return dict(model=model, mel=mel, labels=list(labels), device=device)
 
 
-def _tag_probs(m: dict[str, Any], wave: np.ndarray, win: float = 10.0, hop: float = 2.5, batch: int = 16) -> tuple[np.ndarray, np.ndarray]:
+def _tag_probs(
+    m: dict[str, Any], wave: np.ndarray, win: float = 10.0, hop: float = 2.5, batch: int = 16
+) -> tuple[np.ndarray, np.ndarray]:
     """tag3.probs: (window starts, P[windows, 527]) on 10 s windows, hop 2.5 s (the model is
     trained on 10 s clips: on 3 s windows it returns noise)."""
     import torch

@@ -27,10 +27,16 @@ VERSION = 1  # sound_analysis.extractor_ver: bump when the measures change shape
 
 # calib.py FAM: family -> (tag classes, where they count)
 FAM = {
-    "guitar": (["Guitar", "Electric guitar", "Acoustic guitar", "Plucked string instrument", "Strum"], ["guitar", "mix"]),
+    "guitar": (
+        ["Guitar", "Electric guitar", "Acoustic guitar", "Plucked string instrument", "Strum"],
+        ["guitar", "mix"],
+    ),
     "piano": (["Piano", "Electric piano", "Keyboard (musical)"], ["piano", "mix"]),
     "organ": (["Organ", "Hammond organ", "Electronic organ"], ["other", "piano", "mix"]),
-    "strings": (["Orchestra", "String section", "Violin, fiddle", "Cello", "Bowed string instrument", "Pizzicato"], ["other", "mix"]),
+    "strings": (
+        ["Orchestra", "String section", "Violin, fiddle", "Cello", "Bowed string instrument", "Pizzicato"],
+        ["other", "mix"],
+    ),
     "brass": (["Brass instrument", "Trumpet", "Trombone", "French horn"], ["other", "mix"]),
     "woodwind": (["Saxophone", "Flute", "Clarinet", "Wind instrument, woodwind instrument"], ["other", "mix"]),
     "synth": (["Synthesizer", "Electronic music", "Sampler"], ["other", "mix"]),
@@ -48,14 +54,59 @@ WIN_GROUPS = {
 }
 # features5.nonmusic_mass: voices, rooms and generic noise are not unusual sounds in a song
 VOICE_ROOM = {
-    "Speech", "Male speech, man speaking", "Female speech, woman speaking", "Child speech, kid speaking", "Conversation",
-    "Narration, monologue", "Babbling", "Singing", "Choir", "Yodeling", "Chant", "Mantra", "Male singing", "Female singing",
-    "Child singing", "Synthetic singing", "Rapping", "Humming", "Speech synthesizer", "Shout", "Bellow", "Whoop", "Yell",
-    "Children shouting", "Screaming", "Whistling", "Clapping", "Finger snapping", "Hands", "Cheering", "Applause", "Crowd",
-    "Hubbub, speech noise, speech babble", "Silence", "Inside, small room", "Inside, large room or hall",
-    "Inside, public space", "Outside, urban or manmade", "Outside, rural or natural", "Reverberation", "Echo", "Noise",
-    "Environmental noise", "Static", "Mains hum", "Distortion", "Sidetone", "Cacophony", "White noise", "Pink noise",
-    "Sound effect", "Pulse", "Hum",
+    "Speech",
+    "Male speech, man speaking",
+    "Female speech, woman speaking",
+    "Child speech, kid speaking",
+    "Conversation",
+    "Narration, monologue",
+    "Babbling",
+    "Singing",
+    "Choir",
+    "Yodeling",
+    "Chant",
+    "Mantra",
+    "Male singing",
+    "Female singing",
+    "Child singing",
+    "Synthetic singing",
+    "Rapping",
+    "Humming",
+    "Speech synthesizer",
+    "Shout",
+    "Bellow",
+    "Whoop",
+    "Yell",
+    "Children shouting",
+    "Screaming",
+    "Whistling",
+    "Clapping",
+    "Finger snapping",
+    "Hands",
+    "Cheering",
+    "Applause",
+    "Crowd",
+    "Hubbub, speech noise, speech babble",
+    "Silence",
+    "Inside, small room",
+    "Inside, large room or hall",
+    "Inside, public space",
+    "Outside, urban or manmade",
+    "Outside, rural or natural",
+    "Reverberation",
+    "Echo",
+    "Noise",
+    "Environmental noise",
+    "Static",
+    "Mains hum",
+    "Distortion",
+    "Sidetone",
+    "Cacophony",
+    "White noise",
+    "Pink noise",
+    "Sound effect",
+    "Pulse",
+    "Hum",
 }
 CLASS_KEEP_P = 0.25  # per-class summaries of the 527 mix tags: the lowest bar derive applies is 0.25
 
@@ -152,9 +203,7 @@ def spectral_fill(mix_path: str) -> float | None:
     y = np.frombuffer(raw, np.float32)
     if not len(y):
         return None
-    S = librosa.feature.melspectrogram(
-        y=y, sr=22050, n_fft=2048, hop_length=1024, n_mels=64, fmin=40, fmax=11000
-    )
+    S = librosa.feature.melspectrogram(y=y, sr=22050, n_fft=2048, hop_length=1024, n_mels=64, fmin=40, fmax=11000)
     db = librosa.power_to_db(S, ref=1.0)
     top = db.max(0)
     loud = top > top.max() - 30
@@ -212,7 +261,7 @@ def stage_frames(work: str, dur: float) -> bytes:
         out[:m, i, 1] = np.round(100 * (np.sqrt(er) - np.sqrt(el)) / (np.sqrt(er) + np.sqrt(el) + 1e-9))
     rel = np.clip(lv - lv.max(), -60, 0)
     out[:, :, 0] = np.round(rel * 2).astype(np.int8)
-    return gzip.compress(out.tobytes(), 6)
+    return gzip.compress(out.tobytes(), 6, mtime=0)  # the same track, the same bytes
 
 
 def _jsonable(x: Any) -> Any:
@@ -238,7 +287,8 @@ def measure(
     dur = an["res"]["dur"]
     tz = np.load(os.path.join(work, "tags.npz"))
     tags = {n: tz[n] for n in tz.files}
-    beats = json.load(open(os.path.join(work, "beats.json")))
+    with open(os.path.join(work, "beats.json")) as f:
+        beats = json.load(f)
     n2 = int(dur * 2) + 1
     extra: dict[str, Any] = dict(
         shares=stem_shares(work),
@@ -256,4 +306,3 @@ def measure(
         z = np.load(tp)
         extra["mix527"] = mix_classes(list(z["labels"]), z["mix"].astype(np.float32), z["starts"])
     return dict(v=VERSION, an=_jsonable(an), extra=_jsonable(extra)), stage_frames(work, dur)
-

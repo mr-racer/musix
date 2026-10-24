@@ -1,0 +1,101 @@
+[project]
+name = "musix-sound"
+version = "2.0.0.dev0"
+description = "MusiX v2 sound analysis host: stems, beats, tags and structure on the GPU, measures on the CPU"
+# not ml's env: ml pins numpy 1.26 (laion-clap) and transformers 5; SongFormer's loader wants
+# transformers 4.46 and the prototype ran on numpy 2 (spec sound-engine §6.1)
+requires-python = ">=3.11,<3.12"
+dependencies = [
+    "fastapi>=0.141,<0.142",
+    "uvicorn[standard]>=0.54,<0.55",
+    "numpy>=2.4,<2.5",
+    "nvidia-ml-py>=13",
+]
+
+[dependency-groups]
+# the prototype's stack (/mnt/data/envs/musix-emb + demucs-pkgs + v3-pkgs), which ran the 57
+# demo tracks the owner reviewed
+models = [
+    "torch==2.6.0",
+    "torchaudio==2.6.0",
+    "torchvision==0.21.0",  # EfficientAT's mobilenet blocks
+    # [cpu] = onnxruntime, which separator.py imports at load (no ONNX model runs here)
+    "audio-separator[cpu]==0.47.0",
+    # newer ones give silent stems from the Roformer checkpoints (prototype, 2026-10-17)
+    "rotary-embedding-torch==0.6.5",
+    "beartype==0.18.5",
+    "beat-this==1.1.0",
+    "transformers==4.46.3",  # SongFormer's remote code
+    "huggingface-hub==0.36.2",
+    "muq==0.1.0",  # SongFormer's MuQ encoder
+    "x-transformers==2.31.8",
+    "ema-pytorch==0.8.3",
+    "omegaconf==2.4.0",
+    "loguru==0.7.3",
+    "easydict==1.13",
+    "nnaudio==0.3.4",
+    "einops==0.8.2",
+    "librosa==0.11.0",
+    "numba==0.67.0",
+    "scipy==1.17.1",
+    "soundfile==0.14.0",
+    "safetensors==0.8.0",
+]
+dev = [
+    "ruff==0.16.9",
+    "mypy>=2.3,<2.4",
+    "pytest>=9.1,<10",
+    "httpx>=0.28",
+]
+
+# like ml: CPU wheels for the image and dev; the GPU compose override puts the cu124 overlay
+# (/mnt/data/musix-v2-prod/ml-cuda) first on PYTHONPATH
+[tool.uv]
+environments = ["sys_platform == 'linux' and platform_machine == 'x86_64'"]  # the box and its image
+
+[tool.uv.sources]
+torch = { index = "pytorch-cpu" }
+torchvision = { index = "pytorch-cpu" }
+torchaudio = { index = "pytorch-cpu" }
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/musix_sound"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+# the prototype's analysis, vendored nearly verbatim so it stays diffable against the research
+extend-exclude = ["src/musix_sound/proto"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "S", "RUF", "SIM"]
+ignore = ["S101", "S603", "S607", "RUF001", "RUF002", "RUF003", "B023"]
+
+[tool.ruff.lint.per-file-ignores]
+# each stage `del`s its model after its items so the next one finds the VRAM free; ruff then
+# calls the stage's closures' use of it undefined
+"src/musix_sound/stages.py" = ["F821"]
+
+[tool.mypy]
+python_version = "3.11"
+mypy_path = "src"
+packages = ["musix_sound"]
+ignore_missing_imports = true
+check_untyped_defs = true
+
+[[tool.mypy.overrides]]
+module = "musix_sound.proto.*"
+ignore_errors = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]

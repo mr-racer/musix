@@ -43,13 +43,34 @@ def _own_ticks() -> int:
     return int((t.user + t.system) * CLK)
 
 
+_nvml: list[object] = []  # the device handle, once NVML is up
+
+
+def _handle() -> object:
+    if not _nvml:
+        import pynvml
+
+        pynvml.nvmlInit()
+        _nvml.append(pynvml.nvmlDeviceGetHandleByIndex(0))
+    return _nvml[0]
+
+
+def nvml_ok() -> bool:
+    """The guard's GPU side and the VRAM check read NVML. The live GPU test of 2026-10-24 ran
+    in an env without pynvml: both read "nothing to wait for" and nobody noticed, so on a GPU
+    device a missing NVML is a startup error (Runner), not a quiet zero."""
+    try:
+        _handle()
+        return True
+    except Exception:
+        return False
+
+
 def _gpu_util() -> float:
     try:
         import pynvml
 
-        pynvml.nvmlInit()
-        h = pynvml.nvmlDeviceGetHandleByIndex(0)
-        return float(pynvml.nvmlDeviceGetUtilizationRates(h).gpu) / 100
+        return float(pynvml.nvmlDeviceGetUtilizationRates(_handle()).gpu) / 100
     except Exception:  # no NVML (CPU host, tests): nothing to wait for
         return 0.0
 
@@ -58,9 +79,7 @@ def gpu_free_mb() -> int | None:
     try:
         import pynvml
 
-        pynvml.nvmlInit()
-        h = pynvml.nvmlDeviceGetHandleByIndex(0)
-        return int(pynvml.nvmlDeviceGetMemoryInfo(h).free // 2**20)
+        return int(pynvml.nvmlDeviceGetMemoryInfo(_handle()).free // 2**20)
     except Exception:
         return None
 

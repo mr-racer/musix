@@ -17,10 +17,7 @@ from musix_sound import guard
 from musix_sound.batch import Batch, BatchItem, Runner
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
-MEDIA_ROOTS = [
-    Path(p)
-    for p in os.environ.get("ML_MEDIA_ROOTS", "/mnt/data/music:/mnt/data/musix-v2-media").split(":")
-]
+MEDIA_ROOTS = [Path(p) for p in os.environ.get("ML_MEDIA_ROOTS", "/mnt/data/music:/mnt/data/musix-v2-media").split(":")]
 MAX_ITEMS = 32
 
 
@@ -44,6 +41,7 @@ def _check_path(raw: str) -> str:
 
 
 def create_app(runner: Runner | None = None) -> FastAPI:
+    """uvicorn --factory: a real Runner needs NVML on a GPU device, so importing never builds one."""
     app = FastAPI(title="MusiX ml-sound", openapi_url=None)
     r = runner or Runner(
         models=os.environ.get("SOUND_MODELS", "/models"),
@@ -85,5 +83,3 @@ def create_app(runner: Runner | None = None) -> FastAPI:
 
     return app
 
-
-app = create_app()

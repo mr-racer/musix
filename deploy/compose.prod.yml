@@ -18,6 +18,7 @@ x-server: &server
     MUSIX_LIBRARY_ROOTS: '["/mnt/data/music"]'
     MUSIX_ML_URL: http://ml:8002
     MUSIX_ML_CLAP_URL: http://ml-clap:8002  # CLAP on the CPU: songs get ready with the GPU `ml` off
+    MUSIX_ML_SOUND_URL: http://ml-sound:8004  # sound analysis; ml lends it the GPU (sound-engine §4)
     MUSIX_PUBLIC_BASE_URL: ${MUSIX_PUBLIC_BASE_URL:-https://musixai.ru}
     MUSIX_LLM_BASE_URL: ${MUSIX_LLM_BASE_URL:-http://192.168.0.168:8082/v1}
     MUSIX_LLM_MODEL: ${MUSIX_LLM_MODEL:-qwen3.8-27b-ud-iq3_s}
@@ -83,6 +84,30 @@ services:
       interval: 5s
       retries: 30
 
+  # sound analysis (spec sound-engine §6): stems, beats, tags and structure on the GPU while
+  # ml lends it the card, then the measures on 4 CPU workers. CPU here like ml; the GPU
+  # override moves it. Weights read-only, nothing downloaded; stems live in scratch for one
+  # batch only, except the owner's one-off export.
+  ml-sound:
+    build: ../sound
+    image: musix-v2-sound:prod
+    restart: unless-stopped
+    environment:
+      SOUND_DEVICE: cpu
+      SOUND_CPU_WORKERS: "4"  # ~2.7 GB each on a six-minute track (8 took 21.6 GB)
+      ML_MEDIA_ROOTS: "/mnt/data/music:/mnt/data/musix-v2-prod/media"
+    mem_limit: 16g
+    volumes:
+      - /mnt/data/musix-v2-prod/sound-models:/models:ro
+      - /mnt/data/musix-v2-prod/sound-scratch:/scratch
+      - /mnt/data/musix-v2-prod/sound-export:/export
+      - /mnt/data/music:/mnt/data/music:ro
+      - /mnt/data/musix-v2-prod/media:/mnt/data/musix-v2-prod/media:ro
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request as u; u.urlopen('http://127.0.0.1:8004/health', timeout=3)"]
+      interval: 5s
+      retries: 30
+
   # the same image serving CLAP alone (models load on first use), always on and never on the
   # GPU: ingest must not depend on the GPU host, which the owner turns off (2026-10-10)
   ml-clap:
@@ -119,7 +144,8 @@ services:
 
   worker:
     <<: *server
-    command: procrastinate --app=musix.workers.app.app worker --concurrency 3 --queues default,ingest,net,ml,gpu
+    # sound: one batch at a time, its job mostly polls ml-sound for 15-20 min, hence the 4th slot
+    command: procrastinate --app=musix.workers.app.app worker --concurrency 4 --queues default,ingest,net,ml,gpu,sound
     stop_grace_period: 60s
     depends_on: {migrate: {condition: service_completed_successfully}}
     healthcheck:

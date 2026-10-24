@@ -130,7 +130,12 @@ def _guard(leg: str, op: str, fn: Callable[[], Any], small: Callable[[], Any] | 
 
 def loaded() -> dict[str, Any]:
     gpu = "lent" if _lent else "loaded" if any(g in _loaded for g in GPU_LEGS) else "empty"
-    return {"device": device(), "loaded": sorted(_loaded), "failed": breaker.open_legs(), "gpu": gpu}
+    return {
+        "device": device(),
+        "loaded": sorted(_loaded),
+        "failed": breaker.open_legs(),
+        "gpu": gpu,
+    }
 
 
 def release() -> dict[str, Any]:

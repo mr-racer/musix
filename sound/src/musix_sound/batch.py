@@ -85,6 +85,8 @@ class Runner:
             # audio-separator picks the device itself: on a CPU run it must not see the card
             # (a CPU test put SW on the GPU next to prod's ml, 2026-10-24)
             os.environ["CUDA_VISIBLE_DEVICES"] = ""
+        if device == "cuda" and not G.nvml_ok():
+            raise RuntimeError("NVML is unavailable: the power guard and the VRAM check would be blind")
         self.guard = G.Guard()
         self.current: Batch | None = None
         self.last: Batch | None = None
@@ -170,8 +172,9 @@ class Runner:
             b.state, b.stage = "cpu", "measure"
         by_id = {it.id: it for it in b.items}
         # cores-2 (the owner, 10-18: use all cores while the GPU is idle), capped by memory: a
-        # worker holds a track's six stems decoded, ~0.6 GB for five minutes
-        cap = int(os.environ.get("SOUND_CPU_WORKERS", "8"))
+        # worker peaks at ~2.7 GB on a six-minute track (stems, drum parts, tagger windows); 8
+        # of them took 21.6 GB of the box's 30 next to prod (2026-10-24), 4 stay near 11
+        cap = int(os.environ.get("SOUND_CPU_WORKERS", "4"))
         workers = max(1, min(cap, (os.cpu_count() or 4) - 2))
         ctx = multiprocessing.get_context("spawn")
         with ProcessPoolExecutor(workers, mp_context=ctx, initializer=_pool_init) as ex:
@@ -198,7 +201,8 @@ class Runner:
         for it in b.items:
             if not it.keep_stems or it.id not in work:
                 continue
-            name = (it.export_name or it.id).replace("/", "∕")
+            # a file name, never a path: no separators, no "..", nothing hidden
+            name = (it.export_name or "").replace("/", "∕").replace("\0", "").lstrip(".").strip() or it.id
             dst = os.path.join(self.export, name)
             os.makedirs(dst, exist_ok=True)
             for s in [*STEMS, *(f"dr_{p}" for p in PARTS)]:

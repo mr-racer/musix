@@ -21,3 +21,21 @@ services:
       resources:
         reservations:
           devices: [{driver: nvidia, count: 1, capabilities: [gpu]}]
+
+  # ml-sound runs on the card only while ml lends it (sound-engine §4). Its torch is ml's
+  # overlay; torchaudio and torchvision cu124 come from a second, 33 MB one, made with:
+  #   uv pip install --target /mnt/data/musix-v2-prod/sound-cuda --python-version 3.11 \
+  #     --python-platform x86_64-manylinux_2_28 --no-deps torchaudio==2.6.0 torchvision==0.21.0 \
+  #     --index-url https://download.pytorch.org/whl/cu124
+  ml-sound:
+    environment:
+      SOUND_DEVICE: cuda
+      PYTHONPATH: /opt/cuda-py:/opt/sound-cuda
+      PYTORCH_CUDA_ALLOC_CONF: expandable_segments:True
+    volumes:
+      - /mnt/data/musix-v2-prod/ml-cuda:/opt/cuda-py:ro
+      - /mnt/data/musix-v2-prod/sound-cuda:/opt/sound-cuda:ro
+    deploy:
+      resources:
+        reservations:
+          devices: [{driver: nvidia, count: 1, capabilities: [gpu]}]
