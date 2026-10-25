@@ -779,3 +779,7 @@ chips whose name grows out on glass (no reflow); the section name under the line
 its block; the stage as rows of light strips (pan and stereo width measured, rows a stage plot,
 the room depth from the echo, rings on hits); the plain meaning of a scale replaces the two
 sentences in place, so the window never changes height. Awaiting his check.
+
+2026-10-25, his check of the build: «Все остальное ок». Two fixes: a smooth close for the sound
+window, and its place: it came out «криво», neither in the middle nor from the edge like the
+assistant → now the right-edge panel sliding in and out like the assistant's.

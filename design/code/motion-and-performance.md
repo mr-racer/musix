@@ -20,7 +20,7 @@
 | Press | every control gives under the finger and springs back: icon buttons 0.9, island tabs 0.94, chips and segments 0.96, rows 0.99 | 250 ms, `spring` |
 | Backdrop | two static layers cross-fade | 900 ms |
 | Sound ring | arcs and number tween from their current values to the new song's (critically damped); under the pointer the arcs part along their middles, the focused arc thickens, the number rolls (old lifts away, new rises), the caption cross-fades to the scale's name | 900 ms; roll 120 + 260 ms |
-| Sound window | grows out of the ring (scale .22 → 1, blur 14 → 0, opacity first), its rows rise 60 ms apart, the bars grow from zero; closes back into the ring | 560 ms, `cubic-bezier(.2,.95,.25,1)`; out 260 ms ease-in |
+| Sound window | slides in from the right edge (as the assistant's window) while the ring gives; its rows rise 60 ms apart, the bars grow from zero; closing slides it back out and fades | 600 ms `swift`; out 500 ms ease-in |
 | «Звучат» chip | lifts 2 px, the glyph hops; the name grows out of the chip on glass from .72 | 420 ms `spring` |
 | Section name | glides to its block's start when the song gets there or the pointer points at another block; the word blurs in | 550 ms, critically damped |
 | Moment dot | swells twice, a few seconds before its moment; grows 1.7× when its instrument is under the pointer | 1 s × 2 |

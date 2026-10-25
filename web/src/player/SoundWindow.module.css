@@ -1,7 +1,12 @@
 /* The sound window (SoundWindow.tsx): liquid glass v2, the owner's word (2026-10-25).
    Words on glass take --glass-ink / --glass-ink2 and its soft glow. */
-.win { composes: lg from "../ui/glass.module.css"; position: fixed; z-index: 50; width: min(548px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); overflow: hidden auto;
-  padding: 20px 22px 18px; border-radius: 28px; color: var(--glass-ink); text-align: left; overscroll-behavior: contain; scrollbar-width: none; }
+.win { composes: lg from "../ui/glass.module.css"; position: fixed; z-index: 90; top: 16px; right: 16px; bottom: 16px; width: min(500px, calc(100vw - 32px)); overflow: hidden auto;
+  display: flex; flex-direction: column; padding: 20px 22px 18px; border-radius: 28px; color: var(--glass-ink); text-align: left; overscroll-behavior: contain; scrollbar-width: none;
+  /* as the assistant's window: off the right edge at rest, slides in, slides back out */
+  transform: translateX(calc(100% + 40px)); opacity: .4; visibility: hidden;
+  transition: transform .5s cubic-bezier(.4,0,.8,.4), opacity .5s var(--mx-ease-standard), visibility 0s linear .5s; }
+.win[data-open] { transform: none; opacity: 1; visibility: visible; transition: transform .6s var(--mx-ease-swift), opacity .3s var(--mx-ease-standard), visibility 0s; }
+.win:not([data-open]) .sc, .win:not([data-open]) .character p, .win:not([data-open]) .scene { animation: none; }
 .x { position: absolute; top: 12px; right: 12px; width: 34px; height: 34px; display: grid; place-items: center; border-radius: 50%; color: var(--glass-ink2);
   transition: background .2s var(--mx-ease-standard), color .2s var(--mx-ease-standard), transform .25s var(--mx-ease-spring); }
 .x:hover { background: rgba(255,255,255,.12); color: var(--glass-ink); }
@@ -48,9 +53,9 @@
 .character .sig { margin-top: 8px; padding-left: 12px; border-left: 2px solid color-mix(in srgb, var(--pl-acc) 80%, transparent); font-size: 14.5px; font-style: italic; line-height: 1.5; }
 
 /* the stage */
-.scene { position: relative; margin: 16px -10px -6px; border-radius: 18px; overflow: hidden; animation: rowIn .6s var(--mx-ease-standard) .34s backwards;
+.scene { position: relative; flex: 1; min-height: 240px; display: flex; flex-direction: column; margin: 16px -10px -6px; border-radius: 18px; overflow: hidden; animation: rowIn .6s var(--mx-ease-standard) .34s backwards;
   background: radial-gradient(120% 90% at 50% 100%, rgba(255,255,255,.05), transparent 70%); }
-.canvas { display: block; width: 100%; height: 252px; color: var(--pl-acc); cursor: grab; }
+.canvas { display: block; width: 100%; flex: 1; min-height: 0; color: var(--pl-acc); cursor: grab; }
 .sceneTop { position: absolute; left: 14px; right: 14px; top: 11px; display: flex; justify-content: space-between; pointer-events: none;
   font-size: 11px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; color: var(--glass-ink2); text-shadow: var(--glass-glow); }
 .sceneTop > span:last-child { font-weight: 500; letter-spacing: .02em; text-transform: none; font-size: 12px; }

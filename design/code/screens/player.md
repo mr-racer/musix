@@ -64,7 +64,10 @@ absent. Code: `web/src/player/{sound.ts,SoundRing,Instruments,Timeline,SoundWind
   block; under the pointer it names the block pointed at. Moments are dots over the line
   («бит / бас возвращается», the bass coming in and a nameless «новая партия» are left out);
   a dot swells twice a few seconds before its moment and says what it is on glass.
-- **The sound window**: liquid glass v2, grown out of the ring and taken back into it. The ring
+- **The sound window**: liquid glass v2, on the right edge full height like the assistant's
+  window, sliding in and back out the same way (the owner, 2026-10-25: grown out of the ring it
+  stood «ни по центру, ни с края»); in `<body>`, above the shell's corner buttons; the stage
+  takes the height that is left. The ring
   and the three scales as bars in their hues (a bar and its arc answer each other); the song's
   pulse and room in two plain sentences, key words lit (no pills); the изюминка when there is
   one; the stage. A scale under the pointer puts its plain meaning («для тех, кто не

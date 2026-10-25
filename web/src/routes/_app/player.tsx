@@ -427,7 +427,7 @@ function Playing({ trackId }: { trackId: string }) {
         <div className={css.winBody}>{late && <Queue onPick={narrow ? () => setSheet(null) : undefined} onNear={warm} />}</div>
       </aside>
       {late && <Assistant trackId={trackId} open={sheet === "ai"} onClose={() => setSheet(null)} />}
-      {late && !narrow && sound && <SoundWindow trackId={trackId} s={sound} open={sheet === "sound"} from={ringEl} onClose={() => setSheet(null)} />}
+      {late && !narrow && sound && <SoundWindow trackId={trackId} s={sound} open={sheet === "sound"} from={ringEl} accent={accent} onClose={() => setSheet(null)} />}
       {narrow && (
         <aside className={css.win + (sheet === "about" ? " " + css.winOpen : "")} aria-label="О песне" aria-hidden={sheet !== "about"}>
           <div className={css.winHead}>
