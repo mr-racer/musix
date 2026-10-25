@@ -60,7 +60,7 @@ async def home(p: Auth, request: Request, response: Response, tz: TzOffset = 0) 
         weather.latlon_of(prefs, st.settings.weather_latlon), st.settings.proxy_url
     )
     await achievements.remember_tz(st.sessionmaker, p.account_id, tz)
-    shape = f"home:{tz}:{stats.local_today(tz)}:{wx.kind if wx else '-'}"
+    shape = f"home:{tz}:{stats.local_today(tz)}:{wx.kind if wx else '-'}:{wx.sunset if wx else '-'}"
     tag, head = await etag.versioned_tag(
         request, p.account_id, shape, with_plays=True, also=(_profile_version(p.account_id),)
     )
