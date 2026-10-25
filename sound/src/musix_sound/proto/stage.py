@@ -35,6 +35,12 @@ def load(path):
     return np.frombuffer(raw, np.float32).reshape(-1, 2).T.copy()
 
 
+def fit(x, n):
+    """Cut or zero-pad a stem to the mix length `n`: the separator's chunking can leave a stem a
+    frame longer or shorter than the mix (4 library tracks failed on (2149,) vs (2150,) broadcasts)."""
+    return np.pad(x[:, :n], ((0, 0), (0, max(0, n - x.shape[1]))))
+
+
 def analyse(x):
     f, t, Z = stft(x, fs=SR, nperseg=NFFT, noverlap=NFFT - HOP, boundary=None)
     keep = (f >= FMIN) & (f <= FMAX)

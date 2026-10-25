@@ -177,13 +177,9 @@ def beats(drums, have_drums):
 
 
 def load_stems(d, n=None):
-    """`n` = the mix length: the separator's chunking can leave a stem a frame longer or shorter
-    than the mix (4 library tracks failed on a (2149,) vs (2150,) broadcast), so stems are
-    cut or zero-padded to it."""
+    """`n` = the mix length the stems are fitted to (`stage.fit`)."""
     stems = {s: stage.load(os.path.join(d, f"{s}.flac")) for s in STEMS}
-    if n is not None:
-        stems = {s: np.pad(x[:, :n], ((0, 0), (0, max(0, n - x.shape[1])))) for s, x in stems.items()}
-    return stems
+    return stems if n is None else {s: stage.fit(x, n) for s, x in stems.items()}
 
 
 def analyse_track(mix_path, stem_dir):

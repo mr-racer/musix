@@ -300,8 +300,8 @@ def analyse(mix_path, d, lrc=None):
     res, shares, em = scene.analyse_track(mix_path, d)
     dur = res["dur"]
     mix = stage.load(mix_path)
-    drums = stage.load(os.path.join(d, "drums.flac"))
-    voc = stage.load(os.path.join(d, "vocals.flac"))
+    drums = stage.fit(stage.load(os.path.join(d, "drums.flac")), mix.shape[1])
+    voc = stage.fit(stage.load(os.path.join(d, "vocals.flac")), mix.shape[1])
     bjs = json.load(open(os.path.join(d, "beats.json")))
     beats, downbeats = np.array(bjs["beats"]), np.array(bjs["downbeats"])
     wet = json.load(open(os.path.join(d, "wet.json"))) if os.path.exists(os.path.join(d, "wet.json")) else []
@@ -315,7 +315,7 @@ def analyse(mix_path, d, lrc=None):
     parts = {}
     part_audio = {}
     for pk, srcs in DRUM_PARTS.items():
-        xs = [stage.load(os.path.join(d, f"dr_{s}.flac")) for s in srcs if os.path.exists(os.path.join(d, f"dr_{s}.flac"))]
+        xs = [stage.fit(stage.load(os.path.join(d, f"dr_{s}.flac")), mix.shape[1]) for s in srcs if os.path.exists(os.path.join(d, f"dr_{s}.flac"))]
         if not xs:
             continue
         x = sum(xs)
