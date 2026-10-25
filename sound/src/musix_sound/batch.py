@@ -71,10 +71,39 @@ def _measure_one(src: str, work: str, lrc: str | None) -> tuple[dict[str, Any], 
     return m, frames, int(1000 * (time.time() - t0))
 
 
+_SLOT_LOCK: Any = None  # held for the process's life: the numba cache slot stays ours
+
+
+def _numba_slot() -> None:
+    """A numba cache dir of this worker's own. Four workers compiling librosa's jitted functions
+    into one shared NUMBA_CACHE_DIR at once left it corrupt, and every worker that loaded it
+    then segfaulted in librosa.beat (2026-10-25: after a restart, every batch 0/16 with
+    BrokenProcessPool). A slot is taken under flock, so no two live workers write one dir, and
+    it is kept across batches, so the functions compile once per slot, not once per batch."""
+    import fcntl
+
+    global _SLOT_LOCK
+    base = os.environ.get("NUMBA_CACHE_DIR") or os.path.expanduser("~/.cache/numba")
+    os.makedirs(base, exist_ok=True)
+    for i in range(64):
+        f = open(os.path.join(base, f"slot{i}.lock"), "w")  # noqa: SIM115 (kept open on purpose)
+        try:
+            fcntl.flock(f, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except OSError:
+            f.close()
+            continue
+        _SLOT_LOCK = f
+        os.environ["NUMBA_CACHE_DIR"] = os.path.join(base, f"slot{i}")
+        return
+    os.environ["NUMBA_CACHE_DIR"] = os.path.join(base, f"pid{os.getpid()}")  # >64 workers
+
+
 def _pool_init() -> None:
-    """A spawned worker: one BLAS thread each (the pool is the parallelism), lowest priority."""
+    """A spawned worker: one BLAS thread each (the pool is the parallelism), lowest priority,
+    its own numba cache (set before numba is first imported: measure is imported lazily)."""
     for v in ("OMP_NUM_THREADS", "OPENBLAS_NUM_THREADS", "MKL_NUM_THREADS"):
         os.environ[v] = "1"
+    _numba_slot()
     os.nice(19)
 
 
