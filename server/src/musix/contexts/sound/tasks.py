@@ -511,8 +511,10 @@ async def derive_one(
 ) -> bool:
     """measures + Genius → sound_profiles (the caller commits). False when there are no measures."""
     if measures is None:
+        # any stored measures: a row queued again for a new measure version keeps serving its
+        # old ones (2026-10-25: remeasure first left derive_backfill nothing to derive)
         measures = await s.scalar(
-            sa.select(SA.measures).where(SA.media_file_id == mf_id, SA.state == "done")
+            sa.select(SA.measures).where(SA.media_file_id == mf_id, SA.measures.is_not(None))
         )
         if measures is None:
             return False
@@ -663,7 +665,7 @@ async def derive_backfill(below_ver: int | None = None) -> int:
     q = (
         sa.select(SA.media_file_id)
         .outerjoin(sound_profiles, sound_profiles.c.media_file_id == SA.media_file_id)
-        .where(SA.state == "done")
+        .where(SA.measures.is_not(None))
         .where(
             sa.or_(
                 sound_profiles.c.derive_ver.is_(None),
