@@ -63,6 +63,9 @@ export function ArtistPage({ id }: { id: string }) {
   const covers = m.albums.map((a) => a.cover);
 
   return (
+    <>
+    {/* outside the page: its container query makes it the box a fixed child is placed in */}
+    <div className={css.veil} aria-hidden />
     <div className={css.page} style={{ ["--tint" as string]: m.tint, ["--metal" as string]: lv.m, ["--metalbg" as string]: lv.bg, ["--metaltext" as string]: lv.tx }}>
       <svg width="0" height="0" style={{ position: "absolute" }} aria-hidden>
         <defs>
@@ -104,5 +107,6 @@ export function ArtistPage({ id }: { id: string }) {
       {win?.kind === "bio" && <BioWindow from={win.from} onClose={() => setWin(null)} tint={m.tint} img={avatar} name={m.name} text={m.bio} origin={m.nameOrigin} />}
       {win?.kind === "quiz" && <QuizWindow from={win.from} onClose={() => setWin(null)} tint={m.tint} img={avatar} name={m.name} artistId={id} />}
     </div>
+    </>
   );
 }

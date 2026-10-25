@@ -444,3 +444,9 @@
 @media (prefers-reduced-motion: reduce) {
   .page *, .page *::before, .page *::after, .modal *, .minihead { animation-duration: .01ms !important; animation-delay: 0ms !important; transition-duration: .01ms !important; transition-delay: 0ms !important; }
 }
+
+/* the page dissolves under the mini player, as the library's does (library.module.css .veil):
+   a gradient only, no blur, so scrolling repaints nothing */
+.veil { position: fixed; z-index: 34; left: 0; right: 0; bottom: 0; height: calc(var(--player-h, 0px) + var(--spec-room, 0px) + 70px); pointer-events: none;
+  background: linear-gradient(to top, var(--mx-bg) 0, var(--mx-bg) calc(var(--player-h, 0px) - 4px), color-mix(in srgb, var(--mx-bg) 86%, transparent) calc(var(--player-h, 0px) + var(--spec-room, 0px)),
+    color-mix(in srgb, var(--mx-bg) 35%, transparent) calc(var(--player-h, 0px) + var(--spec-room, 0px) + 40px), transparent 100%); }
