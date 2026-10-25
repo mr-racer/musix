@@ -16,7 +16,8 @@ import css from "./SoundWindow.module.css";
  *  - The room is the measured echo: dry, the back wall stands right behind the drums; «как в
  *    зале», the floor runs far back into haze.
  *  - A part that plays lights up in its own colour: its plate fills with light, its spot glows
- *    on the floor and tints the haze behind it, a hit sends a ring across the floor, like water.
+ *    on the floor and tints the haze behind it, and all three breathe with its level; a part
+ *    coming in after a pause sends a ring across the floor, like water.
  *    The owner (2026-10-25): the first strips of light, as long as the part's stereo width, said
  *    nothing he could hear; the glow under the names looked cheap and unclear; quiet parts were
  *    not seen at all. So the light is measured against the part's own loud level, not against
@@ -49,9 +50,9 @@ const LEAD = 3, HOLD = 2.5, MERGE = 4; // s
 const FADE_IN = 1.5, FADE_OUT = 0.9; // s: fully readable 1.5 s before it comes in
 
 /** A part's life over the song, in frames and in seconds (wins: [up from, down from]). */
-type Life = { lit: Float32Array; act: Float32Array; wins: [number, number][]; ons: number[]; gate: number; pan: number };
+type Life = { lit: Float32Array; wins: [number, number][]; ons: number[]; entries: number[]; gate: number; pan: number };
 type Src = { stem: string; key: string; label: string; rgb: RGB; z: number; pan: number; x: number; life: Life | null;
-  vis: number; glow: number; warm: number; prev: number; prevAt: number; tw: number; tf: string; path: { p: Path2D; fill: boolean }[] };
+  vis: number; glow: number; warm: number; tw: number; tf: string; path: { p: Path2D; fill: boolean }[] };
 
 const rgba = (c: RGB, a: number) => `rgba(${c[0]},${c[1]},${c[2]},${Math.max(0, Math.min(1, a)).toFixed(3)})`;
 const mix = (a: RGB, b: RGB, k: number): RGB =>
@@ -64,9 +65,12 @@ const parse = (s: string): RGB => { const m = s.match(/(\d+)\D+(\d+)\D+(\d+)/); 
 /** Where a part plays and how bright, from the live frames:
  *  - it plays over its gate: GATE, or 24 dB under its own loud level (p90) for a loud part,
  *    whose bleed into the other stems sits about there;
- *  - its light is the level between its gate and its loud level, held for 0.3 s so drums glow
- *    steadily instead of flickering between hits, never under .3 while it plays;
- *  - gaps under a second are closed (beats, breaths), blips under 0.3 s dropped. */
+ *  - its light follows its level inside its own range while it plays (p15..p97 of its playing
+ *    frames): quiet it only smoulders, loud it burns. The owner (2026-10-25): with the light
+ *    held near full from the gate up, every part simply burned the whole song through;
+ *  - gaps under a second are closed (beats, breaths), blips under 0.3 s dropped;
+ *  - an entry is a start after two seconds or more of silence: only it sends a ring across the
+ *    floor (rings on every hit ran all the time, his word). */
 function life(st: Stage, i: number): Life | null {
   const n = st.stems.length, F = st.frames, fps = st.fps;
   const db = new Float32Array(F), over: number[] = [];
@@ -78,7 +82,7 @@ function life(st: Stage, i: number): Life | null {
   }
   if (over.length < fps * MIN_ON) return null;
   over.sort((a, b) => a - b);
-  const loud = over[Math.floor(over.length * 0.9)]!, gate = Math.max(GATE, loud - 24), span = Math.max(10, loud - gate);
+  const loud = over[Math.floor(over.length * 0.9)]!, gate = Math.max(GATE, loud - 24);
   const segs: [number, number][] = [];
   for (let f = 0; f < F; f++) {
     if (db[f]! <= gate) continue;
@@ -87,14 +91,20 @@ function life(st: Stage, i: number): Life | null {
   }
   const kept = segs.filter(([a, b]) => b - a >= fps * 0.3);
   if (kept.reduce((t, [a, b]) => t + b - a, 0) < fps * MIN_ON) return null;
-  const act = new Float32Array(F), lit = new Float32Array(F), wins: [number, number][] = [];
-  for (let f = 0; f < F; f++) act[f] = Math.min(1, Math.max(0, (db[f]! - gate) / span));
+  const levels: number[] = [];
+  for (const [a, b] of kept) for (let f = a; f < b; f++) if (db[f]! > gate) levels.push(db[f]!);
+  levels.sort((a, b) => a - b);
+  const lo = levels[Math.floor(levels.length * 0.15)]!, hi = Math.max(lo + 6, levels[Math.floor(levels.length * 0.97)]!);
+  const lit = new Float32Array(F), wins: [number, number][] = [], entries: number[] = [];
+  let end = -Infinity;
   for (const [a, b] of kept) {
     for (let f = a; f < b; f++) {
-      let m = 0;
-      for (let j = Math.max(0, f - 3); j <= Math.min(F - 1, f + 1); j++) m = Math.max(m, act[j]!);
-      lit[f] = Math.max(0.3, m);
+      // 0.2 s held, so a beat's gaps do not black it out between hits
+      const d = Math.max(db[f]!, db[Math.max(0, f - 1)]!), x = Math.min(1, Math.max(0, (d - lo) / (hi - lo)));
+      lit[f] = 0.1 + 0.9 * x ** 1.3;
     }
+    if (a - end >= 2 * fps) entries.push(a / fps);
+    end = b;
     // only a second of playing calls a part onto the stage: a 0.3 s blip of keys in Power brought
     // them up for four seconds, unlit, and took them away again. A blip lights a part already there
     if (b - a < fps) continue;
@@ -102,7 +112,7 @@ function life(st: Stage, i: number): Life | null {
     if (w && w0 - w[1] < MERGE) w[1] = w1; else wins.push([w0, w1]);
   }
   if (!wins.length) return null;
-  return { lit, act, wins, ons: kept.filter(([a, b]) => b - a >= fps).map(([a]) => a / fps), gate, pan: pn ? ps / pn : 0 };
+  return { lit, wins, ons: kept.filter(([a, b]) => b - a >= fps).map(([a]) => a / fps), entries, gate, pan: pn ? ps / pn : 0 };
 }
 /** 0..1: on the stage at second t (a soft rise from its window's start, a soft fall after it). */
 const shownAt = (wins: [number, number][], t: number) => {
@@ -129,7 +139,7 @@ function sources(s: TrackSound, st: Stage | null): Src[] {
       : prof[0] && !["synth_other", "voice", "vocal"].includes(prof[0].name.key) ? { key: prof[0].name.key, label: prof[0].name.label } : b;
     const pan = lf ? lf.pan : prof[0]?.pan ?? 0;
     out.push({ stem, key: named.key, label: named.label, rgb: HUE[stem]!, z: 0, pan, x: pan, life: lf, vis: 1, glow: 0.45, warm: 0,
-      prev: 0, prevAt: 0, tw: 0, tf: "", path: glyph(named.key).map((g) => ({ p: new Path2D(g.d), fill: !!g.fill })) });
+      tw: 0, tf: "", path: glyph(named.key).map((g) => ({ p: new Path2D(g.d), fill: !!g.fill })) });
   }
   // rows from the front edge to just behind the middle, evenly; drawn from the back. A part
   // keeps its row while it is off the stage: places never shuffle
@@ -154,7 +164,7 @@ export function StageScene({ trackId, s, active }: { trackId: string; s: TrackSo
     const room = ROOM[s.echo.key] ?? 1.7;
     const head = glyph("listener").map((x) => new Path2D(x.d));
     const ripples: { x: number; z: number; t0: number; k: number; rgb: RGB }[] = [];
-    let W = 0, H = 0, dpr = 1, u = 1, raf = 0, last = 0, seen = 99, font = "system-ui, sans-serif";
+    let lastT = -1, W = 0, H = 0, dpr = 1, u = 1, raf = 0, last = 0, seen = 99, font = "system-ui, sans-serif";
     let acc: RGB = [255, 240, 225], lit: RGB = acc;
     let base = usePlayer.getState().positionMs, at = performance.now();
     const c = cam.current;
@@ -261,7 +271,7 @@ export function StageScene({ trackId, s, active }: { trackId: string; s: TrackSo
       for (const src of srcs) {
         if (src.vis < 0.005) continue;
         const p = proj(src.x, src.z), a = src.glow * src.vis;
-        pool(p.x, p.y, 30 * u * p.k, 0.3, [[0, rgba(src.rgb, 0.55 * a + 0.12 * src.warm * src.vis)], [0.4, rgba(src.rgb, 0.2 * a)], [1, rgba(src.rgb, 0)]]);
+        pool(p.x, p.y, (16 + 24 * src.glow) * u * p.k, 0.3, [[0, rgba(src.rgb, 0.55 * a + 0.12 * src.warm * src.vis)], [0.4, rgba(src.rgb, 0.2 * a)], [1, rgba(src.rgb, 0)]]);
       }
       g.globalCompositeOperation = "source-over";
 
@@ -291,7 +301,7 @@ export function StageScene({ trackId, s, active }: { trackId: string; s: TrackSo
         g.beginPath(); g.moveTo(p.x, p.y - 2 * u); g.lineTo(tx, top); g.stroke();
 
         g.save();
-        g.translate(cx, cy); const zs = 0.94 + 0.06 * show; g.scale(zs, zs);
+        g.translate(cx, cy); const zs = (0.94 + 0.06 * show) * (0.97 + 0.06 * L); g.scale(zs, zs);
         const x0 = -pw / 2, y0 = -h / 2, gx = x0 + pad + gs / 2;
         // glass: a dark frosted body over a soft shadow, the part's light inside it
         g.shadowColor = "rgba(0,0,0,.32)"; g.shadowBlur = 12 * u; g.shadowOffsetY = 3 * u;
@@ -346,23 +356,19 @@ export function StageScene({ trackId, s, active }: { trackId: string; s: TrackSo
         // a seek blends in a fifth of a second; the rise and fall over the playhead are in `want`
         src.vis += (want - src.vis) * (1 - Math.exp(-dt / 140));
         src.warm += (warm - src.warm) * (1 - Math.exp(-dt / 140));
-        // the light answers at once and lets go slowly
-        src.glow += (target - src.glow) * (1 - Math.exp(-dt / (target > src.glow ? 70 : 420)));
+        // the light answers at once and lets go a little slower, so it breathes with the part
+        src.glow += (target - src.glow) * (1 - Math.exp(-dt / (target > src.glow ? 50 : 220)));
         const si = st.stems.indexOf(src.stem), o0 = (i0 * n + si) * 2, o1 = ((i0 + 1) * n + si) * 2;
         if (playing && (st.data[o0]! * (1 - k) + st.data[o1]! * k) / 2 > lf.gate) src.pan = (st.data[o0 + 1]! * (1 - k) + st.data[o1 + 1]! * k) / 100;
         src.x += (src.pan - src.x) * (1 - Math.exp(-dt / 420));
-        // a hit: the part rose sharply within the last 120 ms
-        const a = lf.act[i0]! * (1 - k) + lf.act[i0 + 1]! * k;
-        if (playing && a - src.prev > 0.22 && a > 0.6 && src.vis > 0.5 && ripples.length < 28) {
-          ripples.push({ x: src.x, z: src.z, t0: now, k: a, rgb: src.rgb });
-          src.prev = a;
-        }
-        if (now - src.prevAt > 120) { src.prev = a; src.prevAt = now; }
+        // an entry after a pause passed under the playhead (not a seek over it): a ring
+        if (playing && t > lastT && t - lastT < 0.5 && lf.entries.some((e) => e > lastT && e <= t)) ripples.push({ x: src.x, z: src.z, t0: now, k: 1, rgb: src.rgb });
         if (Math.abs(want - src.vis) > 0.002 || Math.abs(warm - src.warm) > 0.002 || Math.abs(target - src.glow) > 0.004 || Math.abs(src.pan - src.x) > 0.004) moving = true;
       }
       c.yaw += (c.ty - c.yaw) * (1 - Math.exp(-dt / 240));
       c.pitch += (c.tp - c.pitch) * (1 - Math.exp(-dt / 240));
       if (Math.abs(c.ty - c.yaw) > 0.002 || Math.abs(c.tp - c.pitch) > 0.002) moving = true;
+      lastT = t;
       if (c.intro < 1) { c.intro = Math.min(1, (now - t0) / 1000); moving = true; }
       return moving || playing || ripples.length > 0;
     };
