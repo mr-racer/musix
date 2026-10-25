@@ -176,13 +176,19 @@ def beats(drums, have_drums):
     return float(np.atleast_1d(tempo)[0]), [round(float(v), 2) for v in times]
 
 
-def load_stems(d):
-    return {s: stage.load(os.path.join(d, f"{s}.flac")) for s in STEMS}
+def load_stems(d, n=None):
+    """`n` = the mix length: the separator's chunking can leave a stem a frame longer or shorter
+    than the mix (4 library tracks failed on a (2149,) vs (2150,) broadcast), so stems are
+    cut or zero-padded to it."""
+    stems = {s: stage.load(os.path.join(d, f"{s}.flac")) for s in STEMS}
+    if n is not None:
+        stems = {s: np.pad(x[:, :n], ((0, 0), (0, max(0, n - x.shape[1])))) for s, x in stems.items()}
+    return stems
 
 
 def analyse_track(mix_path, stem_dir):
     mix = stage.load(mix_path)
-    stems = load_stems(stem_dir)
+    stems = load_stems(stem_dir, mix.shape[1])
     dur = mix.shape[1] / SR
     lanes, shares, em = activity(stems, mix)
     present = {}

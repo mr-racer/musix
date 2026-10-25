@@ -678,9 +678,10 @@ def technicality(
     wstd = float(np.std([s["width"] for s in st])) if len(st) > 2 else 0.0
     dstd = float(np.std([s["depth"] for s in st])) if len(st) > 2 else 0.0
     ps = o["per_section"]
-    wet_std = (
-        float(np.std([p["wet"] for p in ps if p.get("wet") is not None])) if len(ps) > 2 else 0.0
-    )
+    # `and wets`: 3+ sections with no wet reading at all gave np.std([]) = NaN, which Postgres
+    # refuses in jsonb (one track looped through 28 batches); every other track keeps its number
+    wets = [p["wet"] for p in ps if p.get("wet") is not None]
+    wet_std = float(np.std(wets)) if len(ps) > 2 and wets else 0.0
     move = (
         float(np.std([p["center"] for p in ps]) + np.std([p["spread"] for p in ps]))
         if len(ps) > 2

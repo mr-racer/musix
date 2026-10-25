@@ -549,9 +549,12 @@ async def _write_done(d: dict[str, Any]) -> None:
             )
         ).first()
         if n:  # the file may have been deleted meanwhile (the row cascaded away)
-            try:
-                await derive_one(s, mf, d["measures"])
-            except Exception:  # a derive bug must not lose the measures: they re-derive later
+            try:  # a derive bug must not lose the measures: they re-derive later. The savepoint
+                # matters: a statement Postgres rejects (NaN in jsonb) aborted the whole
+                # transaction, the measures rolled back and the track looped through 28 batches
+                async with s.begin_nested():
+                    await derive_one(s, mf, d["measures"])
+            except Exception:
                 log.exception("derive %s failed", mf)
         await s.commit()
 
