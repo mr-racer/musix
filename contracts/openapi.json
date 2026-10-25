@@ -5577,6 +5577,32 @@
         "title": "SourceOut",
         "type": "object"
       },
+      "StagePart": {
+        "description": "A part on the live stage: its stem in the stage frames, the name (two keys join with «и»:\n«струнные и синты»), and the moments a new part comes in inside it while it plays.",
+        "properties": {
+          "entries": {
+            "items": {
+              "type": "number"
+            },
+            "title": "Entries",
+            "type": "array"
+          },
+          "name": {
+            "$ref": "#/components/schemas/SoundLabel"
+          },
+          "stem": {
+            "title": "Stem",
+            "type": "string"
+          }
+        },
+        "required": [
+          "stem",
+          "name",
+          "entries"
+        ],
+        "title": "StagePart",
+        "type": "object"
+      },
       "StatsExtra": {
         "description": "What the redesigned statistics tab adds (design/code/screens/library.md).",
         "properties": {
@@ -6529,6 +6555,13 @@
             ],
             "title": "Signature"
           },
+          "stage": {
+            "items": {
+              "$ref": "#/components/schemas/StagePart"
+            },
+            "title": "Stage",
+            "type": "array"
+          },
           "stems": {
             "items": {
               "$ref": "#/components/schemas/StemPlace"
@@ -6581,6 +6614,7 @@
           "sections",
           "moments",
           "stems",
+          "stage",
           "signature",
           "hasStage",
           "ver"
@@ -17450,7 +17484,7 @@
             "content": {
               "application/octet-stream": {}
             },
-            "description": "gzip(int8[frames][6 stems][level, pan]) at 10 fps; level in half-dB below the loudest stem frame (0..-120), pan -100..100; stems in X-Stage-Stems order"
+            "description": "gzip(int8[frames][stems][level, pan]) at 10 fps; level in half-dB below the loudest stem frame (0..-120), pan -100..100; stems in X-Stage-Stems order"
           },
           "304": {
             "description": "Not modified"

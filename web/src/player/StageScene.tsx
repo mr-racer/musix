@@ -22,17 +22,24 @@ import css from "./SoundWindow.module.css";
  *    nothing he could hear; the glow under the names looked cheap and unclear; quiet parts were
  *    not seen at all. So the light is measured against the part's own loud level, not against
  *    the loudest stem, and a part that only comes in now and then lights as clearly as the voice.
- *  - A part stands on the stage only around the time it plays (his rule): it comes up LEAD
- *    seconds before it comes in, so its name can be read, warming as the entry nears; it stays
- *    HOLD seconds after it stops; a pause shorter than MERGE keeps it standing instead of
- *    blinking. The timeline is known ahead, so all of it is a function of the playhead.
+ *  - A part stands on the stage only around the time it plays (his rule): it comes up the
+ *    moment it comes in (2026-10-25: three seconds ahead read as a mark set early — Mad Visions'
+ *    keys showed at 0:33 for an entry at 0:38); it stays HOLD seconds after it stops; a pause
+ *    shorter than MERGE keeps it standing instead of blinking. The timeline is known ahead, so
+ *    all of it is a function of the playhead.
+ *  - Which parts and under what name is the server's `stage` (his review of every stem, same
+ *    day): the drums stand as their parts — the hi-hat that plays from the first bar was lost
+ *    inside one «барабаны» plate — and a part the evidence cannot name stays off («лучше
+ *    неуверенное скипнуть, чем ложное дать»). A new part coming in inside a stem that already
+ *    plays (Le Départ's synth line at 0:26) sends the same ring as an entry after a pause.
  *  - The pointer turns the camera a little. Paused, the band holds the moment under the
  *    playhead and the loop stops: nothing moves at rest. */
-const ORDER = ["vocals", "guitar", "piano", "other", "bass", "drums"];
+const ORDER = ["vocals", "guitar", "piano", "other", "bass", "drums", "kick", "snare", "hats", "toms"];
 const BASE: Record<string, { key: string; label: string }> = {
   vocals: { key: "voice", label: "голос" }, drums: { key: "drums", label: "барабаны" }, bass: { key: "bass", label: "бас" },
   guitar: { key: "guitar", label: "гитара" }, piano: { key: "piano", label: "клавишные" }, other: { key: "synth_other", label: "синты" },
 };
+const DRUM_PARTS = ["kick", "snare", "hats", "toms"];
 /** Each part's light: one lightness and chroma (OKLCH .76–.92 / .07–.14), so none shouts over
  *  the rest, with hues away from the three scales' (78, 222, 322); the voice gets the warm white
  *  of a follow spot. A colour per part tells them apart at a glance, wherever they stand. */
@@ -40,19 +47,21 @@ type RGB = readonly [number, number, number];
 const HUE: Record<string, RGB> = {
   vocals: [255, 223, 177], guitar: [254, 164, 124], piano: [135, 227, 196],
   other: [195, 176, 253], bass: [115, 182, 250], drums: [245, 137, 182],
+  // the drum parts: the drums' rose, from the deep kick to the bright cymbals
+  kick: [236, 124, 168], snare: [249, 152, 196], hats: [255, 194, 222], toms: [214, 132, 196],
 };
 const ROOM: Record<string, number> = { dry: 1.15, little: 1.7, noticeable: 2.5, hall: 3.8 };
 export const ROOM_WORD: Record<string, string> = { dry: "близко к уху", little: "небольшая комната", noticeable: "просторная комната", hall: "зал" };
 
 const GATE = -38; // dB under the loudest stem frame: below it, silence or another part's bleed
 const MIN_ON = 6; // s a part plays in the whole song to stand on the stage: 4–5 s blips were bleed
-const LEAD = 3, HOLD = 2.5, MERGE = 4; // s
-const FADE_IN = 1.5, FADE_OUT = 0.9; // s: fully readable 1.5 s before it comes in
+const HOLD = 2.5, MERGE = 4; // s
+const FADE_IN = 0.35, FADE_OUT = 0.9; // s: up with the entry itself
 
 /** A part's life over the song, in frames and in seconds (wins: [up from, down from]). */
-type Life = { lit: Float32Array; wins: [number, number][]; ons: number[]; entries: number[]; gate: number; pan: number };
+type Life = { lit: Float32Array; wins: [number, number][]; entries: number[]; gate: number; pan: number };
 type Src = { stem: string; key: string; label: string; rgb: RGB; z: number; pan: number; x: number; life: Life | null;
-  vis: number; glow: number; warm: number; tw: number; tf: string; path: { p: Path2D; fill: boolean }[] };
+  vis: number; glow: number; tw: number; tf: string; path: { p: Path2D; fill: boolean }[] };
 
 const rgba = (c: RGB, a: number) => `rgba(${c[0]},${c[1]},${c[2]},${Math.max(0, Math.min(1, a)).toFixed(3)})`;
 const mix = (a: RGB, b: RGB, k: number): RGB =>
@@ -108,20 +117,15 @@ function life(st: Stage, i: number): Life | null {
     // only a second of playing calls a part onto the stage: a 0.3 s blip of keys in Power brought
     // them up for four seconds, unlit, and took them away again. A blip lights a part already there
     if (b - a < fps) continue;
-    const w = wins.at(-1), w0 = a / fps - LEAD, w1 = b / fps + HOLD;
+    const w = wins.at(-1), w0 = a / fps, w1 = b / fps + HOLD;
     if (w && w0 - w[1] < MERGE) w[1] = w1; else wins.push([w0, w1]);
   }
   if (!wins.length) return null;
-  return { lit, wins, ons: kept.filter(([a, b]) => b - a >= fps).map(([a]) => a / fps), entries, gate, pan: pn ? ps / pn : 0 };
+  return { lit, wins, entries, gate, pan: pn ? ps / pn : 0 };
 }
 /** 0..1: on the stage at second t (a soft rise from its window's start, a soft fall after it). */
 const shownAt = (wins: [number, number][], t: number) => {
   for (const [a, b] of wins) if (t >= a && t < b + FADE_OUT) return ease((t - a) / FADE_IN) * (1 - ease((t - b) / FADE_OUT));
-  return 0;
-};
-/** 0..1 as the part's next entry nears, over LEAD. */
-const nearing = (ons: number[], t: number) => {
-  for (const o of ons) if (o >= t) return o - t < LEAD ? ease(1 - (o - t) / LEAD) : 0;
   return 0;
 };
 
@@ -131,14 +135,19 @@ function sources(s: TrackSound, st: Stage | null): Src[] {
   for (const stem of ORDER) {
     const i = stems.indexOf(stem);
     if (i < 0) continue;
+    const part = s.stage.find((x) => x.stem === stem);
+    // a profile from before the stage names: the parts as the profile describes them
     const prof = stem === "drums" ? s.stems.filter((x) => ["kick", "snare", "hh", "cym", "toms"].includes(x.stem)) : s.stems.filter((x) => x.stem === stem);
+    if (s.stage.length ? !part : DRUM_PARTS.includes(stem)) continue;
     const lf = st ? life(st, i) : null;
-    if (st ? !lf : !prof.length) continue;
+    if (st ? !lf : !(part || prof.length)) continue;
+    if (lf && part?.entries.length) lf.entries = [...lf.entries, ...part.entries].sort((a, b) => a - b);
     const b = BASE[stem]!;
-    const named = stem === "drums" ? (s.drums ? { key: s.drums.key === "live" ? "drums_live" : "drum_machine", label: s.drums.label } : b)
+    const named = part ? { key: part.name.key, label: part.name.label }
+      : stem === "drums" ? (s.drums ? { key: s.drums.key === "live" ? "drums_live" : "drum_machine", label: s.drums.label } : b)
       : prof[0] && !["synth_other", "voice", "vocal"].includes(prof[0].name.key) ? { key: prof[0].name.key, label: prof[0].name.label } : b;
     const pan = lf ? lf.pan : prof[0]?.pan ?? 0;
-    out.push({ stem, key: named.key, label: named.label, rgb: HUE[stem]!, z: 0, pan, x: pan, life: lf, vis: 1, glow: 0.45, warm: 0,
+    out.push({ stem, key: named.key, label: named.label, rgb: HUE[stem]!, z: 0, pan, x: pan, life: lf, vis: 1, glow: 0.45,
       tw: 0, tf: "", path: glyph(named.key).map((g) => ({ p: new Path2D(g.d), fill: !!g.fill })) });
   }
   // rows from the front edge to just behind the middle, evenly; drawn from the back. A part
@@ -271,7 +280,7 @@ export function StageScene({ trackId, s, active }: { trackId: string; s: TrackSo
       for (const src of srcs) {
         if (src.vis < 0.005) continue;
         const p = proj(src.x, src.z), a = src.glow * src.vis;
-        pool(p.x, p.y, (16 + 24 * src.glow) * u * p.k, 0.3, [[0, rgba(src.rgb, 0.55 * a + 0.12 * src.warm * src.vis)], [0.4, rgba(src.rgb, 0.2 * a)], [1, rgba(src.rgb, 0)]]);
+        pool(p.x, p.y, (16 + 24 * src.glow) * u * p.k, 0.3, [[0, rgba(src.rgb, 0.55 * a)], [0.4, rgba(src.rgb, 0.2 * a)], [1, rgba(src.rgb, 0)]]);
       }
       g.globalCompositeOperation = "source-over";
 
@@ -281,8 +290,8 @@ export function StageScene({ trackId, s, active }: { trackId: string; s: TrackSo
       srcs.forEach((src, i) => {
         const show = Math.min(1, Math.max(0, c.intro * 1.6 - (srcs.length - 1 - i) * 0.1)) * src.vis;
         if (show <= 0.005) return;
-        const p = proj(src.x, src.z), L = src.glow, warm = src.warm * (1 - L);
-        const col = mix(WHITE, src.rgb, Math.min(1, L * 1.4 + warm));
+        const p = proj(src.x, src.z), L = src.glow;
+        const col = mix(WHITE, src.rgb, Math.min(1, L * 1.4));
         const sc = 0.84 + 0.16 * p.k, h = 25 * u * sc, gs = 14 * u * sc, pad = 8 * u * sc;
         const f = `500 ${(11.5 * u * sc).toFixed(1)}px ${font}`;
         if (src.tf !== f) { g.font = f; src.tw = g.measureText(src.label).width; src.tf = f; }
@@ -316,13 +325,13 @@ export function StageScene({ trackId, s, active }: { trackId: string; s: TrackSo
         g.shadowColor = "transparent"; g.shadowBlur = 0;
         // the rim: light catching the top edge, in the part's colour as it plays or nears
         const rim = g.createLinearGradient(0, y0, 0, y0 + h);
-        rim.addColorStop(0, rgba(mix(WHITE, src.rgb, Math.min(1, L + warm)), 0.3 + 0.45 * L + 0.35 * warm));
+        rim.addColorStop(0, rgba(mix(WHITE, src.rgb, Math.min(1, L)), 0.3 + 0.45 * L));
         rim.addColorStop(1, rgba(mix(WHITE, src.rgb, L), 0.06 + 0.2 * L));
         g.strokeStyle = rim; g.lineWidth = Math.max(1, 0.9 * u);
         pill(x0 + 0.5, y0 + 0.5, pw - 1, h - 1); g.stroke();
         // glyph and name: dimmer while the part waits, full white as it plays
-        glyphAt(src.path, gx, 0, gs, 0.62 + 0.38 * Math.max(L, warm));
-        g.globalAlpha *= 0.64 + 0.36 * Math.max(L, warm);
+        glyphAt(src.path, gx, 0, gs, 0.62 + 0.38 * L);
+        g.globalAlpha *= 0.64 + 0.36 * L;
         g.fillStyle = "#fff"; g.font = f; g.textAlign = "left"; g.textBaseline = "middle";
         g.shadowColor = "rgba(0,0,0,.35)"; g.shadowBlur = 3 * u;
         g.fillText(src.label, x0 + pad + gs + 6 * u * sc, 0.5 * u);
@@ -351,11 +360,10 @@ export function StageScene({ trackId, s, active }: { trackId: string; s: TrackSo
       for (const src of srcs) {
         const lf = src.life;
         if (!lf || !st || reduce) continue;
-        const want = shownAt(lf.wins, t), warm = nearing(lf.ons, t);
+        const want = shownAt(lf.wins, t);
         const target = lf.lit[i0]! * (1 - k) + lf.lit[i0 + 1]! * k;
         // a seek blends in a fifth of a second; the rise and fall over the playhead are in `want`
         src.vis += (want - src.vis) * (1 - Math.exp(-dt / 140));
-        src.warm += (warm - src.warm) * (1 - Math.exp(-dt / 140));
         // the light answers at once and lets go a little slower, so it breathes with the part
         src.glow += (target - src.glow) * (1 - Math.exp(-dt / (target > src.glow ? 50 : 220)));
         const si = st.stems.indexOf(src.stem), o0 = (i0 * n + si) * 2, o1 = ((i0 + 1) * n + si) * 2;
@@ -363,7 +371,7 @@ export function StageScene({ trackId, s, active }: { trackId: string; s: TrackSo
         src.x += (src.pan - src.x) * (1 - Math.exp(-dt / 420));
         // an entry after a pause passed under the playhead (not a seek over it): a ring
         if (playing && t > lastT && t - lastT < 0.5 && lf.entries.some((e) => e > lastT && e <= t)) ripples.push({ x: src.x, z: src.z, t0: now, k: 1, rgb: src.rgb });
-        if (Math.abs(want - src.vis) > 0.002 || Math.abs(warm - src.warm) > 0.002 || Math.abs(target - src.glow) > 0.004 || Math.abs(src.pan - src.x) > 0.004) moving = true;
+        if (Math.abs(want - src.vis) > 0.002 || Math.abs(target - src.glow) > 0.004 || Math.abs(src.pan - src.x) > 0.004) moving = true;
       }
       c.yaw += (c.ty - c.yaw) * (1 - Math.exp(-dt / 240));
       c.pitch += (c.tp - c.pitch) * (1 - Math.exp(-dt / 240));

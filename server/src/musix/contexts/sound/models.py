@@ -51,6 +51,7 @@ sound_profiles = sa.Table(
     sa.Column("echo", sa.Text),
     sa.Column("width", sa.Text),
     sa.Column("stems", JSONB, nullable=False),
+    sa.Column("stage", JSONB, nullable=False, server_default="[]"),
     sa.Column("traits", ARRAY(sa.Text), nullable=False, server_default="{}"),
     sa.Column("feat", ARRAY(sa.REAL), nullable=False),
     sa.Column("sections", JSONB, nullable=False),

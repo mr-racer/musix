@@ -26,7 +26,7 @@ def test_derive_says_what_the_prototype_said(name: str) -> None:
     assert [[m["t"], D.moment_ru(m)] for m in f["moments"]] == exp["moments"]
     assert [[s["start"], s["label"]] for s in f["sections"]] == exp["sections"]
 
-    row = D.profile(f, fx["measures"]["an"])
+    row = D.profile(f, fx["measures"])
     assert len(row["feat"]) == len(D.FEAT_NAMES)
     assert all(0 <= x <= 1 for x in row["feat"])
     # the stored keys render back to the prototype's sentences
@@ -47,6 +47,31 @@ def test_power_keeps_the_owners_rulings() -> None:
     at_2_40 = next(m for m in row["moments"] if m["t"] == 160.0)
     assert at_2_40["kind"] == "part_in"
     assert "name" not in at_2_40
+
+
+def test_stage_names_only_what_the_evidence_says() -> None:
+    """The owner's per-stem review (2026-10-25): no claim and no clear tags — off the stage
+    (Stronger's "guitar" stem); a voice in the "other" stem is a vocal sample (Bound 2); the
+    "other" stem stays «синты» on weak synth tags; a claim plus clear synths names both."""
+    msn = D.melodic_stage_name
+    assert msn("guitar", {"guitar": None}, {"guitar": 0.22, "voice": 0.05, "keys": 0.01}) is None
+    assert msn("guitar", {"guitar": "гитара"}, {"guitar": 0.6}) == "guitar"
+    assert msn("other", {"other": "синты и прочее"}, {"voice": 0.4, "synth": 0.02}) == "vocal_sample"
+    assert msn("other", {"other": "синты и прочее"}, {"synth": 0.05}) == "synths"
+    assert msn("other", {"other": "струнные"}, {"synth": 0.09, "strings": 0.05}) == ["strings", "synths"]
+    assert msn("piano", {"piano": None}, {"keys": 0.02}) is None
+    assert msn("piano", {"piano": None}, {"keys": 0.45, "guitar": 0.1}) == "keys"
+
+
+def test_bass_by_evidence() -> None:
+    """808 tails moved from the kick name an 808; the tagger's «бас-гитара» over a drum machine
+    is only «бас» (bad guy, Niggas in Paris); a pure sub is a synth bass (Rockstar)."""
+    g = D.Genius(tags=[], credits={}, samples=[])
+    an = {"names": {"bass": "бас-гитара"}}
+    assert D.bass_name(an, {"b808": {"hits": 593, "ring": 170, "tail_db": 4.5}}, "драм-машина", g) == "808-бас"
+    assert D.bass_name(an, {"b808": {"hits": 300, "ring": 0, "tail_db": None}, "bass_harm": -24.0}, "драм-машина", g) == "бас"
+    assert D.bass_name(an, {"bass_harm": -63.5}, "драм-машина", g) == "синт-бас"
+    assert D.bass_name(an, {"bass_harm": -20.0}, "живые барабаны", g) == "бас-гитара"
 
 
 def _w(**kw: object) -> World:

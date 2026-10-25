@@ -47,6 +47,15 @@ class StemPlace(Model):
     width: float
 
 
+class StagePart(Model):
+    """A part on the live stage: its stem in the stage frames, the name (two keys join with «и»:
+    «струнные и синты»), and the moments a new part comes in inside it while it plays."""
+
+    stem: str
+    name: SoundLabel
+    entries: list[float]
+
+
 class TrackSound(Model):
     ratings: SoundRatings
     instruments: list[SoundLabel]
@@ -60,6 +69,7 @@ class TrackSound(Model):
     sections: list[SoundSection]
     moments: list[SoundMoment]
     stems: list[StemPlace]
+    stage: list[StagePart]
     signature: str | None
     has_stage: bool
     ver: int

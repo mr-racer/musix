@@ -24,7 +24,7 @@ import numpy as np
 
 from musix.contexts.sound import words as W
 
-DERIVE_VER = 1
+DERIVE_VER = 2  # v2: the stage's names (owner's per-stem review, 2026-10-25), bass rules, no vocal gender
 
 
 @dataclass(frozen=True)
@@ -1089,6 +1089,8 @@ def features(measures: dict[str, Any], g: Genius) -> dict[str, Any]:
         lanes.pop("bass", None)
         o["lanes"] = [ln for ln in o["lanes"] if ln["stem"] != "bass"]
     claimed = calibrated_names(o, extra["claim_ev"], shares)
+    if o["names"].get("bass"):
+        o["names"]["bass"] = bass_name(measures["an"], extra, o["names"].get("drums"), g)
     # sample-based songs: a "new part" on the guitar/other stem is often a sample, and voice
     # samples come out as strings or synths (owner, Power): stricter naming, a 0.5 strings bar
     rap = any("rap" in t.lower() or "hip-hop" in t.lower() for t in g.tags)
@@ -1129,6 +1131,126 @@ def features(measures: dict[str, Any], g: Genius) -> dict[str, Any]:
         samples=list(g.samples),
         shares=shares,
     )
+
+
+# ── the live stage: which parts stand on it, under what name ──────────────────
+# The owner's per-stem review (2026-10-25, 57 demo tracks against liner notes and his ear):
+# the player put every stem that crossed its gate on the stage and named the ones the profile
+# did not list by the stem («гитара», «клавишные») — all five false guitars (Stronger, bad guy,
+# Amazing, Good Morning, Promiscuous) and keys in songs without keys came from there. Now a
+# part is named from the tags of the very stretches it stands on the stage, and a part the
+# evidence cannot name is left off: «лучше неуверенное скипнуть, чем ложное дать».
+STAGE_V1 = ["vocals", "drums", "bass", "guitar", "piano", "other"]
+DRUM_PART = {"kick": ["kick"], "snare": ["snare"], "hats": ["hh", "cym"], "toms": ["toms"]}
+KEYS_ON, SYNTH_ON, VOICE_ON, SYNTH_TOO = 0.25, 0.06, 0.2, 0.08
+ENTRY_EDGE = 3.0  # s: a part entry inside a stem counts only at a section edge (45 % vs 17-25 % random)
+BASS_808_RING, BASS_808_DB, BASS_PURE_SUB = 0.10, -10.0, -58.0
+
+
+def _stage_windows(extra: dict[str, Any], segs: list[list[float]] | None) -> np.ndarray:
+    """measure.window_active over the stage stretches: a 10 s window counts when its middle 5 s
+    overlap them by more than a second. No stretches (v1 rows): every window."""
+    st = np.asarray(extra["win_starts"], float)
+    if not segs:
+        return np.ones(len(st), bool)
+    return np.array(
+        [any(min(a + 7.5, y) - max(a + 2.5, x) > 1.0 for x, y in segs) for a in st], bool
+    )
+
+
+def _tag_means(extra: dict[str, Any], stem: str, act: np.ndarray) -> dict[str, float]:
+    gs = extra.get("win", {}).get(stem) or {}
+    out = {}
+    for g, b in gs.items():
+        v = _f16(b)
+        out[g] = float(v[act[: len(v)]].mean()) if act[: len(v)].any() else 0.0
+    return out
+
+
+def melodic_stage_name(stem: str, n: dict[str, Any], tg: dict[str, float]) -> str | list[str] | None:
+    """A melodic stem's stage name key, or None to leave it off the stage. The calibrated claim
+    names guitar, piano and the orchestral families; past that only clear tags of its own
+    stretches: keys >= 0.25, synths >= 0.06 and above guitar and keys, a voice >= 0.2 above any
+    instrument (Bound 2's soul sample was «синты»). The "other" stem stays «синты» without a
+    claim: synth tags on stems are weak (0.05-0.14) and hiding it lost real synths."""
+    inst = {k: v for k, v in tg.items() if k != "voice"}
+    best = max(inst.values(), default=0.0)
+    keys, syn, gtr = tg.get("keys", 0.0), tg.get("synth", 0.0), tg.get("guitar", 0.0)
+    if tg.get("voice", 0.0) >= VOICE_ON and tg["voice"] > best:
+        return "vocal_sample"
+    if stem == "other":
+        cal = n.get("other")
+        if cal and cal != "синты и прочее":
+            keys_ = W.name_keys(cal)
+            return keys_ + (["synths"] if syn >= SYNTH_TOO and "synths" not in keys_ else [])
+        return "synths"
+    if stem == "guitar" and n.get("guitar"):
+        return "guitar"
+    if stem == "piano" and n.get("piano"):
+        return W.name_keys(n["piano"])[0]
+    if keys >= KEYS_ON and keys >= gtr:
+        return "keys"
+    if syn >= SYNTH_ON and syn >= gtr and syn >= keys:
+        return "synths"
+    return None
+
+
+def bass_name(an: dict[str, Any], extra: dict[str, Any], drums: str | None, g: Genius) -> str | None:
+    """The bass by evidence, else plain «бас». An 808 is the kick tails measure moved into the
+    bass (ringing on >= 10 % of the hits, the tails within 10 dB of the bass stem); a pure sub
+    with no overtones (< -58 dB) is a synth bass or an 808; «бас-гитара» only where the tagger
+    says so and a band plays it (live drums) or the credits name a bass player — the tagger
+    said bass guitar for bad guy, Niggas in Paris and Rockstar."""
+    cur = an["names"].get("bass")
+    b808, harm = extra.get("b808"), extra.get("bass_harm")
+    if b808 is not None:
+        hits = max(1, b808.get("hits") or 0)
+        if b808.get("ring", 0) / hits >= BASS_808_RING and (b808.get("tail_db") or -99) >= BASS_808_DB:
+            return "808-бас"
+        if cur == "808-бас":
+            cur = "бас"  # the drums-stem rule fired on rock (Death Valley, How Many More Times)
+    if harm is not None and harm < BASS_PURE_SUB:
+        return "808-бас" if cur == "808-бас" else "синт-бас"
+    if cur == "бас-гитара":
+        band = drums == "живые барабаны" or "бас" in credit_families(g)
+        return cur if band and (harm is None or harm >= BASS_PURE_SUB) else "бас"
+    return cur
+
+
+def stage_parts(f: dict[str, Any], measures: dict[str, Any]) -> list[dict[str, Any]]:
+    """[{stem, names, entries}] in the stage frames' stem order, only the parts the stage shows
+    (names: one key, or two for an "other" stem with an orchestral claim and clear synths)."""
+    extra = measures["extra"]
+    order = extra.get("stage_stems") or STAGE_V1
+    on = extra.get("stage_on") or {}
+    names = f["names"]
+    shown = {s["stem"]: s for s in f["stems"]}
+    edges = [s["start"] for s in f["sections"][1:]]
+    out = []
+    for stem in order:
+        if "stage_on" in extra and stem not in on:
+            continue  # v2 rows know what the player shows; a part it never puts up needs no name
+        if stem in MELODIC:
+            nm = melodic_stage_name(stem, names, _tag_means(extra, stem, _stage_windows(extra, on.get(stem))))
+        elif stem == "vocals":
+            nm = "voice"
+        elif stem == "bass":
+            nm = W.name_keys(names.get("bass") or "бас")[0]
+        elif stem == "drums":
+            nm = {"живые барабаны": "drums_live", "драм-машина": "drum_machine"}.get(names.get("drums") or "", "drums")
+        else:  # a DrumSep part: only where describe() kept it (phantom snare/toms, owner's v3 marks)
+            parts = [p for p in DRUM_PART[stem] if p in shown]
+            if not parts:
+                continue
+            nm = W.name_keys(shown[parts[0]]["name"])[0] if len(parts) == 1 else "cymbals"
+        if nm is None:
+            continue
+        ent = [
+            t for t in (extra.get("part_entries") or {}).get(stem, [])
+            if any(abs(t - e) <= ENTRY_EDGE for e in edges)
+        ][:2]
+        out.append(dict(stem=stem, names=[nm] if isinstance(nm, str) else nm, entries=ent))
+    return out
 
 
 # ── the stored profile (sound_profiles row): keys, not words ─────────────────
@@ -1260,11 +1382,18 @@ def _stem_name(s: dict[str, Any], names: dict[str, Any]) -> str:
     a stem whose instrument was not confirmed is just «партия»."""
     if s["stem"] in MELODIC:
         return W.name_keys(names[s["stem"]])[0] if names.get(s["stem"]) else "part"
+    if s["stem"] == "vocals":
+        return "voice"
+    if s["stem"] == "bass":
+        return W.name_keys(names.get("bass") or "бас")[0]
     return W.name_keys(s["name"])[0]
 
 
-def profile(f: dict[str, Any], an: dict[str, Any]) -> dict[str, Any]:
+def profile(f: dict[str, Any], measures: dict[str, Any]) -> dict[str, Any]:
     """The sound_profiles row (without the key and the timestamps)."""
+    an = measures["an"]
+    stage = stage_parts(f, measures)
+    staged = {p["stem"]: p["names"][0] for p in stage}
     sc = f["scales"]
     names = f["names"]
     mono = an["mix_ms"]["corr"] >= MONO_CORR
@@ -1278,7 +1407,9 @@ def profile(f: dict[str, Any], an: dict[str, Any]) -> dict[str, Any]:
     drums = {"живые барабаны": "live", "драм-машина": "machine"}.get(names.get("drums") or "")
     dur = f["dur"]
     vshare = sum(b - a for a, b in f["lanes"].get("vocals", [])) / dur if dur else 0.0
-    vocals = "none" if vshare < 0.05 else W.name_keys(names.get("vocals") or "голос")[0]
+    # no gender, no rap/singing: the tagger had them wrong on 10 of 50 songs (Sultans of Swing
+    # «рэп», Genesis «мужской», Death Valley «женский»); the owner: «голос и есть голос»
+    vocals = "none" if vshare < 0.05 else "voice"
     pace, feel = _tempo_keys(f["tempo"]["words"])
     t = f["tempo"]
     why, raw = sc["odd"]["why"], sc["tech"]["raw"]
@@ -1334,16 +1465,20 @@ def profile(f: dict[str, Any], an: dict[str, Any]) -> dict[str, Any]:
         felt_bpm=t.get("felt"),
         echo=W.key("echo", f["echo_w"]),
         width=None if mono else W.key("width", f["width_w"]),
+        # the «Звук» window says what the stage shows: a melodic part the stage leaves off
+        # is not described either
         stems=[
             dict(
                 stem=s["stem"],
-                name=_stem_name(s, names),
+                name=staged.get(s["stem"]) or _stem_name(s, names),
                 side=_side_key(s["pan"]),
                 pan=round(s["pan"], 2),
                 width=round(s["width"], 2),
             )
             for s in f["stems"]
+            if s["stem"] not in MELODIC or s["stem"] in staged
         ],
+        stage=stage,
         traits=_traits(f),
         feat=[round(float(vals.get(n, 0.0)), 4) for n in FEAT_NAMES],
         sections=_sections(f["sections"]),
@@ -1352,4 +1487,4 @@ def profile(f: dict[str, Any], an: dict[str, Any]) -> dict[str, Any]:
 
 
 def derive(measures: dict[str, Any], g: Genius) -> dict[str, Any]:
-    return profile(features(measures, g), measures["an"])
+    return profile(features(measures, g), measures)

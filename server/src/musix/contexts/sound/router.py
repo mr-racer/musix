@@ -11,7 +11,9 @@ from musix.contexts.sound.client import SoundClient
 from musix.errors import NotFound
 
 router = APIRouter(tags=["sound"])
-STAGE_FPS, STAGE_STEMS = 10, "vocals,drums,bass,guitar,piano,other"
+STAGE_FPS = 10
+# the frames' stems by extractor version: v2 stands the drums as their DrumSep parts
+STAGE_STEMS = {1: "vocals,drums,bass,guitar,piano,other", 2: "vocals,kick,snare,hats,toms,bass,guitar,piano,other"}
 
 
 @router.get(
@@ -46,7 +48,7 @@ async def get_track_sound(
     responses={
         200: {
             "content": {"application/octet-stream": {}},
-            "description": "gzip(int8[frames][6 stems][level, pan]) at 10 fps; level in half-dB "
+            "description": "gzip(int8[frames][stems][level, pan]) at 10 fps; level in half-dB "
             "below the loudest stem frame (0..-120), pan -100..100; stems in X-Stage-Stems order",
         },
         **etag.NOT_MODIFIED,
@@ -58,13 +60,13 @@ async def get_track_stage(track_id: uuid.UUID, p: Auth, s: Session, request: Req
     row = await service.stage_frames(s, mf) if mf else None
     if row is None:
         raise NotFound("no stage for this track yet")
-    blob, at = row
+    blob, at, ver = row
     tag = etag.make("stage", mf, at)
     headers = {
         "ETag": tag,
         "Cache-Control": "private, max-age=31536000, immutable",
         "X-Stage-Fps": str(STAGE_FPS),
-        "X-Stage-Stems": STAGE_STEMS,
+        "X-Stage-Stems": STAGE_STEMS.get(ver, STAGE_STEMS[max(STAGE_STEMS)]),
     }
     if etag.matches(request, tag):
         return Response(status_code=304, headers=headers)

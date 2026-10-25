@@ -62,6 +62,15 @@ const SNARE: Glyph = [
   { d: "M8 13.4v4.4M16 13.4v4.4" },
   { d: "M13.6 8.2 19 3M10.4 8.2 5 3" },
 ];
+const KICK: Glyph = [ // the bass drum face on, with its pedal's beater
+  { d: "M4.5 11a7.5 7.5 0 1 0 15 0a7.5 7.5 0 1 0 -15 0" },
+  { d: "M10.6 11a1.4 1.4 0 1 0 2.8 0a1.4 1.4 0 1 0 -2.8 0", fill: true },
+  { d: "M6.5 17.5 4.5 21M17.5 17.5l2 3.5" },
+];
+const CYMBAL: Glyph = [ // a cymbal on its stand
+  { d: "M3.5 8.5c2.2-1.6 5.1-2.4 8.5-2.4s6.3.8 8.5 2.4c-2.2.9-5.1 1.4-8.5 1.4s-6.3-.5-8.5-1.4z" },
+  { d: "M12 4.6v1.5M12 9.9V20.5M8.5 20.5l3.5-3.2 3.5 3.2" },
+];
 const PADS: Glyph = [
   { d: "M5 3.5h14A1.5 1.5 0 0 1 20.5 5v14a1.5 1.5 0 0 1-1.5 1.5H5A1.5 1.5 0 0 1 3.5 19V5A1.5 1.5 0 0 1 5 3.5z" },
   { d: "M13.4 7h3.6v3.6h-3.6zM7 13.4h3.6V17H7zM13.4 13.4h3.6V17h-3.6z" },
@@ -91,8 +100,8 @@ const BY: Record<string, Glyph> = {
   strings: VIOLIN, harp: VIOLIN, brass: TRUMPET, winds: SAX, sax: SAX, woodwind: SAX, harmonica: SAX, bagpipes: SAX, accordion: PIANO,
   piano: PIANO, electric_piano: PIANO, harpsichord: PIANO, keys: PIANO, organ: ORGAN,
   synthesizer: SYNTH, synths: SYNTH, synth_other: SYNTH, lead: SYNTH, theremin: WAVE,
-  drums: SNARE, drums_live: SNARE, drum_machine: PADS, kick: SNARE, snare: SNARE, toms: SNARE, hihat: SNARE, cymbals: SNARE,
-  voice: MIC, vocal: MIC, male: MIC, female: MIC, singing: MIC, choir: MIC, processed_voice: MIC, rap: HANDMIC, rap_singing: HANDMIC,
+  drums: SNARE, drums_live: SNARE, drum_machine: PADS, kick: KICK, snare: SNARE, toms: SNARE, hihat: CYMBAL, cymbals: CYMBAL,
+  voice: MIC, vocal: MIC, male: MIC, female: MIC, singing: MIC, choir: MIC, processed_voice: MIC, vocal_sample: HANDMIC, rap: HANDMIC, rap_singing: HANDMIC,
   listener: HEADPHONES,
 };
 export const glyph = (key: string): Glyph => BY[key] ?? NOTE;

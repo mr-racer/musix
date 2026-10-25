@@ -188,6 +188,9 @@ async def test_the_card_goes_to_sound_and_back_and_the_profile_reads_back(
     assert body["drums"]["key"] == "machine"
     assert body["hasStage"] is True
     assert body["moments"]
+    # the stage names its parts; Power's voice is just «голос», no gender (2026-10-25)
+    stage_names = {x["stem"]: x["name"]["key"] for x in body["stage"]}
+    assert stage_names["vocals"] == "voice" and "part" not in stage_names.values()
     assert (
         client.get(
             f"/api/v2/tracks/{ids[1]}/sound", headers={**h, "If-None-Match": r.headers["etag"]}
@@ -197,6 +200,7 @@ async def test_the_card_goes_to_sound_and_back_and_the_profile_reads_back(
     stage = client.get(f"/api/v2/tracks/{ids[1]}/sound/stage", headers=h)
     assert stage.status_code == 200
     assert stage.headers["x-stage-fps"] == "10"
+    assert stage.headers["x-stage-stems"].split(",")[0] == "vocals"
 
     r = client.get(f"/api/v2/tracks/{ids[0]}/sound", headers=h)
     assert r.status_code == 404

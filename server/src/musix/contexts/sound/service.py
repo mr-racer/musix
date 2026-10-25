@@ -69,6 +69,14 @@ def _render(p: Any, signature: str | None) -> S.TrackSound:
             )
             for s in p.stems
         ],
+        stage=[
+            S.StagePart(
+                stem=x["stem"],
+                name=S.SoundLabel(key=x["names"][0], label=" и ".join(W.NAMES[k] for k in x["names"])),
+                entries=x["entries"],
+            )
+            for x in p.stage
+        ],
         signature=signature,
         has_stage=p.has_stage,
         ver=p.derive_ver,
@@ -111,15 +119,15 @@ async def track_sound(
     return _render(row, row.signature), None, (row.derive_ver, row.derived_at, row.sig_at)
 
 
-async def stage_frames(s: AsyncSession, mf_id: uuid.UUID) -> tuple[bytes, Any] | None:
+async def stage_frames(s: AsyncSession, mf_id: uuid.UUID) -> tuple[bytes, Any, int] | None:
     row = (
         await s.execute(
-            sa.select(SA.stage_frames, SA.analysed_at).where(
+            sa.select(SA.stage_frames, SA.analysed_at, SA.extractor_ver).where(
                 SA.media_file_id == mf_id, SA.stage_frames.is_not(None)
             )
         )
     ).first()
-    return (row.stage_frames, row.analysed_at) if row else None
+    return (row.stage_frames, row.analysed_at, row.extractor_ver or 1) if row else None
 
 
 async def status(s: AsyncSession, batch: dict[str, Any] | None) -> S.SoundStatus:

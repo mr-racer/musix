@@ -42,7 +42,7 @@ BATCH_SIZE = 16  # ~15-20 min a batch: model loads stay ~5 % of it, and it bound
 MAX_ATTEMPTS = 3
 BACKFILL_TOP = 99
 POLL_S = 10
-EXTRACTOR_VER = 1  # musix_sound.measure.VERSION the rows were measured with
+EXTRACTOR_VER = 2  # musix_sound.measure.VERSION the rows were measured with
 READY = sa.and_(SA.state == "pending", M.state == "media_done", M.intel_state == "indexed")
 
 
@@ -681,6 +681,27 @@ async def derive_backfill(below_ver: int | None = None) -> int:
     return n
 
 
+async def remeasure(only: list[str] | None = None, priority: int | None = None) -> int:
+    """Measured rows older than EXTRACTOR_VER back to the queue (the stems are gone after a
+    batch, so new measures mean a new GPU pass). Each keeps its priority unless `priority`
+    is given (`only` = these files first); the old measures and stage keep serving the player
+    until the new ones land. `procrastinate defer sound:remeasure '{}'`."""
+    q = (
+        sa.update(sound_analysis)
+        .where(SA.state == "done", sa.func.coalesce(SA.extractor_ver, 1) < EXTRACTOR_VER)
+        .values(state="pending", attempts=0, queued_at=sa.func.now())
+        .returning(SA.media_file_id)
+    )
+    if only:
+        q = q.where(SA.media_file_id.in_([uuid.UUID(m) for m in only]))
+    if priority is not None:
+        q = q.values(priority=priority)
+    async with sessionmaker()() as s:
+        n = len((await s.execute(q)).all())
+        await s.commit()
+    return n
+
+
 async def derive_song(song_id: str) -> int:
     """Re-derive the measured files of a song whose Genius page just landed (style tags,
     credits and samples move unusualness and technicality)."""
@@ -751,6 +772,7 @@ def register(app: procrastinate.App) -> None:
     app.task(name="sound:backfill", queue="default")(backfill)
     app.task(name="sound:derive_backfill", queue="default")(derive_backfill)
     app.task(name="sound:derive_song", queue="default")(derive_song)
+    app.task(name="sound:remeasure", queue="default")(remeasure)
     app.task(name="sound:export_stems", queue="default")(export_stems)
     # an unreachable LLM: wait for it like the other enrichment on the ai queue
     app.task(
