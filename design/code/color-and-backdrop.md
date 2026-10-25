@@ -30,6 +30,14 @@ The client applies no blur and no blend mode. Above the picture: a faint tint fr
 accent pair, grain at 6 % (plain alpha, monochrome), two shade gradients (top and bottom,
 and towards the side that carries text).
 
+## The sound triad
+
+The sound ring and its bars (`screens/player.md`, «Sound») use three fixed hues, one per scale,
+at one lightness so none weighs more: `--mx-sound-tech` (gold), `--mx-sound-space` (sky),
+`--mx-sound-odd` (orchid). They are semantic, like the activity rings: the same scale has the
+same hue on every cover. The owner (2026-10-25): with one colour the three scales were «тяжко»
+to tell apart. The stage's light is the cover's accent lifted halfway to white.
+
 ## Readability
 
 - Main text is at least **7:1** against the brightest 3 % behind its column; secondary text

@@ -95,6 +95,21 @@
         "light": "rgba(10,10,18,0.05)"
       },
       "$description": "quiet plate: the facts block, sample chips"
+    },
+    "soundTech": {
+      "$type": "color",
+      "$value": "oklch(82% 0.13 78)",
+      "$description": "the sound ring's «техничность» arc and bar (design/code/screens/player.md, the owner 2026-10-25: three scales, three hues)"
+    },
+    "soundSpace": {
+      "$type": "color",
+      "$value": "oklch(80% 0.11 222)",
+      "$description": "the sound ring's «простор» arc and bar"
+    },
+    "soundOdd": {
+      "$type": "color",
+      "$value": "oklch(74% 0.16 322)",
+      "$description": "the sound ring's «необычность» arc and bar"
     }
   },
   "type": {

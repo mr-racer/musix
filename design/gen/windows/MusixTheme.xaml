@@ -40,6 +40,9 @@
       <Color x:Key="MxTabBarInactive">#85EEEEF3</Color>
       <Color x:Key="MxFloat">#FF16161C</Color>
       <Color x:Key="MxPlate">#13FFFFFF</Color>
+      <Color x:Key="MxSoundTech">#FFF2B95A</Color>
+      <Color x:Key="MxSoundSpace">#FF62CEF0</Color>
+      <Color x:Key="MxSoundOdd">#FFD986E6</Color>
     </ResourceDictionary>
     <ResourceDictionary x:Key="Light">
       <Color x:Key="MxBg">#FFF2F1F6</Color>
@@ -79,6 +82,9 @@
       <Color x:Key="MxTabBarInactive">#80161620</Color>
       <Color x:Key="MxFloat">#FFFFFFFF</Color>
       <Color x:Key="MxPlate">#0D0A0A12</Color>
+      <Color x:Key="MxSoundTech">#FFF2B95A</Color>
+      <Color x:Key="MxSoundSpace">#FF62CEF0</Color>
+      <Color x:Key="MxSoundOdd">#FFD986E6</Color>
     </ResourceDictionary>
   </ResourceDictionary.ThemeDictionaries>
   <x:Double x:Key="MxRadius6">6</x:Double>

@@ -13,7 +13,12 @@ import { useLive } from "../../lib/live";
 import { Combustion } from "../../player/Combustion";
 import { DevicePicker, ElsewhereBar } from "../../player/DevicePicker";
 import { fromTrack, player, usePlayer } from "../../player/engine";
+import { Instruments } from "../../player/Instruments";
+import { shown, soundQuery, type TrackSound } from "../../player/sound";
+import { SoundRing } from "../../player/SoundRing";
+import { SoundWindow } from "../../player/SoundWindow";
 import { SeekLine, Spectrum, spectrumQuery } from "../../player/Spectrum";
+import { Timeline } from "../../player/Timeline";
 import { ask, clearChat, LINE_QUESTION, PROMPTS, TITLE_QUESTION, titlePrompt, useTrackChat } from "../../player/trackChat";
 import { AddToPlaylist } from "../../ui/AddToPlaylist";
 import { Cover } from "../../ui/Cover";
@@ -47,7 +52,7 @@ function Idle() {
   );
 }
 
-type Sheet = "queue" | "ai" | "about" | null;
+type Sheet = "queue" | "ai" | "about" | "sound" | null;
 /** A vibe line the model wrapped in quotes loses them; quotes inside the line stay. */
 const unquote = (t: string) => t.trim().replace(/^["'«“„](.*)["'»”]$/s, "$1").trim();
 const reduced = () => window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
@@ -168,12 +173,19 @@ function Playing({ trackId }: { trackId: string }) {
   const next = s.queue[s.index + 1];
   const ctx = useQuery(contextQuery(trackId)).data;
   const router = useRouter();
+
   const [flipped, setFlipped] = useState(false);
   const [adding, setAdding] = useState(false);
   const [sheet, setSheet] = useState<Sheet>(null);
   const [fx, setFx] = useState<{ kind: "fire" | "water"; n: number } | null>(null);
   const stage = useRef<HTMLDivElement>(null);
   const narrow = useNarrow(stage);
+  // the sound profile (the sound engine): the ring, «Звучат», the song's form on the seek line
+  // and the sound window. Desktop only for now (the owner, 2026-10-25: «ПК онли»)
+  // the previous song's profile stays while the next one's loads: the ring and an open sound
+  // window move to the new values instead of blinking out and back
+  const sound = useQuery({ ...soundQuery(trackId), enabled: !narrow, placeholderData: (prev) => prev }).data ?? null;
+  const [ringEl, setRingEl] = useState<HTMLElement | null>(null);
   const img = image(item.coverImageId);
   const k = ctx?.knowledge;
   const lossless = s.tier === "lossless" || s.tier === "lossless_compat";
@@ -199,14 +211,14 @@ function Playing({ trackId }: { trackId: string }) {
     for (const id of [nextId, prevId]) {
       if (!id) continue;
       void qc.prefetchQuery(contextQuery(id)); // the credits, the facts, the lyrics: a few lines of text
-      if (!narrow) void qc.prefetchQuery(spectrumQuery(id));
+      if (!narrow) { void qc.prefetchQuery(spectrumQuery(id)); void qc.prefetchQuery(soundQuery(id)); }
     }
   }, [nextId, prevId, nextCover, prevCover, narrow, qc]);
   /** Everything a track's screen needs, fetched before it is chosen: called for the rows of
    *  the open queue and for a row under the pointer. A pick then shows the whole song at once. */
   const warm = (q: { trackId: string; coverImageId?: string | null }) => {
     void qc.prefetchQuery(contextQuery(q.trackId));
-    if (!narrow) void qc.prefetchQuery(spectrumQuery(q.trackId));
+    if (!narrow) { void qc.prefetchQuery(spectrumQuery(q.trackId)); void qc.prefetchQuery(soundQuery(q.trackId)); }
     const bg = image(q.coverImageId)?.urls.bg;
     preload(imageUrl(q.coverImageId, 760), bg ? mediaUrl(bg) : null);
   };
@@ -241,6 +253,8 @@ function Playing({ trackId }: { trackId: string }) {
     return () => ro.disconnect();
   }, [narrow, trackId]);
 
+  // a song without a sound profile closes the sound window (its scrim would stay behind)
+  useEffect(() => { if (sheet === "sound" && !sound) setSheet(null); }, [sheet, sound]);
   useEffect(() => {
     const esc = (e: KeyboardEvent) => { if (e.key === "Escape") setSheet(null); };
     document.addEventListener("keydown", esc);
@@ -296,7 +310,7 @@ function Playing({ trackId }: { trackId: string }) {
   );
   const about = (
     <>
-      {k && <Credits key={"credits:" + trackId} k={k} genre={ctx?.track.genre ?? null} />}
+      {(k || (sound && !narrow)) && <Credits key={"credits:" + trackId} k={k} genre={ctx?.track.genre ?? null} sound={narrow ? null : sound} />}
       <Facts key={"facts:" + trackId} k={k} onAsk={narrow ? undefined : () => setSheet("ai")} />
     </>
   );
@@ -324,14 +338,19 @@ function Playing({ trackId }: { trackId: string }) {
 
         <div className={css.col} data-above>
         <div className={css.meta} key={trackId}>
-          {/* the question mark hangs off the last word, outside the flow: it never changes how the title wraps */}
-          <h1 className={css.title + (item.title.length > 15 ? " " + css.long : "")} aria-label={item.title}>
-            {item.title.slice(0, item.title.lastIndexOf(" ") + 1)}
-            <span className={css.titleTail}>
-              {item.title.slice(item.title.lastIndexOf(" ") + 1)}
-              <button type="button" className={css.titleAsk} onClick={(e) => { pop(e.currentTarget); askTitle(); }} aria-label="Что означает название песни" title="Что означает название?"><span aria-hidden>?</span></button>
-            </span>
-          </h1>
+          {/* the title and, at the plate's right edge, the sound ring: a score by a title, as in
+              a review. The question mark hangs off the last word, outside the flow: it never
+              changes how the title wraps */}
+          <div className={css.titleRow}>
+            <h1 className={css.title + (item.title.length > 15 ? " " + css.long : "")} aria-label={item.title}>
+              {item.title.slice(0, item.title.lastIndexOf(" ") + 1)}
+              <span className={css.titleTail}>
+                {item.title.slice(item.title.lastIndexOf(" ") + 1)}
+                <button type="button" className={css.titleAsk} onClick={(e) => { pop(e.currentTarget); askTitle(); }} aria-label="Что означает название песни" title="Что означает название?"><span aria-hidden>?</span></button>
+              </span>
+            </h1>
+            {sound && !narrow && <SoundRing values={shown(sound.ratings)} size={64} className={css.ring} onOpen={(el) => { setRingEl(el); toggle("sound"); }} />}
+          </div>
           <p className={css.artist}>
             {item.artistId
               ? <Link to="/artist/$id" params={{ id: item.artistId }} className={css.lnk} title="Страница артиста"><span>{item.artist}</span><Icon name="ChevronRight" size={18} /></Link>
@@ -354,7 +373,7 @@ function Playing({ trackId }: { trackId: string }) {
           {s.error && <p className={css.error} role="status">{s.error}</p>}
         </div>
 
-        <Scrub>{!narrow && late && <Spectrum trackId={trackId} className={css.spectrum} />}</Scrub>
+        <Scrub sound={narrow ? null : sound}>{!narrow && late && <Spectrum trackId={trackId} className={css.spectrum} />}</Scrub>
 
         <div className={css.bottom}>
         <div className={css.controls} role="toolbar" aria-label="Действия с треком">
@@ -408,6 +427,7 @@ function Playing({ trackId }: { trackId: string }) {
         <div className={css.winBody}>{late && <Queue onPick={narrow ? () => setSheet(null) : undefined} onNear={warm} />}</div>
       </aside>
       {late && <Assistant trackId={trackId} open={sheet === "ai"} onClose={() => setSheet(null)} />}
+      {late && !narrow && sound && <SoundWindow trackId={trackId} s={sound} open={sheet === "sound"} from={ringEl} onClose={() => setSheet(null)} />}
       {narrow && (
         <aside className={css.win + (sheet === "about" ? " " + css.winOpen : "")} aria-label="О песне" aria-hidden={sheet !== "about"}>
           <div className={css.winHead}>
@@ -421,15 +441,18 @@ function Playing({ trackId }: { trackId: string }) {
   );
 }
 
-/** The seek line with its two clocks: the only part of the screen that follows the playhead. */
-function Scrub({ children }: { children?: React.ReactNode }) {
+/** The seek line with its two clocks: the only part of the screen that follows the playhead.
+ *  With a sound profile the line shows the song's form (player/Timeline.tsx). */
+function Scrub({ sound, children }: { sound?: TrackSound | null; children?: React.ReactNode }) {
   const positionMs = usePlayer((x) => x.positionMs);
   const durationMs = usePlayer((x) => x.durationMs);
+  const form = !!sound?.sections.length;
   return (
-    <div className={css.scrub}>
+    <div className={css.scrub + (form ? " " + css.scrubForm : "")}>
       <span>{clock(positionMs)}</span>
-      <SeekLine className={css.bar} progress={durationMs ? Math.min(1, positionMs / durationMs) : 0} durationMs={durationMs} onSeek={(f) => player.seek(f * durationMs)}>
+      <SeekLine className={css.bar + (form ? " " + css.barForm : "")} progress={durationMs ? Math.min(1, positionMs / durationMs) : 0} durationMs={durationMs} onSeek={(f) => player.seek(f * durationMs)}>
         {children}
+        {form && <Timeline s={sound!} positionMs={positionMs} durationMs={durationMs} onSeek={(ms) => player.seek(ms)} />}
       </SeekLine>
       <span>{clock(durationMs)}</span>
     </div>
@@ -519,12 +542,15 @@ function Facts({ k, onAsk }: { k: Schemas["TrackKnowledge"] | null | undefined; 
   );
 }
 
-/** Credits: producers as links (a shared producer often means a similar sound), the genre,
- *  and the samples both ways. A sample that is in the library plays at once. */
-function Credits({ k, genre }: { k: Schemas["TrackKnowledge"]; genre: string | null }) {
-  if (!k.producers.length && !genre && !k.samples.length && !k.sampledBy.length) return null;
+/** Credits: «Звучат» (the instruments, as glyphs), producers as links (a shared producer often
+ *  means a similar sound), the genre, and the samples both ways. A sample that is in the
+ *  library plays at once. */
+function Credits({ k: k0, genre, sound }: { k: Schemas["TrackKnowledge"] | null | undefined; genre: string | null; sound?: TrackSound | null }) {
+  const k = k0 ?? { producers: [], samples: [], sampledBy: [] } as unknown as Schemas["TrackKnowledge"];
+  if (!sound && !k.producers.length && !genre && !k.samples.length && !k.sampledBy.length) return null;
   return (
     <dl className={css.credits}>
+      {sound && <div><dt>Звучат</dt><dd><Instruments s={sound} onSeek={(ms) => { player.seek(ms); if (!usePlayer.getState().playing) void player.play(); }} /></dd></div>}
       {k.producers.length > 0 && (
         <div>
           <dt>{k.producers.length > 1 ? "Продюсеры" : "Продюсер"}</dt>

@@ -1,0 +1,43 @@
+/* The song's form on the seek line (Timeline.tsx). The seek line is 20 px tall with its line at
+   8–12 px; this layer lies over it and adds the section name under it. */
+.root { position: absolute; inset: 0; }
+.blocks { position: absolute; left: 0; right: 0; top: 8px; height: 4px; }
+.block { position: absolute; top: 0; height: 100%; border-radius: 2px; overflow: hidden; background: rgba(255,255,255,.17);
+  transform-origin: 50% 50%; transition: transform .35s var(--mx-ease-spring), background .25s var(--mx-ease-standard); }
+.block[data-chorus] { background: rgba(255,255,255,.3); }
+.block[data-on] { transform: scaleY(1.75); background: rgba(255,255,255,.42); }
+/* the played part: the accent, each block in turn; a chorus is brighter here too */
+.block > i { position: absolute; inset: 0; background: var(--pl-acc); transform-origin: left center; }
+.block[data-chorus] > i { background: color-mix(in srgb, var(--pl-acc) 72%, white); }
+.root:hover .block { transition-duration: .25s; }
+
+/* the section's name: a tick at its block's start, then the word; it glides to the next block */
+.tag { position: absolute; left: 0; top: 17px; display: block; transform: translateX(var(--x, 0px)); pointer-events: none;
+  font-family: var(--mx-font-sans); font-size: 11.5px; font-weight: 500; line-height: 1; letter-spacing: .01em; color: var(--muted); white-space: nowrap;
+  transition: transform .55s cubic-bezier(.2,.9,.25,1); text-shadow: 0 1px 10px rgba(8,8,11,.5); }
+.tag::before { content: ""; position: absolute; left: var(--tick, 0px); top: -4px; width: 1px; height: 4px; background: currentColor; opacity: .6; }
+.tagText { display: block; padding-top: 3px; animation: tagIn .32s var(--mx-ease-standard); }
+@keyframes tagIn { from { opacity: 0; transform: translateY(3px); filter: blur(2px); } }
+.root:hover .tag { color: var(--text); }
+
+/* a moment: a dot over the line */
+.mark { position: absolute; top: -11px; width: 22px; height: 22px; margin-left: -11px; display: grid; place-items: center; z-index: 2; cursor: pointer; }
+.mark > i { width: 6px; height: 6px; border-radius: 50%; background: #fff;
+  box-shadow: 0 0 0 2.5px color-mix(in srgb, var(--pl-acc) 30%, transparent), 0 0 10px color-mix(in srgb, var(--pl-acc) 80%, transparent);
+  transition: transform .4s var(--mx-ease-spring), opacity .3s var(--mx-ease-standard); }
+.mark[data-past] > i { opacity: .38; box-shadow: none; transform: scale(.8); }
+.mark:hover > i, .mark[data-lit] > i { opacity: 1; transform: scale(1.7); box-shadow: 0 0 0 3px color-mix(in srgb, var(--pl-acc) 35%, transparent), 0 0 14px var(--pl-acc); }
+.mark[data-soon] > i { animation: soon 1s var(--mx-ease-standard) 2; }
+@keyframes soon { 45% { transform: scale(1.9); box-shadow: 0 0 0 5px color-mix(in srgb, var(--pl-acc) 18%, transparent), 0 0 18px var(--pl-acc); } }
+/* what it is: liquid glass v2, grown out of the dot */
+.tip { composes: lg from "../ui/glass.module.css"; position: absolute; left: 50%; bottom: calc(100% + 4px); display: inline-flex; align-items: baseline; gap: 8px;
+  padding: 7px 12px; border-radius: 12px; white-space: nowrap; font-family: var(--mx-font-sans); font-size: 13px; font-weight: 500; line-height: 1.15;
+  color: var(--glass-ink); text-shadow: var(--glass-glow); pointer-events: none;
+  opacity: 0; transform: translate(-50%, 6px) scale(.72); transform-origin: 50% 100%; transition: opacity .15s var(--mx-ease-standard), transform .2s var(--mx-ease-standard); }
+.tip small { font-family: var(--mx-font-mono); font-size: 11.5px; color: var(--glass-ink2); font-variant-numeric: tabular-nums; }
+.mark:hover .tip, .mark[data-lit] .tip { opacity: 1; transform: translate(-50%, 0) scale(1); transition: opacity .2s var(--mx-ease-standard), transform .42s var(--mx-ease-spring); }
+
+@media (prefers-reduced-motion: reduce) {
+  .block, .tag, .mark > i, .tip { transition-duration: .01s; }
+  .tagText, .mark[data-soon] > i { animation: none; }
+}

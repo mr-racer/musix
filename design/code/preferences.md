@@ -726,3 +726,56 @@ His fixes:
   when an answer is taller. Removed: the sky's counter, the arrows, the streak, the cards' extra lines,
   the mock's notes by default. A plain answer got its subject at the side (cover or photo, play).
   Where two questions on the orbit cross, the one behind goes into the shade.
+
+## 2026-10-25 — sound of a song in the player, the album and the artist, the brief
+
+His words: the new sound profile (the sound engine, backfill running) should (1) replace the six
+CLAP axes in «Поток» and (2) give each song in the player a little sound info besides the LLM
+phrase, «только что-то, что реально интересно»: which instruments play, and a sound rating made
+of several parameters (experimental, technical…) «в виде такого кружка и числа внутри», without
+technical clutter, in the app's style; (3) find a careful place for the album's sound summary and
+the artist's album-by-album sound chronology. Apple-design skill + his preferences + design-refresh.
+
+Round 1 mock: https://claude.ai/artifact/W6ib8HbKuLNBBg6b7f46pn (sources and data export in
+`/mnt/data/.cache/musix-sound-mock/`; data baked read-only from prod Postgres + media). Player
+variants A «Титры» (ring + instruments as a credits group), B «Плашка» (a «Звук» face of the facts
+plate), C «Название» (the ring as a review score by the title; my pick). Common: sections as
+segments of the seek line, moments as marks (hidden: «бит/бас возвращается», unnamed «новая
+партия»), instruments with a moment are dotted and light their mark, a stereo pip when |pan| ≥ .25,
+the ring grows the «Звук» window. Phone: «О песне» peek with a mini ring and a countdown to the next
+moment. Album: one glass line in the liner notes, extremes marked in the list, an insert pulled out
+of the sleeve. Artist: A three lines under the discography + caption line, B a «Звук по годам»
+window.
+
+## 2026-10-25 — sound in the player, round 1 → build (desktop only)
+
+His rulings on the mock, in his words where they matter:
+- Focus: **the main player only, PC only** («ПК онли»); the album, the artist and the phone wait.
+  Work on branch `v2`: I build, he checks, then prod.
+- Of the placements **C (the ring by the title) is his**, B was acceptable. The mock's ring
+  «лагает»: the text inside ran over the circle, the number was off centre, the hover move was
+  unfinished. Wants **three hues** for the three scales: with one colour they are hard to tell.
+- **Instrument names in text are clutter** («перегруженно»): glyphs (emoji were his first idea)
+  or something set apart from plain text.
+- The «Подробнее» window was overloaded: **remove the useless explanations, move as much as
+  possible into graphics**; its background **liquid glass v2** «из библиотеки компонент».
+- Hover explanations of техничность / простор / необычность are fine, but **in plain words for
+  someone who knows nothing about music**. (The mock's bars were all full whatever the score:
+  a bug.)
+- Wants **a 3D scene that shows the sound of the song**, not instrument bars and left/right
+  lists («плохо читается»).
+- Remove «Что послушать» (the seek line has it) and «Так же звучат в твоей…» («нафиг»).
+- Tempo and space go **right after the score** in the window, **not in pills, «воздушно»**:
+  a good characterisation of the song's sound.
+- The section blocks must **stay visible after the playhead has passed them**.
+- The section name over the clock looked «пришитой»: rework it.
+- «Модный и выверенный дизайн с качественными анимациями из дорогих дизайнерских ателье»,
+  Apple design.
+
+Built (branch `player-sound` → `v2`), checked on the stand with real prod data
+(`/mnt/data/.cache/musix-sound-mock/stand/`: serve.py + export.py, AAC copies of the audio):
+everything in `screens/player.md`, «Sound». Choices I made that he has not seen yet: glyph
+chips whose name grows out on glass (no reflow); the section name under the line with a tick at
+its block; the stage as rows of light strips (pan and stereo width measured, rows a stage plot,
+the room depth from the echo, rings on hits); the plain meaning of a scale replaces the two
+sentences in place, so the window never changes height. Awaiting his check.

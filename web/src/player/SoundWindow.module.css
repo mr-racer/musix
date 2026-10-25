@@ -1,0 +1,61 @@
+/* The sound window (SoundWindow.tsx): liquid glass v2, the owner's word (2026-10-25).
+   Words on glass take --glass-ink / --glass-ink2 and its soft glow. */
+.win { composes: lg from "../ui/glass.module.css"; position: fixed; z-index: 50; width: min(548px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); overflow: hidden auto;
+  padding: 20px 22px 18px; border-radius: 28px; color: var(--glass-ink); text-align: left; overscroll-behavior: contain; scrollbar-width: none; }
+.x { position: absolute; top: 12px; right: 12px; width: 34px; height: 34px; display: grid; place-items: center; border-radius: 50%; color: var(--glass-ink2);
+  transition: background .2s var(--mx-ease-standard), color .2s var(--mx-ease-standard), transform .25s var(--mx-ease-spring); }
+.x:hover { background: rgba(255,255,255,.12); color: var(--glass-ink); }
+.x:active { transform: scale(.88); }
+
+/* the score: the ring, and the three scales as bars in their hues beside it */
+.head { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 24px; align-items: center; padding-right: 30px; }
+.scales { display: grid; gap: 4px; }
+.sc { display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "nm v" "bar bar"; column-gap: 10px; row-gap: 5px;
+  padding: 6px 8px 7px; margin: 0 -8px; border-radius: 12px; outline: none; cursor: default;
+  transition: background .25s var(--mx-ease-standard), opacity .25s var(--mx-ease-standard); animation: rowIn .5s var(--mx-ease-standard) calc(120ms + var(--n) * 60ms) backwards; }
+@keyframes rowIn { from { opacity: 0; transform: translateY(6px); } }
+.sc[data-k="tech"] { --c: var(--mx-sound-tech); }
+.sc[data-k="space"] { --c: var(--mx-sound-space); }
+.sc[data-k="odd"] { --c: var(--mx-sound-odd); }
+.sc[data-on] { background: rgba(255,255,255,.07); }
+.sc[data-off] { opacity: .55; }
+.nm { grid-area: nm; display: inline-flex; align-items: center; gap: 8px; font-size: 13.5px; font-weight: 500; line-height: 1.2; color: var(--glass-ink); text-shadow: var(--glass-glow); }
+.nm::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--c); box-shadow: 0 0 8px var(--c); }
+.v { grid-area: v; font-family: var(--mx-font-mono); font-size: 13px; line-height: 1.2; color: var(--glass-ink); font-variant-numeric: tabular-nums; }
+.bar { grid-area: bar; position: relative; height: 5px; border-radius: 3px; overflow: hidden; background: rgba(255,255,255,.12);
+  transform-origin: left center; transition: transform .35s var(--mx-ease-spring); }
+.bar > i { position: absolute; inset: 0; border-radius: inherit; background: var(--c); transform-origin: left center;
+  transition: transform .9s cubic-bezier(.2,.8,.2,1) calc(160ms + var(--n) * 70ms); box-shadow: 0 0 10px color-mix(in srgb, var(--c) 60%, transparent); }
+.sc[data-on] .bar { transform: scaleY(1.4); }
+
+/* the song's pulse and room: open text, the key words lit. A scale under the pointer puts its
+   plain meaning in the same cell; the cell is as tall as the tallest of them */
+.say { margin-top: 18px; display: grid; }
+.say > * { grid-area: 1 / 1; transition: opacity .22s var(--mx-ease-standard), transform .38s var(--mx-ease-spring), filter .22s var(--mx-ease-standard); }
+.character { display: grid; gap: 4px; align-content: start; }
+.character[data-away] { opacity: 0; transform: translateY(-5px); filter: blur(3px); }
+.explain { margin: 0; align-self: start; font-family: var(--mx-font-text); font-size: 14.5px; line-height: 1.5; color: var(--glass-ink2); text-wrap: pretty; text-shadow: var(--glass-glow);
+  opacity: 0; transform: translateY(6px); filter: blur(3px); pointer-events: none; }
+.explain[data-here] { opacity: 1; transform: none; filter: none; }
+.explain b { font-weight: 600; color: var(--c); }
+.explain[data-k="tech"] { --c: var(--mx-sound-tech); }
+.explain[data-k="space"] { --c: var(--mx-sound-space); }
+.explain[data-k="odd"] { --c: var(--mx-sound-odd); }
+.why { color: var(--glass-ink); }
+.character p { margin: 0; font-family: var(--mx-font-text); font-size: 17px; line-height: 1.45; letter-spacing: -.005em; color: var(--glass-ink2); text-wrap: pretty;
+  text-shadow: var(--glass-glow); animation: rowIn .5s var(--mx-ease-standard) calc(260ms + var(--n) * 70ms) backwards; }
+.character b { font-weight: 500; color: var(--glass-ink); }
+.character .sig { margin-top: 8px; padding-left: 12px; border-left: 2px solid color-mix(in srgb, var(--pl-acc) 80%, transparent); font-size: 14.5px; font-style: italic; line-height: 1.5; }
+
+/* the stage */
+.scene { position: relative; margin: 16px -10px -6px; border-radius: 18px; overflow: hidden; animation: rowIn .6s var(--mx-ease-standard) .34s backwards;
+  background: radial-gradient(120% 90% at 50% 100%, rgba(255,255,255,.05), transparent 70%); }
+.canvas { display: block; width: 100%; height: 252px; color: var(--pl-acc); cursor: grab; }
+.sceneTop { position: absolute; left: 14px; right: 14px; top: 11px; display: flex; justify-content: space-between; pointer-events: none;
+  font-size: 11px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; color: var(--glass-ink2); text-shadow: var(--glass-glow); }
+.sceneTop > span:last-child { font-weight: 500; letter-spacing: .02em; text-transform: none; font-size: 12px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .sc, .character p, .scene { animation: none; }
+  .bar, .bar > i, .plain, .plain > span { transition-duration: .01s; }
+}

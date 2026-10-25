@@ -73,6 +73,9 @@
   --mx-tab-bar-inactive: rgba(238,238,243,0.52);
   --mx-float: #16161c;
   --mx-plate: rgba(255,255,255,0.075);
+  --mx-sound-tech: oklch(82% 0.13 78);
+  --mx-sound-space: oklch(80% 0.11 222);
+  --mx-sound-odd: oklch(74% 0.16 322);
 }
 :root[data-theme="light"] {
   --mx-bg: #f2f1f6;
@@ -103,4 +106,7 @@
   --mx-tab-bar-inactive: rgba(22,22,32,0.5);
   --mx-float: #ffffff;
   --mx-plate: rgba(10,10,18,0.05);
+  --mx-sound-tech: oklch(82% 0.13 78);
+  --mx-sound-space: oklch(80% 0.11 222);
+  --mx-sound-odd: oklch(74% 0.16 322);
 }

@@ -42,6 +42,9 @@ data class MusixColors(
     val tabBarInactive: Color,
     val float: Color,
     val plate: Color,
+    val soundTech: Color,
+    val soundSpace: Color,
+    val soundOdd: Color,
 )
 
 val DarkMusixColors = MusixColors(
@@ -73,6 +76,9 @@ val DarkMusixColors = MusixColors(
     tabBarInactive = Color(0x85EEEEF3),
     float = Color(0xFF16161C),
     plate = Color(0x13FFFFFF),
+    soundTech = Color(0xFFF2B95A),
+    soundSpace = Color(0xFF62CEF0),
+    soundOdd = Color(0xFFD986E6),
 )
 
 val LightMusixColors = MusixColors(
@@ -104,6 +110,9 @@ val LightMusixColors = MusixColors(
     tabBarInactive = Color(0x80161620),
     float = Color(0xFFFFFFFF),
     plate = Color(0x0D0A0A12),
+    soundTech = Color(0xFFF2B95A),
+    soundSpace = Color(0xFF62CEF0),
+    soundOdd = Color(0xFFD986E6),
 )
 
 val LocalMusixColors = staticCompositionLocalOf { DarkMusixColors }

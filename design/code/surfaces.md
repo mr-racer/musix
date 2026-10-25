@@ -30,6 +30,10 @@ things on a screen. When the content under it is plain, glass shows nothing: use
 words), the search button, and the home's field when it is next touched. The left island is the
 same glass. One recipe for all of them: `.lg` in `design/reference/library/styles.css`.
 
+**The sound window is glass (the owner, 2026-10-25):** «Фон модалки сделать в liquid glass v2
+формате, возьми из библиотеки компонент» — the player's sound window and the labels that grow
+out of the «Звучат» chips and the seek line's moments are `.lg`. The other windows stay solid.
+
 **Liquid glass v2 is the only glass (the owner, 2026-10-11):** «под liquid glass (теперь я его
 называю liquid glass v2) я имею в виду прозрачную кнопку, которая вылезает как мини шапка
 „заслушаны до дыр“ … а не старый liquid glass без прозрачного фона. Замени везде на liquid glass

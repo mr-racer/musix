@@ -1,0 +1,42 @@
+/* The sound ring (SoundRing.tsx). The number is centred by the grid alone: no caption inside,
+   one line height, tabular figures, so it never wanders when it changes. */
+.wrap { display: inline-grid; justify-items: center; gap: 7px; flex: none; }
+.ring { position: relative; display: grid; place-items: center; border-radius: 50%; color: var(--text, #eeeef3);
+  transition: transform .5s var(--mx-ease-spring); -webkit-tap-highlight-color: transparent; }
+.ring:hover { transform: scale(1.06); }
+.ring:active { transform: scale(.93); transition-duration: .18s; }
+.ring:focus-visible { outline: 2px solid color-mix(in srgb, currentColor 60%, transparent); outline-offset: 3px; }
+.ring svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+
+.arc { transition: transform .5s var(--mx-ease-spring), opacity .25s var(--mx-ease-standard); }
+/* under the pointer the arcs part a little, each along its own middle */
+.ring:hover .arc, .wrap[data-focus] .arc { transform: translate(var(--dx), var(--dy)); }
+.arc[data-off] { opacity: .32; }
+.track { fill: none; stroke: color-mix(in srgb, currentColor 18%, rgba(255,255,255,.08)); stroke-linecap: round; }
+.mono { stroke-dasharray: 1.5 4; stroke: rgba(255,255,255,.28); }
+.fill { fill: none; stroke: currentColor; stroke-linecap: round; transition: stroke-width .35s var(--mx-ease-spring), filter .25s var(--mx-ease-standard);
+  filter: drop-shadow(0 0 3px color-mix(in srgb, currentColor 45%, transparent)); }
+.arc[data-on] .fill { filter: drop-shadow(0 0 7px color-mix(in srgb, currentColor 75%, transparent)) brightness(1.12); }
+.arc[data-on] .track, .arc[data-on] .fill { stroke-width: calc(var(--sw) * 1.45px); }
+.hit { fill: none; stroke: transparent; pointer-events: stroke; cursor: pointer; }
+
+.num { position: relative; display: grid; place-items: center; overflow: hidden; height: 1.15em; line-height: 1;
+  font-family: var(--mx-font-sans); font-weight: 650; letter-spacing: -.035em; font-variant-numeric: tabular-nums; pointer-events: none;
+  text-shadow: 0 1px 10px rgba(8,8,11,.45); }
+.num > span { display: block; padding-right: .04em; /* the tracking's optical gap at the right edge */ }
+
+/* the caption under the ring: «звук» at rest, the scale's name in its hue on focus. All of
+   them lie in one cell, so the caption never changes its width or moves the ring */
+.cap { display: grid; justify-items: center; font-size: 12px; font-weight: 500; line-height: 1; white-space: nowrap; pointer-events: none; }
+.cap > span { grid-area: 1 / 1; transition: opacity .2s var(--mx-ease-standard), transform .3s var(--mx-ease-spring); }
+.capIdle { color: var(--subtle, rgba(238,238,243,.46)); letter-spacing: .02em; }
+.capScale { opacity: 0; transform: translateY(4px); }
+.wrap[data-focus] .capIdle { opacity: 0; transform: translateY(-4px); }
+.wrap[data-focus="tech"] .capScale[data-k="tech"],
+.wrap[data-focus="space"] .capScale[data-k="space"],
+.wrap[data-focus="odd"] .capScale[data-k="odd"] { opacity: 1; transform: none; }
+
+
+@media (prefers-reduced-motion: reduce) {
+  .ring, .arc, .fill, .cap > span { transition-duration: .01s; }
+}
