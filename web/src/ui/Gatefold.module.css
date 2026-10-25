@@ -5,6 +5,8 @@
      middle. Left: the cover, sharp in the middle, blurred and darkened under the liner notes
      at the top and the poster at the bottom. Right: the tracklist on the cover's colour field;
    - the close plays it all backwards. Dark in both themes, like v1's. */
+/* the player opening over the album: the album leaves as one picture (styles/pages.css) */
+:global(html[data-nav="player-open"]) .overlay { view-transition-name: gatefold; }
 .overlay {
   position: fixed; inset: 0; z-index: 100;
   background: rgba(0,0,0,.62); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);

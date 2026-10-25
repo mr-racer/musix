@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link, useNavigate } from "@tanstack/react-router";
+import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { Component, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { create } from "zustand";
 import { mediaUrl, type Schemas } from "../api/client";
@@ -43,7 +43,11 @@ class Boundary extends Component<{ onReset: () => void; children: ReactNode }, {
 export function GatefoldHost() {
   const open = useGatefold((s) => s.open);
   const hide = useGatefold((s) => s.hide);
-  if (!open) return null;
+  // the player opened from the mini player over an open album: the album goes inside the
+  // page change (its photograph folds away, styles/pages.css), not on top of the player
+  const onPlayer = useRouterState({ select: (s) => s.location.pathname === "/player" });
+  useLayoutEffect(() => { if (onPlayer && open) hide(); }, [onPlayer, open, hide]);
+  if (!open || onPlayer) return null;
   return <Boundary key={open.id} onReset={hide}><Gatefold {...open} onClose={hide} /></Boundary>;
 }
 

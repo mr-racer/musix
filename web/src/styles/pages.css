@@ -60,6 +60,14 @@ html[data-nav="player-close"]::view-transition-new(root) {
   --vt-blur: 16px;
   animation: vt-undim 0.56s cubic-bezier(0.22, 0.9, 0.24, 1) both;
 }
+/* opening over an open album: the album folds away into the dimmed page while the player
+   comes up; the mini player's pieces stay home (player/MiniPlayer.module.css) */
+html[data-nav="player-open"]::view-transition-group(gatefold) { animation: none; }
+html[data-nav="player-open"]::view-transition-new(gatefold) { display: none; }
+html[data-nav="player-open"]::view-transition-old(gatefold) {
+  --vt-blur: 12px; --vt-s: 0.92;
+  animation: vt-fade-out 0.34s cubic-bezier(0.4, 0, 0.6, 1) both, vt-focus-out 0.34s cubic-bezier(0.4, 0, 0.6, 1) both, vt-to 0.38s cubic-bezier(0.4, 0, 0.6, 1) both;
+}
 /* what flies between the mini player and the player: the cover, the title, the artist, the
    seek line. The small picture gives way to the large one early, so nothing blurry travels */
 html[data-nav^="player"]::view-transition-group(np-cover),
