@@ -1,6 +1,8 @@
+import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { type AlbumRow, type ArtistRow, db, rowToTrack, type TrackRow } from "../api/db";
+import { statsQuery } from "../api/queries";
 import { fromTrack, player } from "../player/engine";
 import { warmFromMirror } from "../lib/images";
 import { Cover } from "./Cover";
@@ -20,7 +22,16 @@ type Hit =
   | { kind: "track"; row: TrackRow }
   | { kind: "ai"; q: string };
 const PH: Record<Mode, string> = { lib: "Артист, альбом или песня", ai: "Строчка, звучание, плейлист…" };
-const SAYS = ["Найди песню, где поют про дождь и пустой город", "Что-нибудь похожее по звучанию", "Собери плейлист на вечер из спокойного"];
+/** The examples under an empty «ИИ» field speak of this library (the owner, 2026-10-25): the
+ *  decade most of it is from, the artist played most; without stats, plain ones. */
+const decadeRu = (d: number) => (d % 100 === 0 ? "нулевых" : `${d % 100}-х`);
+function says(decade: number | undefined, artist: string | undefined): string[] {
+  return [
+    decade ? `Собери плейлист хитов ${decadeRu(decade)}` : "Собери плейлист хитов",
+    artist ? `Что-нибудь похожее на ${artist}` : "Что-нибудь похожее по звучанию",
+    "Собери плейлист на вечер из спокойного",
+  ];
+}
 
 export type Index = { tracks: TrackRow[]; artists: (ArtistRow & { n: number; cover: string | null })[]; albums: (AlbumRow & { artist: string })[] };
 let index: Promise<Index> | null = null;
@@ -83,6 +94,13 @@ export function QuickSearch({ className, edge }: { className?: string; edge?: bo
     return () => { document.removeEventListener("keydown", onKey); document.removeEventListener("pointerdown", onDown); };
   }, []);
 
+  // the stats are asked for only once the «ИИ» side is chosen
+  const st = useQuery({ ...statsQuery, enabled: mode === "ai" }).data;
+  const decs = st?.collection?.decades ?? [];
+  const decade = decs.length ? decs.reduce((a, b) => (b.count > a.count ? b : a)).decade : undefined;
+  const fav = st?.listening.topArtist?.artist.name;
+  const SAYS = says(decade, fav);
+
   useEffect(() => {
     let dead = false;
     const words = q.trim(), lq = words.toLowerCase();
@@ -100,7 +118,7 @@ export function QuickSearch({ className, edge }: { className?: string; edge?: bo
       setHits(out); setSel(0);
     });
     return () => { dead = true; };
-  }, [q, mode]);
+  }, [q, mode, SAYS.join("|")]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const choose = (h: Hit | undefined, e?: React.MouseEvent) => {
     if (!h) return;
