@@ -92,16 +92,22 @@ async def fetch(latlon: str, proxy: str | None) -> None:
                         "latitude": lat,
                         "longitude": lon,
                         "current": "weather_code,temperature_2m",
+                        "daily": "sunrise,sunset",
+                        "timezone": "GMT",
+                        "forecast_days": 1,
                     },
                     timeout=httpx.Timeout(20.0, connect=connect),
                 )
                 r.raise_for_status()
-                cur = r.json()["current"]
+                body = r.json()
+                cur = body["current"]
             got = S.WeatherOut(
                 kind=kind_of(int(cur["weather_code"])),
                 code=int(cur["weather_code"]),
                 temperature_c=cur.get("temperature_2m"),
                 at=dt.datetime.now(dt.UTC),
+                sunrise=_utc((body.get("daily") or {}).get("sunrise")),
+                sunset=_utc((body.get("daily") or {}).get("sunset")),
             )
             break
         except Exception as e:  # the sky must not depend on the net
@@ -110,6 +116,14 @@ async def fetch(latlon: str, proxy: str | None) -> None:
             )
     # a failed round is remembered for two minutes only, so the sky is not clear for twenty
     _cache[latlon] = (time.monotonic() - (0 if got else TTL - 120), got)
+
+
+def _utc(day: list[str] | None) -> dt.datetime | None:
+    """Open-Meteo's first daily time ("2026-10-25T15:17", asked in GMT) → an aware datetime."""
+    try:
+        return dt.datetime.fromisoformat(day[0]).replace(tzinfo=dt.UTC) if day else None
+    except (TypeError, ValueError):
+        return None
 
 
 async def places(q: str, proxy: str | None, lang: str = "ru") -> list[S.PlaceOut]:

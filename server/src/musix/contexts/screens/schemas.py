@@ -80,6 +80,9 @@ class WeatherOut(Model):
     code: int  # WMO
     temperature_c: float | None
     at: dt.datetime
+    # today's sun at the place (UTC): the sky's hour follows them, not the browser's clock
+    sunrise: dt.datetime | None = None
+    sunset: dt.datetime | None = None
 
 
 class PlaceOut(Model):

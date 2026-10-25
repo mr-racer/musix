@@ -52,6 +52,19 @@ const TSPOTS = [{ x: 0.32, y: 0.46, r: 0.3, fx: 0.1, fy: 0.08, ph: 0.9 }, { x: 0
 export function hourTod(h = new Date().getHours()): Tod {
   return h < 5 ? "night" : h < 11 ? "morning" : h < 17 ? "day" : h < 22 ? "evening" : "night";
 }
+/** The hour by the sun at the listener's place (the server's sunrise and sunset, UTC): dark
+ *  40 min after sunset, the evening's colours from 1.5 h before it, the morning's until 3 h
+ *  after sunrise. In Istanbul in late October the fixed hours showed a pink evening for an
+ *  hour and a half after dark (the owner's report). Without the sun, the fixed hours. */
+export type Sun = { sunrise?: string | null; sunset?: string | null } | null | undefined;
+export function sunTod(sun: Sun, now = Date.now()): Tod {
+  const rise = sun?.sunrise ? Date.parse(sun.sunrise) : NaN, set = sun?.sunset ? Date.parse(sun.sunset) : NaN;
+  if (!Number.isFinite(rise) || !Number.isFinite(set)) return hourTod();
+  const min = 60_000;
+  if (now < rise - 40 * min || now >= set + 40 * min) return "night";
+  if (now < rise + 180 * min) return "morning";
+  return now >= set - 90 * min ? "evening" : "day";
+}
 /** `#rrggbb` or the palette's `hsl(h, s%, l%)` accent → rgb. */
 function rgb(c: string | null | undefined, fallback: RGB): RGB {
   const m = /^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})/i.exec(c ?? "");
@@ -91,11 +104,11 @@ function findEdges(): Edge[] {
   return out;
 }
 
-export function Sky({ weather, taste, precip = true }: { weather: Weather; taste: string[]; precip?: boolean }) {
+export function Sky({ weather, taste, precip = true, sun }: { weather: Weather; taste: string[]; precip?: boolean; sun?: Sun }) {
   const sky = useRef<HTMLCanvasElement>(null);
   const wx = useRef<HTMLCanvasElement>(null);
-  const state = useRef({ weather, taste, precip });
-  state.current = { weather, taste, precip };
+  const state = useRef({ weather, taste, precip, sun });
+  state.current = { weather, taste, precip, sun };
 
   useEffect(() => {
     const cv = sky.current, wc = wx.current;
@@ -115,7 +128,7 @@ export function Sky({ weather, taste, precip = true }: { weather: Weather; taste
     ] as const;
 
     const skyFrame = (dt: number) => {
-      const tod = hourTod(), s = SKY[tod][state.current.weather], ts = TASTE[tod];
+      const tod = sunTod(state.current.sun), s = SKY[tod][state.current.weather], ts = TASTE[tod];
       t0 += dt * 0.00004 * s.speed;
       const W = Math.max(2, Math.round(window.innerWidth / 10)), H = Math.max(2, Math.round(window.innerHeight / 10));
       if (cv.width !== W || cv.height !== H) { cv.width = W; cv.height = H; }

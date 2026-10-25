@@ -53,7 +53,7 @@ function Home() {
 
   return (
     <div className={css.home}>
-      <Sky weather={skyOverride() ?? home.weather?.kind ?? "clear"} taste={taste} precip={precip} />
+      <Sky weather={skyOverride() ?? home.weather?.kind ?? "clear"} taste={taste} precip={precip} sun={home.weather} />
       <header className={css.top}><Wordmark /></header>
 
       <div className={css.grid}>
