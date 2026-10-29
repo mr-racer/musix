@@ -6,7 +6,7 @@ import { statsQuery } from "../api/queries";
 import { fromTrack, player } from "../player/engine";
 import { warmFromMirror } from "../lib/images";
 import { Cover } from "./Cover";
-import { openAlbum } from "./Gatefold";
+import { openAlbum, useGatefold } from "./Gatefold";
 import { Icon } from "./icons";
 import css from "./QuickSearch.module.css";
 
@@ -127,7 +127,7 @@ export function QuickSearch({ className, edge }: { className?: string; edge?: bo
     else if (h.kind === "artist") void nav({ to: "/artist/$id", params: { id: h.row.id } });
     else if (h.kind === "album") {
       if (e) openAlbum(e, h.row.id, h.row.coverImageId, (e.currentTarget as HTMLElement).querySelector("img"));
-      else void nav({ to: "/album/$id", params: { id: h.row.id } });
+      else useGatefold.getState().show({ id: h.row.id, cover: h.row.coverImageId, from: null });
     } else void nav({ to: "/assistant", search: { q: h.q } });
   };
   const shown = open && hits.length > 0;

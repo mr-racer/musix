@@ -42,7 +42,7 @@ function Login() {
     try {
       if (tab === "login") await login(email.trim(), password);
       else await register(email.trim(), password, code.trim());
-      await nav({ to: next ?? "/" });
+      await nav({ to: next ?? "/", replace: true });
     } catch (err) {
       const status = err instanceof AuthError ? err.status : 0;
       setError(

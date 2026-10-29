@@ -145,6 +145,7 @@
 /* the list, open on the colour field; its edges fade where it scrolls */
 .list {
   position: relative; flex: 1; min-height: 0; overflow: auto; overscroll-behavior: contain; margin: 0 -6px;
+  padding-bottom: 32px; /* the last row must scroll clear of the 26 px edge fade */
   scrollbar-width: thin; scrollbar-color: rgba(255,255,255,.2) transparent;
   -webkit-mask-image: linear-gradient(180deg, transparent 0, #000 12px, #000 calc(100% - 26px), transparent 100%);
   mask-image: linear-gradient(180deg, transparent 0, #000 12px, #000 calc(100% - 26px), transparent 100%);
@@ -208,7 +209,11 @@
   transition: opacity .15s, transform .25s cubic-bezier(.34,1.56,.64,1);
 }
 .q:hover .tip { opacity: 1; transform: none; transition-delay: .35s; }
-.err { padding: 16px; color: var(--muted); }
+.state { padding: 16px; color: var(--muted); font: 400 15px/1.5 var(--mx-font-sans); }
+.state button { margin-top: 8px; }
+.loadingRows { display: grid; gap: 26px; margin-top: 28px; }
+.loadingRows i { display: block; height: 18px; width: 72%; border-radius: 6px; background: rgba(255,255,255,.08); }
+.loadingRows i:nth-child(2n) { width: 54%; }
 
 @keyframes gfRise { from { opacity: 0; transform: translateY(16px); } }
 @keyframes gfRow { from { opacity: 0; transform: translateY(8px); } }

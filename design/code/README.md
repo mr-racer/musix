@@ -38,6 +38,9 @@ are taken from the mock where they fit the client's stack.
 | `screens/player.md` | The player surface. |
 | `screens/home.md` | The home: v1's composition refined, the sky, the orb, the search, the album picks, the week, the mini player. |
 | `screens/gatefold.md` | The album gatefold «Разворот»: the opening, the two pages, the queue, readability. |
+| `screens/library.md` | Принятые библиотека «Стена» и статистика. |
+| `screens/settings.md` | Принятые настройки и «Добавить» в библиотеке. |
+| `screens/artist.md` | Принятая страница артиста «Кадр». |
 
 Tokens live in `design/tokens/*.json`; `make design` regenerates `design/gen/` for the web
 (`--mx-*` custom properties), Android (`MusixTheme.kt`) and Windows (parked: its output is generated but nothing depends on it).
@@ -48,3 +51,6 @@ Tokens live in `design/tokens/*.json`; `make design` regenerates `design/gen/` f
 |---|---|---|
 | Player «Кино» | `design/reference/player-kino/` | 2026-10-04 |
 | Album gatefold «Разворот» | `design/reference/gatefold/` | 2026-10-10 |
+| Библиотека «Стена» и статистика | `design/reference/library/` | 2026-10-11 |
+| Настройки | `design/reference/settings/` | 2026-10-14 |
+| Артист «Кадр» | `design/reference/artist/` | 2026-10-17 |

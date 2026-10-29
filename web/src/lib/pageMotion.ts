@@ -33,6 +33,8 @@ export function kindOf(from: ParsedLocation | undefined, to: ParsedLocation): Ki
     // another grouping or view of the same wall (the owner: «смена группировок … рвано выглядит»)
     return q(from, "sort") !== q(to, "sort") || q(from, "view") !== q(to, "view") ? "regroup" : null;
   }
+  // The book already animates a change of album; replacing its deep link must not move it again.
+  if (a.startsWith("/album/") && b.startsWith("/album/")) return null;
   if (b === "/player") return "player-open";
   if (a === "/player") return "player-close";
   const ia = SECTIONS.indexOf(a), ib = SECTIONS.indexOf(b);

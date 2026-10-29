@@ -69,7 +69,7 @@ Routes of the web app (`web/src/routes`), with what each holds and where it lead
 | Nav island | Главная, Плеер, Библиотека, Поиск (+ Админка for the owner); the blob | every section |
 | Brand mark, settings button | top-left and bottom-left corners | home, settings |
 | Mini player | the bar under every screen but the player: cover, title, transport, progress | the player |
-| Album gatefold | an album opened over the page from its card (v1's vinyl sleeve): tracks, play, shuffle, add to playlist, play next | the artist, the album page, the player |
+| Album gatefold | единый альбом «Разворот» из карточки или по прямой ссылке: треки, слушать, играть следующим | the artist, the player |
 | «В плейлист» menu | on the album, in the gatefold, in the player | — |
 | «Слушать на…» menu, «Играет на…» bar | hand the music to another device, or take it here | — |
 | Page states | loading, empty, error, "no such page", the server in limited mode | — |
@@ -81,19 +81,19 @@ Routes of the web app (`web/src/routes`), with what each holds and where it lead
 |---|---|---|---|
 | **Home** | `/` | done: `screens/home.md` (the sky, the orb, «Настроить волну» in place, вайбики as piles, the search with the «Библиотека / ИИ» switch, the library row, «Поставить альбом», the week) | the player (orb, вайбик, the mini player), an artist (a name in the phrase, search), an album (a pick, search), the library, the assistant (the search's AI side), settings |
 | **Player** | `/player` | done: `screens/player.md` | an artist, an album, search (a producer), the queue and assistant windows |
-| **Library** | `/library` | built on `v2` 2026-10-11, awaiting the owner's check: `screens/library.md` (the wall «Стена» of albums and artists with groups, the glass plate and the rail, the film «Не распечатаны», «Пластинка дня», the glass search, playlists filling the page, the statistics «А» with achievements) | the gatefold (an album), an artist, a playlist, the player (a song) |
-| **Album** | `/album/$id` | the cover in its light, play, shuffle, «В плейлист», numbered tracks | the artist, the player |
+| **Library** | `/library` | принята и внедрена 2026-10-11: `screens/library.md` (the wall «Стена» of albums and artists with groups, the glass plate and the rail, the film «Не распечатаны», «Пластинка дня», the glass search, playlists filling the page, the statistics «А» with achievements) | the gatefold (an album), an artist, a playlist, the player (a song) |
+| **Album** | `/album/$id` | единый «Разворот», тот же компонент, что открывается из карточки; старый отдельный экран заменён в dev 2026-10-29 | the artist, the player |
 | **Artist** | `/artist/$id` | built 2026-10-17: `screens/artist.md` («Кадр»: the editorial photo, the Grammy laurel, the discography by year, «Ты и …» as a collection, the quiz, the facts, the songs) | the gatefold, the player, the library |
 | **Playlist** | `/playlist/$id` | rename in place, delete with a second click, drag to reorder, remove a row | the player, the library |
-| **Search** | `/search` | the composer with its modes (всё, по тексту, по звучанию), year and sound chips, results: artists, tracks, by lyrics, by sound, albums | an artist, the gatefold, the player |
+| **Search** | `/search` | совместимость старых ссылок: перенаправление в `/assistant` с сохранением вопроса `q` | the assistant |
 
 ### The account and the server
 
 | Screen | Route | What it holds |
 |---|---|---|
-| Settings | `/settings` | playback, the look, devices, the account; doors to upload and import; sign out |
-| Upload | `/upload` | drop files, progress per file |
-| Import | `/import` | Yandex Music: link by code, choose, progress |
+| Settings | `/settings` | приняты 2026-10-14 и реализованы: `screens/settings.md`; вкладки, аккаунт, Android-баннер, звук, главная, приватность, устройства, клавиши |
+| Upload | `/upload` | перенаправление в библиотеку с `add=files`; актуальная поверхность «Добавить» |
+| Import | `/import` | перенаправление в библиотеку с `add=yandex`; актуальное окно Яндекс Музыки |
 | Sign in, register | `/login` | the two tabs, the invite |
 | First run | `/setup` | the owner's account and the mode |
 | Admin | `/admin/*` | members and invites, the AI policy and endpoint, the instance, folders and rescans, the queues and the disk, steps 2–3 of the first run |
@@ -126,6 +126,27 @@ They exist in v1 and in the Android app, not in the web today.
 
 The player is revisited at stages 1 and 2 only where it meets them: the mini player turning
 into the player, an album opened from the player.
+
+## Сверка реализации и решений — 2026-10-29
+
+Рабочее дерево: `/mnt/data/v2-branch`, ветка `v2`, клиент `web/`. Старая рабочая копия
+`feature/musix-v2` не используется. Основные принятые экраны сохраняют свои концепции и анимации.
+
+| Поверхность | Текущий статус / следующий шаг |
+|---|---|
+| Главная, плеер, библиотека и статистика, артист, настройки | Обновлены; принятые композиции и анимации сохраняются. |
+| Ассистент | Реализован в `/assistant`, источники макета — `design/reference/assistant/`; старый поиск уже заменён редиректом. Существующий экран сохраняется. |
+| Альбом | Объединены все входы в существующую книжку: карточки, Enter в быстром поиске, плеер, прямой URL, новая вкладка. Адрес `/album/$id` сохранён; смена альбома обновляет его без повторного открытия книжки. После отчёта о dev-проверках владелец разрешил production 2026-10-29. |
+| Отдельный плейлист | Владелец подтвердил: не переработан и не принят. Следующий по основному плану — 2–3 предварительных варианта; сохранить переименование, порядок и удаление треков. |
+| Вход, регистрация, первый запуск | Не переработаны и не приняты. По одному предварительному варианту в текущем языке. |
+| Админка (`/admin/*`) | Не переработана и не принята. Предварительный вариант с сохранением всех инструментов владельца. |
+| Общая игра | Отдельного маршрута ещё нет; игра артиста реализована. Этап 6 остаётся самостоятельной задачей. |
+| Светлая тема и общие состояния | Общий проход из этапа 10 остаётся в плане; состояния альбома проверяются в текущем этапе. |
+
+Dev для проверки альбомов: `http://127.0.0.1:5180`, API снимка `:18010`, media `:18080`,
+отдельный Compose-проект `musix-v2-dev`. Сервер на `:5173` на момент сверки принадлежал старой
+рабочей копии и не служит подтверждением результата этой ветки. Выкладка — отдельное решение
+владельца после проверки dev.
 
 ## Done means
 

@@ -2,7 +2,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { Component, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { create } from "zustand";
-import { mediaUrl, type Schemas } from "../api/client";
+import { ApiError, mediaUrl, type Schemas } from "../api/client";
 import { albumQuery, artistQuery } from "../api/queries";
 import { clock, plural } from "../lib/format";
 import { image, imageUrl } from "../lib/images";
@@ -14,8 +14,8 @@ import { Icon } from "./icons";
 type Rect = { top: number; left: number; width: number; height: number };
 type Open = { id: string; cover: string | null; from: Rect | null };
 
-/** v1's album gatefold: the open album is UI state, not a route. A plain click on an album
- *  card opens it in place; `/album/$id` stays the deep link and the new-tab target.
+/** A plain click on an album card opens the book in place; `/album/$id` renders the same
+ *  book for deep links, the player and new tabs.
  *  Design: design/reference/gatefold (variant «Разворот», the owner's choice of 2026-10-10). */
 export const useGatefold = create<{ open: Open | null; show: (o: Open) => void; hide: () => void }>((set) => ({
   open: null,
@@ -45,10 +45,21 @@ export function GatefoldHost() {
   const hide = useGatefold((s) => s.hide);
   // the player opened from the mini player over an open album: the album goes inside the
   // page change (its photograph folds away, styles/pages.css), not on top of the player
-  const onPlayer = useRouterState({ select: (s) => s.location.pathname === "/player" });
-  useLayoutEffect(() => { if (onPlayer && open) hide(); }, [onPlayer, open, hide]);
-  if (!open || onPlayer) return null;
-  return <Boundary key={open.id} onReset={hide}><Gatefold {...open} onClose={hide} /></Boundary>;
+  const path = useRouterState({ select: (s) => s.location.pathname });
+  const previous = useRef(path);
+  useLayoutEffect(() => {
+    if (open && (path === "/player" || path !== previous.current)) hide();
+    previous.current = path;
+  }, [path, open, hide]);
+  if (!open || path === "/player") return null;
+  return <AlbumGatefold key={open.id} {...open} onClose={hide} />;
+}
+
+type GatefoldProps = Open & { onClose: () => void; onAlbumChange?: (id: string) => Promise<void> };
+
+/** Both entry points share the surface, data query, states and signature animations. */
+export function AlbumGatefold(props: GatefoldProps) {
+  return <Boundary onReset={props.onClose}><Gatefold {...props} /></Boundary>;
 }
 
 const reduced = () => window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
@@ -89,8 +100,9 @@ const MONTHS = ["янв.", "февр.", "марта", "апр.", "мая", "ию
 const day = (iso: string) => { const d = new Date(iso); return `${d.getDate()} ${MONTHS[d.getMonth()]}`; };
 const span = (ms: number) => { const m = Math.round(ms / 60000); return m < 60 ? `${m} мин` : `${Math.floor(m / 60)} ч ${m % 60} мин`; };
 
-function Gatefold({ id: firstId, cover, from, onClose }: Open & { onClose: () => void }) {
-  const [id, setId] = useState(firstId);
+function Gatefold({ id: firstId, cover, from, onClose, onAlbumChange }: GatefoldProps) {
+  const [localId, setId] = useState(firstId);
+  const id = onAlbumChange ? firstId : localId;
   const [prevId, setPrevId] = useState<string | null>(null);   // the right page's old colour, fading out after a swap
   const [swapped, setSwapped] = useState(false);
   const [leaving, setLeaving] = useState<"" | "swap" | "close">("");
@@ -108,6 +120,11 @@ function Gatefold({ id: firstId, cover, from, onClose }: Open & { onClose: () =>
   const home = useRef<string | null>(null);
   const busy = useRef(true);
   const closing = useRef(false);
+  const mounted = useRef(false);
+  useLayoutEffect(() => {
+    mounted.current = true;
+    return () => { mounted.current = false; };
+  }, []);
 
   const album = q.data?.album;
   const tracks = useMemo(() => q.data?.tracks ?? [], [q.data]);
@@ -199,7 +216,7 @@ function Gatefold({ id: firstId, cover, from, onClose }: Open & { onClose: () =>
     void run(flip.current, [{ transform: "rotateY(180deg)" }, { transform: "rotateY(360deg)" }], { duration: 480, easing: "cubic-bezier(.5,.08,.4,1)" });
     if (sl) void run(sl, [{ transform: "none", opacity: 1 }, to ? { transform: to, opacity: 1 } : { transform: "scale(.6)", opacity: 0 }], { duration: 430, easing: "cubic-bezier(.55,.06,.5,.9)" });
     await wait(reduced() ? 0 : 450);
-    onClose();
+    if (mounted.current) onClose();
   }, [L, narrow, swapped, id, onClose]);
 
   useEffect(() => {
@@ -243,11 +260,16 @@ function Gatefold({ id: firstId, cover, from, onClose }: Open & { onClose: () =>
       }
     }
     const got = await data;
+    if (!mounted.current || closing.current) { clone?.remove(); return; }
     if (!got) { clone?.remove(); setLeaving(""); busy.current = false; return; }
     // the new cover is decoded before it replaces the travelling copy
     const next = imageUrl(got.album.coverImageId, 1000);
     if (next) { const im = new Image(); im.src = next; await im.decode().catch(() => {}); }
-    setPrevId(id); setId(toId); setSwapped(true); setLeaving("");
+    if (!mounted.current || closing.current) { clone?.remove(); return; }
+    setPrevId(id); setSwapped(true);
+    if (onAlbumChange) await onAlbumChange(toId);
+    else setId(toId);
+    setLeaving("");
     if (clone) {
       const c = clone;
       await frames(2);
@@ -255,7 +277,7 @@ function Gatefold({ id: firstId, cover, from, onClose }: Open & { onClose: () =>
     }
     setTimeout(() => setPrevId(null), 800);
     busy.current = false;
-  }, [id, qc]);
+  }, [id, qc, onAlbumChange]);
 
   // the queue: positions of the hand-picked tracks after the current one
   const cur = usePlayer((s) => s.queue[s.index]);
@@ -325,10 +347,19 @@ function Gatefold({ id: firstId, cover, from, onClose }: Open & { onClose: () =>
   );
 
   const list = (
-    <div className={css.list} key={`l${id}`}>
+    <div className={css.list} key={`l${id}`} aria-busy={q.isPending}>
       <Rows tracks={tracks} plays={plays} fav={fav} current={mine ? cur?.trackId ?? null : null} playing={playingNow}
         queued={queued} onPlay={play} onQueue={toggleQueue} />
-      {q.isError && <div className={css.err}>Не удалось открыть альбом</div>}
+      {q.isPending && <div className={css.state} role="status">
+        Загружаем альбом…
+        <div className={css.loadingRows} aria-hidden>{Array.from({ length: 6 }, (_, i) => <i key={i} />)}</div>
+      </div>}
+      {q.isError && <div className={css.state} role="alert">
+        {q.error instanceof ApiError && (q.error.status === 404 || q.error.status === 403)
+          ? "Альбом не найден или больше недоступен."
+          : <>Не удалось загрузить альбом. <button type="button" className={css.lnk} disabled={q.isFetching} onClick={() => void q.refetch()}>Попробовать снова</button></>}
+      </div>}
+      {q.isSuccess && !tracks.length && <div className={css.state}>В этом альбоме пока нет треков.</div>}
     </div>
   );
 
