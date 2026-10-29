@@ -82,7 +82,7 @@ Routes of the web app (`web/src/routes`), with what each holds and where it lead
 | **Home** | `/` | done: `screens/home.md` (the sky, the orb, «Настроить волну» in place, вайбики as piles, the search with the «Библиотека / ИИ» switch, the library row, «Поставить альбом», the week) | the player (orb, вайбик, the mini player), an artist (a name in the phrase, search), an album (a pick, search), the library, the assistant (the search's AI side), settings |
 | **Player** | `/player` | done: `screens/player.md` | an artist, an album, search (a producer), the queue and assistant windows |
 | **Library** | `/library` | принята и внедрена 2026-10-11: `screens/library.md` (the wall «Стена» of albums and artists with groups, the glass plate and the rail, the film «Не распечатаны», «Пластинка дня», the glass search, playlists filling the page, the statistics «А» with achievements) | the gatefold (an album), an artist, a playlist, the player (a song) |
-| **Album** | `/album/$id` | единый «Разворот», тот же компонент, что открывается из карточки; старый отдельный экран заменён в dev 2026-10-29 | the artist, the player |
+| **Album** | `/album/$id` | единый «Разворот», тот же компонент, что открывается из карточки; старый отдельный экран заменён, выложено в production 2026-10-29 (`cafdc8e`) | the artist, the player |
 | **Artist** | `/artist/$id` | built 2026-10-17: `screens/artist.md` («Кадр»: the editorial photo, the Grammy laurel, the discography by year, «Ты и …» as a collection, the quiz, the facts, the songs) | the gatefold, the player, the library |
 | **Playlist** | `/playlist/$id` | rename in place, delete with a second click, drag to reorder, remove a row | the player, the library |
 | **Search** | `/search` | совместимость старых ссылок: перенаправление в `/assistant` с сохранением вопроса `q` | the assistant |
@@ -136,7 +136,7 @@ into the player, an album opened from the player.
 |---|---|
 | Главная, плеер, библиотека и статистика, артист, настройки | Обновлены; принятые композиции и анимации сохраняются. |
 | Ассистент | Реализован в `/assistant`, источники макета — `design/reference/assistant/`; старый поиск уже заменён редиректом. Существующий экран сохраняется. |
-| Альбом | Объединены все входы в существующую книжку: карточки, Enter в быстром поиске, плеер, прямой URL, новая вкладка. Адрес `/album/$id` сохранён; смена альбома обновляет его без повторного открытия книжки. После отчёта о dev-проверках владелец разрешил production 2026-10-29. |
+| Альбом | Объединены все входы в существующую книжку: карточки, Enter в быстром поиске, плеер, прямой URL, новая вкладка. Адрес `/album/$id` сохранён; смена альбома обновляет его без повторного открытия книжки. По явному разрешению владельца выложено в production 2026-10-29, `cafdc8e`; результаты — `screens/gatefold.md`. |
 | Отдельный плейлист | Владелец подтвердил: не переработан и не принят. Следующий по основному плану — 2–3 предварительных варианта; сохранить переименование, порядок и удаление треков. |
 | Вход, регистрация, первый запуск | Не переработаны и не приняты. По одному предварительному варианту в текущем языке. |
 | Админка (`/admin/*`) | Не переработана и не принята. Предварительный вариант с сохранением всех инструментов владельца. |
