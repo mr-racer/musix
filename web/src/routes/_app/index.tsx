@@ -10,6 +10,7 @@ import { hoursMinutes, hoursMinutesWide, num, plural } from "../../lib/format";
 import { image } from "../../lib/images";
 import { fromTrack, player, usePlayer } from "../../player/engine";
 import { flyToMini } from "../../player/MiniPlayer";
+import { PlaybackError } from "../../player/PlaybackError";
 import { Wordmark } from "../../ui/Brand";
 import { Cover } from "../../ui/Cover";
 import { openAlbum } from "../../ui/Gatefold";
@@ -40,6 +41,9 @@ function Home() {
   const home = useQuery(homeQuery).data!;
   const streaming = usePlayer((s) => s.mode === "stream" && s.index >= 0);
   const playing = usePlayer((s) => s.playing);
+  const pending = usePlayer((s) => s.mode === "stream" && s.buffering);
+  const streamError = usePlayer((s) => s.mode === "stream" && !!s.error);
+  const hasTrack = usePlayer((s) => !!s.queue[s.index]);
   const { colors, taste } = useMemo(() => {
     const vib = home.vibes.map((v) => image(v.tracks[0]?.coverImageId)?.palette?.vibrant).filter((c): c is string => !!c);
     const cs = home.vibes
@@ -61,11 +65,12 @@ function Home() {
           <div className={css.eyebrow}><Icon name="Bars" size={14} /> Твой вайб</div>
           <Phrase text={home.wave?.phrase ?? "Волна под твой вкус — из того, что ты слушаешь"} home={home} />
           <div className={css.orbRow}>
-            <Orb playing={live} pace={pace} colors={colors} label={live ? "Поставить волну на паузу" : streaming ? "Продолжить волну" : "Включить поток"}
+            <Orb playing={live} busy={pending} pace={pace} colors={colors} label={streamError ? "Повторить запуск волны" : live ? "Поставить волну на паузу" : streaming ? "Продолжить волну" : "Включить поток"}
               onClick={() => (streaming ? player.toggle() : void player.startStream())} />
             <div className={css.orbText}>
-              <div className={css.orbTitle}>{live ? "Волна играет" : streaming ? "Волна на паузе" : "Включить поток"}</div>
-              <div className={css.orbSub}>{live ? "Нажми на шар, чтобы поставить на паузу" : "Волна под твой вкус, подстраивается под реакции"}</div>
+              <div className={css.orbTitle}>{streamError ? "Волна недоступна" : pending ? "Волна загружается" : live ? "Волна играет" : streaming ? "Волна на паузе" : "Включить поток"}</div>
+              <div className={css.orbSub}>{streamError && hasTrack ? "Нажми на шар, чтобы повторить попытку" : live ? "Нажми на шар, чтобы поставить на паузу" : "Волна под твой вкус, подстраивается под реакции"}</div>
+              {streamError && !hasTrack && <PlaybackError />}
               <WaveSettings onPace={setPace} />
             </div>
           </div>

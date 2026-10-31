@@ -1,3 +1,4 @@
+import { MediaImage } from "../ui/MediaImage";
 import { useEffect, useRef, useState } from "react";
 import { api, mediaUrl } from "../api/client";
 import { image, imageUrl, remember } from "../lib/images";
@@ -16,7 +17,7 @@ export function QuizCard({ name, covers, tracks, onOpen }: { name: string; cover
   const srcs = covers.map((c) => imageUrl(c, 256)).filter((s): s is string => !!s).slice(-3);
   return (
     <button type="button" className={css.quiz} aria-disabled={!can} onClick={(e) => { if (can) onOpen(e.currentTarget); }}>
-      <span className={cx("qstack", `n${srcs.length}`)}>{srcs.map((s) => <img key={s} src={s} alt="" loading="lazy" decoding="async" />)}<b>?</b></span>
+      <span className={cx("qstack", `n${srcs.length}`)}>{srcs.map((s) => <MediaImage key={s} src={s} alt="" loading="lazy" decoding="async" />)}<b>?</b></span>
       <span>
         <span className={css.qk}>Квиз</span>
         <span className={css.qt} style={{ display: "block" }}>Угадай {name} за 3 секунды</span>
@@ -130,7 +131,7 @@ export function QuizWindow({ from, onClose, tint, img, name, artistId }: { from:
                 const st = phase === "reveal" ? (o.option_id === right ? "right" : o.option_id === chosen ? "wrong" : "dim") : null;
                 return (
                   <button key={o.option_id} type="button" className={cx("qopt", st)} disabled={phase !== "answer"} onClick={() => void answer(o)}>
-                    {src ? <img src={src} alt="" /> : <span className={css.nocover} />}
+                    {src ? <MediaImage src={src} alt="" /> : <span className={css.nocover} />}
                     <span><b>{o.title}</b>{o.year ? <small>{o.year}</small> : null}</span>
                   </button>
                 );

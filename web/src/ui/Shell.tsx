@@ -19,11 +19,7 @@ const TABS: Tab[] = [
   { to: "/admin", label: "Админка", short: "Админ", icon: "Shield", owner: true },
 ];
 
-/** v1's desktop shell (a floating glass nav island at the left, settings a quiet glyph in
- *  the top right corner, where the owner wanted it) and its phone tab bar; the mini player
- *  sits above the content's bottom edge. On the player and the home, dark cover-lit
- *  surfaces in both app themes, the whole shell takes the dark tokens (the light theme
- *  comes to the new screens in one pass at the end, design/code/roadmap.md). */
+/** Shared navigation and playback controls follow the app theme on every screen. */
 export function Shell() {
   const role = useAuth((s) => s.role);
   // the resolved location changes with the page, inside the page change (lib/pageMotion.ts)
@@ -51,7 +47,7 @@ export function Shell() {
     },
   }), [nav]);
   return (
-    <div className={css.shell} data-mx-theme={path === "/player" || path === "/" || path === "/assistant" || path.startsWith("/artist/") ? "dark" : undefined}>
+    <div className={css.shell} data-cover-lit={path === "/player" || path === "/" || path === "/assistant" || path.startsWith("/artist/") ? "" : undefined}>
       <Link to="/" className={css.brand} aria-label="MusiX — главная">
         <BrandMark size={30} />
       </Link>

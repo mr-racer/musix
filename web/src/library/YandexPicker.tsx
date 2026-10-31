@@ -1,3 +1,4 @@
+import { MediaImage } from "../ui/MediaImage";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { api, ok } from "../api/client";
@@ -80,7 +81,7 @@ export function TrackPicker({ tracks, pick, selectableCount, onSet, onAll }: {
                 className={on ? css.trackOn : can ? css.track : css.trackOff}
                 style={{ top: r.start, ["--i" as string]: Math.min(r.index, 12) }}>
                 <span className={css.trackCheck}><Check state={on ? "all" : "none"} passive /></span>
-                {t.cover ? <img className={css.cover} src={t.cover} alt="" loading="lazy" referrerPolicy="no-referrer" /> : <span className={css.cover} />}
+                {t.cover ? <MediaImage className={css.cover} src={t.cover} alt="" loading="lazy" referrerPolicy="no-referrer" /> : <span className={css.cover} />}
                 <span className={css.text}>
                   <span className={css.trackTitle}>{t.title}</span>
                   <span className={css.trackSub}>{[t.artists.join(", "), t.album].filter(Boolean).join(" · ")}</span>

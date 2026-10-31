@@ -1,10 +1,10 @@
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { type AlbumRow, type ArtistRow, db, rowToTrack, type TrackRow } from "../api/db";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { type AlbumRow, type ArtistRow, rowToTrack, type TrackRow } from "../api/db";
 import { statsQuery } from "../api/queries";
 import { fromTrack, player } from "../player/engine";
-import { warmFromMirror } from "../lib/images";
+import { useSearchIndex } from "../lib/useSearchIndex";
 import { Cover } from "./Cover";
 import { openAlbum, useGatefold } from "./Gatefold";
 import { Icon } from "./icons";
@@ -33,33 +33,6 @@ function says(decade: number | undefined, artist: string | undefined): string[] 
   ];
 }
 
-export type Index = { tracks: TrackRow[]; artists: (ArtistRow & { n: number; cover: string | null })[]; albums: (AlbumRow & { artist: string })[] };
-let index: Promise<Index> | null = null;
-/** The mirror, read once per session (a few thousand rows) and searched in memory. */
-export function load(): Promise<Index> {
-  index ??= (async () => {
-    const [tracks, artists, albums] = await Promise.all([db.tracks.toArray(), db.artists.toArray(), db.albums.toArray()]);
-    // the hits' covers come from the mirror, not from whichever screen happened to remember them
-    await warmFromMirror([...tracks.map((t) => t.coverImageId), ...artists.map((a) => a.imageId), ...albums.map((a) => a.coverImageId)]);
-    const count = new Map<string, { n: number; cover: string | null }>();
-    const byAlbum = new Map<string, string>();
-    for (const t of tracks) {
-      for (const id of t.artistIds) {
-        const c = count.get(id) ?? { n: 0, cover: null };
-        c.n++; c.cover ??= t.coverImageId; count.set(id, c);
-      }
-      if (t.albumId && !byAlbum.has(t.albumId)) byAlbum.set(t.albumId, t.artist);
-    }
-    return {
-      tracks,
-      artists: artists.map((a) => ({ ...a, n: count.get(a.id)?.n ?? 0, cover: count.get(a.id)?.cover ?? a.imageId })).filter((a) => a.n > 0),
-      albums: albums.map((a) => ({ ...a, artist: byAlbum.get(a.id) ?? "" })),
-    };
-  })();
-  return index;
-}
-export function forgetIndex(): void { index = null; }
-
 function mark(s: string, q: string) {
   const i = s.toLowerCase().indexOf(q);
   return i < 0 ? s : <>{s.slice(0, i)}<mark>{s.slice(i, i + q.length)}</mark>{s.slice(i + q.length)}</>;
@@ -71,7 +44,7 @@ export function QuickSearch({ className, edge }: { className?: string; edge?: bo
   const [q, setQ] = useState("");
   const [open, setOpen] = useState(false);
   const [sel, setSel] = useState(0);
-  const [hits, setHits] = useState<Hit[]>([]);
+  const ix = useSearchIndex(mode === "lib" && !!q.trim());
   const input = useRef<HTMLInputElement>(null);
   const field = useRef<HTMLDivElement>(null);
   const group = useRef<HTMLSpanElement>(null);
@@ -101,24 +74,20 @@ export function QuickSearch({ className, edge }: { className?: string; edge?: bo
   const fav = st?.listening.topArtist?.artist.name;
   const SAYS = says(decade, fav);
 
-  useEffect(() => {
-    let dead = false;
+  const hits = useMemo<Hit[]>(() => {
     const words = q.trim(), lq = words.toLowerCase();
-    if (mode === "ai") { setHits(words ? [{ kind: "ai", q: words }] : SAYS.map((s) => ({ kind: "ai", q: s }))); setSel(0); return; }
-    if (!lq) { setHits([]); return; }
-    void load().then((ix) => {
-      if (dead) return;
-      const out: Hit[] = [];
-      for (const a of ix.artists) if (a.name.toLowerCase().includes(lq)) { out.push({ kind: "artist", row: a, n: a.n, cover: a.cover }); if (out.length >= 3) break; }
-      let n = 0;
-      for (const a of ix.albums) if (a.title.toLowerCase().includes(lq)) { out.push({ kind: "album", row: a, artist: a.artist }); if (++n >= 3) break; }
-      n = 0;
-      for (const t of ix.tracks) if (t.title.toLowerCase().includes(lq)) { out.push({ kind: "track", row: t }); if (++n >= 5) break; }
-      out.push({ kind: "ai", q: words });
-      setHits(out); setSel(0);
-    });
-    return () => { dead = true; };
-  }, [q, mode, SAYS.join("|")]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (mode === "ai") return words ? [{ kind: "ai", q: words }] : SAYS.map((s) => ({ kind: "ai", q: s }));
+    if (!lq || !ix) return [];
+    const out: Hit[] = [];
+    for (const a of ix.artists) if (a.name.toLowerCase().includes(lq)) { out.push({ kind: "artist", row: a, n: a.n, cover: a.cover }); if (out.length >= 3) break; }
+    let n = 0;
+    for (const a of ix.albums) if (a.title.toLowerCase().includes(lq)) { out.push({ kind: "album", row: a, artist: a.artist }); if (++n >= 3) break; }
+    n = 0;
+    for (const t of ix.tracks) if (t.title.toLowerCase().includes(lq)) { out.push({ kind: "track", row: t }); if (++n >= 5) break; }
+    out.push({ kind: "ai", q: words });
+    return out;
+  }, [q, mode, ix, SAYS.join("|")]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { setSel(0); }, [hits]);
 
   const choose = (h: Hit | undefined, e?: React.MouseEvent) => {
     if (!h) return;

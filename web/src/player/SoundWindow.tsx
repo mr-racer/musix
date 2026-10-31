@@ -38,7 +38,7 @@ export function SoundWindow({ trackId, s, open, from, accent, onClose }: {
   // in <body>: the player's stage is its own stacking context, and the shell's corner buttons
   // stood over a window inside it
   return createPortal(
-    <div data-mx-theme="dark" style={{ ["--pl-acc" as string]: accent, display: "contents" }}>
+    <div style={{ ["--pl-acc" as string]: accent, display: "contents" }}>
     <aside className={css.win} aria-label="Звук песни" aria-hidden={!open} data-open={open || undefined}>
       <button type="button" className={css.x} onClick={onClose} aria-label="Закрыть"><Icon name="Close" size={18} /></button>
       <header className={css.head}>

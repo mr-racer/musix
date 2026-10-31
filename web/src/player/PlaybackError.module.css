@@ -1,0 +1,6 @@
+.error { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 12px; min-width: 0;
+  color: var(--mx-red); font-size: 13px; line-height: 1.4; text-shadow: none; }
+.error > span { min-width: 0; overflow-wrap: anywhere; }
+.error button { flex: none; color: var(--mx-text); font-weight: 600; border-radius: 4px;
+  text-decoration: underline; text-underline-offset: 3px; padding: 3px 0; }
+.error button:hover { text-decoration-thickness: 2px; }

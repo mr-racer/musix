@@ -75,10 +75,10 @@
     "tabBarInactive": {
       "$type": "color",
       "$value": {
-        "dark": "rgba(238,238,243,0.52)",
-        "light": "rgba(22,22,32,0.5)"
+        "dark": "rgba(238,238,243,0.68)",
+        "light": "rgba(22,22,32,0.68)"
       },
-      "$description": "main.jsx BottomTabBar (inline style)"
+      "$description": "Inactive navigation labels"
     },
     "float": {
       "$type": "color",
@@ -98,18 +98,96 @@
     },
     "soundTech": {
       "$type": "color",
-      "$value": "oklch(82% 0.13 78)",
+      "$value": {
+        "dark": "oklch(82% 0.13 78)",
+        "light": "oklch(46% 0.10 78)"
+      },
       "$description": "the sound ring's «техничность» arc and bar (design/code/screens/player.md, the owner 2026-10-25: three scales, three hues)"
     },
     "soundSpace": {
       "$type": "color",
-      "$value": "oklch(80% 0.11 222)",
+      "$value": {
+        "dark": "oklch(80% 0.11 222)",
+        "light": "oklch(46% 0.09 222)"
+      },
       "$description": "the sound ring's «простор» arc and bar"
     },
     "soundOdd": {
       "$type": "color",
-      "$value": "oklch(74% 0.16 322)",
+      "$value": {
+        "dark": "oklch(74% 0.16 322)",
+        "light": "oklch(46% 0.15 322)"
+      },
       "$description": "the sound ring's «необычность» arc and bar"
+    },
+    "textMuted": {
+      "$type": "color",
+      "$value": {
+        "dark": "rgba(238,238,243,0.74)",
+        "light": "rgba(22,22,32,0.74)"
+      },
+      "$description": "Readable secondary text on themed surfaces"
+    },
+    "textSubtle": {
+      "$type": "color",
+      "$value": {
+        "dark": "rgba(238,238,243,0.64)",
+        "light": "rgba(22,22,32,0.66)"
+      },
+      "$description": "Small labels and metadata; retain contrast in both themes"
+    },
+    "textInverse": {
+      "$type": "color",
+      "$value": {
+        "dark": "#111116",
+        "light": "#ffffff"
+      },
+      "$description": "Glyphs and text on a primary text-colored control"
+    },
+    "onImage": {
+      "$type": "color",
+      "$value": "#ffffff",
+      "$description": "Foreground on dark photographic overlays, independent of app theme"
+    },
+    "accent": {
+      "$type": "color",
+      "$value": {
+        "dark": "oklch(60% 0.18 270)",
+        "light": "oklch(49% 0.18 270)"
+      },
+      "$description": "Primary accent with a deeper light-theme tone"
+    },
+    "accentLight": {
+      "$type": "color",
+      "$value": {
+        "dark": "oklch(70% 0.16 270)",
+        "light": "oklch(49% 0.18 270)"
+      },
+      "$description": "Accent for small text and active controls"
+    },
+    "green": {
+      "$type": "color",
+      "$value": {
+        "dark": "oklch(68% 0.17 142)",
+        "light": "oklch(43% 0.13 142)"
+      },
+      "$description": "Success text and status"
+    },
+    "red": {
+      "$type": "color",
+      "$value": {
+        "dark": "oklch(68% 0.19 25)",
+        "light": "oklch(48% 0.19 25)"
+      },
+      "$description": "Error text and destructive actions"
+    },
+    "amber": {
+      "$type": "color",
+      "$value": {
+        "dark": "oklch(72% 0.13 75)",
+        "light": "oklch(46% 0.12 60)"
+      },
+      "$description": "Warning text and status"
     }
   },
   "type": {

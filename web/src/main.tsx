@@ -5,7 +5,7 @@ import { createRoot } from "react-dom/client";
 import { bootstrap, onAccountChange, onBeforeSignOut, useAuth } from "./api/auth";
 import { guard } from "./api/db";
 import { connect, disconnect, subscribe } from "./api/realtime";
-import { sync } from "./api/sync";
+import { onSyncComplete, sync } from "./api/sync";
 import "./player/handoff"; // «Слушать на…»: a tab can be handed the music before the player is opened
 import { routeTree } from "./routeTree.gen";
 import "./styles/fonts";
@@ -46,13 +46,13 @@ useAuth.subscribe((s, prev) => {
   }
   void router.invalidate();
 });
+onSyncComplete(({ changes, full }) => {
+  // Lyrics/metadata discovered after import invalidate the player's cached context once
+  // per committed burst. An empty delta does not refetch the same context again.
+  if (changes || full) void queryClient.invalidateQueries({ queryKey: ["player-context"] }).catch(() => undefined);
+});
 subscribe((e) => {
-  // the player's context too: lyrics found after the import mark their track changed, and a
-  // context cached for 10 min kept showing «тексты ещё не добавлены» (an unchanged one is a 304)
-  if (e.type === "sync.changed") void sync().then(() => Promise.all([
-    queryClient.invalidateQueries({ queryKey: ["mirror"] }),
-    queryClient.invalidateQueries({ queryKey: ["player-context"] }),
-  ]));
+  if (e.type === "sync.changed") void sync().catch(() => undefined);
   if (e.type === "instance.status") void queryClient.invalidateQueries({ queryKey: ["instance"] });
 });
 

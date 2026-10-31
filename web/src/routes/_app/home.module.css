@@ -16,7 +16,7 @@
 /* the names in the phrase are alive, each one leads to its artist */
 .name { display: inline-block; color: inherit; text-decoration: underline; text-decoration-thickness: 0.03em; text-underline-offset: 0.16em; text-decoration-color: color-mix(in srgb, currentColor 26%, transparent);
   transition: color 0.25s var(--mx-ease-standard), transform 0.35s var(--mx-ease-spring), text-decoration-color 0.25s var(--mx-ease-standard); }
-.name:hover { color: color-mix(in srgb, var(--acc) 48%, #fff); transform: translateY(-0.045em); text-decoration-color: currentColor; }
+.name:hover { color: color-mix(in srgb, var(--acc) 48%, var(--mx-text)); transform: translateY(-0.045em); text-decoration-color: currentColor; }
 .name:active { transform: translateY(0) scale(0.98); }
 .orbRow { display: flex; align-items: flex-start; gap: clamp(20px, 2cqw, 30px); width: 100%; }
 .orbText { min-width: 0; padding-top: clamp(4px, 1vh, 14px); }
@@ -124,10 +124,10 @@
 .val small { display: block; margin-top: 6px; font: 400 13px/1.2 var(--mx-font-sans); letter-spacing: 0; color: var(--mx-text-muted); }
 .bars { display: flex; align-items: flex-end; gap: 2px; height: clamp(58px, 3.4cqw, 78px); }
 .bar { display: grid; grid-template-rows: 1fr auto; justify-items: center; gap: 6px; width: clamp(20px, 1.25cqw, 28px); height: 100%; font: 400 10px/1 var(--mx-font-mono); color: var(--mx-text-subtle); cursor: default; transition: color 0.2s var(--mx-ease-standard); }
-.bar i { align-self: end; width: clamp(12px, 0.72cqw, 16px); height: max(4px, calc(var(--h) * 100%)); border-radius: 8px; background: rgba(255,255,255,0.17); transform-origin: bottom;
+.bar i { align-self: end; width: clamp(12px, 0.72cqw, 16px); height: max(4px, calc(var(--h) * 100%)); border-radius: 8px; background: rgba(var(--mx-ink-rgb),0.22); transform-origin: bottom;
   animation: grow 0.7s var(--mx-ease-spring) calc(var(--n) * 55ms + 0.3s) backwards; transition: background 0.2s var(--mx-ease-standard), transform 0.3s var(--mx-ease-spring); }
 .bar:hover { color: var(--mx-text); }
-.bar:hover i { background: rgba(255,255,255,0.42); transform: scaleY(1.1); }
+.bar:hover i { background: rgba(var(--mx-ink-rgb),0.42); transform: scaleY(1.1); }
 .today i { background: linear-gradient(180deg, color-mix(in srgb, var(--acc) 70%, #fff), var(--acc)); }
 .today { color: var(--mx-text); }
 @keyframes grow { from { transform: scaleY(0.08); opacity: 0; } }
@@ -165,3 +165,8 @@
 @media (prefers-reduced-motion: reduce) {
   .home > *, .bar i, .n, .plateSay { animation: none; }
 }
+
+:global(:root[data-theme="light"]) .phrase { text-shadow: none; }
+:global(:root[data-theme="light"]) .pill { background: linear-gradient(180deg, #fff, #e4e3eb); box-shadow: inset 0 1px 0 #fff, inset 0 -1px 0 rgba(22,22,32,.12), 0 2px 5px rgba(22,22,32,.12); }
+:global(:root[data-theme="light"]) .seg { background: var(--mx-plate); box-shadow: inset 0 1px 2px rgba(22,22,32,.1); }
+:global(:root[data-theme="light"]) .segThumb { background: linear-gradient(180deg, #fff, #edecf3); box-shadow: inset 0 1px 0 #fff, 0 0 0 1px color-mix(in srgb, var(--acc) 40%, transparent), 0 3px 8px rgba(22,22,32,.1); }

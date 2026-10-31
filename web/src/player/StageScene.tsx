@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useRef } from "react";
+import { useTheme } from "../lib/theme";
 import { usePlayer } from "./engine";
 import { glyph } from "./glyphs";
 import { stageQuery, type Stage, type TrackSound } from "./sound";
@@ -68,8 +69,6 @@ const mix = (a: RGB, b: RGB, k: number): RGB =>
   [Math.round(a[0] + (b[0] - a[0]) * k), Math.round(a[1] + (b[1] - a[1]) * k), Math.round(a[2] + (b[2] - a[2]) * k)];
 const WHITE: RGB = [255, 255, 255];
 const ease = (v: number) => { const x = Math.min(1, Math.max(0, v)); return x * x * (3 - 2 * x); };
-/** The computed colour of `color: var(--pl-acc)` comes as rgb(). */
-const parse = (s: string): RGB => { const m = s.match(/(\d+)\D+(\d+)\D+(\d+)/); return m ? [+m[1]!, +m[2]!, +m[3]!] : [255, 240, 225]; };
 
 /** Where a part plays and how bright, from the live frames:
  *  - it plays over its gate: GATE, or 24 dB under its own loud level (p90) for a loud part,
@@ -157,6 +156,7 @@ function sources(s: TrackSound, st: Stage | null): Src[] {
 }
 
 export function StageScene({ trackId, s, active }: { trackId: string; s: TrackSound; active: boolean }) {
+  const theme = useTheme();
   const { data: st } = useQuery({ ...stageQuery(trackId), enabled: active && s.hasStage });
   const cv = useRef<HTMLCanvasElement>(null);
   const cam = useRef({ yaw: 0, pitch: 0, ty: 0, tp: 0, intro: 0, t0: 0, opened: "" });
@@ -167,14 +167,23 @@ export function StageScene({ trackId, s, active }: { trackId: string; s: TrackSo
     const canvas = cv.current, g = canvas?.getContext("2d");
     if (!canvas || !g || !active) return;
     const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
+    const light = theme === "light";
+    const ink: RGB = light ? [30, 27, 39] : WHITE;
     // while the live frames load, the floor alone: the profile's parts swapped for the live
     // ones a moment later read as a jump
     const srcs = s.hasStage && !st ? [] : sources(s, st ?? null);
+    if (light) for (const src of srcs) src.rgb = mix(src.rgb, ink, 0.38);
     const room = ROOM[s.echo.key] ?? 1.7;
     const head = glyph("listener").map((x) => new Path2D(x.d));
     const ripples: { x: number; z: number; t0: number; k: number; rgb: RGB }[] = [];
     let lastT = -1, W = 0, H = 0, dpr = 1, u = 1, raf = 0, last = 0, seen = 99, font = "system-ui, sans-serif";
     let acc: RGB = [255, 240, 225], lit: RGB = acc;
+    // Computed CSS colours can be oklch()/color(), not only rgb(). Let the canvas convert
+    // into sRGB once per changed colour; never read pixels from the animated scene.
+    const swatch = document.createElement("canvas");
+    swatch.width = swatch.height = 1;
+    const swatchContext = swatch.getContext("2d", { willReadFrequently: true });
+    let sampledColor = "";
     let base = usePlayer.getState().positionMs, at = performance.now();
     const c = cam.current;
     // the floor unfolds once per opening, not again when the live frames arrive
@@ -214,7 +223,7 @@ export function StageScene({ trackId, s, active }: { trackId: string; s: TrackSo
       g.save();
       g.globalAlpha *= a;
       g.translate(x - size / 2, y - size / 2); g.scale(size / 24, size / 24);
-      g.strokeStyle = "#fff"; g.fillStyle = "#fff"; g.lineWidth = 1.7; g.lineCap = "round"; g.lineJoin = "round";
+      g.strokeStyle = rgba(ink, 1); g.fillStyle = rgba(ink, 1); g.lineWidth = 1.7; g.lineCap = "round"; g.lineJoin = "round";
       for (const part of paths) {
         if (part instanceof Path2D) g.stroke(part);
         else if (part.fill) g.fill(part.p); else g.stroke(part.p);
@@ -234,7 +243,15 @@ export function StageScene({ trackId, s, active }: { trackId: string; s: TrackSo
     const draw = (now: number) => {
       if (++seen > 30) {
         const cs = getComputedStyle(canvas);
-        acc = parse(cs.color); lit = mix(acc, WHITE, 0.5); font = cs.fontFamily || font; seen = 0;
+        if (cs.color !== sampledColor && swatchContext) {
+          swatchContext.clearRect(0, 0, 1, 1);
+          swatchContext.fillStyle = cs.color;
+          swatchContext.fillRect(0, 0, 1, 1);
+          const pixel = swatchContext.getImageData(0, 0, 1, 1).data;
+          acc = [pixel[0]!, pixel[1]!, pixel[2]!];
+          sampledColor = cs.color;
+        }
+        lit = mix(acc, ink, 0.5); font = cs.fontFamily || font; seen = 0;
       }
       g.clearRect(0, 0, W, H);
       // the floor, tinted by the cover's light, a grid that fades into the room's depth
@@ -244,16 +261,16 @@ export function StageScene({ trackId, s, active }: { trackId: string; s: TrackSo
       g.fillStyle = floor;
       g.beginPath(); g.moveTo(fl.x, fl.y); g.lineTo(fr.x, fr.y); g.lineTo(br.x, br.y); g.lineTo(bl.x, bl.y); g.closePath(); g.fill();
       g.lineWidth = dpr;
-      const ink = mix(lit, WHITE, 0.55);
+      const floorInk = mix(lit, ink, 0.55);
       for (let i = 0; i <= 8; i++) {
         const x = -1 + i * 0.25, a = proj(x, 0), b = proj(x, room);
         const lg = g.createLinearGradient(0, b.y, 0, a.y);
-        lg.addColorStop(0, rgba(ink, 0)); lg.addColorStop(1, rgba(ink, i === 4 ? 0.13 : 0.065));
+        lg.addColorStop(0, rgba(floorInk, 0)); lg.addColorStop(1, rgba(floorInk, i === 4 ? 0.13 : 0.065));
         g.strokeStyle = lg; g.beginPath(); g.moveTo(a.x, a.y); g.lineTo(b.x, b.y); g.stroke();
       }
       for (let z = 0; z <= room + 1e-6; z += room / Math.round(room * 4)) {
         const a = proj(-1, z), b = proj(1, z);
-        g.strokeStyle = rgba(ink, 0.075 * a.k);
+        g.strokeStyle = rgba(floorInk, 0.075 * a.k);
         g.beginPath(); g.moveTo(a.x, a.y); g.lineTo(b.x, b.y); g.stroke();
       }
       // the haze at the back: deeper rooms keep more of it
@@ -262,7 +279,7 @@ export function StageScene({ trackId, s, active }: { trackId: string; s: TrackSo
 
       // light, added to what is under it: the playing parts tint the haze over their place,
       // rings run out from hits, each part's light lies on the floor where it stands
-      g.globalCompositeOperation = "lighter";
+      g.globalCompositeOperation = light ? "source-over" : "lighter";
       for (const src of srcs) {
         const a = src.glow * src.vis;
         if (a < 0.01) continue;
@@ -291,7 +308,7 @@ export function StageScene({ trackId, s, active }: { trackId: string; s: TrackSo
         const show = Math.min(1, Math.max(0, c.intro * 1.6 - (srcs.length - 1 - i) * 0.1)) * src.vis;
         if (show <= 0.005) return;
         const p = proj(src.x, src.z), L = src.glow;
-        const col = mix(WHITE, src.rgb, Math.min(1, L * 1.4));
+        const col = mix(ink, src.rgb, Math.min(1, L * 1.4));
         const sc = 0.84 + 0.16 * p.k, h = 25 * u * sc, gs = 14 * u * sc, pad = 8 * u * sc;
         const f = `500 ${(11.5 * u * sc).toFixed(1)}px ${font}`;
         if (src.tf !== f) { g.font = f; src.tw = g.measureText(src.label).width; src.tf = f; }
@@ -313,27 +330,28 @@ export function StageScene({ trackId, s, active }: { trackId: string; s: TrackSo
         g.translate(cx, cy); const zs = (0.94 + 0.06 * show) * (0.97 + 0.06 * L); g.scale(zs, zs);
         const x0 = -pw / 2, y0 = -h / 2, gx = x0 + pad + gs / 2;
         // glass: a dark frosted body over a soft shadow, the part's light inside it
-        g.shadowColor = "rgba(0,0,0,.32)"; g.shadowBlur = 12 * u; g.shadowOffsetY = 3 * u;
-        g.fillStyle = "rgba(16,14,24,.5)"; pill(x0, y0, pw, h); g.fill();
+        g.shadowColor = light ? "rgba(35,28,48,.14)" : "rgba(0,0,0,.32)"; g.shadowBlur = 12 * u; g.shadowOffsetY = 3 * u;
+        g.fillStyle = light ? "rgba(255,255,255,.86)" : "rgba(16,14,24,.5)"; pill(x0, y0, pw, h); g.fill();
         g.shadowOffsetY = 0;
         if (L > 0.02) {
-          g.shadowColor = rgba(src.rgb, 0.7 * L); g.shadowBlur = (10 + 14 * L) * u;
+          g.shadowColor = rgba(src.rgb, (light ? 0.18 : 0.7) * L); g.shadowBlur = (10 + 14 * L) * u;
           const inner = g.createRadialGradient(gx, 0, 0, gx, 0, pw);
-          inner.addColorStop(0, rgba(src.rgb, 0.62 * L)); inner.addColorStop(0.55, rgba(src.rgb, 0.3 * L)); inner.addColorStop(1, rgba(src.rgb, 0.16 * L));
+          const glow = light ? 0.3 : 1;
+          inner.addColorStop(0, rgba(src.rgb, 0.62 * L * glow)); inner.addColorStop(0.55, rgba(src.rgb, 0.3 * L * glow)); inner.addColorStop(1, rgba(src.rgb, 0.16 * L * glow));
           g.fillStyle = inner; pill(x0, y0, pw, h); g.fill();
         }
         g.shadowColor = "transparent"; g.shadowBlur = 0;
         // the rim: light catching the top edge, in the part's colour as it plays or nears
         const rim = g.createLinearGradient(0, y0, 0, y0 + h);
-        rim.addColorStop(0, rgba(mix(WHITE, src.rgb, Math.min(1, L)), 0.3 + 0.45 * L));
-        rim.addColorStop(1, rgba(mix(WHITE, src.rgb, L), 0.06 + 0.2 * L));
+        rim.addColorStop(0, rgba(mix(ink, src.rgb, Math.min(1, L)), light ? 0.14 + 0.2 * L : 0.3 + 0.45 * L));
+        rim.addColorStop(1, rgba(mix(ink, src.rgb, L), 0.06 + 0.2 * L));
         g.strokeStyle = rim; g.lineWidth = Math.max(1, 0.9 * u);
         pill(x0 + 0.5, y0 + 0.5, pw - 1, h - 1); g.stroke();
         // glyph and name: dimmer while the part waits, full white as it plays
         glyphAt(src.path, gx, 0, gs, 0.62 + 0.38 * L);
         g.globalAlpha *= 0.64 + 0.36 * L;
-        g.fillStyle = "#fff"; g.font = f; g.textAlign = "left"; g.textBaseline = "middle";
-        g.shadowColor = "rgba(0,0,0,.35)"; g.shadowBlur = 3 * u;
+        g.fillStyle = rgba(ink, 1); g.font = f; g.textAlign = "left"; g.textBaseline = "middle";
+        g.shadowColor = light ? "transparent" : "rgba(0,0,0,.35)"; g.shadowBlur = 3 * u;
         g.fillText(src.label, x0 + pad + gs + 6 * u * sc, 0.5 * u);
         g.restore();
         g.globalAlpha = 1;
@@ -342,7 +360,7 @@ export function StageScene({ trackId, s, active }: { trackId: string; s: TrackSo
       const me = proj(0, -0.12);
       g.globalAlpha = 1;
       glyphAt(head, me.x, Math.min(me.y, H - 12 * u), 19 * u, 0.5 * c.intro);
-      g.globalAlpha = 0.4 * c.intro; g.fillStyle = "#fff"; g.font = `600 ${Math.round(10.5 * u)}px ${font}`; g.textBaseline = "alphabetic";
+      g.globalAlpha = (light ? 0.72 : 0.4) * c.intro; g.fillStyle = rgba(ink, 1); g.font = `600 ${Math.round(10.5 * u)}px ${font}`; g.textBaseline = "alphabetic";
       g.textAlign = "left"; g.fillText("Л", fl.x + 8 * u, fl.y - 6 * u);
       g.textAlign = "right"; g.fillText("П", fr.x - 8 * u, fr.y - 6 * u);
       g.globalAlpha = 1;
@@ -389,7 +407,7 @@ export function StageScene({ trackId, s, active }: { trackId: string; s: TrackSo
       draw(now);
       if (go) raf = requestAnimationFrame(frame); else last = 0;
     };
-    const kick = () => { if (!raf && !document.hidden) raf = requestAnimationFrame(frame); };
+    const kick = () => { if (!raf && !reduce && !document.hidden) raf = requestAnimationFrame(frame); };
     const move = (e: PointerEvent) => {
       const r = canvas.getBoundingClientRect();
       c.ty = ((e.clientX - r.left) / r.width - 0.5) * 2;
@@ -419,7 +437,7 @@ export function StageScene({ trackId, s, active }: { trackId: string; s: TrackSo
       canvas.removeEventListener("pointermove", move);
       canvas.removeEventListener("pointerleave", leave);
     };
-  }, [st, s, active]);
+  }, [st, s, active, theme]);
 
   return (
     <div className={css.scene}>

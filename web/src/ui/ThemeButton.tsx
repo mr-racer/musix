@@ -1,6 +1,6 @@
-import { useId, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { flushSync } from "react-dom";
-import { setThemePref, themePref, useTheme, type ThemePref } from "../lib/theme";
+import { setThemePref, useThemePref, useTheme, type ThemePref } from "../lib/theme";
 import glass from "./glass.module.css";
 import css from "./ThemeButton.module.css";
 
@@ -13,11 +13,13 @@ const reduce = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 export function ThemeButton() {
   const resolved = useTheme();
-  const pref = themePref();
+  const pref = useThemePref();
   const mask = `bite${useId().replace(/[^a-zA-Z0-9]/g, "")}`;
   const btn = useRef<HTMLButtonElement>(null);
   const [tip, setTip] = useState(false), [holding, setHolding] = useState(false);
   const tipT = useRef(0), holdT = useRef(0), held = useRef(false);
+
+  useEffect(() => () => { clearTimeout(tipT.current); clearTimeout(holdT.current); }, []);
 
   function setTheme(p: ThemePref) {
     const b = btn.current, root = document.documentElement;
@@ -32,7 +34,7 @@ export function ThemeButton() {
     root.dataset.vt = "theme";
     const t = document.startViewTransition(() => flushSync(() => setThemePref(p)));
     t.ready.catch(() => undefined);
-    void t.finished.finally(() => delete root.dataset.vt);
+    void t.finished.catch(() => undefined).finally(() => delete root.dataset.vt);
   }
   function pop() {
     if (!reduce()) btn.current?.animate([{ transform: "scale(1)" }, { transform: "scale(1.25)" }, { transform: "scale(.95)" }, { transform: "scale(1)" }], { duration: 520, easing: "cubic-bezier(.34,1.56,.64,1)" });
@@ -40,10 +42,13 @@ export function ThemeButton() {
   const cancelHold = () => { clearTimeout(holdT.current); setHolding(false); };
   const state = pref === "system" ? "system" : resolved;
   const a = pref === "system" ? `Как в системе · сейчас ${resolved === "dark" ? "тёмная" : "светлая"}` : resolved === "dark" ? "Включить светлую" : "Включить тёмную";
-  const b = pref === "system" ? "нажми — выберешь сам" : "удерживай — как в системе";
+  const b = pref === "system" ? "нажми — выберешь сам" : "удерживай или Shift+Enter — как в системе";
 
   return (
-    <button ref={btn} type="button" className={css.theme} data-t={state} aria-label={a}
+    <button ref={btn} type="button" className={css.theme} data-t={state} aria-label={a} aria-keyshortcuts="Shift+Enter"
+      onKeyDown={(e) => { if (e.key === "Enter" && e.shiftKey) { e.preventDefault(); cancelHold(); setTheme("system"); pop(); } }}
+      onFocus={() => setTip(true)} onBlur={() => { setTip(false); cancelHold(); }}
+      onPointerCancel={cancelHold}
       onPointerEnter={() => { tipT.current = window.setTimeout(() => setTip(true), 450); }}
       onPointerLeave={() => { clearTimeout(tipT.current); setTip(false); cancelHold(); }}
       onPointerDown={(e) => {

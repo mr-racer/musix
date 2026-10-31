@@ -1,5 +1,6 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
+import { defaultRangeExtractor, useVirtualizer } from "@tanstack/react-virtual";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { mediaUrl, type Schemas } from "../../api/client";
@@ -10,10 +11,12 @@ import { factClass } from "../../lib/facts";
 import { clock, plural } from "../../lib/format";
 import { image, imageUrl, warmFromMirror } from "../../lib/images";
 import { useLive } from "../../lib/live";
+import { useTheme } from "../../lib/theme";
 import { Combustion } from "../../player/Combustion";
 import { DevicePicker, ElsewhereBar } from "../../player/DevicePicker";
 import { fromTrack, player, usePlayer } from "../../player/engine";
 import { Instruments } from "../../player/Instruments";
+import { PlaybackError } from "../../player/PlaybackError";
 import { shown, soundQuery, type TrackSound } from "../../player/sound";
 import { SoundRing } from "../../player/SoundRing";
 import { SoundWindow } from "../../player/SoundWindow";
@@ -39,15 +42,17 @@ function PlayerView() {
 }
 
 function Idle() {
+  const buffering = usePlayer((s) => s.buffering);
   return (
     <div className={css.idle}>
       <h1 className={css.idleTitle}>Сейчас ничего не играет</h1>
       <p>Включи «Поток» — волну под твой вкус — или выбери альбом в библиотеке.</p>
       <div className={css.idleActions}>
-        <button type="button" className={css.cta} onClick={() => void player.startStream()}>Включить поток</button>
+        <button type="button" className={css.cta} disabled={buffering} aria-busy={buffering} onClick={() => void player.startStream()}>{buffering ? "Загружается…" : "Включить поток"}</button>
         <Link to="/library" className={css.ghost}>В библиотеку</Link>
       </div>
       <ElsewhereBar />
+      <PlaybackError />
     </div>
   );
 }
@@ -77,6 +82,7 @@ function preload(...urls: (string | null | undefined)[]): void {
     if (!u || warm.has(u)) continue;
     const im = new Image();
     im.decoding = "async";
+    im.onerror = () => { if (warm.get(u) === im) warm.delete(u); };
     im.src = u;
     warm.set(u, im);
     if (warm.size > 24) warm.delete(warm.keys().next().value!);
@@ -138,16 +144,13 @@ function fly(from: HTMLImageElement | null | undefined, imageId: string | null |
       const landed = performance.now();
       const settle = () => {
         const pic = to.querySelector<HTMLImageElement>("button img");
-        if ((pic?.complete && pic.naturalWidth > 0 && pic.currentSrc === want) || performance.now() - landed > 2000) g.remove();
+        if ((pic?.complete && pic.naturalWidth > 0 && (pic.currentSrc === want || pic.dataset.imageFallback !== undefined)) || performance.now() - landed > 2000) g.remove();
         else requestAnimationFrame(settle);
       };
       settle();
     };
   });
 }
-
-/** The spectrum's height when there is room for it (the first version was 44). */
-const SPEC_MAX = 104;
 
 /** Whether the stage is at phone width (the same 780 px the styles switch at). */
 function useNarrow(ref: React.RefObject<HTMLElement | null>): boolean {
@@ -177,9 +180,16 @@ function Playing({ trackId }: { trackId: string }) {
   const [flipped, setFlipped] = useState(false);
   const [adding, setAdding] = useState(false);
   const [sheet, setSheet] = useState<Sheet>(null);
+  const [queueReady, setQueueReady] = useState(false);
+  const queueScroll = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => { if (sheet === "queue") setQueueReady(true); }, [sheet]);
   const [fx, setFx] = useState<{ kind: "fire" | "water"; n: number } | null>(null);
   const stage = useRef<HTMLDivElement>(null);
+  const information = useRef<HTMLDivElement>(null);
   const narrow = useNarrow(stage);
+  useLayoutEffect(() => {
+    if (information.current) information.current.scrollTop = 0;
+  }, [trackId]);
   // the sound profile (the sound engine): the ring, «Звучат», the song's form on the seek line
   // and the sound window. Desktop only for now (the owner, 2026-10-25: «ПК онли»)
   // the previous song's profile stays while the next one's loads: the ring and an open sound
@@ -230,29 +240,6 @@ function Playing({ trackId }: { trackId: string }) {
     for (const q of usePlayer.getState().queue.slice(usePlayer.getState().index + 1, usePlayer.getState().index + 9)) warmRef.current(q);
   }, [queueOpen, ahead]);
 
-  // the spectrum's height: well above the line, but never into what lies over it. The room
-  // is measured, because the content block is centred and its height is the song's
-  useLayoutEffect(() => {
-    const st = stage.current;
-    if (!st || narrow) return;
-    const measure = () => {
-      const bar = st.querySelector<HTMLElement>('[role="slider"]');
-      if (!bar) return;
-      let floor = 0;
-      for (const el of st.querySelectorAll<HTMLElement>("[data-above]")) {
-        const r = el.getBoundingClientRect();
-        if (r.height > 0) floor = Math.max(floor, r.bottom);
-      }
-      const room = Math.floor(bar.getBoundingClientRect().top + 9 - floor - 16);
-      st.style.setProperty("--spec-h", `${room < 24 ? 0 : Math.min(SPEC_MAX, room)}px`);
-    };
-    const ro = new ResizeObserver(measure);
-    ro.observe(st);
-    for (const el of st.querySelectorAll("[data-above]")) ro.observe(el);
-    measure();
-    return () => ro.disconnect();
-  }, [narrow, trackId]);
-
   // a song without a sound profile closes the sound window (its scrim would stay behind)
   useEffect(() => { if (sheet === "sound" && !sound) setSheet(null); }, [sheet, sound]);
   useEffect(() => {
@@ -260,7 +247,9 @@ function Playing({ trackId }: { trackId: string }) {
     document.addEventListener("keydown", esc);
     return () => document.removeEventListener("keydown", esc);
   }, []);
-  const accent = img?.palette?.accent.dark ?? "#c9c287";
+  const theme = useTheme();
+  const coverAccent = img?.palette?.accent[theme] ?? (theme === "light" ? "#706521" : "#c9c287");
+  const accent = theme === "light" ? `oklch(from ${coverAccent} min(l, .46) c h)` : coverAccent;
   useEffect(() => {
     const root = document.documentElement;
     root.style.setProperty("--mx-island-acc", accent); // the nav island's blob is outside the stage
@@ -316,7 +305,7 @@ function Playing({ trackId }: { trackId: string }) {
   );
 
   return (
-    <div className={css.stage} ref={stage} data-mx-theme="dark" data-playing={!paused}
+    <div className={css.stage} ref={stage} data-playing={!paused} data-player-sheet={!narrow ? sheet ?? undefined : undefined}
       style={{ ["--pl-acc" as string]: accent, ["--pl-acc2" as string]: img?.palette?.dominant ?? "#5664b3" }}>
       <Backdrop url={img?.urls.bg ? mediaUrl(img.urls.bg) : null} fallback={imageUrl(item.coverImageId, 96)} />
 
@@ -336,7 +325,7 @@ function Playing({ trackId }: { trackId: string }) {
           <button type="button" className={`${css.ic} ${css.edge}`} onClick={() => void player.next()} aria-label="Следующий трек"><Icon name="ChevronRight" /></button>
         </div>
 
-        <div className={css.col} data-above>
+        <div className={css.col} ref={information} data-player-info data-above role="region" aria-label="О текущем треке" tabIndex={0}>
         <div className={css.meta} key={trackId}>
           {/* the title and, at the plate's right edge, the sound ring: a score by a title, as in
               a review. The question mark hangs off the last word, outside the flow: it never
@@ -370,7 +359,7 @@ function Playing({ trackId }: { trackId: string }) {
 
         <div className={css.note} data-above>
           <ElsewhereBar />
-          {s.error && <p className={css.error} role="status">{s.error}</p>}
+          <PlaybackError />
         </div>
 
         <Scrub sound={narrow ? null : sound}>{!narrow && late && <Spectrum trackId={trackId} className={css.spectrum} />}</Scrub>
@@ -424,7 +413,9 @@ function Playing({ trackId }: { trackId: string }) {
           <b>{s.mode === "stream" ? "Поток" : "Очередь"}, {upcoming} {plural(upcoming, "трек", "трека", "треков")} впереди</b>
           <button type="button" className={css.ic} onClick={() => setSheet(null)} aria-label="Закрыть"><Icon name="Close" size={18} /></button>
         </div>
-        <div className={css.winBody}>{late && <Queue onPick={narrow ? () => setSheet(null) : undefined} onNear={warm} />}</div>
+        <div ref={queueScroll} className={css.winBody} tabIndex={0} aria-label="Треки в очереди">
+          {queueReady && <Queue scroll={queueScroll} onPick={narrow ? () => setSheet(null) : undefined} onNear={warm} />}
+        </div>
       </aside>
       {late && <Assistant trackId={trackId} open={sheet === "ai"} onClose={() => setSheet(null)} />}
       {late && !narrow && sound && <SoundWindow trackId={trackId} s={sound} open={sheet === "sound"} from={ringEl} accent={accent} onClose={() => setSheet(null)} />}
@@ -498,16 +489,15 @@ function Volume() {
   );
 }
 
-/** The facts plate: one control row (Песня / Артист, the category, «Спросить», the pager) and
- *  the text, clamped to three lines and opened by a click. */
+/** Full facts with a stable reading area when paging. Dense track information scrolls
+ *  inside the column, leaving the cover and the spectrum in place. */
 function Facts({ k, onAsk }: { k: Schemas["TrackKnowledge"] | null | undefined; onAsk?: () => void }) {
   const [side, setSide] = useState<"song" | "artist">("song");
   const [i, setI] = useState(0);
-  const [open, setOpen] = useState(false);
   const facts = (side === "song" ? k?.songFacts : k?.artistFacts) ?? [];
   const f = facts[Math.min(i, facts.length - 1)];
   const cls = f ? factClass(f.labels) : null;
-  const page = (d: number) => { setI((n) => (Math.min(n, facts.length - 1) + d + facts.length) % facts.length); setOpen(false); };
+  const page = (d: number) => { setI((n) => (Math.min(n, facts.length - 1) + d + facts.length) % facts.length); };
   const all = useMemo(() => [...(k?.songFacts ?? []), ...(k?.artistFacts ?? [])].map((x) => x.text), [k]);
   return (
     <div className={css.facts}>
@@ -515,7 +505,7 @@ function Facts({ k, onAsk }: { k: Schemas["TrackKnowledge"] | null | undefined; 
         <span>
           <span className={css.seg} role="group" aria-label="Факты">
             {(["song", "artist"] as const).map((t) => (
-              <button key={t} type="button" aria-pressed={side === t} onClick={() => { setSide(t); setI(0); setOpen(false); }}>{{ song: "Песня", artist: "Артист" }[t]}</button>
+              <button key={t} type="button" aria-pressed={side === t} onClick={() => { setSide(t); setI(0); }}>{{ song: "Песня", artist: "Артист" }[t]}</button>
             ))}
           </span>
           {cls && <span className={css.tag}>{cls.label}</span>}
@@ -535,7 +525,7 @@ function Facts({ k, onAsk }: { k: Schemas["TrackKnowledge"] | null | undefined; 
             tallest of them, so paging and «Песня / Артист» never move the layout */}
         {all.map((text, n) => <p key={n} className={css.fact} data-sizer aria-hidden>{text}</p>)}
         {f
-          ? <p key={side + i} className={css.fact + (open ? " " + css.factOpen : "")} onClick={() => setOpen((o) => !o)} title="Нажмите, чтобы развернуть или свернуть">{f.text}</p>
+          ? <p key={side + i} className={css.fact}>{f.text}</p>
           : <p className={css.empty}>{side === "song" ? "О песне пока ничего не известно. Факты собираются в фоне и появятся здесь." : "Об артисте пока ничего не известно."}</p>}
       </div>
     </div>
@@ -877,15 +867,53 @@ function CoverStage({ item, index, flipped, playing, buffering, fx, back }: {
   );
 }
 
-function Queue({ onPick, onNear }: { onPick?: () => void; onNear?: (q: { trackId: string; coverImageId?: string | null }) => void }) {
+function Queue({ scroll, onPick, onNear }: { scroll: React.RefObject<HTMLDivElement | null>; onPick?: () => void; onNear?: (q: { trackId: string; coverImageId?: string | null }) => void }) {
   const queue = usePlayer((s) => s.queue);
   const index = usePlayer((s) => s.index);
   const [drag, setDrag] = useState<number | null>(null);
+  const [focused, setFocused] = useState<number | null>(null);
+  const [focusTarget, setFocusTarget] = useState<{ index: number; last: boolean } | null>(null);
+  const rows = useRef<HTMLOListElement>(null);
+  const virtual = useVirtualizer({
+    count: queue.length,
+    getScrollElement: () => scroll.current,
+    estimateSize: () => 62,
+    overscan: 4,
+    // A focused or dragged row stays mounted even when the visible range moves away.
+    rangeExtractor: (range) => [...new Set([...defaultRangeExtractor(range), ...[focused, drag, focusTarget?.index ?? null].filter((i): i is number => i !== null && i < queue.length)])].sort((a, b) => a - b),
+  });
+  const visible = virtual.getVirtualItems();
+  useLayoutEffect(() => {
+    if (focusTarget === null) return;
+    const controls = rows.current?.querySelectorAll<HTMLButtonElement>(`[data-queue-index="${focusTarget.index}"] button`);
+    const control = controls?.[focusTarget.last ? controls.length - 1 : 0];
+    if (control) { control.focus({ preventScroll: true }); setFocusTarget(null); }
+  }, [focusTarget, visible]);
+  const focusRow = (next: number, last = false) => {
+    const target = Math.max(0, Math.min(queue.length - 1, next));
+    virtual.scrollToIndex(target, { align: "auto" });
+    setFocusTarget({ index: target, last });
+  };
   return (
-    <ol className={css.rows}>
-      {queue.map((q, i) => (
-        <li key={q.trackId + ":" + i} className={i === index ? css.rowOn : i < index ? css.rowPast : css.row}
-          draggable={i > index} onDragStart={() => setDrag(i)} onDragOver={(e) => i > index && e.preventDefault()}
+    <ol ref={rows} className={css.rows} data-virtual style={{ height: virtual.getTotalSize() }}
+      onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) setFocused(null); }}>
+      {visible.map((row) => {
+        const i = row.index, q = queue[i]!;
+        return (
+        <li key={q.trackId + ":" + i} data-queue-index={i} aria-posinset={i + 1} aria-setsize={queue.length}
+          style={{ top: row.start }} className={i === index ? css.rowOn : i < index ? css.rowPast : css.row}
+          onFocus={() => setFocused(i)}
+          onKeyDown={(e) => {
+            const next = e.key === "ArrowDown" ? i + 1 : e.key === "ArrowUp" ? i - 1 : e.key === "Home" ? 0 : e.key === "End" ? queue.length - 1 : null;
+            if (next !== null) { e.preventDefault(); focusRow(next); }
+            // Tab can cross a virtual boundary without skipping unmounted tracks.
+            if (e.key === "Tab" && !e.altKey && !e.ctrlKey && !e.metaKey) {
+              const buttons = e.currentTarget.querySelectorAll("button");
+              if (!e.shiftKey && e.target === buttons[buttons.length - 1] && i + 1 < queue.length) { e.preventDefault(); focusRow(i + 1); }
+              if (e.shiftKey && e.target === buttons[0] && i > 0) { e.preventDefault(); focusRow(i - 1, true); }
+            }
+          }}
+          draggable={i > index} onDragStart={() => setDrag(i)} onDragEnd={() => setDrag(null)} onDragOver={(e) => i > index && e.preventDefault()}
           onDrop={() => { if (drag !== null) player.move(drag, i); setDrag(null); }}>
           <button type="button" className={css.rowMain} onPointerEnter={() => { if (i !== index) onNear?.(q); }} onClick={(e) => {
             if (i === index) return;
@@ -901,9 +929,10 @@ function Queue({ onPick, onNear }: { onPick?: () => void; onNear?: (q: { trackId
               <span className={css.rowArtist}>{q.artist}</span>
             </span>
           </button>
-          {i > index && <button type="button" className={css.rowX} onClick={() => player.remove(i)} aria-label={`Убрать «${q.title}» из очереди`}><Icon name="Close" size={14} /></button>}
+          {i > index && <button type="button" className={css.rowX} onClick={() => { player.remove(i); focusRow(Math.min(i, queue.length - 2)); }} aria-label={`Убрать «${q.title}» из очереди`}><Icon name="Close" size={14} /></button>}
         </li>
-      ))}
+        );
+      })}
     </ol>
   );
 }

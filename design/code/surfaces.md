@@ -14,7 +14,7 @@ Rules:
 - Glass never covers animated content and never becomes a container for reading text.
 - One window or sheet at a time. A click outside or Esc closes it. On the phone a scrim
   (black 42 %) sits under the sheet.
-- A plate must stay small. The facts plate is one control row and at most three lines.
+- Плашки остаются компактными; исключение — факты плеера: полный текст доступен через прокрутку колонки или мобильного окна, без обрезки (просьба владельца 2026-10-31).
 
 Radii in the player: cover 10, sample chip 12, plate 16, window and sheet 26, pills 999.
 

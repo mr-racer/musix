@@ -1,12 +1,11 @@
-.shell { min-height: 100dvh; position: relative; }
+.shell { color: var(--mx-text); min-height: 100dvh; position: relative; }
 .main { min-height: 100dvh; overflow-x: clip; /* full-bleed hero fields never widen the page */ padding-left: 92px; padding-bottom: calc(var(--player-h, 0px) + var(--spec-room, 0px) + 12px); }
 /* the player is exactly one screen: no breathing room under it (the phone rule below still leaves the tab bar's) */
 .mainStage { composes: main; padding-bottom: 0; }
 .brand { view-transition-name: brand; position: fixed; top: 18px; left: 22px; z-index: 30; }
 /* the nav island in liquid glass v2, the one glass recipe (ui/glass.module.css): see-through,
    no sheen crossing it under the pointer (the owner: «эффект переливания блока при наведении —
-   убрать, а только добавить реакцию иконок на наведение»). Its light theme and its dark glass on
-   the home and the player come from the recipe's variables. */
+   убрать, а только добавить реакцию иконок на наведение»). The active theme comes from the shared recipe's variables. */
 .rail {
   composes: lg from "./glass.module.css";
   view-transition-name: island; /* the shell stays put while pages change (styles/pages.css) */
@@ -35,11 +34,7 @@
    pictures of their own too, above it, so the lens never covers an icon on its way */
 :global(html[data-nav]) .blob { transition: none; }
 /* on the player (and the home) the lens is edged with the cover's accent, as in the approved probe */
-:root .shell[data-mx-theme="dark"] .blob {
-  background: linear-gradient(180deg, rgba(255,255,255,0.2), rgba(255,255,255,0.05));
-  border: 1px solid color-mix(in srgb, var(--mx-island-acc, #c9c287) 55%, transparent);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.3), 0 4px 12px rgba(0,0,0,0.25);
-}
+.shell[data-cover-lit] .blob { border-color: color-mix(in srgb, var(--mx-island-acc, var(--mx-accent)) 55%, transparent); }
 .railItem, .railOn {
   position: relative; z-index: 1; width: 56px; height: 52px; border-radius: 18px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
   font-size: 9.5px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--mx-text-subtle);
@@ -59,6 +54,10 @@
    ring appears under the pointer and the cog turns (the owner found the raised button
    «неактуальной и не к месту»; the theme moved out of the settings into its own button, 2026-10-12) */
 .corner { view-transition-name: gear; position: fixed; right: 22px; top: 16px; z-index: 30; display: flex; gap: 6px; }
+/* Desktop player sheets cover this corner; their close control owns the same space. */
+@media (min-width: 761px) {
+  .shell:has([data-player-sheet]) .corner { visibility: hidden; pointer-events: none; }
+}
 .settings {
   width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: var(--mx-text-subtle);
   box-shadow: 0 0 0 1px transparent;

@@ -1,3 +1,4 @@
+import { MediaImage } from "../ui/MediaImage";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { mediaUrl, type Schemas } from "../api/client";
 import { image, imageUrl } from "../lib/images";
@@ -117,16 +118,16 @@ function Backdrop({ src, phone }: { src: string | null; phone?: boolean }) {
     im.decoding = "async";
     im.src = src;
     let live = true;
-    im.decode().then(() => live && setShown(src), () => live && setShown(src));
+    im.decode().then(() => live && setShown(src), () => {});
     return () => { live = false; };
   }, [src]);
-  return <div className={phone ? css.pbg2 : css.pbg} data-in={shown ? "" : undefined} style={shown ? { backgroundImage: `url(${shown})` } : undefined} />;
+  return <div className={phone ? css.pbg2 : css.pbg} data-in={shown && shown === src ? "" : undefined} style={shown && shown === src ? { backgroundImage: `url(${shown})` } : undefined} />;
 }
 
 /** A cover that develops: blurred and grey while it arrives, sharp when it has. */
 function Develop({ src }: { src: string }) {
-  const [ok, setOk] = useState(false);
-  return <img className={css.pcover} src={src} alt="" decoding="async" data-in={ok ? "" : undefined} onLoad={() => setOk(true)} />;
+  const [ready, setReady] = useState<string | null>(null);
+  return <MediaImage className={css.pcover} src={src} alt="" decoding="async" data-in={ready === src ? "" : undefined} onLoad={() => setReady(src)} />;
 }
 
 /** The white sticker: rounded dots instead of squares, rounded eyes, the mark in the middle

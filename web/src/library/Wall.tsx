@@ -3,8 +3,10 @@ import { Link } from "@tanstack/react-router";
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { image, imageUrl } from "../lib/images";
 import { coverFill } from "../lib/coverFill";
+import { transparentImage } from "../lib/imageFallback";
 import { plural } from "../lib/format";
 import { Icon } from "../ui/icons";
+import { MediaImage } from "../ui/MediaImage";
 import glass from "../ui/glass.module.css";
 import { openFrom, playAlbum, playArtist, playGroup, useFilm } from "./actions";
 import { peel } from "./film";
@@ -28,32 +30,39 @@ const tileMin = (w: number) => (w < 1400 ? 190 : w < 1800 ? 208 : w < 2200 ? 224
 /** A cover that arrives organically: the palette's colour at once, then its 96 px sketch
  *  blurred, then the cover develops (a wave from the top left when several come together);
  *  a cover already in the browser's cache is simply there. */
-export const WallCover = memo(function WallCover({ id, px, round, seed }: { id: string | null; px: number; round?: boolean; seed?: string }) {
-  const pal = image(id)?.palette;
+export function WallCover({ id, px, round, seed }: { id: string | null; px: number; round?: boolean; seed?: string }) {
   const src = imageUrl(id, Math.round(px * Math.min(2, devicePixelRatio || 1)));
+  return <WallCoverSource key={src ?? id ?? seed} id={id} src={src} round={round} seed={seed} />;
+}
+
+function WallCoverSource({ id, src, round, seed }: { id: string | null; src: string | null; round?: boolean; seed?: string }) {
+  const pal = image(id)?.palette;
   const sketch = imageUrl(id, 96);
   const ph = useRef<HTMLDivElement>(null);
+  const hideTimer = useRef(0);
+  const arrival = useRef<Animation | null>(null);
+  useEffect(() => () => { clearTimeout(hideTimer.current); arrival.current?.cancel(); }, []);
   const done = (img: HTMLImageElement, cached: boolean) => {
     img.removeAttribute("data-wait");
     const hide = () => { if (ph.current) ph.current.style.display = "none"; };
     if (cached || reduce()) { hide(); return; }
     const r = img.getBoundingClientRect(), d = Math.max(0, Math.min(1, (r.left + r.top) / (innerWidth + innerHeight))) * 420 + Math.random() * 60;
-    img.animate([{ opacity: 0, filter: "blur(12px) saturate(.7)", transform: "scale(1.06)" }, { opacity: 1, filter: "blur(0px) saturate(1)", transform: "scale(1)" }],
+    arrival.current = img.animate([{ opacity: 0, filter: "blur(12px) saturate(.7)", transform: "scale(1.06)" }, { opacity: 1, filter: "blur(0px) saturate(1)", transform: "scale(1)" }],
       { duration: 680, delay: d, easing: "cubic-bezier(.2,.75,.25,1)", fill: "backwards" });
-    setTimeout(hide, d + 720);
+    hideTimer.current = window.setTimeout(hide, d + 720);
   };
   return (
     <>
       <div ref={ph} className={css.ph} style={{ background: pal ? `linear-gradient(145deg, ${pal.dominant ?? pal.muted}, ${pal.muted ?? pal.dominant})` : seed ? coverFill(seed) : "#202026" }}>
-        {sketch && sketch !== src && <img src={sketch} alt="" decoding="async" />}
+        {sketch && sketch !== src && <MediaImage src={sketch} fallback={transparentImage} alt="" decoding="async" />}
       </div>
-      {src && <img className={css.cv} data-wait="" src={src} alt="" decoding="async" loading="lazy" draggable={false}
+      <MediaImage className={css.cv} data-wait="" src={src} seed={seed ?? id} tint={pal?.muted ?? pal?.dominant} alt="" decoding="async" loading="lazy" draggable={false}
         style={round ? { borderRadius: "50%" } : undefined}
         ref={(el) => { if (el?.complete && el.naturalWidth && el.hasAttribute("data-wait")) done(el, true); }}
-        onLoad={(e) => e.currentTarget.hasAttribute("data-wait") && done(e.currentTarget, false)} />}
+        onLoad={(e) => e.currentTarget.hasAttribute("data-wait") && done(e.currentTarget, false)} />
     </>
   );
-});
+}
 
 function Film({ rewrap }: { rewrap: boolean }) {
   return <span className={css.film} data-film="" data-rewrap={rewrap ? "" : undefined}><span className={css.sticker}>не слушал</span></span>;
@@ -83,7 +92,7 @@ const ArtistTile = memo(function ArtistTile({ a, px }: { a: ArtistCard; px: numb
   const el = useRef<HTMLAnchorElement>(null);
   return (
     <Link ref={el} to="/artist/$id" params={{ id: a.id }} className={css.card} data-id={a.id} draggable={false}>
-      {a.image ? <WallCover id={a.image} px={px} /> : <span className={css.mono} style={{ ["--h" as string]: hue(a.name) }}>{[...a.name][0]}</span>}
+      {a.image ? <WallCover id={a.image} px={px} seed={a.name} /> : <span className={css.mono} style={{ ["--h" as string]: hue(a.name) }}>{[...a.name][0]}</span>}
       <span className={css.capOn}><b>{a.name}</b><small>{a.albums ? `${a.albums} ${plural(a.albums, "альбом", "альбома", "альбомов")} · ` : ""}{a.n} {plural(a.n, "песня", "песни", "песен")}</small></span>
       <button type="button" className={css.playR} aria-label={`Слушать ${a.name}`} onClick={(e) => { e.preventDefault(); e.stopPropagation(); void playArtist(a.id, el.current); }}>
         <Icon name="Play" size={18} />
@@ -113,7 +122,7 @@ function ArtistLine({ a, mx }: { a: ArtistCard; mx: number }) {
   const el = useRef<HTMLAnchorElement>(null);
   return (
     <Link ref={el} to="/artist/$id" params={{ id: a.id }} className={css.rowA} data-id={a.id}>
-      <span className={css.rc}>{a.image ? <WallCover id={a.image} px={56} /> : <span className={css.mono} style={{ ["--h" as string]: hue(a.name) }}>{[...a.name][0]}</span>}</span>
+      <span className={css.rc}>{a.image ? <WallCover id={a.image} px={56} seed={a.name} /> : <span className={css.mono} style={{ ["--h" as string]: hue(a.name) }}>{[...a.name][0]}</span>}</span>
       <span className={css.rt}>{a.name}</span><span className={css.rn}>{a.albums || "—"}</span><span className={css.rn}>{a.n}</span>
       {listened(a.plays, mx)}
       <button type="button" className={css.rp} aria-label="Слушать" onClick={(e) => { e.preventDefault(); e.stopPropagation(); void playArtist(a.id, el.current); }}><Icon name="Play" size={14} /></button>
@@ -130,7 +139,7 @@ export function Flag({ cc, wave }: { cc: string | null | undefined; wave?: boole
 function Stack<T extends AlbumCard | ArtistCard>({ s }: { s: Section<T> }) {
   if (s.cc) return <span className={css.mstack}><Flag cc={s.cc} /></span>;
   const ids = s.items.map((x) => ("cover" in x && "image" in x ? (x as ArtistCard).image ?? (x as ArtistCard).cover : (x as AlbumCard).cover)).filter(Boolean).slice(0, 3);
-  return <span className={css.mstack}>{ids.map((id) => <img key={id} src={imageUrl(id, 64) ?? undefined} alt="" />)}</span>;
+  return <span className={css.mstack}>{ids.map((id) => <MediaImage key={id} src={imageUrl(id, 64)} seed={id} alt="" />)}</span>;
 }
 
 export function Wall<T extends AlbumCard | ArtistCard>({ kind, sections, view, top, otherOf, mx }: {
@@ -180,10 +189,10 @@ export function Wall<T extends AlbumCard | ArtistCard>({ kind, sections, view, t
   const [cur, setCur] = useState(-1);
   const [plateOn, setPlateOn] = useState(false);
   const listTop = () => (box.current ? box.current.getBoundingClientRect().top + window.scrollY : 0);
-  const BAR = 72;
+  const barHeight = () => box.current ? parseFloat(getComputedStyle(box.current).getPropertyValue("--bar-h")) || 72 : 72;
   useEffect(() => {
     const on = () => {
-      const y = window.scrollY + BAR - listTop();
+      const y = window.scrollY + barHeight() - listTop();
       let i = -1;
       for (let k = 0; k < heads.length; k++) { const hs = starts[heads[k]!]! + (k ? 36 : 0); if (hs <= y + 12) i = k; else break; }
       setCur(i);
@@ -195,28 +204,44 @@ export function Wall<T extends AlbumCard | ArtistCard>({ kind, sections, view, t
   }, [heads, starts, rows, heightOf]);
 
   const glideRaf = useRef(0);
-  const glide = useCallback((i: number, instant?: boolean) => {
-    const hs = heads[i]; if (hs == null) return;
-    const to = Math.max(0, listTop() + starts[hs]! + (i ? 36 : 0) - BAR - 4), from = window.scrollY, dist = to - from;
+  const arrivalRaf = useRef(0);
+  const glideAnimation = useRef<Animation | null>(null);
+  const glideVersion = useRef(0);
+  const stopGlide = useCallback(() => {
+    glideVersion.current++;
     cancelAnimationFrame(glideRaf.current);
-    const arrive = () => requestAnimationFrame(() => {
+    cancelAnimationFrame(arrivalRaf.current);
+    glideAnimation.current?.cancel();
+    glideAnimation.current = null;
+  }, []);
+  useEffect(() => stopGlide, [stopGlide]);
+  const glide = useCallback((i: number, instant?: boolean) => {
+    const hs = heads[i]; if (hs == null || !box.current) return;
+    const to = Math.max(0, listTop() + starts[hs]! + (i ? 36 : 0) - barHeight() - 4), from = window.scrollY, dist = to - from;
+    stopGlide();
+    const version = glideVersion.current;
+    const current = () => version === glideVersion.current && !!box.current?.isConnected;
+    const arrive = () => { arrivalRaf.current = requestAnimationFrame(() => {
+      if (!current()) return;
       const h = box.current?.querySelector<HTMLElement>(`[data-head="${i}"]`); if (!h || reduce()) return;
       h.animate([{ transform: "translateY(10px)", opacity: 0.35 }, { transform: "none", opacity: 1 }], { duration: 480, easing: SPRING });
       const f = h.querySelector<HTMLElement>("[data-wave], ." + css.flag); if (f) { f.removeAttribute("data-wave"); void f.offsetWidth; f.setAttribute("data-wave", ""); }
-    });
+    }); };
     if (instant || reduce() || Math.abs(dist) < 2) { window.scrollTo(0, to); if (!instant) arrive(); return; }
     if (Math.abs(dist) > innerHeight * 1.6) {
       const el = box.current!, dir = Math.sign(dist);
-      el.animate([{ opacity: 1, transform: "none" }, { opacity: 0, transform: `translateY(${-dir * 30}px)` }], { duration: 160, easing: "cubic-bezier(.4,0,1,1)" }).finished.then(() => {
+      glideAnimation.current = el.animate([{ opacity: 1, transform: "none" }, { opacity: 0, transform: `translateY(${-dir * 30}px)` }], { duration: 160, easing: "cubic-bezier(.4,0,1,1)" });
+      void glideAnimation.current.finished.then(() => {
+        if (!current()) return;
         window.scrollTo(0, to); arrive();
-        el.animate([{ opacity: 0, transform: `translateY(${dir * 40}px)` }, { opacity: 1, transform: "none" }], { duration: 520, easing: "cubic-bezier(.2,1,.3,1)" });
-      });
+        glideAnimation.current = el.animate([{ opacity: 0, transform: `translateY(${dir * 40}px)` }, { opacity: 1, transform: "none" }], { duration: 520, easing: "cubic-bezier(.2,1,.3,1)" });
+      }, () => undefined);
       return;
     }
     const T0 = performance.now(), dur = Math.min(640, 320 + Math.abs(dist) * 0.28), ease = (k: number) => (k < 0.5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2);
-    const f = (now: number) => { const k = Math.min(1, (now - T0) / dur); window.scrollTo(0, from + dist * ease(k)); if (k < 1) glideRaf.current = requestAnimationFrame(f); else arrive(); };
+    const f = (now: number) => { if (!current()) return; const k = Math.min(1, (now - T0) / dur); window.scrollTo(0, from + dist * ease(k)); if (k < 1) glideRaf.current = requestAnimationFrame(f); else arrive(); };
     glideRaf.current = requestAnimationFrame(f);
-  }, [heads, starts]);
+  }, [heads, starts, stopGlide]);
 
   // the light on the film follows the pointer
   const onMove = (e: React.PointerEvent) => {
@@ -309,27 +334,34 @@ function Rail<T extends AlbumCard | ArtistCard>({ sections, cur, glide }: { sect
   // hears when it changes group. A transition on its position made it trail the pointer (the owner)
   const [lab, setLab] = useState<number | null>(null);
   const drag = useRef<{ y: number; moved: boolean } | null>(null);
+  const moveRaf = useRef(0), pointerY = useRef(0);
+  useEffect(() => () => cancelAnimationFrame(moveRaf.current), []);
   const total = sections.reduce((n, s) => n + s.items.length, 0) || 1;
   const H = el.current?.clientHeight ?? 400;
   if (sections.length < 2) return null;
   const at = (y: number) => { const segs = [...(el.current?.children ?? [])] as HTMLElement[]; for (const sg of segs) { const r = sg.getBoundingClientRect(); if (y <= r.bottom + 1.5) return +sg.dataset.i!; } return sections.length - 1; };
-  const move = (e: React.PointerEvent) => {
-    const i = at(e.clientY);
-    for (const sg of [...(el.current?.children ?? [])] as HTMLElement[]) {
-      const r = sg.getBoundingClientRect(), f = Math.max(0, 1 - Math.abs((r.top + r.bottom) / 2 - e.clientY) / 70);
+  const paint = () => {
+    moveRaf.current = 0;
+    const y = pointerY.current;
+    // Read every segment before writing styles; coalesce fast pointer events into one frame.
+    const segments = [...(el.current?.children ?? [])].map((element) => ({ element: element as HTMLElement, rect: element.getBoundingClientRect() }));
+    const i = Number(segments.find(({ rect }) => y <= rect.bottom + 1.5)?.element.dataset.i ?? sections.length - 1);
+    for (const { element: sg, rect: r } of segments) {
+      const f = Math.max(0, 1 - Math.abs((r.top + r.bottom) / 2 - y) / 70);
       sg.style.setProperty("--fx", (1 + f * 1.4).toFixed(2)); sg.style.setProperty("--fs", (1 + f * 0.45).toFixed(2));
     }
-    labEl.current?.style.setProperty("translate", `0 ${e.clientY - 20}px`);
+    labEl.current?.style.setProperty("translate", `0 ${y - 20}px`);
     setLab(i);
-    if (drag.current) { if (Math.abs(e.clientY - drag.current.y) > 4) drag.current.moved = true; if (drag.current.moved) glide(i, true); }
+    if (drag.current) { if (Math.abs(y - drag.current.y) > 4) drag.current.moved = true; if (drag.current.moved) glide(i, true); }
   };
-  const leave = () => { if (drag.current) return; setLab(null); for (const sg of [...(el.current?.children ?? [])] as HTMLElement[]) { sg.style.removeProperty("--fx"); sg.style.removeProperty("--fs"); } };
+  const move = (e: React.PointerEvent) => { pointerY.current = e.clientY; if (!moveRaf.current) moveRaf.current = requestAnimationFrame(paint); };
+  const leave = () => { if (drag.current) return; cancelAnimationFrame(moveRaf.current); moveRaf.current = 0; setLab(null); for (const sg of [...(el.current?.children ?? [])] as HTMLElement[]) { sg.style.removeProperty("--fx"); sg.style.removeProperty("--fs"); } };
   const s = lab != null ? sections[lab] : null;
   return (
     <>
       <div ref={el} className={css.rail} aria-label="Перейти к группе" onPointerMove={move} onPointerLeave={leave}
         onPointerDown={(e) => { drag.current = { y: e.clientY, moved: false }; e.currentTarget.setPointerCapture(e.pointerId); }}
-        onPointerUp={(e) => { const d = drag.current; drag.current = null; try { e.currentTarget.releasePointerCapture(e.pointerId); } catch { /* gone */ } if (d && !d.moved) glide(at(e.clientY)); }}>
+        onPointerUp={(e) => { if (moveRaf.current) { cancelAnimationFrame(moveRaf.current); pointerY.current = e.clientY; paint(); } const d = drag.current; drag.current = null; try { e.currentTarget.releasePointerCapture(e.pointerId); } catch { /* gone */ } if (d && !d.moved) glide(at(e.clientY)); }}>
         {sections.map((x, i) => {
           const h = (H * x.items.length) / total, u = x.cc ? flagUrl(x.cc) : null;
           return (
@@ -355,9 +387,9 @@ function JumpMenu<T extends AlbumCard | ArtistCard>({ sections, cur, at, close, 
     const on = m.querySelector<HTMLElement>("[aria-pressed='true']"); if (on) m.scrollTop = Math.max(0, on.offsetTop - 80);
     const off = (e: PointerEvent) => { if (!m.contains(e.target as Node)) close(); };
     const esc = (e: KeyboardEvent) => e.key === "Escape" && close();
-    setTimeout(() => window.addEventListener("pointerdown", off), 0);
+    const timer = setTimeout(() => window.addEventListener("pointerdown", off), 0);
     window.addEventListener("keydown", esc);
-    return () => { window.removeEventListener("pointerdown", off); window.removeEventListener("keydown", esc); };
+    return () => { clearTimeout(timer); window.removeEventListener("pointerdown", off); window.removeEventListener("keydown", esc); };
   }, [close]);
   return (
     <div ref={el} className={`${css.menuGlass} ${glass.lg}`} role="menu" style={{ left: Math.min(at.x, innerWidth - 300), top: at.y, maxHeight: innerHeight - at.y - 150 }}>

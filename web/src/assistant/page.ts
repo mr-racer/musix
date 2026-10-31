@@ -22,6 +22,7 @@ import { db } from "../api/db";
 import { addToPlaylist, createPlaylist } from "../api/playlists";
 import { subscribe } from "../api/realtime";
 import { imageUrl, remember, warmFromMirror } from "../lib/images";
+import { imageFallback } from "../lib/imageFallback";
 import { fromTrack, player } from "../player/engine";
 import glass from "../ui/glass.module.css";
 import { iconSvg, type IconName } from "../ui/icons";
@@ -104,9 +105,19 @@ export function mountAssistant(host: HTMLElement, deps: AssistantDeps): () => vo
   let dead = false;
   const cleanups: (() => void)[] = [];
   const on = (el: EventTarget, ev: string, fn: (e: any) => void) => { el.addEventListener(ev, fn); cleanups.push(() => el.removeEventListener(ev, fn)); };
+  // Error does not bubble. Capture covers created later by innerHTML or a flying layer.
+  const imageError = (e: Event) => {
+    const img = e.target;
+    if (!(img instanceof HTMLImageElement) || img.dataset.imageFallback !== undefined) return;
+    img.dataset.imageFallback = "";
+    img.removeAttribute("srcset");
+    img.src = imageFallback(img.dataset.cid ?? img.getAttribute("src"));
+  };
+  host.addEventListener("error", imageError, true);
+  cleanups.push(() => host.removeEventListener("error", imageError, true));
 
   const T = new Map<string, Track>(); // every track an answer named
-  const cover = (id: string | null | undefined, px: number) => imageUrl(id, px * Math.min(2, devicePixelRatio || 1)) ?? "";
+  const cover = (id: string | null | undefined, px: number) => imageUrl(id, px * Math.min(2, devicePixelRatio || 1)) ?? imageFallback(id);
 
   /* ── layout: one composition, measured on the window ─────────────────────── */
   const L = {} as { W: number; H: number; R: number; cx: number; cy: number; ob: number; dpr: number; rx: number; ry: number; ansW: number; ansL: number;
@@ -160,6 +171,18 @@ export function mountAssistant(host: HTMLElement, deps: AssistantDeps): () => vo
   const O = { t: 0, e: 0.15, eT: 0.15, c1: [...KIND.idle.c1], c2: [...KIND.idle.c2], k1: KIND.idle.c1, k2: KIND.idle.c2,
     lean: [0, 0], leanT: [0, 0], rip: 9, pulse: 0, dim: 0, dimT: 0, preview: null as Kind | null };
   let bgDirty = true, bgSig = "";
+  // The crystal refracts the same themed room that surrounds it. Read styles only when
+  // the theme changes, not in the frame loop; a docked crystal also refreshes its texture.
+  let roomColor = "", roomInk = "";
+  const readTheme = () => {
+    const style = getComputedStyle(app);
+    roomColor = style.backgroundColor; roomInk = style.color;
+    bgDirty = true;
+  };
+  readTheme();
+  const themeObserver = new MutationObserver(readTheme);
+  themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+  cleanups.push(() => themeObserver.disconnect());
   function setKind(k: Kind) {
     app.dataset.k = k;
     for (const i of $$(".room i")) i.classList.toggle("on", i.dataset.n === k);
@@ -246,7 +269,7 @@ export function mountAssistant(host: HTMLElement, deps: AssistantDeps): () => vo
     if (quiet && sig === bgSig && !bgDirty) return false;
     bgSig = sig; bgDirty = false;
     const w = bgc.width, h = bgc.height, k = w / L.ob, ox = L.cx - L.ob / 2, oy = L.cy - L.ob / 2;
-    bgx.fillStyle = "#0b0b10"; bgx.fillRect(0, 0, w, h);
+    bgx.fillStyle = roomColor; bgx.fillRect(0, 0, w, h);
     const c = O.c1.map((v) => Math.round(v * 255)), g = bgx.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, w * 0.55);
     g.addColorStop(0, `rgba(${c},.34)`); g.addColorStop(0.5, `rgba(${c},.12)`); g.addColorStop(1, "rgba(0,0,0,0)");
     bgx.fillStyle = g; bgx.fillRect(0, 0, w, h);
@@ -262,7 +285,7 @@ export function mountAssistant(host: HTMLElement, deps: AssistantDeps): () => vo
       bgx.font = `400 ${L.chipF * c2.s * k}px Geist, system-ui, sans-serif`;
       const tw = bgx.measureText(c2.o.q).width, x0 = x - tw / 2;
       bgx.fillStyle = KIND[kindOf(c2.o.intent)].c; bgx.beginPath(); bgx.arc(x0 - 10 * k, y, 3.5 * k, 0, 7); bgx.fill();
-      bgx.fillStyle = "#f2f2f7"; bgx.fillText(c2.o.q, x0, y);
+      bgx.fillStyle = roomInk; bgx.fillText(c2.o.q, x0, y);
     }
     bgx.globalAlpha = 1;
     return true;
@@ -293,6 +316,8 @@ export function mountAssistant(host: HTMLElement, deps: AssistantDeps): () => vo
   // frames that arrive before the POST has answered with the turn's id wait here
   const early: { turnId: string; e: any }[] = [];
   let listen: ((e: any) => void) | null = null;
+  let stopFollowing: (() => void) | null = null;
+  cleanups.push(() => stopFollowing?.());
   cleanups.push(subscribe((e) => {
     if (e.type !== "assistant.stage" && e.type !== "assistant.done") return;
     if (listen) listen(e); else if (busy) early.push({ turnId: e.turnId, e });
@@ -352,13 +377,19 @@ export function mountAssistant(host: HTMLElement, deps: AssistantDeps): () => vo
     return new Promise((resolve) => {
       let settled = false, lastLine = "";
       const read = () => ok(api.GET("/api/v2/assistant/turns/{turn_id}", { params: { path: { turn_id: turnId } } })) as Promise<R>;
+      const clear = () => {
+        if (listen === frame) listen = null;
+        if (stopFollowing === cancel) stopFollowing = null;
+        clearInterval(poll); clearTimeout(limit);
+      };
+      const cancel = () => { settled = true; clear(); resolve(null); };
       const finish = async (t?: R) => {
         if (settled) return; settled = true;
-        listen = null; clearInterval(poll); clearTimeout(limit);
+        clear();
         try { resolve(t ?? (await read())); } catch { resolve(null); }
       };
       const frame = (e: any) => {
-        if (e.turnId !== turnId || my !== run) return;
+        if (settled || e.turnId !== turnId || my !== run) return;
         if (e.type === "assistant.done") return void finish();
         const f = e.frame ?? {};
         if (f.stage === "answer_delta") return;
@@ -368,11 +399,13 @@ export function mountAssistant(host: HTMLElement, deps: AssistantDeps): () => vo
         const line = String(f.human || "").trim();
         if (line && line !== lastLine) { lastLine = line; caption(line); }
       };
-      listen = frame;
-      for (const x of early.splice(0)) frame(x.e);
+      // A completed turn can arrive before POST returns: its replay must be able to clear
+      // both timers immediately, and must not leave a poll running after it has finished.
       const poll = setInterval(() => void read().then((t) => { if (t.status === "done" || t.status === "error") void finish(t); }).catch(() => undefined), 3000);
       const limit = setTimeout(() => void finish(), 180_000);
-      cleanups.push(() => { settled = true; clearInterval(poll); clearTimeout(limit); });
+      stopFollowing = cancel;
+      listen = frame;
+      for (const x of early.splice(0)) frame(x.e);
     });
   }
 
@@ -552,7 +585,8 @@ export function mountAssistant(host: HTMLElement, deps: AssistantDeps): () => vo
   }
 
   async function reset(quick = false) {
-    run++; busy = false; listen = null;
+    run++; busy = false;
+    stopFollowing?.(); listen = null; early.length = 0;
     const ans = $(".answer");
     if (app.classList.contains("answering")) {
       await ans.animate([{ opacity: 1, filter: "blur(0)" }, { opacity: 0, filter: "blur(10px)", transform: "translateY(16px)" }], { duration: 260, easing: EXIT }).finished;

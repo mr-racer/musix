@@ -66,6 +66,8 @@ const STREAM_REFILL_BELOW = 2;
 const STREAM_CHUNK = 3;
 const HISTORY_KEEP = 20;
 const AHEAD = 5;
+const MANIFEST_KEEP = 64;
+const PLAYED_KEEP = 200;
 
 function readVolume(): number {
   try {
@@ -100,12 +102,14 @@ class Engine {
   private els: [HTMLAudioElement, HTMLAudioElement];
   private cur = 0;
   private held: { trackId: string; url: string } | null = null; // what the idle element preloaded
+  private preloadFailure: { trackId: string; failures: number; retryAt: number } | null = null;
   private manifests = new Map<string, { m: Manifest; source: number }>();
   private acc = new ListenAccumulator();
   private attempts = 0;
   private ctx: AudioContext | null = null;
   private gains: GainNode[] = [];
-  private refilling = false;
+  private refilling: number | null = null;
+  private nextRetry: number | null = null;
   private toppedUpFrom: string | null = null;
   private played: string[] = [];
   private lastPosUpdate = 0;
@@ -152,7 +156,17 @@ class Engine {
     });
     a.addEventListener("waiting", () => mine() && set({ buffering: true }));
     a.addEventListener("ended", () => mine() && this.onEnded());
-    a.addEventListener("error", () => (mine() ? void this.recover() : this.dropHeld()));
+    a.addEventListener("error", () => {
+      if (mine()) { void this.recover(); return; }
+      const held = this.held;
+      if (!held?.url || a.src !== new URL(held.url, location.href).href) return;
+      this.deferPreload(held.trackId);
+      this.manifests.delete(held.trackId);
+      this.dropHeld();
+    });
+    a.addEventListener("canplay", () => {
+      if (!mine() && this.held?.url && a.src === new URL(this.held.url, location.href).href) this.preloadFailure = null;
+    });
     a.addEventListener("durationchange", () => mine() && Number.isFinite(a.duration) && set({ durationMs: a.duration * 1000 }));
     void i;
     return a;
@@ -161,14 +175,28 @@ class Engine {
   // ── sources ────────────────────────────────────────────────────────────────
   private fresh(trackId: string): { m: Manifest; source: number } | undefined {
     const e = this.manifests.get(trackId);
-    return e && e.m.expiresAt * 1000 - 60_000 > Date.now() ? e : undefined;
+    if (e && e.m.expiresAt * 1000 - 60_000 > Date.now()) return e;
+    if (e) this.manifests.delete(trackId);
+    return undefined;
   }
 
   private async resolve(ids: string[]): Promise<void> {
     const need = ids.filter((id) => !this.fresh(id));
     if (!need.length) return;
     const out = await ok(api.POST("/api/v2/playback/manifest", { body: { trackIds: need.slice(0, 20), network: network() } }));
-    for (const m of out.items) this.manifests.set(m.trackId, { m, source: 0 });
+    for (const m of out.items) {
+      this.manifests.delete(m.trackId);
+      this.manifests.set(m.trackId, { m, source: 0 });
+    }
+    const keep = new Set(this.ahead());
+    if (this.held) keep.add(this.held.trackId);
+    for (const [id, e] of this.manifests) if (e.m.expiresAt * 1000 - 60_000 <= Date.now()) this.manifests.delete(id);
+    // Keep the current source and upcoming/preloaded sources; old selections are cheap to
+    // resolve again and must not accumulate for the lifetime of a listening session.
+    for (const id of this.manifests.keys()) {
+      if (this.manifests.size <= MANIFEST_KEEP) break;
+      if (!keep.has(id)) this.manifests.delete(id);
+    }
   }
 
   private urlOf(trackId: string): { url: string; tier: string; codec: string | null } | null {
@@ -264,9 +292,25 @@ class Engine {
 
   /** «Поток»: the server's session plans the chunk; the first track starts at once. */
   async startStream(): Promise<void> {
+    this.nextRetry = null;
+    this.preloadFailure = null;
+    const request = ++this.loads;
+    this.switching = true;
     this.endListen(true);
-    set({ queue: [], index: -1, mode: "stream", error: null, buffering: true });
-    const items = await this.streamChunk(STREAM_CHUNK);
+    this.el.pause();
+    this.dropHeld();
+    set({ queue: [], index: -1, mode: "stream", playing: false, positionMs: 0, durationMs: 0, error: null, buffering: true });
+    let items: QueueItem[];
+    try {
+      items = await this.streamChunk(STREAM_CHUNK);
+    } catch {
+      if (request !== this.loads) return;
+      this.switching = false;
+      set({ buffering: false, error: "Не удалось загрузить поток" });
+      return;
+    }
+    if (request !== this.loads) return;
+    this.switching = false;
     if (!items.length) {
       set({ buffering: false, error: "Поток пока пуст: нужно больше прослушиваний" });
       return;
@@ -295,11 +339,13 @@ class Engine {
   private async load(index: number, positionMs = 0): Promise<void> {
     const item = get().queue[index];
     if (!item) return;
+    this.nextRetry = null;
+    this.preloadFailure = null;
     const mine = ++this.loads;
     const stale = () => mine !== this.loads;
     this.graph();
     this.switching = true;
-    set({ index, positionMs, durationMs: item.durationMs ?? 0, buffering: true, taste: null, error: null });
+    set({ index, playing: false, positionMs, durationMs: item.durationMs ?? 0, buffering: true, taste: null, error: null });
     // The old track stops now, not when the new one's address has arrived: over a slow link it
     // went on sounding, and moving the seek line and the spectrum, under the new cover.
     this.el.pause();
@@ -337,6 +383,7 @@ class Engine {
     if (stale()) return;
     this.acc.begin({ trackId: item.trackId, durationMs: item.durationMs ?? null, source: item.source ?? "manual", contextType: item.contextType, contextId: item.contextId ?? null }, positionMs);
     this.played.push(item.trackId);
+    if (this.played.length > PLAYED_KEEP) this.played.splice(0, this.played.length - PLAYED_KEEP);
     this.mediaSession(item);
     void this.tasteOf(item.trackId);
     await this.play();
@@ -344,8 +391,12 @@ class Engine {
   }
 
   async play(): Promise<void> {
+    if (this.switching) return;
+    if (get().error) return this.retry();
+    const request = this.loads;
     this.graph();
     if (this.ctx?.state === "suspended") await this.ctx.resume().catch(() => undefined);
+    if (request !== this.loads || this.switching) return;
     if (!this.el.src) {
       if (get().index >= 0) return this.load(get().index, get().positionMs);
       return;
@@ -353,6 +404,7 @@ class Engine {
     try {
       await this.el.play();
     } catch (e) {
+      if (request !== this.loads) return;
       // autoplay refused (no gesture yet): show paused, the next click plays
       if ((e as DOMException).name === "NotAllowedError") set({ playing: false, buffering: false });
     }
@@ -364,8 +416,25 @@ class Engine {
   }
 
   toggle(): void {
-    if (this.el.paused) void this.play();
+    if (get().error) void this.retry();
+    else if (this.el.paused) void this.play();
     else this.pause();
+  }
+
+  /** A failed selection may still leave the previous URL in the audio element. Always
+   *  resolve the selected item again, never resume that stale element under a new title. */
+  async retry(): Promise<void> {
+    const { queue, index, mode, positionMs, buffering } = get();
+    if (buffering) return;
+    if (this.nextRetry === this.loads) return this.next(false);
+    const item = queue[index];
+    if (!item) {
+      if (mode === "stream") await this.startStream();
+      return;
+    }
+    this.manifests.delete(item.trackId);
+    this.dropHeld();
+    await this.load(index, positionMs);
   }
 
   seek(ms: number): void {
@@ -376,16 +445,41 @@ class Engine {
   }
 
   async next(user = true): Promise<void> {
-    const { queue, index, mode } = get();
+    const { index, mode } = get();
     if (user) this.acc.markInteracted();
     this.endListen(user);
     if (mode === "stream" && user) this.dropTail("skip");
     if (index + 1 < get().queue.length) return this.load(index + 1);
     if (mode === "stream") {
-      const more = await this.streamChunk(STREAM_CHUNK).catch(() => []);
-      set({ queue: [...queue, ...more] });
-      if (more.length) return this.load(index + 1);
+      const request = ++this.loads;
+      this.nextRetry = null;
+      this.switching = true;
+      this.el.pause();
+      this.dropHeld();
+      set({ playing: false, buffering: true, error: null });
+      let more: QueueItem[];
+      try {
+        more = await this.streamChunk(STREAM_CHUNK);
+      } catch {
+        if (request !== this.loads || get().mode !== mode) return;
+        this.switching = false;
+        this.nextRetry = request;
+        set({ buffering: false, error: "Не удалось загрузить продолжение потока" });
+        return;
+      }
+      if (request !== this.loads || get().mode !== mode) return;
+      this.switching = false;
+      // Hand-picked items may have arrived while the chunk was in flight. Append after
+      // them, and advance from the current index (history may also have been trimmed).
+      const current = get(), have = new Set(current.queue.map((q) => q.trackId));
+      const next = [...current.queue, ...more.filter((m) => !have.has(m.trackId))];
+      set({ queue: next });
+      if (current.index + 1 < next.length) return this.load(current.index + 1);
+      this.nextRetry = request;
+      set({ buffering: false, error: "В потоке пока нет новых треков" });
+      return;
     }
+    this.el.pause();
     set({ playing: false });
   }
 
@@ -446,6 +540,9 @@ class Engine {
   }
 
   stop(): Promise<void> {
+    this.nextRetry = null;
+    this.loads++;
+    this.switching = false;
     const pending = this.endListen(false);
     for (const a of this.els) {
       a.pause();
@@ -453,6 +550,7 @@ class Engine {
       a.load();
     }
     this.held = null;
+    this.preloadFailure = null;
     this.manifests.clear();
     this.played = [];
     set(initial);
@@ -520,19 +618,36 @@ class Engine {
   private async preloadNext(): Promise<void> {
     const nextItem = get().queue[get().index + 1];
     if (!nextItem || this.held) return;
-    this.held = { trackId: nextItem.trackId, url: "" }; // claimed: one preload at a time
+    if (this.preloadFailure?.trackId !== nextItem.trackId) this.preloadFailure = null;
+    if (this.preloadFailure && performance.now() < this.preloadFailure.retryAt) return;
+    const claim = { trackId: nextItem.trackId, url: "" };
+    this.held = claim; // claimed: one preload at a time
     try {
       await this.resolve([nextItem.trackId]);
+      if (this.held !== claim) return;
       const src = this.urlOf(nextItem.trackId);
-      if (!src || this.held?.trackId !== nextItem.trackId) return;
+      if (!src) {
+        this.deferPreload(nextItem.trackId);
+        this.dropHeld();
+        return;
+      }
       const idle = this.els[1 - this.cur]!;
+      claim.url = src.url;
       idle.src = src.url;
       idle.load();
-      this.held.url = src.url;
       await this.applyGain(idle, nextItem.trackId);
     } catch {
-      this.held = null;
+      if (this.held !== claim) return;
+      this.deferPreload(nextItem.trackId);
+      this.dropHeld();
     }
+  }
+
+  /** Speculative failures back off; explicit next/play/retry still resolve immediately.
+   *  One slot follows the next track, so failures do not grow a second persistent cache. */
+  private deferPreload(trackId: string): void {
+    const failures = Math.min(6, (this.preloadFailure?.trackId === trackId ? this.preloadFailure.failures : 0) + 1);
+    this.preloadFailure = { trackId, failures, retryAt: performance.now() + Math.min(30_000, 1000 * 2 ** (failures - 1)) };
   }
 
   private onEnded(): void {
@@ -544,6 +659,7 @@ class Engine {
   /** 1st error: a fresh manifest (the signature may have expired) at the same position;
    *  then the next fallback; then the track is given up on. */
   private async recover(): Promise<void> {
+    if (this.switching) return;
     const item = get().queue[get().index];
     if (!item) return;
     const pos = this.el.currentTime * 1000, during = this.loads;
@@ -555,7 +671,9 @@ class Engine {
     try {
       await this.resolve([item.trackId]);
     } catch {
-      set({ error: "Нет связи с сервером", buffering: false });
+      if (during !== this.loads) return;
+      this.el.pause();
+      set({ error: "Нет связи с сервером", playing: false, buffering: false });
       return;
     }
     if (during !== this.loads) return; // another track was chosen while the address was on its way
@@ -568,39 +686,50 @@ class Engine {
   }
 
   private onUnplayable(item: QueueItem): void {
+    if (get().queue[get().index]?.trackId !== item.trackId) return;
     this.acc.tick(this.el.currentTime * 1000, false);
     const ev = this.acc.finish(false, sessionId(), true);
     if (ev) void enqueueListen(ev);
-    set({ error: `Не удалось воспроизвести «${item.title}»`, buffering: false });
+    this.el.pause();
+    set({ error: "Не удалось воспроизвести этот трек", playing: false, buffering: false });
     if (get().index + 1 < get().queue.length) void this.load(get().index + 1);
   }
 
   private async maintainQueue(): Promise<void> {
-    if (this.refilling) return;
+    const request = this.loads;
+    if (this.refilling === request) return;
     const { queue, index, mode } = get();
-    this.refilling = true;
+    if (!queue[index]) return;
+    this.refilling = request;
+    const stale = () => request !== this.loads || get().mode !== mode;
     try {
       if (mode === "stream" && queue.length - 1 - index < STREAM_REFILL_BELOW) {
         const more = await this.streamChunk(STREAM_CHUNK);
+        if (stale()) return;
         const have = new Set(get().queue.map((q) => q.trackId));
         set({ queue: [...get().queue, ...more.filter((m) => !have.has(m.trackId))] });
       }
       if (mode === "list" && queue.length > 0 && index >= queue.length - 1) {
         const seed = queue[index]!.trackId;
         if (seed !== this.toppedUpFrom && (await autoplayOn())) {
+          if (stale()) return;
+          const out = await ok(api.POST("/api/v2/stream/autoplay", { body: { seedTrackId: seed, excludeIds: this.played.slice(-PLAYED_KEEP), limit: 20 } }));
+          if (stale()) return;
           this.toppedUpFrom = seed;
-          const out = await ok(api.POST("/api/v2/stream/autoplay", { body: { seedTrackId: seed, excludeIds: this.played.slice(-200), limit: 20 } }));
           remember(out.images);
           set({ queue: [...get().queue, ...out.tracks.map((t) => ({ ...fromTrack(t, "queue"), source: "autoplay" }))] });
         }
       }
       // history: keep 20 played items before the current one
+      if (stale()) return;
       const over = get().index - HISTORY_KEEP;
       if (over > 0) set({ queue: get().queue.slice(over), index: get().index - over });
     } catch {
       /* a refill failure is retried at the next boundary */
     } finally {
-      this.refilling = false;
+      // A newer load can refill while this request is still pending. An old completion
+      // must not release that newer request's claim.
+      if (this.refilling === request) this.refilling = null;
     }
   }
 

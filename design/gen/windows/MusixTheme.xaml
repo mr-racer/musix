@@ -11,8 +11,8 @@
       <Color x:Key="MxBorder">#12FFFFFF</Color>
       <Color x:Key="MxBorderStrong">#21FFFFFF</Color>
       <Color x:Key="MxText">#FFEEEEF3</Color>
-      <Color x:Key="MxTextMuted">#80FFFFFF</Color>
-      <Color x:Key="MxTextSubtle">#47FFFFFF</Color>
+      <Color x:Key="MxTextMuted">#BDEEEEF3</Color>
+      <Color x:Key="MxTextSubtle">#A3EEEEF3</Color>
       <Color x:Key="MxAccent">#FF5874EA</Color>
       <Color x:Key="MxAccentBg">#265874EA</Color>
       <Color x:Key="MxAccentLight">#FF7896FF</Color>
@@ -29,20 +29,22 @@
         <GradientStop Color="#FF9457CE" Offset="1.000"/>
       </LinearGradientBrush>
       <Color x:Key="MxAiBubble">#FF1E1E26</Color>
-      <Color x:Key="MxGreen">#FF40A138</Color>
+      <Color x:Key="MxGreen">#FF51B148</Color>
       <Color x:Key="MxGreenBg">#2140A138</Color>
-      <Color x:Key="MxRed">#FFDB2B33</Color>
+      <Color x:Key="MxRed">#FFF75D59</Color>
       <Color x:Key="MxRedBg">#24DB2B33</Color>
       <LinearGradientBrush x:Key="MxTabBarBg" StartPoint="0.500,0.000" EndPoint="0.500,1.000">
         <GradientStop Color="#F716161C" Offset="0.000"/>
         <GradientStop Color="#FA0E0E13" Offset="1.000"/>
       </LinearGradientBrush>
-      <Color x:Key="MxTabBarInactive">#85EEEEF3</Color>
+      <Color x:Key="MxTabBarInactive">#ADEEEEF3</Color>
       <Color x:Key="MxFloat">#FF16161C</Color>
       <Color x:Key="MxPlate">#13FFFFFF</Color>
       <Color x:Key="MxSoundTech">#FFF2B95A</Color>
       <Color x:Key="MxSoundSpace">#FF62CEF0</Color>
       <Color x:Key="MxSoundOdd">#FFD986E6</Color>
+      <Color x:Key="MxTextInverse">#FF111116</Color>
+      <Color x:Key="MxOnImage">#FFFFFFFF</Color>
     </ResourceDictionary>
     <ResourceDictionary x:Key="Light">
       <Color x:Key="MxBg">#FFF2F1F6</Color>
@@ -53,12 +55,12 @@
       <Color x:Key="MxBorder">#1C000000</Color>
       <Color x:Key="MxBorderStrong">#33000000</Color>
       <Color x:Key="MxText">#FF161620</Color>
-      <Color x:Key="MxTextMuted">#990A0A12</Color>
-      <Color x:Key="MxTextSubtle">#750A0A12</Color>
-      <Color x:Key="MxAccent">#FF5874EA</Color>
+      <Color x:Key="MxTextMuted">#BD161620</Color>
+      <Color x:Key="MxTextSubtle">#A8161620</Color>
+      <Color x:Key="MxAccent">#FF3B52C4</Color>
       <Color x:Key="MxAccentBg">#1A5874EA</Color>
-      <Color x:Key="MxAccentLight">#FF7896FF</Color>
-      <Color x:Key="MxAmber">#FFB86000</Color>
+      <Color x:Key="MxAccentLight">#FF3B52C4</Color>
+      <Color x:Key="MxAmber">#FF874400</Color>
       <Color x:Key="MxAmberGlow">#59D4A55A</Color>
       <Color x:Key="MxInputBg">#FFFFFFFF</Color>
       <LinearGradientBrush x:Key="MxSidebarBg" StartPoint="0.500,0.000" EndPoint="0.500,1.000">
@@ -71,20 +73,22 @@
         <GradientStop Color="#FF9457CE" Offset="1.000"/>
       </LinearGradientBrush>
       <Color x:Key="MxAiBubble">#FFEBEBF2</Color>
-      <Color x:Key="MxGreen">#FF40A138</Color>
+      <Color x:Key="MxGreen">#FF186012</Color>
       <Color x:Key="MxGreenBg">#1A40A138</Color>
-      <Color x:Key="MxRed">#FFDB2B33</Color>
+      <Color x:Key="MxRed">#FFB00A1D</Color>
       <Color x:Key="MxRedBg">#17DB2B33</Color>
       <LinearGradientBrush x:Key="MxTabBarBg" StartPoint="0.500,0.000" EndPoint="0.500,1.000">
         <GradientStop Color="#F7FFFFFF" Offset="0.000"/>
         <GradientStop Color="#FAF4F3F9" Offset="1.000"/>
       </LinearGradientBrush>
-      <Color x:Key="MxTabBarInactive">#80161620</Color>
+      <Color x:Key="MxTabBarInactive">#AD161620</Color>
       <Color x:Key="MxFloat">#FFFFFFFF</Color>
       <Color x:Key="MxPlate">#0D0A0A12</Color>
-      <Color x:Key="MxSoundTech">#FFF2B95A</Color>
-      <Color x:Key="MxSoundSpace">#FF62CEF0</Color>
-      <Color x:Key="MxSoundOdd">#FFD986E6</Color>
+      <Color x:Key="MxSoundTech">#FF764F00</Color>
+      <Color x:Key="MxSoundSpace">#FF00627C</Color>
+      <Color x:Key="MxSoundOdd">#FF7D3488</Color>
+      <Color x:Key="MxTextInverse">#FFFFFFFF</Color>
+      <Color x:Key="MxOnImage">#FFFFFFFF</Color>
     </ResourceDictionary>
   </ResourceDictionary.ThemeDictionaries>
   <x:Double x:Key="MxRadius6">6</x:Double>

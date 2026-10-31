@@ -1,3 +1,4 @@
+import { MediaImage } from "../ui/MediaImage";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useLayoutEffect, useRef, useState } from "react";
 import { db, rowToTrack } from "../api/db";
@@ -79,7 +80,7 @@ export function Lists() {
         return (
           <Link key={p.id} to="/playlist/$id" params={{ id: p.id }} className={css.pcard} style={{ ["--tint" as string]: pal?.dominant ?? pal?.muted ?? "#2a2a32" }}>
             <span className={css.mosaic} data-n={c.length}>
-              {c.map((id) => <img key={id} src={imageUrl(id, 256) ?? undefined} alt="" loading="lazy" />)}
+              {c.map((id) => <MediaImage key={id} seed={id} tint={image(id)?.palette?.muted} src={imageUrl(id, 256) ?? undefined} alt="" loading="lazy" />)}
               {p.origin === "yandex" && <YandexBadge size={34} className={css.ym} />}
             </span>
             <span className={css.pmeta}><b>{p.name}</b><small>{p.itemCount} {plural(p.itemCount, "песня", "песни", "песен")} · обновлён {day(p.updatedAt)}</small></span>

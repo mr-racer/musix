@@ -2,18 +2,18 @@
    2026-10-23). Ported from the mock as is: the rules below the frame block are the mock's
    assistant.css scoped under .mx-asst (keyframes prefixed asst-). The page owns one fixed scroller
    over the whole window under the shell (the island, the gear and the mini player sit above it),
-   so the composition is measured on the window like the mock's. Dark first, like the home. */
+   so the composition is measured on the window like the mock's. Both themes share the same composition and motion. */
 .mx-asst {
-  --bg: #0d0d10; --bg-deep: #08080b; --text: #eeeef3; --muted: rgba(238,238,243,.68); --subtle: rgba(238,238,243,.48);
-  --hair: rgba(255,255,255,.08); --hair2: rgba(255,255,255,.14); --plate: rgba(255,255,255,.075);
-  --acc: oklch(70% .16 270);
+  --bg: var(--mx-bg); --bg-deep: var(--mx-bg-deep); --text: var(--mx-text); --muted: var(--mx-text-muted); --subtle: var(--mx-text-subtle);
+  --hair: var(--mx-border); --hair2: var(--mx-border-strong); --plate: rgba(var(--mx-ink-rgb),.075);
+  --acc: var(--mx-accent);
   --sans: var(--mx-font-sans); --text-f: var(--mx-font-text); --mono: var(--mx-font-mono);
   --spring: var(--mx-ease-spring); --std: var(--mx-ease-standard); --swift: var(--mx-ease-swift); --exit: cubic-bezier(.4,0,1,1);
   --glass-bg: linear-gradient(165deg, rgba(255,255,255,.16) 0%, rgba(255,255,255,.05) 32%, rgba(255,255,255,.02) 64%, rgba(255,255,255,.10) 100%), rgba(24,24,32,.36);
   --glass-edge: rgba(255,255,255,.13);
   --glass-sh: inset 0 1px 0 rgba(255,255,255,.25), inset 0 -1px 0 rgba(255,255,255,.07), 0 18px 42px rgba(0,0,0,.45), 0 2px 10px rgba(0,0,0,.28);
   --glass-ink: rgba(255,255,255,.92); --glass-ink2: rgba(255,255,255,.66);
-  color-scheme: dark;
+  color-scheme: inherit;
   position: fixed; inset: 0 0 calc(var(--player-h, 0px) + var(--spec-room, 0px)) 0; z-index: 1; overflow: hidden;
   background: var(--bg); color: var(--text); font: 400 15px/1.45 var(--sans); -webkit-font-smoothing: antialiased;
   container-type: inline-size;
@@ -86,7 +86,7 @@
 
 /* the orbit: back chips under the orb (z 2), front ones over it (z 4); JS sets transform per frame */
 .mx-asst .chip { position: absolute; left: 0; top: 0; z-index: 2; display: inline-flex; align-items: center; gap: 9px; padding: 9px 15px 9px 13px; border-radius: 999px;
-  font: 400 var(--chip-f, 15.5px)/1.2 var(--sans); letter-spacing: -.005em; color: rgba(255,255,255,.9); white-space: nowrap; will-change: transform, opacity;
+  font: 400 var(--chip-f, 15.5px)/1.2 var(--sans); letter-spacing: -.005em; color: var(--text); white-space: nowrap; will-change: transform, opacity;
   text-shadow: 0 1px 12px rgba(0,0,0,.65); }
 .mx-asst .chip.front { z-index: 4; }
 .mx-asst .chip::before { content: ""; position: absolute; inset: 0; border-radius: inherit; background: var(--glass-bg); border: 1px solid var(--glass-edge); box-shadow: var(--glass-sh);
@@ -101,10 +101,10 @@
 .mx-asst .chip:active { scale: .97; }
 .mx-asst .chip.taken { pointer-events: none; }
 
-.mx-asst .capt { position: absolute; left: 50%; transform: translateX(-50%); white-space: nowrap; z-index: 5; text-align: center; font: 400 15px/1.4 var(--text-f); color: rgba(238,238,243,.8); height: 24px; pointer-events: none; }
+.mx-asst .capt { position: absolute; left: 50%; transform: translateX(-50%); white-space: nowrap; z-index: 5; text-align: center; font: 400 15px/1.4 var(--text-f); color: var(--muted); height: 24px; pointer-events: none; }
 .mx-asst .capt span { display: inline-block; }
 .mx-asst .capt > span { position: relative; }
-.mx-asst .capt .shim { background: linear-gradient(90deg, var(--muted) 0%, #fff 45%, var(--muted) 60%) 0 0 / 300% 100%; -webkit-background-clip: text; background-clip: text; color: transparent;
+.mx-asst .capt .shim { background: linear-gradient(90deg, var(--muted) 0%, var(--text) 45%, var(--muted) 60%) 0 0 / 300% 100%; -webkit-background-clip: text; background-clip: text; color: transparent;
   animation: asst-shim 2.2s linear infinite; }
 @keyframes asst-shim { from { background-position: 100% 0; } to { background-position: -50% 0; } }
 .mx-asst .capt .in { animation: asst-capin .45s var(--swift) both; }
@@ -121,8 +121,8 @@
 .mx-asst .ask::before { content: ""; position: absolute; left: 22%; right: 22%; top: -1px; height: 26px; border-radius: 50%; pointer-events: none;
   background: radial-gradient(closest-side, color-mix(in oklab, var(--kc) 70%, transparent), transparent); opacity: var(--caustic, .35); filter: blur(6px); transition: opacity .6s var(--std); }
 .mx-asst .ask input { flex: 1; min-width: 0; height: 100%; background: none; border: 0; outline: 0; color: var(--glass-ink); font: 400 17px/1 var(--sans); letter-spacing: -.005em; }
-.mx-asst .ask input::placeholder { color: rgba(255,255,255,.46); }
-.mx-asst .ask .go { width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; background: #f2f1f6; color: #111; transform: scale(.4); opacity: 0;
+.mx-asst .ask input::placeholder { color: var(--subtle); }
+.mx-asst .ask .go { width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; background: var(--text); color: var(--mx-text-inverse); transform: scale(.4); opacity: 0;
   transition: transform .2s var(--exit), opacity .15s var(--exit); }
 .mx-asst .ask.has .go { transform: none; opacity: 1; transition: transform .5s var(--spring), opacity .2s var(--std); }
 .mx-asst .ask .go:active { transform: scale(.9); }
@@ -134,9 +134,9 @@
 .mx-asst .feed { position: absolute; z-index: 2; transition: opacity .45s var(--std), transform .6s var(--swift), filter .45s var(--std); }
 .mx-asst.working .feed, .mx-asst.answering .feed { opacity: 0; transform: translateY(40px); filter: blur(8px); pointer-events: none; transition: opacity .25s var(--exit), transform .3s var(--exit), filter .25s var(--exit); }
 .mx-asst .feed .hd { display: flex; align-items: center; gap: 14px; height: 32px; margin-bottom: 14px; }
-.mx-asst .feed h2 { margin: 0; font: 600 17px/1.2 var(--sans); letter-spacing: -.01em; color: rgba(238,238,243,.9); }
+.mx-asst .feed h2 { margin: 0; font: 600 17px/1.2 var(--sans); letter-spacing: -.01em; color: var(--text); }
 .mx-asst .feed .more { margin-left: auto; display: inline-flex; align-items: center; gap: 7px; padding: 8px 13px; border-radius: 999px; font: 500 13.5px/1 var(--sans); color: var(--muted); transition: background .2s, color .2s, transform .35s var(--spring); }
-.mx-asst .feed .more:hover { background: rgba(255,255,255,.07); color: var(--text); }
+.mx-asst .feed .more:hover { background: rgba(var(--mx-ink-rgb),.07); color: var(--text); }
 .mx-asst .feed .more:active { transform: scale(.95); }
 
 .mx-asst .rail { display: grid; grid-template-columns: repeat(var(--cards, 4), minmax(0, 1fr)); gap: 14px; }
@@ -144,7 +144,7 @@
 .mx-asst .card { position: relative; min-width: 0; height: var(--card-h, 170px); border-radius: 22px; overflow: hidden; text-align: left; isolation: isolate;
   background: var(--plate); box-shadow: inset 0 0 0 1px var(--hair); padding: 18px 18px 16px; display: flex; flex-direction: column;
   transition: transform .45s var(--spring), box-shadow .3s var(--std), background .3s var(--std); }
-.mx-asst .card:hover { transform: translateY(-4px); background: rgba(255,255,255,.1); box-shadow: inset 0 0 0 1px var(--hair2), 0 18px 40px -18px rgba(0,0,0,.7); }
+.mx-asst .card:hover { transform: translateY(-4px); background: rgba(var(--mx-ink-rgb),.1); box-shadow: inset 0 0 0 1px var(--hair2), 0 18px 40px -18px rgba(0,0,0,.7); }
 .mx-asst .card:active { transform: translateY(-1px) scale(.985); transition-duration: .12s; }
 .mx-asst .card .kick { display: flex; align-items: center; gap: 7px; font: 600 10.5px/1 var(--sans); letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
 .mx-asst .card .kick i { width: 6px; height: 6px; border-radius: 50%; background: var(--c); box-shadow: 0 0 8px var(--c); }
@@ -171,7 +171,7 @@
 .mx-asst .card.story .tt { padding-right: 66px; min-height: 48px; }
 .mx-asst .card.name .tt { padding-right: 78px; font-size: 18px; }
 .mx-asst .card.story .ln { display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
-.mx-asst .card.year .num { position: absolute; right: 18px; bottom: 6px; font: 800 96px/1 var(--sans); letter-spacing: -.06em; color: rgba(255,255,255,.1); font-variant-numeric: tabular-nums; }
+.mx-asst .card.year .num { position: absolute; right: 18px; bottom: 6px; font: 800 96px/1 var(--sans); letter-spacing: -.06em; color: rgba(var(--mx-ink-rgb),.1); font-variant-numeric: tabular-nums; }
 .mx-asst .card.year .cv { width: 76px; height: 76px; }
 .mx-asst .card.year .tt { padding-right: 86px; }
 .mx-asst .card.qday { background: linear-gradient(150deg, color-mix(in oklab, var(--k-general) 16%, transparent), rgba(255,255,255,.04) 60%); box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--k-general) 30%, transparent); }
@@ -183,7 +183,7 @@
 .mx-asst .answer .meta i { width: 7px; height: 7px; border-radius: 50%; background: var(--kc); box-shadow: 0 0 10px var(--kc); }
 .mx-asst .answer .meta span { color: var(--subtle); letter-spacing: .06em; text-transform: none; font-weight: 500; font-size: 12.5px; }
 .mx-asst .answer .meta .new { margin-left: auto; display: inline-flex; align-items: center; gap: 6px; text-transform: none; letter-spacing: 0; font: 500 13px/1 var(--sans); color: var(--muted); padding: 8px 12px; border-radius: 999px; transition: background .2s, color .2s; }
-.mx-asst .answer .meta .new:hover { background: rgba(255,255,255,.07); color: var(--text); }
+.mx-asst .answer .meta .new:hover { background: rgba(var(--mx-ink-rgb),.07); color: var(--text); }
 .mx-asst .rise { animation: asst-rise .7s var(--swift) both; animation-delay: calc(var(--d, 0) * 1ms); }
 @keyframes asst-rise { from { opacity: 0; transform: translateY(18px); filter: blur(6px); } }
 
@@ -194,25 +194,25 @@
 .mx-asst .mosaic-glow img { width: 100%; height: 100%; object-fit: cover; }
 .mx-asst .pl-head h1 { margin: 0; font: 700 44px/1.02 var(--sans); letter-spacing: -.035em; text-wrap: balance; }
 .mx-asst .pl-head .sub { margin-top: 10px; font: 500 14px/1 var(--sans); color: var(--muted); font-variant-numeric: tabular-nums; }
-.mx-asst .pl-head p { margin: 14px 0 0; max-width: 60ch; font: 400 15.5px/1.55 var(--text-f); color: rgba(238,238,243,.82); }
+.mx-asst .pl-head p { margin: 14px 0 0; max-width: 60ch; font: 400 15.5px/1.55 var(--text-f); color: var(--muted); }
 .mx-asst .pl-head p .src { color: var(--subtle); font-size: 13px; }
 .mx-asst .acts { display: flex; gap: 10px; margin-top: 20px; align-items: center; flex-wrap: wrap; }
 .mx-asst .btn { height: 42px; padding: 0 18px; border-radius: 999px; display: inline-flex; align-items: center; gap: 8px; font: 600 14px/1 var(--sans); transition: transform .35s var(--spring), background .2s var(--std); }
 .mx-asst .btn:hover { transform: scale(1.03); }
 .mx-asst .btn:active { transform: scale(.95); transition-duration: .1s; }
-.mx-asst .btn.solid { background: #f2f1f6; color: #111; }
+.mx-asst .btn.solid { background: var(--text); color: var(--mx-text-inverse); }
 .mx-asst .btn.lg:hover { background: rgba(255,255,255,.14); }
 .mx-asst .btn.round { width: 42px; padding: 0; justify-content: center; }
 .mx-asst .btn.saved { color: var(--k-general); }
 .mx-asst .refine { display: flex; gap: 8px; flex-wrap: wrap; margin: 26px 0 8px; }
 .mx-asst .refine button { padding: 9px 14px; border-radius: 999px; font: 500 13.5px/1 var(--sans); color: var(--muted); box-shadow: inset 0 0 0 1px var(--hair2); display: inline-flex; gap: 7px; align-items: center;
   transition: color .2s, background .2s, transform .35s var(--spring); }
-.mx-asst .refine button:hover { color: var(--text); background: rgba(255,255,255,.06); transform: translateY(-2px); }
+.mx-asst .refine button:hover { color: var(--text); background: rgba(var(--mx-ink-rgb),.06); transform: translateY(-2px); }
 .mx-asst .refine button i { width: 6px; height: 6px; border-radius: 50%; background: var(--c, var(--kc)); }
 
 .mx-asst .rows { margin-top: 18px; display: grid; grid-template-columns: 1fr 1fr; column-gap: 34px; }
 .mx-asst .row { display: grid; grid-template-columns: 22px 44px 1fr auto; gap: 14px; align-items: center; padding: 8px 10px; margin: 0 -10px; border-radius: 12px; cursor: pointer; transition: background .2s var(--std); }
-.mx-asst .row:hover { background: rgba(255,255,255,.06); }
+.mx-asst .row:hover { background: rgba(var(--mx-ink-rgb),.06); }
 .mx-asst .row .no { font: 500 13px/1 var(--mono); color: var(--subtle); text-align: right; }
 .mx-asst .row .cw { position: relative; width: 44px; height: 44px; }
 .mx-asst .row .cw img { width: 44px; height: 44px; border-radius: 7px; object-fit: cover; display: block; transition: transform .35s var(--spring), filter .25s; }
@@ -250,8 +250,8 @@
 .mx-asst .lyr-best .sure { display: inline-flex; align-items: center; gap: 8px; font: 600 11px/1 var(--sans); letter-spacing: .14em; text-transform: uppercase; color: var(--k-lyrics); }
 .mx-asst .lyr-best h1 { margin: 12px 0 0; font: 700 42px/1.02 var(--sans); letter-spacing: -.035em; }
 .mx-asst .lyr-best .by { margin-top: 8px; font: 500 15px/1.3 var(--sans); color: var(--muted); }
-.mx-asst .verse { margin-top: 24px; padding-left: 18px; border-left: 2px solid color-mix(in oklab, var(--k-lyrics) 50%, transparent); font: 400 17px/1.65 var(--text-f); color: rgba(238,238,243,.5); }
-.mx-asst .verse .hit { position: relative; color: #fff; font-weight: 500; display: inline-block; }
+.mx-asst .verse { margin-top: 24px; padding-left: 18px; border-left: 2px solid color-mix(in oklab, var(--k-lyrics) 50%, transparent); font: 400 17px/1.65 var(--text-f); color: var(--subtle); }
+.mx-asst .verse .hit { position: relative; color: var(--text); font-weight: 500; display: inline-block; }
 .mx-asst .verse .hit::after { content: ""; position: absolute; left: -4px; right: -4px; bottom: 1px; height: .5em; border-radius: 4px; z-index: -1; background: color-mix(in oklab, var(--k-lyrics) 35%, transparent);
   transform-origin: left; animation: asst-mark 1s var(--swift) .55s both; }
 @keyframes asst-mark { from { transform: scaleX(0); } }
@@ -264,17 +264,17 @@
 /* a plain answer: text, the subject, where it came from, what to ask next */
 .mx-asst .ans-subj { display: inline-flex; align-items: center; gap: 12px; padding: 6px 14px 6px 6px; border-radius: 999px; box-shadow: inset 0 0 0 1px var(--hair2); margin-bottom: 22px; font: 600 14px/1.1 var(--sans);
   transition: background .2s, transform .35s var(--spring); cursor: pointer; }
-.mx-asst .ans-subj:hover { background: rgba(255,255,255,.06); transform: translateY(-1px); }
+.mx-asst .ans-subj:hover { background: rgba(var(--mx-ink-rgb),.06); transform: translateY(-1px); }
 .mx-asst .ans-subj img { width: 34px; height: 34px; border-radius: 50%; object-fit: cover; }
 .mx-asst .ans-subj img.sq { border-radius: 7px; }
 .mx-asst .ans-subj img { animation: asst-dev 1.1s var(--swift) .15s both; }
 @keyframes asst-dev { from { filter: blur(10px) saturate(.3) brightness(1.6); transform: scale(.82); opacity: 0; } }
 .mx-asst .ans-subj small { display: block; font-weight: 400; color: var(--muted); font-size: 12.5px; margin-top: 2px; }
-.mx-asst .ans-text { max-width: 64ch; font: 400 19px/1.62 var(--text-f); color: rgba(238,238,243,.92); }
+.mx-asst .ans-text { max-width: 64ch; font: 400 19px/1.62 var(--text-f); color: var(--text); }
 .mx-asst .ans-text p { margin: 0 0 16px; }
 .mx-asst .ans-text .w { opacity: 0; filter: blur(4px); animation: asst-word .5s var(--std) forwards; }
 @keyframes asst-word { to { opacity: 1; filter: none; } }
-.mx-asst .ans-text a { color: #fff; text-decoration: none; background: linear-gradient(color-mix(in oklab, var(--k-general) 60%, transparent), color-mix(in oklab, var(--k-general) 60%, transparent)) 0 100% / 100% 1px no-repeat;
+.mx-asst .ans-text a { color: var(--text); text-decoration: none; background: linear-gradient(color-mix(in oklab, var(--k-general) 60%, transparent), color-mix(in oklab, var(--k-general) 60%, transparent)) 0 100% / 100% 1px no-repeat;
   transition: background-size .3s var(--std); }
 .mx-asst .ans-text a:hover { background-size: 100% 100%; background-image: linear-gradient(color-mix(in oklab, var(--k-general) 22%, transparent), color-mix(in oklab, var(--k-general) 22%, transparent)); }
 .mx-asst .ans-src { margin-top: 6px; display: flex; gap: 8px; align-items: center; font: 500 12.5px/1 var(--sans); color: var(--subtle); }
@@ -282,7 +282,7 @@
 .mx-asst .follow { margin-top: 30px; display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
 .mx-asst .follow button { display: inline-flex; align-items: center; gap: 10px; padding: 10px 16px 10px 14px; border-radius: 999px; font: 450 14.5px/1.2 var(--sans); color: var(--text); box-shadow: inset 0 0 0 1px var(--hair2);
   transition: background .2s, transform .4s var(--spring); text-align: left; }
-.mx-asst .follow button:hover { background: rgba(255,255,255,.06); transform: translateX(4px); }
+.mx-asst .follow button:hover { background: rgba(var(--mx-ink-rgb),.06); transform: translateX(4px); }
 .mx-asst .follow button i { width: 6px; height: 6px; border-radius: 50%; background: var(--c, var(--k-general)); flex: none; }
 
 /* clarify: the orb splits into the kinds it could be */
@@ -294,6 +294,7 @@
 /* variant А: v1's sphere, refined (styles.css «AI orb mascot»), recoloured by kind */
 .mx-asst .v1orb { position: absolute; display: none; }
 .mx-asst.nogl .v1orb { display: block; }
+.mx-asst.nogl .orbbox canvas { display: none; }
 
 .mx-asst .v1orb .ring { position: absolute; inset: -7%; border-radius: 50%; filter: blur(6px); opacity: .55; background: conic-gradient(from 0deg, var(--b1), var(--b2), var(--b3), var(--b1)); }
 .mx-asst .v1orb .ball { position: absolute; inset: 0; border-radius: 50%; overflow: hidden; background: #1d1930; box-shadow: 0 20px 50px -10px color-mix(in oklab, var(--b1) 60%, transparent); }
@@ -348,3 +349,18 @@
 
 /* the app's own: a favourite not heard for a while, with the artist's photo (the server's «forgotten» card) */
 .mx-asst .card.forgotten .tt, .mx-asst .card.forgotten .ln { padding-right: 78px; }
+
+/* Light glass belongs to the light room; image overlays keep their own white ink. */
+:root[data-theme="light"] .mx-asst {
+  --glass-bg: linear-gradient(165deg, rgba(255,255,255,.92), rgba(255,255,255,.58) 36%, rgba(255,255,255,.42) 66%, rgba(255,255,255,.8)), rgba(244,243,250,.35);
+  --glass-edge: rgba(46,36,86,.14);
+  --glass-sh: inset 0 1px 0 rgba(255,255,255,.95), 0 18px 42px rgba(46,36,86,.12), 0 2px 10px rgba(46,36,86,.06);
+  --glass-ink: #161620; --glass-ink2: #575363;
+  --k-lyrics: #14669b; --k-audio: #7240ae; --k-playlist: #985315; --k-general: #08745f; --k-idle: #6550a1;
+}
+:root[data-theme="light"] .mx-asst[data-k="fail"] { --k: #ae3154; }
+:root[data-theme="light"] .mx-asst .chip { text-shadow: none; }
+:root[data-theme="light"] .mx-asst .inside { mix-blend-mode: normal; }
+:root[data-theme="light"] .mx-asst .card:hover { box-shadow: inset 0 0 0 1px var(--hair2), 0 18px 40px -18px rgba(46,36,86,.24); }
+:root[data-theme="light"] .mx-asst .btn.lg:hover,
+:root[data-theme="light"] .mx-asst .opt:hover { background: rgba(255,255,255,.94); }

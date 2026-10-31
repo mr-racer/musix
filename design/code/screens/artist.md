@@ -1,10 +1,15 @@
 # The artist page «Кадр» (approved 2026-10-17)
 
+Уточнение 2026-10-31: при раскрытии большого списка песен задержка появления ограничена
+216 мс. Короткие списки сохраняют прежний stagger; далёкая строка больше не ждёт секунды
+после прокрутки к ней. UI артиста загружается своим маршрутом, запрос биографии вынесен
+из UI-модуля, чтобы не тянуть весь экран в начальную загрузку приложения.
+
 The mock: `design/reference/artist/` (live: https://claude.ai/artifact/QnFQWiKA3J18pmMbHF7VTe,
 round 5). His words: `preferences.md`, 2026-10-14 to 2026-10-16. Code: `web/src/artist/*`.
 
 ## The frame (the hero) — still: nothing in it moves with the scroll
-- Dark in both themes, a photo-lit surface like the player (the shell's dark scope covers `/artist/`).
+- В обеих темах: фотографический hero сохраняет белые титры на затемнённом снимке; содержимое, плавающая шапка и окна следуют выбранной теме. Hero без фотографии также адаптируется (dev, 2026-10-31).
 - **The picture**: Apple Music's editorial photos (`artists.photo_id/wide_id/logo_id`, the page colour
   in `editorial.bg`), the AudioDB one only when Apple has none or an empty picture. A 2:1 wide frame
   is shifted so the subject sits at ~62 % (the left is the name's); under the name's corner a
@@ -15,6 +20,10 @@ round 5). His words: `preferences.md`, 2026-10-14 to 2026-10-16. Code: `web/src/
   towards the name; the photo melts into it along an eased 8 % ramp. Never a linear ramp (a seam on
   32″), never a wide one (it washed out whoever stands at the edge, Maroon 5), no progressive blur.
 - A light page colour (lum > .55) tames the photo (brightness .72).
+- Нижний переход фотографии плавный в обеих темах: тёмная подложка находится внутри `.hbg`
+  и затухает вместе с фото по общей сглаженной маске. У самого hero нет непрозрачного фона;
+  текст и всплывающие окна не маскируются. Исправление резкого края по замечанию владельца,
+  2026-10-31. Кадрирование и высота блока сохранены.
 - The name big (Apple's transparent logo instead when there is one), words arriving in turn; «?»
   when the bio knows where the name came from (a glass pop-up from it).
 - **The facts line**: flag + country (required) + city, the genre, the years (from the founding, or

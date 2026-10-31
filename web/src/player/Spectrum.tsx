@@ -1,6 +1,7 @@
 import { queryOptions, useQuery } from "@tanstack/react-query";
 import { useEffect, useRef } from "react";
 import { authed } from "../api/client";
+import { useTheme } from "../lib/theme";
 import { usePlayer } from "./engine";
 
 /** The spectrum above the seek line (design/code/components.md): a filled curve with a crest
@@ -63,6 +64,7 @@ export const spectrumQuery = (trackId: string) =>
   queryOptions({ queryKey: ["spectrum", 2, trackId], queryFn: () => load(trackId), staleTime: Infinity, gcTime: 10 * 60_000, retry: false });
 
 export function Spectrum({ trackId, className }: { trackId: string; className?: string }) {
+  const theme = useTheme();
   const { data } = useQuery({
     ...spectrumQuery(trackId),
     // computed on the first ask: about a second on the server
@@ -181,15 +183,24 @@ export function Spectrum({ trackId, className }: { trackId: string; className?: 
     });
     const ro = new ResizeObserver(() => { size(); draw(); });
     ro.observe(cv);
+    // A paused curve has no frame loop. The player's accent still eases for 600 ms after
+    // a theme switch, so repaint once with its final colour when that transition finishes.
+    const recolor = (event: TransitionEvent) => {
+      if ((event.propertyName === "--pl-acc" || event.propertyName === "color") && event.target instanceof Element && event.target.contains(cv)) {
+        acc = ""; fill = null; draw();
+      }
+    };
+    document.addEventListener("transitionend", recolor);
     document.addEventListener("visibilitychange", kick);
     kick();
     return () => {
       off();
       ro.disconnect();
+      document.removeEventListener("transitionend", recolor);
       document.removeEventListener("visibilitychange", kick);
       cancelAnimationFrame(raf);
     };
-  }, [data, trackId]);
+  }, [data, trackId, theme]);
 
   return <canvas ref={canvas} className={className} aria-hidden />;
 }

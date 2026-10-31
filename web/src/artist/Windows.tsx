@@ -1,3 +1,4 @@
+import { MediaImage } from "../ui/MediaImage";
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { Icon } from "../ui/icons";
@@ -44,11 +45,11 @@ export function Win({ from, onClose, tint, img, title, sub, narrow, children }: 
     return () => document.removeEventListener("keydown", esc);
   });
   return createPortal(
-    <div ref={box} className={cx("modal", on && "on")} data-mx-theme="dark" style={{ ["--tint" as string]: tint }}>
+    <div ref={box} className={cx("modal", on && "on")} style={{ ["--tint" as string]: tint }}>
       <div className={css.scr} onClick={close} />
       <div ref={win} className={cx("mwin", narrow && "qwin")} role="dialog" aria-modal="true" aria-label={title}>
         <div className={css.wh}>
-          {img && <img src={img} alt="" />}
+          {img && <MediaImage src={img} alt="" />}
           <div><h2>{title}</h2>{sub && <small>{sub}</small>}</div>
           <button ref={x} type="button" className={css.x} onClick={close} aria-label="Закрыть"><Icon name="Close" size={18} /></button>
         </div>

@@ -62,7 +62,7 @@
 .dossierKey::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: oklch(80% 0.15 110); }
 .atlasMain { display: flex; flex-direction: column; gap: 30px; min-width: 0; }
 .bio { display: flex; flex-direction: column; gap: 10px; }
-.ai { font-size: 9px; padding: 2px 8px; border-radius: 999px; border: 1px solid rgba(154,123,255,0.5); color: #b9a6ff; letter-spacing: 0.1em; }
+.ai { font-size: 9px; padding: 2px 8px; border-radius: 999px; border: 1px solid color-mix(in srgb, var(--mx-accent-light) 50%, transparent); color: var(--mx-accent-light); letter-spacing: 0.1em; }
 .bioText, .bioOpen { font-size: 15.5px; line-height: 1.6; max-width: 70ch; }
 .bioText { display: -webkit-box; -webkit-line-clamp: 6; -webkit-box-orient: vertical; overflow: hidden; mask-image: linear-gradient(#000 60%, transparent); }
 .more { align-self: flex-start; font-size: 12.5px; color: var(--mx-accent-light); }

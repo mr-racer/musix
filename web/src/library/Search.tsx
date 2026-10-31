@@ -1,5 +1,6 @@
+import { MediaImage } from "../ui/MediaImage";
 import { useNavigate } from "@tanstack/react-router";
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { rowToTrack } from "../api/db";
 import { plural } from "../lib/format";
 import { imageUrl } from "../lib/images";
@@ -8,7 +9,8 @@ import { flyToMini } from "../player/MiniPlayer";
 import { useGatefold } from "../ui/Gatefold";
 import glass from "../ui/glass.module.css";
 import { Icon } from "../ui/icons";
-import { type Index, load } from "../ui/QuickSearch";
+import type { Index } from "../lib/searchIndex";
+import { useSearchIndex } from "../lib/useSearchIndex";
 import css from "./library.module.css";
 
 /** The library's search: the glass button grows into a glass field that covers every tool of
@@ -44,14 +46,24 @@ function mark(s: string, q: string) {
 export function SearchButton({ onSearching }: { onSearching: (on: boolean) => void }) {
   const btn = useRef<HTMLButtonElement>(null);
   const [open, setOpen] = useState<{ right: number; top: number; width: number } | null>(null);
-  const start = () => {
+  const start = useCallback(() => {
     const b = btn.current!, r = b.getBoundingClientRect(), bar = b.closest("[data-bar]");
     const tools = [...(bar?.querySelectorAll<HTMLElement>("[data-tool]") ?? [])].map((t) => t.getBoundingClientRect().left);
     const tabsEnd = bar?.querySelector("[data-tabs]")?.getBoundingClientRect().right ?? 0;
     const left = Math.max(tools.length ? Math.min(...tools) - 8 : r.right - 440, tabsEnd + 24);
-    setOpen({ right: innerWidth - r.right, top: r.top + r.height / 2 - 23, width: Math.max(360, r.right - left) });
+    const bounds = bar?.getBoundingClientRect();
+    const compact = innerWidth <= 1280 && bounds;
+    const right = Math.max(12, innerWidth - (compact ? bounds.right : r.right));
+    const width = Math.min(innerWidth - right - 12, compact ? bounds.width : Math.max(360, r.right - left));
+    setOpen({ right, top: r.top + r.height / 2 - 23, width });
     onSearching(true);
-  };
+  }, [onSearching]);
+  const searching = !!open;
+  useEffect(() => {
+    if (!searching) return;
+    window.addEventListener("resize", start);
+    return () => window.removeEventListener("resize", start);
+  }, [searching, start]);
   useEffect(() => {
     const k = (e: KeyboardEvent) => {
       if (e.key === "/" && !(e.target as HTMLElement).closest("input, textarea, [contenteditable]")) { e.preventDefault(); if (!open) start(); }
@@ -73,16 +85,23 @@ function Field({ at, close }: { at: { right: number; top: number; width: number 
   const nav = useNavigate();
   const field = useRef<HTMLDivElement>(null), res = useRef<HTMLDivElement>(null), input = useRef<HTMLInputElement>(null);
   const [q, setQ] = useState("");
-  const [ix, setIx] = useState<Index | null>(null);
+  const ix = useSearchIndex(true);
   const [on, setOn] = useState(0);
+  const [viewportHeight, setViewportHeight] = useState(() => window.visualViewport?.height ?? innerHeight);
+  useEffect(() => {
+    const viewport = window.visualViewport;
+    const resize = () => setViewportHeight(viewport?.height ?? innerHeight);
+    viewport?.addEventListener("resize", resize);
+    window.addEventListener("resize", resize);
+    return () => { viewport?.removeEventListener("resize", resize); window.removeEventListener("resize", resize); };
+  }, []);
   const leaving = useRef(false);
-  useEffect(() => { void load().then(setIx); }, []);
   useLayoutEffect(() => {
     input.current?.focus({ preventScroll: true });
     if (!reduce()) field.current?.animate([{ clipPath: `inset(0 0 0 ${at.width - 46}px round 23px)`, opacity: 0.6 }, { clipPath: "inset(0 0 0 0 round 23px)", opacity: 1 }], { duration: 520, easing: "cubic-bezier(.2,1.1,.3,1)" });
   }, [at.width]);
-  const groups = ix ? find(ix, q) : [];
-  const flat = groups.flatMap((g) => g.hits);
+  const groups = useMemo(() => ix ? find(ix, q) : [], [ix, q]);
+  const flat = useMemo(() => groups.flatMap((g) => g.hits), [groups]);
   const shown = useRef(false);
   useLayoutEffect(() => {
     const r = res.current;
@@ -132,7 +151,7 @@ function Field({ at, close }: { at: { right: number; top: number; width: number 
         <button type="button" className={css.sx} aria-label="Закрыть поиск" onClick={leave}><Icon name="Close" size={16} /></button>
       </div>
       {q.trim() && ix && (
-        <div ref={res} className={`${css.sres} ${glass.lg}`} role="listbox" style={{ right: at.right, top, width: at.width, maxHeight: innerHeight - top - 150 }}>
+        <div ref={res} className={`${css.sres} ${glass.lg}`} role="listbox" style={{ right: at.right, top, width: at.width, maxHeight: Math.max(80, viewportHeight - top - (viewportHeight < innerHeight - 80 ? 16 : 120)) }}>
           {!groups.length && <div className={css.snone}>Ничего не нашлось по «{q}».<br />Ищу по названиям альбомов и песен и по именам артистов.</div>}
           {groups.map((g) => (
             <div key={g.k} className={css.sgroup} data-k={g.k}>
@@ -142,7 +161,7 @@ function Field({ at, close }: { at: { right: number; top: number; width: number 
                 return (
                   <button key={h.k + h.id} type="button" className={css.hit} data-k={h.k} data-hit={i} data-on={i === on ? "" : undefined} onPointerMove={() => i !== on && setOn(i)}
                     onClick={(e) => act(h, e.currentTarget)}>
-                    {h.k === "song" ? <span className={css.pw}><img className={css.pic} data-pic src={src} alt="" /><span className={css.note}><Icon name="Lyrics" size={11} /></span></span> : <img className={css.pic} src={src} alt="" />}
+                    {h.k === "song" ? <span className={css.pw}><MediaImage className={css.pic} data-pic src={src} alt="" /><span className={css.note}><Icon name="Lyrics" size={11} /></span></span> : <MediaImage className={css.pic} src={src} alt="" />}
                     <span className={css.htx}><b>{mark(h.title, q)}</b><small><i>{h.k === "artist" ? "Артист" : h.k === "album" ? "Альбом" : "Песня"}</i> · {h.sub}</small></span>
                     <span className={css.go}><Icon name={h.k === "song" ? "Play" : "ChevronRight"} size={h.k === "song" ? 14 : 16} /></span>
                   </button>

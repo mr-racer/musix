@@ -15,10 +15,14 @@ function Album() {
   const nav = useNavigate();
   const router = useRouter();
   const canGoBack = useCanGoBack();
+  const prepareClose = useCallback(() => {
+    // Use the closing animation to load only the known fallback destination.
+    if (!canGoBack) void router.preloadRoute({ to: "/library" }).catch(() => undefined);
+  }, [canGoBack, router]);
   const close = useCallback(() => {
     if (canGoBack) router.history.back();
     else void nav({ to: "/library", replace: true });
   }, [canGoBack, nav, router]);
   const change = useCallback((next: string) => nav({ to: "/album/$id", params: { id: next }, replace: true, resetScroll: false }), [nav]);
-  return <AlbumGatefold id={id} cover={null} from={null} onClose={close} onAlbumChange={change} />;
+  return <AlbumGatefold id={id} cover={null} from={null} onClose={close} onCloseStart={prepareClose} onAlbumChange={change} />;
 }

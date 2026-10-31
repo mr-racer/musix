@@ -1,4 +1,5 @@
 import { api, ok, type Schemas } from "./client";
+import { onAccountChange, useAuth } from "./auth";
 import { db, type TrackRow } from "./db";
 
 /** Mirrors the account from `/sync` into IndexedDB — the Android SyncEngine's rules:
@@ -74,52 +75,110 @@ async function sweep(gen: number): Promise<void> {
 
 const kv = async <T>(key: string) => (await db.kv.get(key))?.value as T | undefined;
 
-let running: Promise<{ pages: number; changes: number; full: boolean }> | null = null;
+export type SyncResult = { pages: number; changes: number; full: boolean };
+type Request = { fetch: Fetch; limit: number };
+type Batch = { promise: Promise<SyncResult>; next: Request | null; account: string | null; generation: number };
+const listeners = new Set<(result: SyncResult) => void>();
+let running: Batch | null = null;
+let generation = 0;
+onAccountChange(() => { generation++; running = null; });
 
-/** Serialized: a WS `sync.changed` during a run waits for it, then runs once more. */
-export function sync(fetch: Fetch = fetchPage, limit = 1000): Promise<{ pages: number; changes: number; full: boolean }> {
-  const run = async () => {
-    let cursor = (await kv<string>("sync.cursor")) ?? null;
-    let full = cursor === null || cursor.startsWith(SNAP);
-    let gen = (await kv<number>("sync.gen")) ?? 0;
-    if (cursor === null) await db.kv.put({ key: "sync.gen", value: ++gen });
-    let pages = 0;
-    let changes = 0;
-    for (;;) {
-      let page: Page;
-      try {
-        page = await fetch(cursor?.replace(SNAP, "") ?? null, limit);
-      } catch (e) {
-        const status = (e as { status?: number }).status;
-        if ((status === 400 || status === 422) && cursor !== null) {
-          await db.transaction("rw", db.kv, async () => {
-            await db.kv.delete("sync.cursor");
-            await db.kv.put({ key: "sync.gen", value: ++gen });
-          });
-          cursor = null;
-          full = true;
-          continue;
-        }
-        throw e;
-      }
-      const snapshotting = full && page.hasMore;
-      const next = snapshotting ? SNAP + page.cursor : page.cursor;
-      await db.transaction("rw", db.tables, async () => {
-        await apply(page.changes, gen);
-        if (full && !page.hasMore) await sweep(gen);
-        await db.kv.put({ key: "sync.cursor", value: next });
-      });
-      pages++;
-      changes += page.changes.length;
-      cursor = next;
-      if (!page.hasMore) break;
-    }
-    return { pages, changes, full };
-  };
-  const p = (running ?? Promise.resolve()).catch(() => undefined).then(run);
-  running = p;
-  void p.finally(() => {
-    if (running === p) running = null;
+function assertAccount(batch: Batch): void {
+  if (generation !== batch.generation || useAuth.getState().accountId !== batch.account)
+    throw new Error("The account changed before sync completed");
+}
+
+/** Check inside the write transaction as well: another tab may have replaced this mirror. */
+async function assertOwner(batch: Batch): Promise<void> {
+  const owner = (await db.kv.get("account"))?.value ?? null;
+  assertAccount(batch);
+  if (owner !== batch.account) throw new Error("The mirror account changed before sync completed");
+}
+
+/** One notification for the committed pages of a settled burst, including pages saved
+ *  before a later request failed. Consumers never retain a stale mirror after partial success. */
+export function onSyncComplete(listener: (result: SyncResult) => void): () => void {
+  listeners.add(listener);
+  return () => { listeners.delete(listener); };
+}
+
+async function run({ fetch, limit }: Request, batch: Batch, total: SyncResult): Promise<void> {
+  await assertOwner(batch);
+  let cursor = (await kv<string>("sync.cursor")) ?? null;
+  let full = cursor === null || cursor.startsWith(SNAP);
+  let gen = (await kv<number>("sync.gen")) ?? 0;
+  if (cursor === null) await db.transaction("rw", db.kv, async () => {
+    await assertOwner(batch);
+    await db.kv.put({ key: "sync.gen", value: ++gen });
   });
-  return p;
+  for (;;) {
+    let page: Page;
+    try {
+      assertAccount(batch);
+      page = await fetch(cursor?.replace(SNAP, "") ?? null, limit);
+    } catch (e) {
+      const status = (e as { status?: number }).status;
+      if ((status === 400 || status === 422) && cursor !== null) {
+        await db.transaction("rw", db.kv, async () => {
+          await assertOwner(batch);
+          await db.kv.delete("sync.cursor");
+          await db.kv.put({ key: "sync.gen", value: ++gen });
+        });
+        cursor = null;
+        full = true;
+        continue;
+      }
+      throw e;
+    }
+    assertAccount(batch);
+    const snapshotting = full && page.hasMore;
+    const next = snapshotting ? SNAP + page.cursor : page.cursor;
+    await db.transaction("rw", db.tables, async () => {
+      await assertOwner(batch);
+      await apply(page.changes, gen);
+      if (full && !page.hasMore) await sweep(gen);
+      assertAccount(batch);
+      await db.kv.put({ key: "sync.cursor", value: next });
+    });
+    total.pages++;
+    total.changes += page.changes.length;
+    total.full ||= full;
+    cursor = next;
+    if (!page.hasMore) break;
+  }
+}
+
+/** A burst shares one promise. Events during a pass request one follow-up pass, so a
+ *  change arriving after its last fetch is not lost and twenty events do not queue twenty
+ *  empty delta requests. Calls during that follow-up can request a further pass. */
+export function sync(fetch: Fetch = fetchPage, limit = 1000): Promise<SyncResult> {
+  if (running) {
+    running.next = { fetch, limit };
+    return running.promise;
+  }
+  const batch: Batch = { promise: null!, next: null, account: useAuth.getState().accountId, generation };
+  batch.promise = Promise.resolve().then(async () => {
+    const total: SyncResult = { pages: 0, changes: 0, full: false };
+    let request: Request = { fetch, limit };
+    try {
+      for (;;) {
+        await run(request, batch, total);
+        if (!batch.next) break;
+        request = batch.next;
+        batch.next = null;
+      }
+    } finally {
+      // This finally belongs to the returned promise: a rejected fetch must not create a
+      // second, abandoned rejection, and a later call can retry from the committed cursor.
+      if (running === batch) running = null;
+      if (total.pages) {
+        const owned = await assertOwner(batch).then(() => true, () => false);
+        if (owned) for (const listener of listeners) listener(total);
+      }
+    }
+    assertAccount(batch);
+    return total;
+  });
+  running = batch;
+  return batch.promise;
 }

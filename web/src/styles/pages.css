@@ -11,6 +11,10 @@
 
 ::view-transition-group(*) { animation-duration: 0.5s; animation-timing-function: cubic-bezier(0.22, 0.9, 0.24, 1); }
 ::view-transition-old(root), ::view-transition-new(root) { animation: none; mix-blend-mode: normal; }
+/* The light page recedes without turning into a muddy dark sheet. The focus and travel
+   timings stay identical in both themes. */
+:root { --vt-recede-brightness: .5; --vt-recede-saturation: 1.2; }
+:root[data-theme="light"] { --vt-recede-brightness: .94; --vt-recede-saturation: .8; }
 /* the island: its lens keeps its own spring with the overshoot; its items above it crossfade */
 ::view-transition-group(island-blob) { animation-duration: 0.55s; animation-timing-function: cubic-bezier(0.3, 1.45, 0.42, 1); }
 ::view-transition-group(lib-ul) { animation-duration: 0.45s; animation-timing-function: cubic-bezier(0.3, 1.2, 0.42, 1); }
@@ -103,8 +107,8 @@ html[data-nav="player-close"]::view-transition-old(np-controls) { --vt-y: 12px; 
 @keyframes vt-focus-out { to { filter: blur(var(--vt-blur, 8px)); } }
 @keyframes vt-from { from { transform: translate(var(--vt-x, 0px), var(--vt-y, 0px)) scale(var(--vt-s, 1)); } }
 @keyframes vt-to { to { transform: translate(var(--vt-x, 0px), var(--vt-y, 0px)) scale(var(--vt-s, 1)); } }
-@keyframes vt-dim { to { filter: blur(var(--vt-blur, 18px)) brightness(0.5) saturate(1.2); } }
-@keyframes vt-undim { from { filter: blur(var(--vt-blur, 18px)) brightness(0.5) saturate(1.2); } }
+@keyframes vt-dim { to { filter: blur(var(--vt-blur, 18px)) brightness(var(--vt-recede-brightness)) saturate(var(--vt-recede-saturation)); } }
+@keyframes vt-undim { from { filter: blur(var(--vt-blur, 18px)) brightness(var(--vt-recede-brightness)) saturate(var(--vt-recede-saturation)); } }
 
 /* the library has no browser scrollbar: its rail of groups is the page's scrollbar (the owner) */
 html[data-bare] { scrollbar-width: none; }

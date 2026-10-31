@@ -2,6 +2,7 @@ import { Link, useRouterState } from "@tanstack/react-router";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { incognitoUntil, readSettings } from "../api/settings";
 import { useLive } from "../lib/live";
+import { useTheme } from "../lib/theme";
 import { image } from "../lib/images";
 import { clock } from "../lib/format";
 import { Cover } from "../ui/Cover";
@@ -9,6 +10,7 @@ import { Icon, LosslessMark } from "../ui/icons";
 import { player, usePlayer } from "./engine";
 import css from "./MiniPlayer.module.css";
 import { SeekLine, Spectrum } from "./Spectrum";
+import { PlaybackError } from "./PlaybackError";
 
 /** The bar under every screen but the player: the player's own bottom line, open on the
  *  page (design/code/screens/home.md): the seek line with the spectrum rising above it,
@@ -22,14 +24,22 @@ export function MiniPlayer() {
   const item = usePlayer((s) => s.queue[s.index]);
   const playing = usePlayer((s) => s.playing);
   const buffering = usePlayer((s) => s.buffering);
-  const positionMs = usePlayer((s) => s.positionMs);
-  const durationMs = usePlayer((s) => s.durationMs);
   const tier = usePlayer((s) => s.tier);
+  const [wide, setWide] = useState(() => !matchMedia("(max-width: 760px)").matches);
+  useEffect(() => {
+    const media = matchMedia("(max-width: 760px)");
+    const update = () => setWide(!media.matches);
+    update();
+    media.addEventListener("change", update);
+    return () => media.removeEventListener("change", update);
+  }, []);
   // the resolved location: it changes with the page, inside the page change, so the old page
   // is photographed with the bar still in it (lib/pageMotion.ts); `location` changes earlier
   const onPlayer = useRouterState({ select: (s) => (s.resolvedLocation ?? s.location).pathname === "/player" });
   const shown = !!item && !onPlayer;
-  const accent = image(item?.coverImageId)?.palette?.accent.light ?? "#c9c287";
+  const theme = useTheme();
+  const coverAccent = image(item?.coverImageId)?.palette?.accent[theme] ?? (theme === "light" ? "#706521" : "#c9c287");
+  const accent = theme === "light" ? `oklch(from ${coverAccent} min(l, .46) c h)` : coverAccent;
 
   // a song starting from silence: the bar rises from under the screen's edge and the cover
   // pops in after it, while the page eases up to make room (--player-h is animated)
@@ -48,17 +58,21 @@ export function MiniPlayer() {
   // a layout effect: inside a page change it lands before the new page is photographed
   useLayoutEffect(() => {
     const root = document.documentElement.style;
-    root.setProperty("--player-h", shown ? `${MINI_H}px` : "0px");
     root.setProperty("--spec-room", shown ? `${SPEC_ROOM}px` : "0px");
+    if (!shown || !bar.current) { root.setProperty("--player-h", "0px"); return; }
+    const el = bar.current;
+    const measure = () => root.setProperty("--player-h", `${Math.ceil(el.getBoundingClientRect().height) || MINI_H}px`);
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(el);
+    return () => observer.disconnect();
   }, [shown]);
 
   if (!shown) return null;
   const lossless = tier === "lossless" || tier === "lossless_compat";
   return (
     <div ref={bar} className={css.mini} data-mini role="region" aria-label="Сейчас играет" style={{ ["--acc" as string]: accent }}>
-      <SeekLine className={css.line} progress={durationMs ? Math.min(1, positionMs / durationMs) : 0} durationMs={durationMs} onSeek={(f) => player.seek(f * durationMs)}>
-        <Spectrum trackId={item.trackId} className={css.spectrum} />
-      </SeekLine>
+      <MiniSeek>{wide && <Spectrum trackId={item.trackId} className={css.spectrum} />}</MiniSeek>
       <div className={css.row}>
         <div className={css.left}>
         <Link to="/player" className={css.now}>
@@ -78,12 +92,27 @@ export function MiniPlayer() {
           <button type="button" className={css.ic} data-mini-next onClick={() => void player.next()} aria-label="Следующий"><Icon name="ChevronRight" size={22} /></button>
         </div>
         <div className={css.tools}>
-          <span className={css.time}>{clock(positionMs)} / {clock(durationMs)}</span>
+          {wide && <MiniTime />}
           {lossless && <span className={css.badge}><LosslessMark height={10} /> Lossless</span>}
         </div>
       </div>
+      <PlaybackError />
     </div>
   );
+}
+
+/** Only the seek fill follows the four playhead updates per second. Its children keep
+ *  their element identity, so the spectrum and the rest of the bar do not rerender. */
+function MiniSeek({ children }: { children: React.ReactNode }) {
+  const positionMs = usePlayer((s) => s.positionMs);
+  const durationMs = usePlayer((s) => s.durationMs);
+  return <SeekLine className={css.line} progress={durationMs ? Math.min(1, positionMs / durationMs) : 0} durationMs={durationMs} onSeek={(f) => player.seek(f * durationMs)}>{children}</SeekLine>;
+}
+
+function MiniTime() {
+  const position = usePlayer((s) => Math.floor(s.positionMs / 1000));
+  const duration = usePlayer((s) => Math.floor(s.durationMs / 1000));
+  return <span className={css.time}>{clock(position * 1000)} / {clock(duration * 1000)}</span>;
 }
 
 /** A cover that starts playing flies from where it lay into the mini player's cover (the

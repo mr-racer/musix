@@ -1,7 +1,7 @@
 /* «Звучат» (Instruments.tsx): glyph chips; the name grows out of a chip on liquid glass v2. */
 .row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 3px; }
 .chip { position: relative; width: 38px; height: 38px; display: grid; place-items: center; border-radius: 12px; color: var(--text);
-  background: rgba(255,255,255,.07); box-shadow: inset 0 0 0 1px rgba(255,255,255,.1), inset 0 1px 0 rgba(255,255,255,.08);
+  background: rgba(var(--mx-ink-rgb),.07); box-shadow: inset 0 0 0 1px rgba(255,255,255,.1), inset 0 1px 0 rgba(255,255,255,.08);
   cursor: default; text-shadow: none; -webkit-tap-highlight-color: transparent;
   transition: transform .45s var(--mx-ease-spring), background .2s var(--mx-ease-standard), box-shadow .2s var(--mx-ease-standard);
   animation: chipIn .5s var(--mx-ease-spring) calc(var(--n, 0) * 45ms + 140ms) backwards; }
@@ -10,7 +10,7 @@
 /* an instrument with a moment: a small dot in the cover's accent, a click plays it */
 .chip[data-go]::after { content: ""; position: absolute; top: 4px; right: 4px; width: 5px; height: 5px; border-radius: 50%;
   background: var(--pl-acc); box-shadow: 0 0 6px var(--pl-acc); }
-.chip:hover, .chip:focus-visible { transform: translateY(-2px); background: rgba(255,255,255,.13); box-shadow: inset 0 0 0 1px rgba(255,255,255,.18), inset 0 1px 0 rgba(255,255,255,.14); }
+.chip:hover, .chip:focus-visible { transform: translateY(-2px); background: rgba(var(--mx-ink-rgb),.13); box-shadow: inset 0 0 0 1px rgba(255,255,255,.18), inset 0 1px 0 rgba(255,255,255,.14); }
 .chip[data-go]:active { transform: scale(.92); transition-duration: .16s; }
 .glyph { display: grid; place-items: center; opacity: .88; transform-origin: 50% 80%; transition: opacity .2s var(--mx-ease-standard); }
 .chip:hover .glyph, .chip:focus-visible .glyph { opacity: 1; animation: hop .6s var(--mx-ease-standard); }
@@ -24,10 +24,11 @@
 /* the name: liquid glass v2 (ui/glass.module.css), grown out of the chip's top edge */
 .label { composes: lg from "../ui/glass.module.css"; position: absolute; z-index: 5; left: 50%; bottom: calc(100% + 9px); display: inline-flex; align-items: baseline; gap: 7px;
   padding: 7px 12px; border-radius: 12px; white-space: nowrap; font-size: 13px; font-weight: 500; line-height: 1.1; color: var(--glass-ink); text-shadow: var(--glass-glow);
-  pointer-events: none; opacity: 0; transform: translate(-50%, 6px) scale(.72); transform-origin: 50% 100%;
+  pointer-events: none; opacity: 0; transform: translate(calc(-50% + var(--tip-x, 0px)), 6px) scale(.72); transform-origin: 50% 100%;
   transition: opacity .16s var(--mx-ease-standard), transform .2s var(--mx-ease-standard); }
 .label small { font-family: var(--mx-font-mono); font-size: 11.5px; color: var(--glass-ink2); font-variant-numeric: tabular-nums; }
-.chip:hover .label, .chip:focus-visible .label { opacity: 1; transform: translate(-50%, 0) scale(1); transition: opacity .2s var(--mx-ease-standard), transform .42s var(--mx-ease-spring); }
+.label[data-below] { bottom: auto; top: calc(100% + 9px); transform-origin: 50% 0; }
+.chip:hover .label, .chip:focus-visible .label { opacity: 1; transform: translate(calc(-50% + var(--tip-x, 0px)), 0) scale(1); transition: opacity .2s var(--mx-ease-standard), transform .42s var(--mx-ease-spring); }
 
 @media (prefers-reduced-motion: reduce) {
   .chip, .glyph, .label { animation: none !important; transition-duration: .01s; }

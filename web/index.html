@@ -10,11 +10,11 @@
     <meta name="description" content="MusiX — твоя музыка у тебя дома." />
     <script>
       // the theme before the first paint (a per-browser preference, not a secret)
-      try {
-        var t = localStorage.getItem("musix.theme") || "system";
-        if (t === "system") t = matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
-        document.documentElement.dataset.theme = t;
-      } catch (e) {}
+      var t = "system";
+      try { t = localStorage.getItem("musix.theme") || "system"; } catch (e) {}
+      if (t !== "light" && t !== "dark") t = matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
+      document.documentElement.dataset.theme = t;
+      document.querySelector('meta[name="theme-color"]').content = t === "light" ? "#f2f1f6" : "#0d0d10";
     </script>
   </head>
   <body>

@@ -6,7 +6,7 @@ import { sync } from "./sync";
 export async function createPlaylist(name: string): Promise<string> {
   const id = crypto.randomUUID();
   await ok(api.POST("/api/v2/playlists", { body: { id, name } }));
-  void sync();
+  void sync().catch(() => undefined);
   return id;
 }
 
@@ -15,22 +15,22 @@ export async function addToPlaylist(playlistId: string, trackIds: string[]): Pro
     params: { path: { playlist_id: playlistId } },
     body: { items: trackIds.map((trackId) => ({ itemId: crypto.randomUUID(), trackId })) },
   }));
-  void sync();
+  void sync().catch(() => undefined);
 }
 
 export async function renamePlaylist(id: string, name: string): Promise<void> {
   await ok(api.PATCH("/api/v2/playlists/{playlist_id}", { params: { path: { playlist_id: id } }, body: { name } }));
-  void sync();
+  void sync().catch(() => undefined);
 }
 
 export async function deletePlaylist(id: string): Promise<void> {
   await ok(api.DELETE("/api/v2/playlists/{playlist_id}", { params: { path: { playlist_id: id } } }));
-  void sync();
+  void sync().catch(() => undefined);
 }
 
 export async function removeItem(playlistId: string, itemId: string): Promise<void> {
   await ok(api.DELETE("/api/v2/playlists/{playlist_id}/items/{item_id}", { params: { path: { playlist_id: playlistId, item_id: itemId } } }));
-  void sync();
+  void sync().catch(() => undefined);
 }
 
 export async function moveItem(playlistId: string, itemId: string, afterItemId: string | null): Promise<void> {
@@ -38,5 +38,5 @@ export async function moveItem(playlistId: string, itemId: string, afterItemId: 
     params: { path: { playlist_id: playlistId, item_id: itemId } },
     body: { afterItemId },
   }));
-  void sync();
+  void sync().catch(() => undefined);
 }

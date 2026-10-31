@@ -7,6 +7,9 @@ import { albumQuery, artistQuery } from "../api/queries";
 import { clock, plural } from "../lib/format";
 import { image, imageUrl } from "../lib/images";
 import { coverFill } from "../lib/coverFill";
+import { transparentImage } from "../lib/imageFallback";
+import { MediaImage } from "./MediaImage";
+import { useTheme } from "../lib/theme";
 import { fromTrack, player, usePlayer, type QueueItem } from "../player/engine";
 import css from "./Gatefold.module.css";
 import { Icon } from "./icons";
@@ -55,7 +58,7 @@ export function GatefoldHost() {
   return <AlbumGatefold key={open.id} {...open} onClose={hide} />;
 }
 
-type GatefoldProps = Open & { onClose: () => void; onAlbumChange?: (id: string) => Promise<void> };
+type GatefoldProps = Open & { onClose: () => void; onCloseStart?: () => void; onAlbumChange?: (id: string) => Promise<void> };
 
 /** Both entry points share the surface, data query, states and signature animations. */
 export function AlbumGatefold(props: GatefoldProps) {
@@ -78,11 +81,14 @@ function run(el: Element | null | undefined, kf: Keyframe[], o: KeyframeAnimatio
 /** The spread: two square pages of side L in the middle of the room above the mini player.
  *  On a phone the gatefold is one full-screen page. */
 function measure() {
-  const vw = window.innerWidth, vh = window.innerHeight;
-  const mini = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--player-h")) || 0;
-  const narrow = vw <= 768;
-  const L = Math.round(Math.min((vh - mini - 48) * 0.94, (vw - 240) / 2, vh >= 1300 ? 900 : 720));
-  return { narrow, L: Math.max(320, L), cy: Math.round((vh - mini) / 2) };
+  const vw = window.innerWidth, vh = Math.min(window.innerHeight, window.visualViewport?.height ?? window.innerHeight);
+  const narrow = vw <= 768 || (vw < 1024 && vh <= 500);
+  const mini = document.querySelector<HTMLElement>("[data-mini]");
+  // Read the bar's layout, not its animated entrance transform or --player-h transition.
+  const bottom = mini ? parseFloat(getComputedStyle(mini).bottom) || 0 : 0;
+  const H = Math.max(1, Math.floor(Math.min(vh, mini ? window.innerHeight - bottom - mini.offsetHeight - (narrow ? 8 : 0) : vh)));
+  const L = Math.max(1, Math.round(Math.min((H - 48) * 0.94, (vw - 240) / 2, vh >= 1300 ? 900 : 720)));
+  return { narrow, L, cy: Math.round(H / 2), H };
 }
 
 /** Large covers of the stack, loaded under the pointer, so the one that travels on a click is
@@ -100,7 +106,7 @@ const MONTHS = ["янв.", "февр.", "марта", "апр.", "мая", "ию
 const day = (iso: string) => { const d = new Date(iso); return `${d.getDate()} ${MONTHS[d.getMonth()]}`; };
 const span = (ms: number) => { const m = Math.round(ms / 60000); return m < 60 ? `${m} мин` : `${Math.floor(m / 60)} ч ${m % 60} мин`; };
 
-function Gatefold({ id: firstId, cover, from, onClose, onAlbumChange }: GatefoldProps) {
+function Gatefold({ id: firstId, cover, from, onClose, onCloseStart, onAlbumChange }: GatefoldProps) {
   const [localId, setId] = useState(firstId);
   const id = onAlbumChange ? firstId : localId;
   const [prevId, setPrevId] = useState<string | null>(null);   // the right page's old colour, fading out after a swap
@@ -110,13 +116,23 @@ function Gatefold({ id: firstId, cover, from, onClose, onAlbumChange }: Gatefold
   const q = useQuery(albumQuery(id));
   const qc = useQueryClient();
   const nav = useNavigate();
-  const [{ narrow, L, cy }] = useState(measure);
+  const [geometry, setGeometry] = useState(measure);
+  const { narrow, L, cy, H } = geometry;
+  const geometryRef = useRef(geometry);
   const gf = useRef<HTMLDivElement>(null);
   const sleeve = useRef<HTMLDivElement>(null);
   const flip = useRef<HTMLDivElement>(null);
   const leaf = useRef<HTMLDivElement>(null);
   const lit = useRef<HTMLDivElement>(null);
   const page = useRef<HTMLDivElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
+  const phoneBody = useRef<HTMLDivElement>(null);
+  const resizeState = useRef<{ focus: string | null; scroll: number; phoneScroll: number } | null>(null);
+  const opener = useRef<HTMLElement | null>(document.activeElement instanceof HTMLElement ? document.activeElement : null);
+  const entryPath = useRef(window.location.pathname);
+  const restoreFocus = useRef(false);
+  const opening = useRef(true);
+  const flyingCover = useRef<HTMLCanvasElement | null>(null);
   const home = useRef<string | null>(null);
   const busy = useRef(true);
   const closing = useRef(false);
@@ -131,6 +147,7 @@ function Gatefold({ id: firstId, cover, from, onClose, onAlbumChange }: Gatefold
   const items = useMemo(() => tracks.map((t) => fromTrack(t, "album", id)), [tracks, id]);
   const coverId = album?.coverImageId ?? (id === firstId ? cover : null);
   const pal = image(coverId)?.palette;
+  const theme = useTheme();
   const bgVariant = image(coverId)?.urls.bg;
   const bg = bgVariant ? mediaUrl(bgVariant) : null;
   const low = imageUrl(coverId, 400);    // the grid's variant: already cached, so the sleeve paints mid-flight
@@ -167,15 +184,84 @@ function Gatefold({ id: firstId, cover, from, onClose, onAlbumChange }: Gatefold
     void run(fl, [{ transform: "rotateY(0deg)" }, { transform: "rotateY(180deg)" }], { duration: 850, delay: 60, easing: "cubic-bezier(.35,.72,.22,1)" });
     let alive = true;
     void (async () => {
-      if (!narrow) { await wait(reduced() ? 0 : 620); if (!alive) return; await unfold(); }
+      if (!narrow) { await wait(reduced() ? 0 : 620); if (!alive || !opening.current || closing.current) return; await unfold(); }
       else await wait(reduced() ? 0 : 900);
+      if (!alive || !opening.current || closing.current) return;
+      opening.current = false;
       busy.current = false;
+      g.dataset.open = "";
       g.style.setProperty("--d0", "0ms");   // what mounts later (a swap) rises at once
     })();
     return () => { alive = false; };
     // the opening plays once, from where the card was clicked
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Resize the existing book, including when playback adds the mini player. The page,
+  // selection and scroll position survive a breakpoint change; no second opening flight.
+  useLayoutEffect(() => {
+    let raf = 0;
+    let mini: Element | null = null;
+    const ro = new ResizeObserver(() => schedule());
+    const update = () => {
+      raf = 0;
+      const nextMini = document.querySelector("[data-mini]");
+      if (nextMini !== mini) {
+        if (mini) ro.unobserve(mini);
+        mini = nextMini;
+        if (mini) ro.observe(mini);
+      }
+      if (closing.current) return;
+      const next = measure(), old = geometryRef.current;
+      if (next.narrow === old.narrow && next.L === old.L && next.cy === old.cy && next.H === old.H) return;
+      const focused = document.activeElement;
+      resizeState.current = {
+        focus: focused instanceof HTMLElement && gf.current?.contains(focused) ? focused.dataset.gfFocus ?? "" : null,
+        scroll: listRef.current?.scrollTop ?? 0,
+        phoneScroll: phoneBody.current?.scrollTop ?? 0,
+      };
+      geometryRef.current = next;
+      setGeometry(next);
+    };
+    const schedule = () => { if (!raf) raf = requestAnimationFrame(update); };
+    const mo = new MutationObserver(schedule);
+    mo.observe(document.body, { childList: true, subtree: true });
+    window.addEventListener("resize", schedule);
+    window.visualViewport?.addEventListener("resize", schedule);
+    update();
+    return () => {
+      cancelAnimationFrame(raf); ro.disconnect(); mo.disconnect();
+      window.removeEventListener("resize", schedule);
+      window.visualViewport?.removeEventListener("resize", schedule);
+    };
+  }, []);
+
+  useLayoutEffect(() => {
+    const saved = resizeState.current;
+    if (!saved || closing.current) return;
+    resizeState.current = null;
+    for (const el of [gf.current, sleeve.current, flip.current, leaf.current, lit.current]) {
+      el?.getAnimations().forEach((a) => a.cancel());
+    }
+    flyingCover.current?.remove();
+    if (gf.current) { gf.current.dataset.open = ""; gf.current.style.transform = narrow ? "none" : `translateX(${-L / 2}px)`; gf.current.style.setProperty("--d0", "0ms"); }
+    if (sleeve.current) sleeve.current.style.transform = "none";
+    if (flip.current) flip.current.style.transform = "rotateY(180deg)";
+    if (leaf.current) { leaf.current.dataset.open = ""; leaf.current.style.transform = "rotateY(0deg)"; }
+    if (lit.current) lit.current.style.opacity = "0";
+    // Crossing the phone breakpoint moves the content between pages. Finish its entrance
+    // styles before paint so resizing never hides the text for another opening delay.
+    gf.current?.getAnimations({ subtree: true }).forEach((animation) => {
+      if (animation instanceof CSSAnimation && animation.effect?.getTiming().iterations !== Infinity) animation.finish();
+    });
+    if (opening.current) { opening.current = false; busy.current = false; }
+    if (listRef.current) listRef.current.scrollTop = saved.scroll;
+    if (phoneBody.current) phoneBody.current.scrollTop = saved.phoneScroll;
+    if (saved.focus !== null) {
+      const control = [...(gf.current?.querySelectorAll<HTMLElement>("[data-gf-focus]") ?? [])].find((el) => el.dataset.gfFocus === saved.focus);
+      (control ?? gf.current)?.focus({ preventScroll: true });
+    }
+  }, [narrow, L, cy, H]);
 
   // the bands under the left page's text follow the height of that text
   useLayoutEffect(() => {
@@ -193,43 +279,102 @@ function Gatefold({ id: firstId, cover, from, onClose, onAlbumChange }: Gatefold
   }, [q.data, id, narrow]);
 
   // the close plays it backwards: the page swings back, the sleeve turns and flies home
-  const close = useCallback(async () => {
+  const close = useCallback(async (prepareDestination = true) => {
     if (closing.current) return;
     closing.current = true;
+    if (prepareDestination) onCloseStart?.();
+    const wasOpening = opening.current;
+    opening.current = false;
+    flyingCover.current?.remove();
+    // An early Escape starts from the visible pose, without a late opening animation
+    // committing over the close (or trying to unfold an already detached page).
+    const pose = (el: HTMLElement | null, property: "transform" | "opacity", fallback: string) => {
+      if (!el) return fallback;
+      const value = wasOpening ? getComputedStyle(el)[property] : fallback;
+      el.getAnimations().forEach((a) => a.cancel());
+      el.style[property] = value;
+      return value;
+    };
+    const spreadPose = pose(gf.current, "transform", narrow ? "none" : `translateX(${-L / 2}px)`), leafPose = pose(leaf.current, "transform", "rotateY(0deg)");
+    const lightPose = pose(lit.current, "opacity", "0"), flipPose = pose(flip.current, "transform", "rotateY(180deg)");
+    const sleevePose = pose(sleeve.current, "transform", "none");
     setLeaving("close");
     if (!narrow) {
       const d = 260, e = "cubic-bezier(.55,.06,.6,.9)";
-      void run(gf.current, [{ transform: `translateX(${-L / 2}px)` }, { transform: "translateX(0)" }], { duration: d, easing: e });
-      void run(lit.current, [{ opacity: 0 }, { opacity: 0.6 }], { duration: d, easing: "ease-in" });
-      await run(leaf.current, [{ transform: "rotateY(0deg)" }, { transform: "rotateY(90deg)" }], { duration: d, easing: e });
+      void run(gf.current, [{ transform: spreadPose }, { transform: "translateX(0)" }], { duration: d, easing: e });
+      void run(lit.current, [{ opacity: lightPose }, { opacity: 0.6 }], { duration: d, easing: "ease-in" });
+      await run(leaf.current, [{ transform: leafPose }, { transform: "rotateY(90deg)" }], { duration: d, easing: e });
       if (leaf.current) delete leaf.current.dataset.open;
     }
     setFading(true);
     const sl = sleeve.current;
-    // after a swap the way home is the new album's own cover on the page, if it is there
+    // The card may have moved during resize; after a swap, use the new album's cover.
     let to = home.current;
-    if (swapped && sl) {
+    if (sl && (swapped || from)) {
       const el = document.querySelector(`[data-album-cover="${id}"]`);
       const a = el?.getBoundingClientRect(), b = sl.getBoundingClientRect();
       to = a && a.width ? `translate(${a.left + a.width / 2 - (b.left + b.width / 2)}px, ${a.top + a.height / 2 - (b.top + b.height / 2)}px) scale(${a.width / b.width})` : null;
     }
-    void run(flip.current, [{ transform: "rotateY(180deg)" }, { transform: "rotateY(360deg)" }], { duration: 480, easing: "cubic-bezier(.5,.08,.4,1)" });
-    if (sl) void run(sl, [{ transform: "none", opacity: 1 }, to ? { transform: to, opacity: 1 } : { transform: "scale(.6)", opacity: 0 }], { duration: 430, easing: "cubic-bezier(.55,.06,.5,.9)" });
+    void run(flip.current, [{ transform: flipPose }, { transform: "rotateY(360deg)" }], { duration: 480, easing: "cubic-bezier(.5,.08,.4,1)" });
+    if (sl) void run(sl, [{ transform: sleevePose, opacity: 1 }, to ? { transform: to, opacity: 1 } : { transform: "scale(.6)", opacity: 0 }], { duration: 430, easing: "cubic-bezier(.55,.06,.5,.9)" });
     await wait(reduced() ? 0 : 450);
-    if (mounted.current) onClose();
-  }, [L, narrow, swapped, id, onClose]);
+    if (mounted.current) { restoreFocus.current = !onAlbumChange; onClose(); }
+  }, [L, narrow, swapped, from, id, onClose, onCloseStart, onAlbumChange]);
 
-  useEffect(() => {
-    // the page stops scrolling under the gatefold, but keeps the scrollbar's room: without it
-    // the page grew by the bar's width, the library's wall laid its tiles out again and the
-    // covers shifted while the album opened and back when it closed (the owner's report)
+  const closeRef = useRef(close);
+  closeRef.current = close;
+  useLayoutEffect(() => {
+    const dialog = gf.current;
+    if (!dialog) return;
+    const overlay = dialog.parentElement!;
     const root = document.documentElement.style, prev = document.body.style.overflow, gutter = root.scrollbarGutter;
     root.scrollbarGutter = "stable";
     document.body.style.overflow = "hidden";
-    const esc = (e: KeyboardEvent) => { if (e.key === "Escape") void close(); };
-    document.addEventListener("keydown", esc);
-    return () => { document.body.style.overflow = prev; root.scrollbarGutter = gutter; document.removeEventListener("keydown", esc); };
-  }, [close]);
+    const roots = () => [dialog, document.querySelector<HTMLElement>("[data-mini]")].filter((el): el is HTMLElement => !!el);
+    const allowed = (el: Node | null) => !!el && roots().some((root) => root.contains(el));
+    const focusable = () => roots().flatMap((root) => root === dialog && opening.current ? [] :
+      [...root.querySelectorAll<HTMLElement>('button, a[href], input, select, textarea, [tabindex]')].filter((el) =>
+        el.tabIndex >= 0 && !el.matches(":disabled") && !el.closest('[inert], [aria-hidden="true"]') &&
+        el.getClientRects().length > 0 && getComputedStyle(el).visibility === "visible"));
+    const key = (e: KeyboardEvent) => {
+      if (e.key === "Escape") { e.preventDefault(); void closeRef.current(); return; }
+      if (e.key !== "Tab") return;
+      const controls = focusable(), index = controls.indexOf(document.activeElement as HTMLElement);
+      const next = controls.length ? controls[(index + (e.shiftKey ? -1 : 1) + controls.length) % controls.length] : dialog;
+      e.preventDefault();
+      (e.shiftKey && index === -1 ? controls.at(-1) ?? dialog : next)?.focus();
+    };
+    const focus = (e: FocusEvent) => { if (!allowed(e.target as Node)) dialog.focus({ preventScroll: true }); };
+    // This is a dialog plus a deliberately available playback region. Inert only the
+    // background branches, never a common ancestor of the book or the mini player.
+    const inert = new Map<HTMLElement, boolean>();
+    const restoreInert = () => { inert.forEach((was, el) => { el.inert = was; }); inert.clear(); };
+    const isolate = () => {
+      restoreInert();
+      const keep = [overlay, document.querySelector<HTMLElement>("[data-mini]")].filter(Boolean) as HTMLElement[];
+      const visit = (parent: HTMLElement) => {
+        for (const el of parent.children) {
+          if (!(el instanceof HTMLElement) || el.matches("script, style, link") || keep.includes(el)) continue;
+          if (keep.some((root) => el.contains(root))) visit(el);
+          else { inert.set(el, el.inert); el.inert = true; }
+        }
+      };
+      visit(document.body);
+    };
+    let raf = 0;
+    const mo = new MutationObserver(() => { if (!raf) raf = requestAnimationFrame(() => { raf = 0; isolate(); }); });
+    isolate();
+    mo.observe(document.body, { childList: true, subtree: true });
+    document.addEventListener("keydown", key);
+    document.addEventListener("focusin", focus);
+    dialog.focus({ preventScroll: true });
+    return () => {
+      cancelAnimationFrame(raf); mo.disconnect(); restoreInert();
+      document.body.style.overflow = prev; root.scrollbarGutter = gutter;
+      document.removeEventListener("keydown", key); document.removeEventListener("focusin", focus);
+      if (restoreFocus.current && window.location.pathname === entryPath.current && opener.current?.isConnected) opener.current.focus({ preventScroll: true });
+    };
+  }, []);
 
   // «Ещё у артиста»: the other album's cover travels from its thumbnail onto the left page
   // (a canvas of the thumbnail's own pixels, at the page's size, scaled onto the thumbnail,
@@ -254,6 +399,7 @@ function Gatefold({ id: firstId, cover, from, onClose, onAlbumChange }: Gatefold
         Object.assign(clone.style, { position: "fixed", zIndex: "103", left: `${b.left}px`, top: `${b.top}px`, width: `${b.width}px`, height: `${b.height}px`,
           borderRadius: "18px 0 0 18px", transformOrigin: "0 0", pointerEvents: "none", boxShadow: "0 30px 60px -20px rgba(0,0,0,.7)" } as CSSStyleDeclaration);
         document.body.appendChild(clone);
+        flyingCover.current = clone;
         await run(clone, [
           { transform: `translate(${a.left - b.left}px, ${a.top - b.top}px) scale(${a.width / b.width})` },
           { transform: "none" }], { duration: 560, easing: "cubic-bezier(.2,.8,.2,1)" });
@@ -292,7 +438,7 @@ function Gatefold({ id: firstId, cover, from, onClose, onAlbumChange }: Gatefold
   }, [queue, index]);
   const mine = cur?.contextType === "album" && cur.contextId === id;
 
-  const toArtist = (aid: string) => { void close(); void nav({ to: "/artist/$id", params: { id: aid } }); };
+  const toArtist = (aid: string) => { void close(false); void nav({ to: "/artist/$id", params: { id: aid } }); };
   const play = (i: number) => { if (items.length) void player.playTracks(items, i); };
   const toggleQueue = (i: number, from: HTMLElement | null) => {
     const t = tracks[i]!;
@@ -315,15 +461,14 @@ function Gatefold({ id: firstId, cover, from, onClose, onAlbumChange }: Gatefold
     return top && top[1] >= 5 && top[1] >= (second?.[1] ?? 0) + 2 ? top[0] : null;
   }, [tracks, plays]);
 
-  const acc = pal?.accent.dark ?? "oklch(62% 0.16 285)";
-  const style = { ["--L" as string]: `${L}px`, ["--cy" as string]: `${cy}px`, ["--acc" as string]: acc,
-    ["--mark" as string]: `color-mix(in srgb, ${acc} 30%, #fff)` };
+  const acc = pal?.accent[theme] ?? "var(--mx-accent)";
+  const style = { ["--L" as string]: `${L}px`, ["--cy" as string]: `${cy}px`, ["--H" as string]: `${H}px`, ["--acc" as string]: acc };
 
   const poster = album && (
     <div className={css.poster} key={`p${id}`}>
       <h2 className={album.title.length > 26 ? `${css.title} ${css.titleLong}` : css.title}>{album.title}</h2>
       {album.albumArtist && (
-        <div><button type="button" className={css.who} onClick={() => toArtist(album.albumArtist!.id)}>
+        <div><button type="button" className={css.who} data-gf-focus="artist" onClick={() => toArtist(album.albumArtist!.id)}>
           {album.albumArtist.name}<Icon name="ChevronRight" size={16} />
         </button></div>
       )}
@@ -331,7 +476,7 @@ function Gatefold({ id: firstId, cover, from, onClose, onAlbumChange }: Gatefold
         {[album.year, genre, `${tracks.length} ${plural(tracks.length, "трек", "трека", "треков")}`, total ? span(total) : null].filter(Boolean).map((x, i) => <span key={i}>{x}</span>)}
       </div>
       <div className={css.acts}>
-        <button type="button" className={css.play} data-on={(mine && playingNow) || undefined} disabled={!tracks.length}
+        <button type="button" className={css.play} data-gf-focus="play" data-on={(mine && playingNow) || undefined} disabled={!tracks.length}
           onClick={() => (mine ? player.toggle() : play(0))}>
           <span className={css.glyphs}><Icon name="Play" size={18} /><Icon name="Pause" size={18} /></span>
           {mine ? (playingNow ? "Пауза" : "Продолжить") : "Слушать"}
@@ -347,7 +492,7 @@ function Gatefold({ id: firstId, cover, from, onClose, onAlbumChange }: Gatefold
   );
 
   const list = (
-    <div className={css.list} key={`l${id}`} aria-busy={q.isPending}>
+    <div ref={listRef} className={css.list} key={`l${id}`} aria-busy={q.isPending}>
       <Rows tracks={tracks} plays={plays} fav={fav} current={mine ? cur?.trackId ?? null : null} playing={playingNow}
         queued={queued} onPlay={play} onQueue={toggleQueue} />
       {q.isPending && <div className={css.state} role="status">
@@ -363,12 +508,12 @@ function Gatefold({ id: firstId, cover, from, onClose, onAlbumChange }: Gatefold
     </div>
   );
 
-  const x = <button type="button" className={css.x} onClick={() => void close()} aria-label="Закрыть"><Icon name="Close" size={16} /></button>;
+  const x = <button type="button" className={css.x} data-gf-focus="close" onClick={() => void close()} aria-label="Закрыть"><Icon name="Close" size={16} /></button>;
 
   return (
     <div className={css.overlay} data-leaving={fading || undefined} onClick={() => void close()}>
       <div ref={gf} className={narrow ? `${css.gf} ${css.narrow}` : css.gf} style={style} data-leaving={leaving || undefined}
-        onClick={(e) => e.stopPropagation()} role="dialog" aria-modal aria-label={album?.title ?? "Альбом"}>
+        onClick={(e) => e.stopPropagation()} role="dialog" tabIndex={-1} aria-label={album?.title ?? "Альбом"}>
         <div ref={sleeve} className={css.sleeve}>
           <div ref={flip} className={css.flip}>
             <div className={css.face}>
@@ -379,7 +524,7 @@ function Gatefold({ id: firstId, cover, from, onClose, onAlbumChange }: Gatefold
               {narrow ? (
                 <>
                   <Paper url={bg} tint={pal?.muted} />
-                  <div className={css.phoneBody}>{poster}{list}</div>
+                  <div ref={phoneBody} className={css.phoneBody}>{poster}{list}</div>
                   {x}
                 </>
               ) : (
@@ -425,9 +570,10 @@ function backdropOf(albumId: string, qc: ReturnType<typeof useQueryClient>): str
 function Picture({ low, high, seed }: { low: string | null; high: string | null; seed: string }) {
   return (
     <>
-      {low ? <img src={low} alt="" className={css.pic} /> : <div className={css.blank} style={{ background: coverFill(seed) }} />}
+      {low ? <MediaImage src={low} seed={seed} alt="" className={css.pic} /> : <div className={css.blank} style={{ background: coverFill(seed) }} />}
       {high && high !== low && (
-        <img src={high} alt="" className={`${css.pic} ${css.hi}`}
+        <img key={high} src={high} alt="" className={`${css.pic} ${css.hi}`}
+          onError={(e) => { e.currentTarget.style.visibility = "hidden"; }}
           ref={(el) => { if (el?.complete && el.naturalWidth) el.dataset.ready = ""; }}
           onLoad={(e) => { e.currentTarget.dataset.ready = ""; }} />
       )}
@@ -440,6 +586,8 @@ function Picture({ low, high, seed }: { low: string | null; high: string | null;
 function Paper({ url, tint, fadeIn }: { url: string | null; tint: string | null | undefined; fadeIn?: boolean }) {
   const cv = useRef<HTMLCanvasElement>(null);
   useEffect(() => {
+    const canvas = cv.current;
+    if (canvas) { canvas.getContext("2d")?.clearRect(0, 0, canvas.width, canvas.height); delete canvas.dataset.ready; }
     if (!url) return;
     const im = new Image();
     im.src = url;
@@ -464,7 +612,7 @@ function Paper({ url, tint, fadeIn }: { url: string | null; tint: string | null 
 /** The left page's text stands on the cover blurred and darkened under it, at the top and
  *  the bottom; the middle stays the sharp cover. */
 function Bands({ url }: { url: string | null }) {
-  return <div className={css.bands} aria-hidden>{url && <img src={url} alt="" />}<i /></div>;
+  return <div className={css.bands} aria-hidden>{url && <MediaImage src={url} fallback={transparentImage} alt="" />}<i /></div>;
 }
 
 /** The liner notes in the left page's top band: producers (links, as in the player), the
@@ -500,11 +648,11 @@ function Liner({ data, onArtist, onSwap, current }: {
               notes (a reflow moved it from under the pointer, and it shook) */}
           <div className={css.stack} style={{ width: more.length * 38 + (more.length - 1) * 4 }}>
             {more.map((m) => (
-              <button type="button" key={m.id} title={`${m.title}${m.year ? ` · ${m.year}` : ""}`}
+              <button type="button" key={m.id} data-gf-focus={`album-${m.id}`} title={`${m.title}${m.year ? ` · ${m.year}` : ""}`}
                 onPointerEnter={() => { void qc.prefetchQuery(albumQuery(m.id)); preloadCover(m.coverImageId); }}
                 onFocus={() => preloadCover(m.coverImageId)}
                 onClick={(e) => onSwap(m.id, e.currentTarget.querySelector("img"), m.coverImageId)}>
-                <img src={imageUrl(m.coverImageId, 96) ?? ""} alt="" />
+                <MediaImage src={imageUrl(m.coverImageId, 96)} seed={m.id} alt="" />
               </button>
             ))}
           </div>
@@ -531,9 +679,9 @@ function Rows({ tracks, plays, fav, current, playing, queued, onPlay, onQueue }:
         return (
           <div key={t.id} className={css.slot}>
             {head != null && <div className={css.discHead} style={{ ["--i" as string]: Math.min(k++, 18) }}>Диск {head}</div>}
-            <div role="button" tabIndex={0} className={css.row} data-on={on || undefined} data-playing={(on && playing) || undefined}
+            <div role="button" tabIndex={0} className={css.row} data-gf-focus={`track-${t.id}`} data-on={on || undefined} data-playing={(on && playing) || undefined}
               style={{ ["--i" as string]: Math.min(k++, 18) }}
-              onClick={() => onPlay(i)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onPlay(i); } }}>
+              onClick={() => onPlay(i)} onKeyDown={(e) => { if (e.target === e.currentTarget && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); onPlay(i); } }}>
               <span className={css.no}>
                 <span className={css.n}>{t.trackNo ?? i + 1}</span>
                 <span className={css.pg}><Icon name="Play" size={13} /></span>
@@ -544,7 +692,7 @@ function Rows({ tracks, plays, fav, current, playing, queued, onPlay, onQueue }:
                 ? <span className={css.fire} title={`Чаще всего: ${plays[t.id]} ${plural(plays[t.id] ?? 0, "раз", "раза", "раз")}`}><Icon name="Fire" size={15} /></span>
                 : <span />}
               <span className={css.dur}>{clock(t.durationMs ?? 0)}</span>
-              <button type="button" className={css.q} data-n={n} aria-label={n ? "Убрать из очереди" : "Играть следующим"}
+              <button type="button" className={css.q} data-gf-focus={`queue-${t.id}`} data-n={n} aria-label={n ? "Убрать из очереди" : "Играть следующим"}
                 onClick={(e) => { e.stopPropagation(); onQueue(i, e.currentTarget.parentElement?.querySelector(`.${css.name}`) as HTMLElement | null); }}>
                 <Icon name="QueueNext" size={16} />
                 <span className={css.k}>{n}</span>

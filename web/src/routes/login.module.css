@@ -1,7 +1,7 @@
-/* v1 `.login-screen`: dark in both themes (the landing is dark by design). */
+/* The established entry composition, with surfaces and ink in the selected theme. */
 .screen {
   min-height: 100dvh; display: grid; place-items: center; position: relative; overflow: hidden;
-  padding: 28px 18px 76px; color: #eeeef3;
+  padding: 28px 18px 76px; color: var(--mx-text);
   background: radial-gradient(120% 90% at 70% -10%, #1c1830 0%, #12101c 45%, #0a0a10 100%);
 }
 .auroraA, .auroraB { position: absolute; border-radius: 50%; filter: blur(70px); pointer-events: none; }
@@ -10,13 +10,13 @@
 .wrap { display: grid; grid-template-columns: minmax(0, 1fr) 384px; gap: clamp(30px, 5.5vw, 72px); align-items: center; width: 100%; max-width: 940px; position: relative; z-index: 1; }
 .hero { min-width: 0; }
 .brand { display: flex; align-items: center; gap: 14px; }
-.brandName { font-size: 15px; font-weight: 600; letter-spacing: 0.3em; color: rgba(238,238,243,.85); }
-.title { font-family: var(--mx-font-serif-display); font-style: italic; font-weight: 400; font-size: clamp(30px, 4.2vw, 44px); line-height: 1.12; letter-spacing: -0.015em; margin: 22px 0 12px; color: #f1eeff; text-wrap: balance; }
-.lede { font-size: 15px; line-height: 1.55; color: rgba(238,238,243,.6); max-width: 440px; }
+.brandName { font-size: 15px; font-weight: 600; letter-spacing: 0.3em; color: var(--mx-text); }
+.title { font-family: var(--mx-font-serif-display); font-style: italic; font-weight: 400; font-size: clamp(30px, 4.2vw, 44px); line-height: 1.12; letter-spacing: -0.015em; margin: 22px 0 12px; color: var(--mx-text); text-wrap: balance; }
+.lede { font-size: 15px; line-height: 1.55; color: var(--mx-text-muted); max-width: 440px; }
 .chips { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 30px; max-width: 470px; list-style: none; }
 .chip {
   display: inline-flex; align-items: center; gap: 8px; padding: 10px 16px; border-radius: 999px;
-  font-size: 13.5px; font-weight: 500; color: rgba(238,238,243,.86); border: 1px solid rgba(255,255,255,0.13);
+  font-size: 13.5px; font-weight: 500; color: var(--mx-text); border: 1px solid rgba(255,255,255,0.13);
   background: linear-gradient(165deg, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0.04) 45%, rgba(255,255,255,0.09) 100%), rgba(24,24,32,0.38);
   box-shadow: inset 0 1px 0 rgba(255,255,255,0.22), inset 0 -1px 0 rgba(0,0,0,0.3), 0 6px 16px rgba(0,0,0,0.35);
 }
@@ -26,15 +26,16 @@
   background: linear-gradient(165deg, rgba(255,255,255,0.16) 0%, rgba(255,255,255,0.05) 32%, rgba(255,255,255,0.02) 64%, rgba(255,255,255,0.1) 100%), rgba(24,24,32,0.36);
   box-shadow: inset 0 1px 0 rgba(255,255,255,0.25), inset 0 -1px 0 rgba(255,255,255,0.07), 0 18px 42px rgba(0,0,0,0.45), 0 2px 10px rgba(0,0,0,0.28);
 }
-.eyebrow { font-size: 10px; letter-spacing: 0.24em; text-transform: uppercase; color: rgba(238,238,243,.5); font-weight: 500; margin-bottom: 8px; }
+.eyebrow { font-size: 10px; letter-spacing: 0.24em; text-transform: uppercase; color: var(--mx-text-subtle); font-weight: 500; margin-bottom: 8px; }
 .tabs { display: flex; gap: 8px; margin-bottom: 8px; padding: 4px; border-radius: 14px; background: rgba(0,0,0,0.22); border: 1px solid rgba(255,255,255,0.06); }
-.tab, .tabOn { flex: 1; padding: 9px 12px; border-radius: 11px; border: 1px solid transparent; color: rgba(238,238,243,.55); font-size: 13px; font-weight: 500; transition: all .18s ease; }
-.tabOn { background: rgba(124,91,255,0.16); color: #bba8ff; border-color: rgba(124,91,255,0.35); }
-.input { width: 100%; padding: 12px 14px; border-radius: 12px; background: rgba(0,0,0,0.32); border: 1px solid rgba(255,255,255,0.1); color: #eeeef3; font-size: 14px; outline: none; transition: border-color .15s ease, box-shadow .15s ease; }
-.input:focus { border-color: rgba(124,91,255,0.55); box-shadow: 0 0 0 3px oklch(60% 0.18 270 / 0.15); }
+.tab, .tabOn { flex: 1; padding: 9px 12px; border-radius: 11px; border: 1px solid transparent; color: var(--mx-text-muted); font-size: 13px; font-weight: 500; transition: background .18s ease, color .18s ease, border-color .18s ease; }
+.tabOn { background: rgba(124,91,255,0.16); color: var(--mx-accent-light); border-color: rgba(124,91,255,0.35); }
+.input { width: 100%; padding: 12px 14px; border-radius: 12px; background: rgba(0,0,0,0.32); border: 1px solid rgba(255,255,255,0.1); color: var(--mx-text); font-size: 14px; outline: none; transition: border-color .15s ease, box-shadow .15s ease; }
+.input::placeholder { color: var(--mx-text-subtle); opacity: 1; }
+.input:focus { border-color: var(--mx-accent); box-shadow: 0 0 0 3px var(--mx-accent-bg); }
 .code { letter-spacing: 0.1em; }
 .submit { width: 100%; margin-top: 8px; padding: 13px 16px; }
-.note { font-size: 11.5px; color: rgba(238,238,243,.42); margin-top: 8px; line-height: 1.55; }
+.note { font-size: 11.5px; color: var(--mx-text-subtle); margin-top: 8px; line-height: 1.55; }
 @media (max-width: 860px) {
   .wrap { grid-template-columns: 1fr; gap: 28px; max-width: 460px; }
   .hero { text-align: center; }
@@ -46,3 +47,21 @@
 .field { display: flex; flex-direction: column; gap: 8px; }
 .fieldLabel { font-size: 13px; color: var(--mx-text-muted, rgba(238,238,243,0.66)); display: flex; flex-direction: column; gap: 2px; }
 .fieldLabel small { font-size: 12px; color: var(--mx-text-subtle, rgba(238,238,243,0.46)); }
+
+:root[data-theme="light"] .screen {
+  background: radial-gradient(120% 90% at 70% -10%, #e7e0f3 0%, #f2eef7 45%, #f7f6fa 100%);
+}
+:root[data-theme="light"] .chip {
+  border-color: rgba(40,30,60,.12);
+  background: linear-gradient(165deg, rgba(255,255,255,.9), rgba(255,255,255,.46) 45%, rgba(255,255,255,.72)), rgba(245,242,252,.5);
+  box-shadow: inset 0 1px 0 #fff, inset 0 -1px 0 rgba(40,30,60,.06), 0 6px 16px rgba(40,30,60,.08);
+}
+:root[data-theme="light"] .card {
+  border-color: rgba(40,30,60,.12);
+  background: linear-gradient(165deg, rgba(255,255,255,.9), rgba(255,255,255,.62) 45%, rgba(255,255,255,.8)), rgba(245,242,252,.5);
+  box-shadow: inset 0 1px 0 #fff, inset 0 -1px 0 rgba(40,30,60,.05), 0 18px 42px rgba(40,30,60,.12), 0 2px 10px rgba(40,30,60,.06);
+}
+:root[data-theme="light"] .tabs { background: rgba(40,30,60,.055); border-color: rgba(40,30,60,.08); }
+:root[data-theme="light"] .tabOn { background: var(--mx-accent-bg); border-color: color-mix(in srgb, var(--mx-accent) 35%, transparent); color: var(--mx-accent); }
+:root[data-theme="light"] .input { background: rgba(255,255,255,.7); border-color: var(--mx-border-strong); }
+:root[data-theme="light"] .input:focus { border-color: var(--mx-accent); }

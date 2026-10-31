@@ -17,8 +17,9 @@ const DRIFT: Keyframe[][] = [
 ];
 const PERIOD = [7000, 9000, 11000, 8000];
 
-export function Orb({ playing, pace = 1, size = 112, colors, onClick, label }: {
+export function Orb({ playing, busy = false, pace = 1, size = 112, colors, onClick, label }: {
   playing: boolean;
+  busy?: boolean;
   /** the wave's sound setting: calm slows the drift, energetic drives it */
   pace?: number;
   size?: number;
@@ -80,7 +81,7 @@ export function Orb({ playing, pace = 1, size = 112, colors, onClick, label }: {
   const vars = Object.fromEntries(colors.slice(0, 4).map((c, i) => [`--c${i}`, c]));
   return (
     <button ref={root} type="button" className={css.orb + (playing ? " " + css.live : "")} style={{ ...vars, ["--orb" as string]: `${size}px` }}
-      aria-label={label} aria-pressed={playing}
+      aria-label={label} aria-pressed={playing} aria-busy={busy} disabled={busy}
       onPointerMove={move}
       onPointerEnter={() => { hot.current = true; flow(); }}
       onPointerLeave={() => { hot.current = false; flow(); root.current?.style.setProperty("--px", "0"); root.current?.style.setProperty("--py", "0"); }}
