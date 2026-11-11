@@ -42,8 +42,8 @@ CLAP_SR, CLAP_CHUNK_S, CLAP_MAX_S = 48_000, 10, 300
 breaker = CircuitBreaker()
 _loaded: dict[str, Any] = {}
 # The GPU lease (spec sound-engine §4): while new songs get their sound analysis the card is
-# lent to ml-sound, the GPU legs are dropped and refuse to load until it comes back. The
-# executor thread is the only one that touches these, so no lock.
+# lent to ml-sound. Interactive requests reload the search models on the CPU until the
+# card comes back; bulk text indexing still waits. Only the executor touches this state.
 _lent = False
 GPU_LEGS = ("dense", "sparse", "cross_encoder")
 # what a leg needs free on the card to load and run (fp16 weights + activations): a restart
@@ -59,7 +59,7 @@ CPU_LEGS = frozenset({"clap"})
 
 
 def device(leg: str | None = None) -> str:
-    if leg in CPU_LEGS:
+    if leg in CPU_LEGS or _lent:
         return "cpu"
     want = os.environ.get("ML_DEVICE", "cpu")
     if want == "cuda":
@@ -81,8 +81,6 @@ def _configure_torch() -> None:
 def _load(leg: str, name: str, loader: Callable[[], Any]) -> Any:
     if leg in _loaded:
         return _loaded[leg]
-    if _lent and leg not in CPU_LEGS:
-        raise ModelGpuLent(leg, "load", "the GPU is lent to ml-sound")
     if device(leg) == "cuda":
         import torch
 
@@ -138,27 +136,41 @@ def loaded() -> dict[str, Any]:
     }
 
 
-def release() -> dict[str, Any]:
-    """Drop the GPU legs and free the card for ml-sound (runs on the executor thread, so it
-    waits for the op in flight). CLAP stays: it lives on the CPU."""
-    global _lent
-    _lent = True
+def require_gpu(leg: str, op: str) -> None:
+    """Bulk text indexing waits for the card instead of competing with sound's CPU work."""
+    if _lent:
+        raise ModelGpuLent(leg, op, "the GPU is lent to ml-sound")
+
+
+def _drop_search_models() -> None:
+    """Discard weights before changing devices; cached CPU models must not stay on acquire."""
     for leg in GPU_LEGS:
         _loaded.pop(leg, None)
     import gc
 
     gc.collect()
-    if device() == "cuda":
-        import torch
+    import torch
 
+    if torch.cuda.is_available():
         torch.cuda.empty_cache()
+
+
+def release() -> dict[str, Any]:
+    """Free the card for sound; subsequent interactive requests load CPU weights lazily."""
+    global _lent
+    if _lent:
+        return loaded()
+    _lent = True
+    _drop_search_models()
     log.info("GPU released to ml-sound")
     return loaded()
 
 
 def acquire() -> dict[str, Any]:
-    """The card is back: the GPU legs may load again (the caller warms them in the background)."""
+    """Discard CPU fallback weights and let the caller warm the GPU models in the background."""
     global _lent
+    if _lent:
+        _drop_search_models()
     _lent = False
     log.info("GPU acquired back from ml-sound")
     return loaded()

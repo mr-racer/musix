@@ -29,9 +29,10 @@ because that combination powered the host off three times on 2026-10-17.
 2. **Existing prod services stay as they are**, CPU and GPU in parallel. Only the new
    sound models must load the CPU and the GPU together as little as possible, without
    losing much speed (10-18).
-3. **The GPU switches on demand.** When songs arrive, `ml` is unloaded and `ml-sound` is
-   loaded. `ml` comes back when the sound work is done and the text needs indexing. Online
-   is small: nobody suffers if `ml` is down while someone asks the assistant (10-24).
+3. **GPU переключается по необходимости.** При анализе песен GPU получает `ml-sound`,
+   а поисковые модели `ml` обслуживают запросы пользователей на CPU. После анализа
+   поиск возвращается на GPU. Решение владельца от 2026-11-11 заменяет прежнее
+   допущение о временной недоступности поисковых моделей от 10-24.
 4. **New uploads always get the analysis**, and the whole library is backfilled (10-24).
 5. **No stems are saved, anywhere.** The one exception is a one-off export of 10 songs'
    stems for the owner to listen to (10-18, 10-24).
@@ -137,10 +138,14 @@ minute under a Postgres advisory lock.
 
 - `release` runs on the executor thread. It drops the GPU models from the load cache,
   then runs `gc` and `torch.cuda.empty_cache()`.
-- While `ml` is lent, GPU ops answer 503 (`gpu_lent`, `Retry-After`), so callers get
-  `Unavailable` and degrade as they already do with `ml` stopped. The assistant runs
-  without dense and the reranker, and lyrics search runs on BM25.
-- `acquire` clears the flag and preloads in the background.
+- Пока GPU передан музыкальным моделям, интерактивные dense/sparse/rerank-запросы
+  загружают поисковые модели на CPU в fp32. Первая операция после переключения
+  оплачивает загрузку весов из локального кеша; затем модели переиспользуются.
+- Фоновая индексация текста (`X-Priority: bulk`) продолжает ждать GPU с ответом 503
+  (`gpu_lent`, `Retry-After`), чтобы не конкурировать с CPU-обработкой музыки.
+  Проверка выполняется в потоке исполнителя, после уже поставленных переключений.
+- `acquire` удаляет CPU-копии поисковых моделей, снимает флаг и прогревает GPU-модели
+  в фоне. Повторные `release`/`acquire` не сбрасывают кеш текущего устройства.
 - `ml` also refuses to load a GPU model when NVML shows less free memory than the model
   needs. This safety net covers restarts.
 - `ml-clap` is CPU-only and unaffected.

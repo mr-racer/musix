@@ -25,6 +25,7 @@ from musix_ml.errors import ModelError
 from musix_ml.executor import PriorityExecutor
 
 DENSE_ALIASES = {"octen-query": True, "octen-document": False}
+GPU_OPS = {"dense": "dense", "sparse": "sparse", "rerank": "cross_encoder"}
 SPARSE_DIM = 280_524  # MILCO: 30522 SPLADE-v3 pivot + 250002 XLM-R source view
 MAX_INPUTS, MAX_CHARS = 256, 2_000_000
 MEDIA_ROOTS = [
@@ -85,9 +86,15 @@ def create_app() -> FastAPI:
         )
 
     async def run(op: str, priority: str, fn: Any) -> Any:
+        def work() -> Any:
+            # Check on the executor thread: release/acquire may run while this work queues.
+            if priority == "bulk" and op in GPU_OPS:
+                models.require_gpu(GPU_OPS[op], op)
+            return fn()
+
         t = time.perf_counter()
         try:
-            return await ex.run(priority, fn)
+            return await ex.run(priority, work)
         finally:
             QUEUE.set(ex.depth())
             LATENCY.labels(op, priority).observe(time.perf_counter() - t)
