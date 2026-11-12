@@ -593,7 +593,9 @@ class TrackExtractor:
             self.sink.put("extract", passages=len(passages), batches=batches, claims=len(out))
         logger.info(
             "[tracklists] model produced %d claims from %d passages in %d batch(es)",
-            len(out), len(passages), batches,
+            len(out),
+            len(passages),
+            batches,
         )
         return out
 
@@ -619,13 +621,15 @@ class TrackExtractor:
                 year = None
             idx = as_int(n)
             url = batch[idx - 1][0] if idx and 1 <= idx <= len(batch) else batch[0][0]
-            refs.append(TrackRef(title=title, artist=artist, year=year, source="web", source_url=url))
+            refs.append(
+                TrackRef(title=title, artist=artist, year=year, source="web", source_url=url)
+            )
         return refs
 
 
 _ROW_RE = re.compile(
     r'\[\s*("(?:[^"\\]|\\.)*")\s*,\s*("(?:[^"\\]|\\.)*"|null)'
-    r'(?:\s*,\s*(-?\d+|null))?(?:\s*,\s*(\d+|null))?\s*\]'
+    r"(?:\s*,\s*(-?\d+|null))?(?:\s*,\s*(\d+|null))?\s*\]"
 )
 _OBJ_RE = re.compile(r"\{[^{}\[\]]*\}")
 
