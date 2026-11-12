@@ -101,6 +101,7 @@ STYLE (when you do write a line):
 - INVENT NOTHING. Your line must say EXACTLY what the chosen fact says — same claim, same specifics, no added color. You may only translate it into {lang_name} and shorten it; you may NOT add, merge, reinterpret, exaggerate, or "improve" details. If the fact says "recorded in a hotel room", the line says a hotel room — not "a cramped Tokyo hotel room at 4am".
 - Plain and clear, like a knowledgeable friend pointing something out — NOT a magazine pull-quote, NOT poetry. No purple adjectives, no invented atmosphere, no clichés.
 - One line, max ~120 characters. No emoji, no quotation marks around the whole line.
+- Do not append source attributions, citations or URLs; provenance stays on the server.
 - NAMES: you may name a producer, featured guest, or album — those are the interesting facts. Do NOT repeat the main artist's name or the track title; the UI already shows them right next to your line.
 - Any name you DO write (producer, guest, album) must appear EXACTLY as given in the chosen fact — character for character. NEVER translate, transliterate, localize, or grammatically decline a name into {lang_name}.
 - This applies to EVERY proper name: people, family members, brands, shows, places. If a name is spelled in Latin letters in the fact (or in the Artist/Track lines of the task), it must appear in your line in the SAME Latin letters. Writing any such name in Cyrillic is an error.
@@ -164,12 +165,12 @@ def _build_fact_window(meta_facts: list[dict]) -> list[dict]:
             if _junk_reason(note) is not None:
                 continue
             text = f'Note on the line "{quote}": {note}' if quote else f"Note on the song: {note}"
-            notes.append({"tag": _TAG_LINE_NOTE, "text": text})
+            notes.append({"tag": _TAG_LINE_NOTE, "text": text, "fact_id": mf.get("id")})
         else:
             if _junk_reason(fact) is not None:
                 continue
             tag = _TAG_DESCRIPTION if category == "genius_description" else _TAG_EDITORIAL
-            primary.append({"tag": tag, "text": fact})
+            primary.append({"tag": tag, "text": fact, "fact_id": mf.get("id")})
 
     window = (primary + notes)[:MAX_FACTS]
     for i, item in enumerate(window):
@@ -244,18 +245,20 @@ def _parse_vibe_response(raw: str, valid_keys: set[str]) -> tuple[str | None, st
     return best, line
 
 
-def _validate(phrase: str) -> str:
+def _validate(phrase: str, *, truncate: bool = True) -> str:
     """Trim, drop wrapping quotes, enforce length cap."""
     phrase = (phrase or "").strip().strip('"').strip("'")
     while len(phrase) > 1 and phrase[-1] == phrase[-2] and phrase[-1] in ".!?":
         phrase = phrase[:-1]
-    if len(phrase) > MAX_PHRASE_CHARS:
+    if truncate and len(phrase) > MAX_PHRASE_CHARS:
         phrase = phrase[:MAX_PHRASE_CHARS].rstrip() + "…"
     return phrase
 
 
 def _line_ok(line: str, lang: str) -> bool:
     """Reject raw-scaffold leakage, wrong-script and garbled-script lines."""
+    if re.search(r"https?://|www\.", line, re.I):
+        return False
     if any(marker.lower() in line.lower() for marker in _FORBIDDEN_IN_LINE):
         return False
     if lang == "ru" and not _CYRILLIC_RE.search(line):

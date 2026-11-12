@@ -30,6 +30,7 @@ fact_refinements = sa.Table(
     sa.Column("src", sa.Text),
     sa.Column("model", sa.Text),
     sa.Column("generated_at", TS, nullable=False, server_default=sa.func.now()),
+    sa.Column("quality", JSONB, nullable=False, server_default=sa.text("'{}'::jsonb")),
 )
 artist_bios = sa.Table(
     "artist_bios",
@@ -40,6 +41,7 @@ artist_bios = sa.Table(
     sa.Column("facets", JSONB, nullable=False),
     sa.Column("sources", JSONB, nullable=False),
     sa.Column("generated_at", TS, nullable=False, server_default=sa.func.now()),
+    sa.Column("quality", JSONB, nullable=False, server_default=sa.text("'{}'::jsonb")),
 )
 song_relations = sa.Table(
     "song_relations",
@@ -83,6 +85,8 @@ song_vibes = sa.Table(
     sa.Column("lang", sa.Text, primary_key=True),
     sa.Column("phrase", sa.Text, nullable=False),
     sa.Column("generated_at", TS, nullable=False, server_default=sa.func.now()),
+    sa.Column("source_fact_id", sa.BigInteger, sa.ForeignKey("facts.id", ondelete="SET NULL")),
+    sa.Column("quality", JSONB, nullable=False, server_default=sa.text("'{}'::jsonb")),
 )
 artist_aliases = sa.Table(
     "artist_aliases",

@@ -19,15 +19,14 @@ import json
 import logging
 import re
 from dataclasses import replace
-from typing import Optional
 
-from musix.knowledge import text_quality as tq
-from musix.assistant.config import AgentConfig
-from musix.assistant.fetcher import PageFetcher
 from musix.assistant.bio_v2 import article as art
 from musix.assistant.bio_v2 import prompts as P
 from musix.assistant.bio_v2 import retrieval as R
 from musix.assistant.bio_v2 import sources
+from musix.assistant.config import AgentConfig
+from musix.assistant.fetcher import PageFetcher
+from musix.knowledge import text_quality as tq
 
 logger = logging.getLogger(__name__)
 
@@ -64,7 +63,7 @@ def parse_json(raw: str):
             return None
 
 
-def _int(value) -> Optional[int]:
+def _int(value) -> int | None:
     try:
         n = int(value)
     except (TypeError, ValueError):
@@ -72,14 +71,22 @@ def _int(value) -> Optional[int]:
     return n
 
 
-def _empty(obj: Optional[dict]) -> bool:
+def _empty(obj: dict | None) -> bool:
     if not obj:
         return True
     return all(obj.get(k) in (None, "", "null") for k in obj if k != "evidence")
 
 
 async def write_bio(
-    ask, artist: str, chunks: list, retriever, *, lang_name: str = "Russian", lang_code: str = "ru"
+    ask,
+    artist: str,
+    chunks: list,
+    retriever,
+    *,
+    lang_name: str = "Russian",
+    lang_code: str = "ru",
+    editor_mode: str = "off",
+    editor_budget=None,
 ) -> tuple:
     """(text, notes) — the biography, script-checked. Empty text means none."""
     order = await asyncio.to_thread(R.bio_chunks, retriever, artist)
@@ -93,7 +100,9 @@ async def write_bio(
     # A whole answer in the wrong language is not a repair job — there is
     # nothing to correct, the model did the wrong task. Ask again once, with
     # the instruction moved to the front where a small model reads it.
-    if tq.no_target_script(bio, lang_code):
+    use_editor = editor_mode != "off" and lang_code == "ru"
+    apply_editor = editor_mode == "apply" and lang_code == "ru"
+    if not apply_editor and tq.no_target_script(bio, lang_code):
         notes["lang_retry"] = True
         again = await ask(
             P.LANG_RETRY + P.BIO_PROMPT.format(artist=artist, lang=lang_name, passages=ctx), 0.2
@@ -114,7 +123,7 @@ async def write_bio(
             notes["swaps"] = [(a, b) for a, b, _ in swaps]
             issues = tq.check(bio, source=ctx, lang=lang_code)
 
-    if any(k in issues for k in tq.SCRIPT_FAULTS):
+    if not apply_editor and any(k in issues for k in tq.SCRIPT_FAULTS):
         obj = parse_json(
             await ask(
                 tq.REPLACE_PROMPT.format(text=bio, complaints=tq.complaints(issues, lang_name)), 0.1
@@ -126,6 +135,26 @@ async def write_bio(
             issues = tq.check(bio, source=ctx, lang=lang_code)
         if skipped:
             notes["repl_skipped"] = skipped
+
+    if use_editor:
+        from musix.knowledge.prose_repair import edit_persisted
+
+        original, before_editor = bio, issues
+        bio, notes["editor"] = await edit_persisted(
+            ask,
+            bio,
+            source=ctx,
+            names=(artist,),
+            mode=editor_mode,
+            surface="bio",
+            issues=issues,
+            budget=editor_budget,
+        )
+        notes["editor"]["source_text"] = ctx
+        issues = tq.check(bio, source=ctx, lang=lang_code)
+        if set(issues) - set(before_editor):
+            bio, issues = original, before_editor
+            notes["editor"].update(status="rejected", reason="new_quality_issue")
 
     notes["issues_final"] = sorted(issues)
     if issues.get("wrong_language"):
@@ -277,11 +306,12 @@ async def build(
     *,
     lang_name: str = "Russian",
     lang_code: str = "ru",
-    config: Optional[AgentConfig] = None,
-    fetcher: Optional[PageFetcher] = None,
+    config: AgentConfig | None = None,
+    fetcher: PageFetcher | None = None,
     searcher=None,
-    seed_bio: Optional[str] = None,
-    proxies: Optional[dict] = None,
+    seed_bio: str | None = None,
+    proxies: dict | None = None,
+    editor_mode: str = "off",
 ) -> dict:
     """Everything for one artist: bio text, facets, and what was rejected.
 
@@ -290,6 +320,9 @@ async def build(
     article or because nothing in the one there is cleared the chunk gate.
     """
     cfg = config or AgentConfig()
+    from musix.knowledge.prose_repair import RepairBudget
+
+    editor_budget = RepairBudget()
     fetcher = fetcher or PageFetcher(cfg)
     if searcher is None:
         # Imported HERE so the pipeline can be exercised — by a test, by a probe
@@ -314,7 +347,14 @@ async def build(
     bio, notes = "", {}
     if chunks:
         bio, notes = await write_bio(
-            ask, artist, chunks, retriever, lang_name=lang_name, lang_code=lang_code
+            ask,
+            artist,
+            chunks,
+            retriever,
+            lang_name=lang_name,
+            lang_code=lang_code,
+            editor_mode=editor_mode,
+            editor_budget=editor_budget,
         )
 
     if not bio:
@@ -334,7 +374,14 @@ async def build(
                 chunks = chunks + fresh
             notes["widened"] = len(fresh)
             bio, more = await write_bio(
-                ask, artist, chunks, retriever, lang_name=lang_name, lang_code=lang_code
+                ask,
+                artist,
+                chunks,
+                retriever,
+                lang_name=lang_name,
+                lang_code=lang_code,
+                editor_mode=editor_mode,
+                editor_budget=editor_budget,
             )
             notes.update(more)
 

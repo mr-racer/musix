@@ -13,6 +13,7 @@ source of truth:
 from __future__ import annotations
 
 import re
+from typing import Literal
 
 from pydantic import SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -42,6 +43,7 @@ class Settings(BaseSettings):
     llm_model: str | None = None
     llm_api_key: SecretStr | None = None  # a local server ignores it; SecretStr: never in a repr
     knowledge_langs: list[str] = ["ru"]  # the languages facts, vibe lines and bios are written in
+    static_text_editor: Literal["off", "shadow", "apply"] = "off"
     proxy_url: str | None = None  # outbound knowledge sources only; internal traffic never
     weather_latlon: str = "55.7522,37.6156"  # default place for the sky: Istanbul
 

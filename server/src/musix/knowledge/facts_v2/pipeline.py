@@ -19,6 +19,7 @@ import logging
 import re
 from collections.abc import Callable
 
+from musix.knowledge import prose_repair
 from musix.knowledge import text_quality as tq
 from musix.knowledge.facts_v2 import prompts as P
 from musix.knowledge.facts_v2.prompts import ARTIST_LABELS, SONG_LABELS
@@ -227,7 +228,14 @@ def route(labels: list) -> dict:
 
 
 async def refine_one(
-    ask, rec: dict, entity: dict, scope: str, *, lang_name: str = "Russian", lang_code: str = "ru"
+    ask,
+    rec: dict,
+    entity: dict,
+    scope: str,
+    *,
+    lang_name: str = "Russian",
+    lang_code: str = "ru",
+    editor_mode: str = "off",
 ) -> dict:
     """Rewrite one fact, or extract its sampling link, and validate the result."""
     plan = route(rec["labels"])
@@ -286,7 +294,15 @@ async def refine_one(
     src = f"{fact_text} {artist} {title}"
     forbid = title if scope == "song" else ""
     text, issues, notes = await _repair(
-        ask, text, src=src, cap=cap, forbid=forbid, lang_name=lang_name, lang_code=lang_code
+        ask,
+        text,
+        src=src,
+        cap=cap,
+        forbid=forbid,
+        lang_name=lang_name,
+        lang_code=lang_code,
+        editor_mode=editor_mode,
+        protected_names=tuple(n for n in (artist, title) if n),
     )
     rec.update(notes)
 
@@ -302,7 +318,16 @@ async def refine_one(
 
 
 async def _repair(
-    ask, text: str, *, src: str, cap: int, forbid: str, lang_name: str, lang_code: str
+    ask,
+    text: str,
+    *,
+    src: str,
+    cap: int,
+    forbid: str,
+    lang_name: str,
+    lang_code: str,
+    editor_mode: str = "off",
+    protected_names: tuple[str, ...] = (),
 ) -> tuple:
     """Bring one piece of text into line. Code first, model only for the rest.
 
@@ -322,6 +347,26 @@ async def _repair(
         if swaps:
             notes["swaps"] = [(a, b) for a, b, _ in swaps]
             issues = tq.check(text, source=src, lang=lang_code, max_chars=cap, forbid=forbid)
+
+    async def edit_checked(draft: str, before: dict) -> tuple[str, dict]:
+        candidate, notes["editor"] = await prose_repair.edit_persisted(
+            ask,
+            draft,
+            source=src,
+            mode=editor_mode,
+            max_chars=cap,
+            issues=before,
+            names=protected_names,
+        )
+        after = tq.check(candidate, source=src, lang=lang_code, max_chars=cap, forbid=forbid)
+        if set(after) - set(before):
+            notes["editor"].update(status="rejected", reason="new_quality_issue")
+            return draft, before
+        return candidate, after
+
+    if editor_mode == "apply" and lang_code == "ru":
+        text, issues = await edit_checked(text, issues)
+        return text, issues, notes
 
     if any(k in issues for k in tq.SCRIPT_FAULTS):
         obj = parse_json(
@@ -361,6 +406,8 @@ async def _repair(
                 text, issues, notes["repaired"] = fixed, after, True
         elif fixed:
             notes["repair_rejected"] = True
+    if editor_mode == "shadow" and lang_code == "ru":
+        text, issues = await edit_checked(text, issues)
     return text, issues, notes
 
 
@@ -372,6 +419,7 @@ async def process_entity(
     *,
     lang_name: str = "Russian",
     lang_code: str = "ru",
+    editor_mode: str = "off",
     on_result=None,
 ) -> list:
     """Gate → classify → refine, persisting each fact as soon as it is done.
@@ -398,7 +446,15 @@ async def process_entity(
 
     for rec in await classify_entity(ask, entity, scope, kept):
         try:
-            await refine_one(ask, rec, entity, scope, lang_name=lang_name, lang_code=lang_code)
+            await refine_one(
+                ask,
+                rec,
+                entity,
+                scope,
+                lang_name=lang_name,
+                lang_code=lang_code,
+                editor_mode=editor_mode,
+            )
         except Exception as exc:
             rec["error"] = f"{type(exc).__name__}: {exc}"
             logger.warning("[facts_v2] refine failed for %s: %s", entity.get("slug"), exc)

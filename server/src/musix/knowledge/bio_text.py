@@ -19,6 +19,7 @@ _NOTES = re.compile(
 )
 _PARAGRAPHS = re.compile(r"\n\s*\n")
 _RULE = re.compile(r"^\s*[-–—*_]{3,}\s*$")  # a markdown rule between the notes and the bio
+_CONTROL_LINE = re.compile(r"(?:\[?NO_DATA\]?|</?think>)")
 
 
 def _cyrillic_share(p: str) -> float:
@@ -31,6 +32,16 @@ def clean_bio(text: str, lang: str) -> str:
     Cyrillic, the vocabulary of its work, or a markdown rule — while a later one is Russian,
     and the bold markers. An English paragraph of actual biography stays (content beats
     language), a Latin name inside a Russian paragraph stays; other languages pass as is."""
+    # Control-only paragraphs are protocol artifacts, not biographical prose.
+    paras = _PARAGRAPHS.split(text.strip())
+    kept = []
+    for paragraph in paras:
+        lines = [line.strip("*` \t") for line in paragraph.splitlines() if line.strip()]
+        if lines and all(_CONTROL_LINE.fullmatch(line) for line in lines):
+            continue
+        kept.append(paragraph)
+    if len(kept) != len(paras):
+        text = "\n\n".join(kept)
     if lang != "ru":
         return text
     paras = _PARAGRAPHS.split(text.strip())

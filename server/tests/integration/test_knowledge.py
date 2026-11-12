@@ -246,3 +246,89 @@ async def test_the_genius_page_gives_samples_credits_and_tags_and_a_rerun_replac
         ) == ["Rap"]
     k = client.get(f"/api/v2/tracks/{a}/knowledge", headers=bearer(tok)).json()
     assert [x["text"] for x in k["samples"]] == ["King Crimson — 21st Century Schizoid-Man"]
+
+
+@pytest.mark.parametrize("editor_mode", ["apply", "shadow"])
+async def test_player_fact_keeps_provenance_on_backend_and_edits_only_the_selected_source(
+    sm, listener, client, monkeypatch, editor_mode
+) -> None:  # type: ignore[no-untyped-def]
+    import json
+
+    from musix.contexts.knowledge import jobs
+    from musix.contexts.knowledge.models import facts, song_vibes
+    from musix.contexts.library.models import songs, tracks
+    from musix.settings import Settings
+
+    tok, _, (track_id, *_) = listener
+    async with sm() as s:
+        song_id = await s.scalar(
+            sa.insert(songs)
+            .values(slug=f"editor-{uuid.uuid4().hex}", title="Editor test")
+            .returning(songs.c.id)
+        )
+        await s.execute(sa.update(tracks).where(tracks.c.id == track_id).values(song_id=song_id))
+        await s.execute(
+            sa.insert(facts).values(
+                subject_kind="song",
+                subject_id=song_id,
+                lang="en",
+                text="An unrelated guitar part was recorded in a large concert hall.",
+                source="songfacts.com",
+            )
+        )
+        source_text = "The song was recorded at home in 2010 using only a guitar."
+        assert (
+            await jobs._add_facts(
+                s,
+                "song",
+                song_id,
+                [source_text],
+                "songfacts.com",
+                source_url="https://www.songfacts.com/facts/test/song",
+            )
+            == 1
+        )
+        fact_id = await s.scalar(
+            sa.select(facts.c.id).where(facts.c.subject_id == song_id, facts.c.text == source_text)
+        )
+        await s.commit()
+    monkeypatch.setattr(
+        "musix.workers.context.settings",
+        lambda: Settings(_env_file=None, static_text_editor=editor_mode),
+    )
+    corrected = "Песня записана дома в 2010 году."
+
+    class LlmStub:
+        def __init__(self):
+            self.calls = []
+
+        async def ask(self, prompt, **kwargs):
+            self.calls.append((prompt, kwargs))
+            if len(self.calls) == 1:
+                return json.dumps({"best": "M2", "line": "Песня записали дома в 2010 году."})
+            return json.dumps({"status": "repaired", "text": corrected})
+
+    llm = LlmStub()
+    displayed = corrected if editor_mode == "apply" else "Песня записали дома в 2010 году."
+    assert await jobs.vibe(sm, llm, song_id, "ru") == displayed
+    assert len(llm.calls) == 2
+    assert "recorded at home in 2010" in llm.calls[1][0]
+    assert "large concert hall" not in llm.calls[1][0]
+    assert llm.calls[1][1]["extra_body"]["cache_prompt"] is True
+    assert llm.calls[1][1]["extra_body"]["presence_penalty"] == 0.0
+    assert llm.calls[1][1]["extra_body"]["repeat_penalty"] == 1.0
+    async with sm() as s:
+        row = (await s.execute(sa.select(song_vibes).where(song_vibes.c.song_id == song_id))).one()
+        assert row.source_fact_id == fact_id
+        assert row.quality["status"] == "repaired"
+        assert row.quality["draft"] == "Песня записали дома в 2010 году."
+        assert (
+            await s.scalar(sa.select(facts.c.source_url).where(facts.c.id == fact_id))
+            == "https://www.songfacts.com/facts/test/song"
+        )
+    knowledge = client.get(
+        f"/api/v2/tracks/{track_id}/knowledge", params={"lang": "ru"}, headers=bearer(tok)
+    ).json()
+    assert knowledge["vibe"] == displayed
+    assert "sourceFactId" not in knowledge
+    assert "quality" not in knowledge

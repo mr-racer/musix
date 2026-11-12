@@ -1,0 +1,402 @@
+{
+  "date_msk": "2026-11-12",
+  "model": "qwen3.8-27b-ud-q3_k_xl",
+  "base_commit": "dcc3fe3a316d2a47eff476c0b4a0dc25052d05e4",
+  "decision": "Keep repeat_penalty=1.0. Use editor-only presence_penalty=0 for observation. Automatic application did not pass validation; default remains off.",
+  "audit_counts": {
+    "nonempty_fact_refinements": 18970,
+    "explicit_current_model_refinements": 1603,
+    "bios": 1467,
+    "player_facts": 4005,
+    "published_sound_texts": 3501
+  },
+  "repetition": {
+    "1.0": {
+      "n": 68,
+      "flags": {
+        "over_length": 4,
+        "mixed_script": 4,
+        "skip": 1,
+        "no_russian": 7,
+        "service_text": 4
+      },
+      "median_seconds": 1.011,
+      "completion_tokens": 3848,
+      "cached_prompt_fraction": 0.892521182978922,
+      "per_kind": {
+        "bio": {
+          "n": 8,
+          "broken_contract": 0,
+          "abstentions": 4,
+          "wrong_language_prose": 1,
+          "mixed_script": 0,
+          "over_length": 0
+        },
+        "fact": {
+          "n": 48,
+          "broken_contract": 0,
+          "abstentions": 0,
+          "wrong_language_prose": 0,
+          "mixed_script": 4,
+          "over_length": 4
+        },
+        "vibe": {
+          "n": 12,
+          "broken_contract": 0,
+          "abstentions": 1,
+          "wrong_language_prose": 2,
+          "mixed_script": 0,
+          "over_length": 0
+        }
+      }
+    },
+    "1.05": {
+      "n": 68,
+      "flags": {
+        "mixed_script": 4,
+        "over_length": 2,
+        "invalid_shape": 2,
+        "no_russian": 8,
+        "skip": 3,
+        "service_text": 4
+      },
+      "median_seconds": 1.0795,
+      "completion_tokens": 3735,
+      "cached_prompt_fraction": 0.8570061389790155,
+      "per_kind": {
+        "bio": {
+          "n": 8,
+          "broken_contract": 0,
+          "abstentions": 4,
+          "wrong_language_prose": 1,
+          "mixed_script": 0,
+          "over_length": 0
+        },
+        "fact": {
+          "n": 48,
+          "broken_contract": 2,
+          "abstentions": 0,
+          "wrong_language_prose": 0,
+          "mixed_script": 4,
+          "over_length": 2
+        },
+        "vibe": {
+          "n": 12,
+          "broken_contract": 0,
+          "abstentions": 3,
+          "wrong_language_prose": 1,
+          "mixed_script": 0,
+          "over_length": 0
+        }
+      }
+    },
+    "1.1": {
+      "n": 68,
+      "flags": {
+        "invalid_shape": 5,
+        "no_russian": 13,
+        "over_length": 1,
+        "mixed_script": 5,
+        "invalid_json": 2,
+        "skip": 3,
+        "service_text": 4
+      },
+      "median_seconds": 1.1675,
+      "completion_tokens": 3680,
+      "cached_prompt_fraction": 0.9085688942835135,
+      "per_kind": {
+        "bio": {
+          "n": 8,
+          "broken_contract": 0,
+          "abstentions": 4,
+          "wrong_language_prose": 3,
+          "mixed_script": 0,
+          "over_length": 0
+        },
+        "fact": {
+          "n": 48,
+          "broken_contract": 7,
+          "abstentions": 0,
+          "wrong_language_prose": 0,
+          "mixed_script": 5,
+          "over_length": 1
+        },
+        "vibe": {
+          "n": 12,
+          "broken_contract": 0,
+          "abstentions": 3,
+          "wrong_language_prose": 1,
+          "mixed_script": 0,
+          "over_length": 0
+        }
+      }
+    }
+  },
+  "global_presence": {
+    "0.0": {
+      "n": 68,
+      "flags": {
+        "mixed_script": 4,
+        "over_length": 2,
+        "no_russian": 7,
+        "service_text": 4
+      },
+      "median_seconds": 1.0455,
+      "completion_tokens": 3924,
+      "cached_prompt_fraction": 0.894925421908919,
+      "per_kind": {
+        "bio": {
+          "n": 8,
+          "broken_contract": 0,
+          "abstentions": 4,
+          "wrong_language_prose": 1,
+          "mixed_script": 0,
+          "over_length": 0
+        },
+        "fact": {
+          "n": 48,
+          "broken_contract": 0,
+          "abstentions": 0,
+          "wrong_language_prose": 0,
+          "mixed_script": 4,
+          "over_length": 2
+        },
+        "vibe": {
+          "n": 12,
+          "broken_contract": 0,
+          "abstentions": 0,
+          "wrong_language_prose": 2,
+          "mixed_script": 0,
+          "over_length": 0
+        }
+      }
+    },
+    "0.5": {
+      "n": 68,
+      "flags": {
+        "over_length": 4,
+        "mixed_script": 4,
+        "skip": 1,
+        "no_russian": 6,
+        "service_text": 4
+      },
+      "median_seconds": 1.1415000000000002,
+      "completion_tokens": 3835,
+      "cached_prompt_fraction": 0.8505753833944119,
+      "per_kind": {
+        "bio": {
+          "n": 8,
+          "broken_contract": 0,
+          "abstentions": 4,
+          "wrong_language_prose": 1,
+          "mixed_script": 0,
+          "over_length": 0
+        },
+        "fact": {
+          "n": 48,
+          "broken_contract": 0,
+          "abstentions": 0,
+          "wrong_language_prose": 0,
+          "mixed_script": 4,
+          "over_length": 4
+        },
+        "vibe": {
+          "n": 12,
+          "broken_contract": 0,
+          "abstentions": 1,
+          "wrong_language_prose": 1,
+          "mixed_script": 0,
+          "over_length": 0
+        }
+      }
+    },
+    "1.5": {
+      "n": 68,
+      "flags": {
+        "over_length": 4,
+        "mixed_script": 4,
+        "no_russian": 7,
+        "service_text": 4
+      },
+      "median_seconds": 0.9964999999999999,
+      "completion_tokens": 3919,
+      "cached_prompt_fraction": 0.9122686211806447,
+      "per_kind": {
+        "bio": {
+          "n": 8,
+          "broken_contract": 0,
+          "abstentions": 4,
+          "wrong_language_prose": 1,
+          "mixed_script": 0,
+          "over_length": 0
+        },
+        "fact": {
+          "n": 48,
+          "broken_contract": 0,
+          "abstentions": 0,
+          "wrong_language_prose": 0,
+          "mixed_script": 4,
+          "over_length": 4
+        },
+        "vibe": {
+          "n": 12,
+          "broken_contract": 0,
+          "abstentions": 0,
+          "wrong_language_prose": 2,
+          "mixed_script": 0,
+          "over_length": 0
+        }
+      }
+    }
+  },
+  "editor_presence_controls": {
+    "n": 384,
+    "decision": "Choose presence_penalty=0 only for the editor: lowest rate of needless admitted changes to clean/style controls. Writer/global defaults unchanged. Validate transfer to real production prose before adoption.",
+    "arms": {
+      "0": {
+        "style_control": {
+          "rejected": 3,
+          "unchanged": 28,
+          "unresolved": 1
+        },
+        "controlled_clean": {
+          "unchanged": 46,
+          "rejected": 2
+        },
+        "controlled_corrupted": {
+          "repaired": 38,
+          "unchanged": 3,
+          "rejected": 7
+        },
+        "seconds_median": 0.3415
+      },
+      "0.5": {
+        "style_control": {
+          "rejected": 4,
+          "unchanged": 26,
+          "repaired": 2
+        },
+        "controlled_clean": {
+          "unchanged": 46,
+          "rejected": 2
+        },
+        "controlled_corrupted": {
+          "repaired": 40,
+          "unchanged": 1,
+          "rejected": 7
+        },
+        "seconds_median": 0.37
+      },
+      "1.5": {
+        "style_control": {
+          "rejected": 5,
+          "unchanged": 24,
+          "repaired": 3
+        },
+        "controlled_clean": {
+          "unchanged": 42,
+          "repaired": 4,
+          "rejected": 2
+        },
+        "controlled_corrupted": {
+          "repaired": 42,
+          "unresolved": 2,
+          "rejected": 4
+        },
+        "seconds_median": 0.3555
+      }
+    }
+  },
+  "general_editor_holdout": {
+    "n": 128,
+    "strata": {
+      "current_model": 64,
+      "legacy_unknown": 64
+    },
+    "statuses": {
+      "unchanged": 79,
+      "rejected": 16,
+      "repaired": 31,
+      "unresolved": 2
+    },
+    "reviewed_admitted": 31,
+    "review": {
+      "neutral_or_noise": 5,
+      "regression": 11,
+      "mixed": 3,
+      "improvement": 12
+    },
+    "decision": "Failed automatic-adoption gate"
+  },
+  "language_editor_validation": {
+    "n": 64,
+    "strata": {
+      "current_model": 32,
+      "legacy_unknown": 32
+    },
+    "statuses": {
+      "unchanged": 46,
+      "rejected": 8,
+      "unresolved": 3,
+      "repaired": 7
+    },
+    "reviewed_admitted": 7,
+    "review": {
+      "improvement": 5,
+      "regression": 2
+    },
+    "decision": "Does not pass automatic-adoption gate; keep disabled/shadow."
+  },
+  "language_editor_controls": {
+    "n": 128,
+    "statuses": {
+      "unchanged": 80,
+      "repaired": 40,
+      "unresolved": 4,
+      "rejected": 4
+    },
+    "displayed_clean_or_style_unchanged": "80/80; 40 texts, two seeds"
+  },
+  "cache_alternation_final_language_prefix": {
+    "layout": "writer/editor alternating, one source text per editor request",
+    "editor_requests": [
+      {
+        "prompt_tokens": 652,
+        "cached_tokens": 323
+      },
+      {
+        "prompt_tokens": 711,
+        "cached_tokens": 323
+      },
+      {
+        "prompt_tokens": 514,
+        "cached_tokens": 346
+      },
+      {
+        "prompt_tokens": 517,
+        "cached_tokens": 341
+      }
+    ],
+    "median_seconds": 1.7215,
+    "editor_presence_penalty": 0,
+    "caveat": "Only four observations, prefix already warm from earlier language-editor runs; no production latency claim."
+  },
+  "caveats": [
+    "Flags are not verified grammatical or factual accuracy.",
+    "Review by the developing coding assistant, not independent human labels.",
+    "Real-world truth of sources was not established.",
+    "Historical result counters use their recorded validator; later code guards do not recertify an opened holdout.",
+    "Artist-disjoint fresh validation failed and is now opened development evidence.",
+    "Same seed/prompt was not bit-deterministic with prefix/KV reuse: 43/68 controls identical.",
+    "No production writes, deployment, mass correction or server sampler configuration changes.",
+    "No new LLM calls in ordinary chat or lyric explanation."
+  ],
+  "verification": {
+    "server_unit_contract_knowledge_integration_passed": 66,
+    "tool_tests_passed": 3,
+    "mypy_source_files_passed": 234,
+    "ruff_changed_files": "passed under repository config; new modules/tools also E,F,I,UP,B",
+    "migration_roundtrip": "upgrade -> downgrade 0021 -> upgrade in isolated Postgres 18",
+    "own_experiment_processes_at_finish": 0
+  }
+}

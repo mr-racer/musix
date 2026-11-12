@@ -102,16 +102,22 @@ def _parse_list(html_string: str, css_class: str) -> list[str]:
 async def songfacts_song(
     sm: SM, http: httpx.AsyncClient, artist: str, title: str
 ) -> tuple[list[str], bool]:
-    url = f"https://www.songfacts.com/facts/{song_slug(artist_query(artist))}/{song_slug(title)}"
+    url = songfacts_song_url(artist, title)
     r, definitive = await _get(sm, SONGFACTS, http, url)
     return (_parse_list(r.text, "songfacts-results") if r else []), definitive
 
 
 async def songfacts_artist(sm: SM, http: httpx.AsyncClient, artist: str) -> tuple[list[str], bool]:
-    r, definitive = await _get(
-        sm, SONGFACTS, http, f"https://www.songfacts.com/facts/{slugify(artist)}"
-    )
+    r, definitive = await _get(sm, SONGFACTS, http, songfacts_artist_url(artist))
     return (_parse_list(r.text, "artistfacts-results") if r else []), definitive
+
+
+def songfacts_song_url(artist: str, title: str) -> str:
+    return f"https://www.songfacts.com/facts/{song_slug(artist_query(artist))}/{song_slug(title)}"
+
+
+def songfacts_artist_url(artist: str) -> str:
+    return f"https://www.songfacts.com/facts/{slugify(artist)}"
 
 
 # ── Genius (v1 genius_service / genius_facts_service) ────────────────────────

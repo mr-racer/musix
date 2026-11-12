@@ -45,6 +45,7 @@ from musix.contexts.library.slug import slugify, song_key
 from musix.errors import Unavailable
 from musix.infra.changelog import record_change
 from musix.infra.llm import Llm, LlmRejected
+from musix.knowledge import prose_repair
 from musix.knowledge import sonic_vibe as SV
 from musix.knowledge.fact_relations.service import song_producers
 from musix.knowledge.facts_v2 import pipeline as fv2
@@ -92,6 +93,7 @@ async def _add_facts(
     texts: list[str],
     source: str,
     category: str | None = None,
+    source_url: str | None = None,
 ) -> int:
     rows = [
         {
@@ -101,6 +103,7 @@ async def _add_facts(
             "text": t.replace("\x00", ""),
             "category": category,
             "source": source,
+            "source_url": source_url,
         }
         for t in texts
         if t and t.strip()
@@ -305,7 +308,14 @@ async def song(sm: SM, http: httpx.AsyncClient, song_id: uuid.UUID) -> bool:
         found, definitive = await src.songfacts_song(sm, http, row.artist, row.title)
         async with sm() as s:
             if found:
-                await _add_facts(s, "song", song_id, found, "songfacts.com")
+                await _add_facts(
+                    s,
+                    "song",
+                    song_id,
+                    found,
+                    "songfacts.com",
+                    source_url=src.songfacts_song_url(row.artist, row.title),
+                )
             elif definitive:
                 await _log(s, "facts:song", row.slug, "miss")
             await _touch(s, songs, song_id)
@@ -317,7 +327,9 @@ async def song(sm: SM, http: httpx.AsyncClient, song_id: uuid.UUID) -> bool:
                 from musix.knowledge import genius as G
 
                 for text, cat in G.build_song_facts(parsed):
-                    await _add_facts(s, "song", song_id, [text], "genius.com", cat)
+                    await _add_facts(
+                        s, "song", song_id, [text], "genius.com", cat, source_url=parsed["url"]
+                    )
                 for name in parsed["producers"]:
                     await _add_relation(
                         s,
@@ -385,7 +397,14 @@ async def artist(sm: SM, http: httpx.AsyncClient, media_dir: Path, artist_id: uu
         found, definitive = await src.songfacts_artist(sm, http, a.name)
         async with sm() as s:
             if found:
-                await _add_facts(s, "artist", artist_id, found, "songfacts.com")
+                await _add_facts(
+                    s,
+                    "artist",
+                    artist_id,
+                    found,
+                    "songfacts.com",
+                    source_url=src.songfacts_artist_url(a.name),
+                )
             elif definitive:
                 await _log(s, "facts:artist", a.slug, "miss")
             await _touch(s, artists, artist_id)
@@ -556,6 +575,20 @@ def asker(llm: Llm, kind: str, down: list[str] | None = None) -> Callable[..., A
     a failed call, so without it a job run while the LLM was off ends «done» with nothing."""
 
     async def ask(prompt: str, temperature: float = 0.3) -> str:
+        if prompt.startswith(prose_repair.REPAIR_SYSTEM):
+            return await llm.ask(
+                prompt,
+                kind=f"{kind}:editor",
+                temperature=temperature,
+                extra_body={
+                    "cache_prompt": True,
+                    "repeat_penalty": 1.0,
+                    "presence_penalty": 0.0,
+                    "chat_template_kwargs": {"enable_thinking": False},
+                    "max_tokens": 2048 if kind == "bio" else 1024,
+                    "response_format": prose_repair.RESPONSE_FORMAT,
+                },
+            )
         try:
             return await llm.ask(prompt, kind=kind, temperature=temperature)
         except LlmRejected:
@@ -592,6 +625,8 @@ async def refine(sm: SM, llm: Llm, kind: str, subject_id: uuid.UUID, lang: str) 
     """Classify → rewrite this subject's raw facts not yet processed in `lang` (v1
     `ai_tasks/refined_facts._do_entity`); a song's sampling links are cleaned by the
     free tiers and written, the ones that need MusicBrainz are left unverified."""
+    from musix.workers.context import settings
+
     async with sm() as s:
         todo = [
             {"id": r.id, "fact": r.text, "category": r.category, "source": r.source}
@@ -630,6 +665,7 @@ async def refine(sm: SM, llm: Llm, kind: str, subject_id: uuid.UUID, lang: str) 
         todo,
         lang_name=LANG_NAME.get(lang, "Russian"),
         lang_code=lang,
+        editor_mode=settings().static_text_editor,
         on_result=done.append,
     )
     async with sm() as s:
@@ -647,6 +683,7 @@ async def refine(sm: SM, llm: Llm, kind: str, subject_id: uuid.UUID, lang: str) 
                 "src": "annotation" if fact.get("category") == "genius_annotation" else "editorial",
                 "model": cfg.model,
                 "generated_at": dt.datetime.now(dt.UTC),
+                "quality": rec.get("editor") or {},
             }
             if rec.get("error"):
                 continue  # not stored: the next run retries it (v1 stored nothing either)
@@ -860,7 +897,11 @@ def tag_names(raw: Any) -> list[str]:
 
 async def vibe(sm: SM, llm: Llm, song_id: uuid.UUID, lang: str) -> str | None:
     """v1 `ai_tasks/sonic_vibe.run` for one song: pick the best fact by key, write one
-    line from it alone; one validation retry, then an empty slot."""
+    line from it alone; one validation retry, then an empty slot. Applying an
+    editor replaces that retry; shadow auditing runs after the baseline."""
+    from musix.workers.context import settings
+
+    editor_mode = settings().static_text_editor if lang == "ru" else "off"
     async with sm() as s:
         if await s.scalar(
             sa.select(song_vibes.c.phrase).where(
@@ -870,9 +911,9 @@ async def vibe(sm: SM, llm: Llm, song_id: uuid.UUID, lang: str) -> str | None:
             return None
         row = await _song_row(s, song_id)
         meta = [
-            {"fact": t, "category": c}
-            for t, c in await s.execute(
-                sa.select(facts.c.text, facts.c.category)
+            {"id": fid, "fact": t, "category": c}
+            for fid, t, c in await s.execute(
+                sa.select(facts.c.id, facts.c.text, facts.c.category)
                 .where(
                     facts.c.subject_kind == "song",
                     facts.c.subject_id == song_id,
@@ -891,6 +932,8 @@ async def vibe(sm: SM, llm: Llm, song_id: uuid.UUID, lang: str) -> str | None:
     user = SV._build_user_prompt(tags=tags, payload=payload, window=window, lang=lang)
     by_key = {item["key"]: item for item in window}
     phrase = ""
+    quality: dict[str, Any] = {}
+    source_fact_id = None
     for attempt in (0, 1):
         raw = await llm.ask(
             user, system=system, temperature=0.7, kind="sonic_vibe", cache=attempt == 0
@@ -901,21 +944,50 @@ async def vibe(sm: SM, llm: Llm, song_id: uuid.UUID, lang: str) -> str | None:
             continue
         if best is None:
             break
-        candidate = SV._validate(line)
+        candidate = SV._validate(line, truncate=editor_mode != "apply")
+        material = f"{by_key[best]['text']} {payload['artist']} {payload['title']}"
+        if editor_mode == "apply" and attempt == 0:
+            candidate, quality = await prose_repair.edit_persisted(
+                asker(llm, "sonic_vibe"),
+                candidate,
+                source=material,
+                names=(payload["artist"], payload["title"]),
+                mode=editor_mode,
+                max_chars=SV.MAX_PHRASE_CHARS,
+                surface="player_fact",
+            )
         if (
             candidate
+            and (editor_mode != "apply" or len(candidate) <= SV.MAX_PHRASE_CHARS)
             and SV._line_ok(candidate, lang)
-            and SV._entities_ok(
-                candidate, f"{by_key[best]['text']} {payload['artist']} {payload['title']}"
-            )
+            and SV._entities_ok(candidate, material)
         ):
             phrase = candidate
+            source_fact_id = by_key[best].get("fact_id")
+            if editor_mode == "shadow":
+                _, quality = await prose_repair.edit_persisted(
+                    asker(llm, "sonic_vibe"),
+                    phrase,
+                    source=material,
+                    names=(payload["artist"], payload["title"]),
+                    mode="shadow",
+                    max_chars=SV.MAX_PHRASE_CHARS,
+                    surface="player_fact",
+                )
             break
+        if editor_mode == "apply":
+            break  # the second call was the editor; never spend a third call
     async with sm() as s:
         if phrase:
             await s.execute(
                 pg_insert(song_vibes)
-                .values(song_id=song_id, lang=lang, phrase=phrase)
+                .values(
+                    song_id=song_id,
+                    lang=lang,
+                    phrase=phrase,
+                    source_fact_id=source_fact_id,
+                    quality=quality,
+                )
                 .on_conflict_do_nothing()
             )
             await _touch(s, songs, song_id)
@@ -991,6 +1063,7 @@ async def bio(sm: SM, llm: Llm, artist_id: uuid.UUID, lang: str) -> bool:
         lang_code=lang,
         proxies=compat.get_proxy(),
         seed_bio=(a.profile or {}).get("bio"),
+        editor_mode=settings().static_text_editor,
     )
     from musix.knowledge.bio_text import clean_bio
 
@@ -1014,6 +1087,7 @@ async def bio(sm: SM, llm: Llm, artist_id: uuid.UUID, lang: str) -> bool:
             "facets": facets,
             "sources": sources,
             "generated_at": dt.datetime.now(dt.UTC),
+            "quality": (result.get("notes") or {}).get("editor") or {},
         }
         await s.execute(
             pg_insert(artist_bios)
