@@ -496,8 +496,11 @@ Skip album titles, radio station names, playlist names and artist names on their
 own. If a passage lists an artist for a song, include it; if it does not, leave \
 artist null rather than guessing.
 
-Return ONLY:
-{"tracks": [{"title": "...", "artist": "..." or null, "year": 1999 or null}]}
+At most {limit} songs: the ones that answer the request best. A long list on \
+the page is not a reason to copy all of it.
+
+Return ONLY compact rows, no keys inside a row:
+{"t": [["title", "artist" or null, year or null, passage number], ...]}
 
 Empty list is a valid and useful answer."""
 

@@ -401,6 +401,12 @@ class AgentConfig:
     lang: str = "en"
     llm_timeout: float = LLM_TIMEOUT
     llm_max_tokens: int = LLM_MAX_TOKENS
+    # Prose extraction. llama-server runs one slot, so batches go one after
+    # another and stop early; output tokens are the cost, so rows are compact
+    # and capped, and a reply cut by the token limit is salvaged, never re-asked.
+    extract_batch_passages: int = 3
+    extract_max_claims: int = 30
+    extract_max_tokens: int = 1500
     llm_temperature: float = LLM_TEMPERATURE
 
     # per-request LLM endpoint overrides, passed through to ``llm_client``

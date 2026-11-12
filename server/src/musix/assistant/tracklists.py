@@ -28,6 +28,7 @@ hallucinated title matches nothing and disappears.
 
 from __future__ import annotations
 
+import json
 import logging
 import re
 from dataclasses import dataclass
@@ -36,7 +37,7 @@ from urllib.parse import urlsplit
 
 from musix.assistant.config import AgentConfig
 from musix.assistant.contracts import Page, TrackRef
-from musix.assistant.llm import LLMClient, as_int, as_str
+from musix.assistant.llm import LLMClient, as_int, as_str, extract_json_object
 from musix.assistant.prompts import EXTRACT_TRACKS_SYSTEM
 from musix.assistant.web_urls import source_for_url
 
@@ -543,65 +544,128 @@ def structured_tracks(page: Page, *, default_artist: Optional[str] = None) -> li
 
 
 class TrackExtractor:
-    """The model's leg: titles out of prose, one call for a batch of passages."""
+    """The model's leg: titles out of prose.
+
+    llama-server here has a single slot, so parallel calls only queue. Passages
+    go in small batches, best first, one after another; the caller's ``enough``
+    stops the loop once the library already has what the request needs. What
+    costs time is generated tokens, so rows are compact arrays, the prompt caps
+    the count, and a reply cut by the token limit is salvaged row by row instead
+    of being asked for again (a retry hits the same limit).
+    """
 
     def __init__(self, llm: LLMClient, config: Optional[AgentConfig] = None, sink=None):
         self.llm = llm
         self.cfg = config or AgentConfig()
         self.sink = sink
 
-    async def from_passages(self, passages: list, *, request: str) -> list:
-        """``passages`` is ``[(url, text), ...]``. Returns claims, not tracks.
+    async def from_passages(self, passages: list, *, request: str, enough=None) -> list:
+        """``passages`` is ``[(url, text), ...]``, best first. Returns claims.
 
-        One call for all of them rather than one per passage: the model needs to
-        see the request beside the material, and repeating that framing five times
-        costs five times as much for no more accuracy.
+        ``enough``: optional ``async (claims) -> bool``, asked after each batch.
         """
         passages = [(u, t) for u, t in passages if (t or "").strip()]
         if not passages:
             return []
 
-        blocks = "\n\n".join(f"[{i + 1}] ({url})\n{text}" for i, (url, text) in enumerate(passages))
-        raw = await self.llm.ask_json(
-            [
-                {"role": "system", "content": EXTRACT_TRACKS_SYSTEM},
-                {"role": "user", "content": f"Request: {request}\n\nPassages:\n{blocks}"},
-            ],
-            required=("tracks",),
-        )
-        if raw is None:
-            return []
-
-        items = raw.get("tracks")
-        if not isinstance(items, list):
-            return []
-
-        primary_url = passages[0][0]
+        size = max(1, self.cfg.extract_batch_passages)
+        cap = max(1, self.cfg.extract_max_claims)
         out: list = []
         seen: set = set()
-        for item in items[:120]:
-            if not isinstance(item, dict):
-                continue
-            title = as_str(item.get("title"), 200)
-            if not title:
-                continue
-            artist = as_str(item.get("artist"), 160) or None
-            key = (title.lower(), (artist or "").lower())
-            if key in seen:
-                continue
-            seen.add(key)
-            year = as_int(item.get("year"))
-            if year is not None and not (1900 <= year <= 2100):
-                year = None
-            out.append(
-                TrackRef(
-                    title=title, artist=artist, year=year, source="web", source_url=primary_url
-                )
-            )
+        batches = 0
+        for start in range(0, len(passages), size):
+            left = cap - len(out)
+            if left <= 0:
+                break
+            batch = passages[start : start + size]
+            batches += 1
+            for ref in await self._batch(batch, request=request, limit=left):
+                key = (ref.title.lower(), (ref.artist or "").lower())
+                if key in seen:
+                    continue
+                seen.add(key)
+                out.append(ref)
+            if enough is not None and out and await enough(list(out)):
+                break
 
+        out = out[:cap]
         if self.sink is not None:
-            self.sink.put("extract", passages=len(passages), claims=len(out))
+            self.sink.put("extract", passages=len(passages), batches=batches, claims=len(out))
         logger.info(
-            "[tracklists] model produced %d claims from %d passages", len(out), len(passages)
+            "[tracklists] model produced %d claims from %d passages in %d batch(es)",
+            len(out), len(passages), batches,
         )
         return out
+
+    async def _batch(self, batch: list, *, request: str, limit: int) -> list:
+        blocks = "\n\n".join(f"[{i + 1}] ({url})\n{text}" for i, (url, text) in enumerate(batch))
+        text = await self.llm.chat(
+            [
+                {"role": "system", "content": EXTRACT_TRACKS_SYSTEM.replace("{limit}", str(limit))},
+                {"role": "user", "content": f"Request: {request}\n\nPassages:\n{blocks}"},
+            ],
+            max_tokens=self.cfg.extract_max_tokens,
+            json_mode=True,
+        )
+        rows = parse_extract_rows(text)
+        refs: list = []
+        for title, artist, year, n in rows[:limit]:
+            title = as_str(title, 200)
+            if not title:
+                continue
+            artist = as_str(artist, 160) or None
+            year = as_int(year)
+            if year is not None and not (1900 <= year <= 2100):
+                year = None
+            idx = as_int(n)
+            url = batch[idx - 1][0] if idx and 1 <= idx <= len(batch) else batch[0][0]
+            refs.append(TrackRef(title=title, artist=artist, year=year, source="web", source_url=url))
+        return refs
+
+
+_ROW_RE = re.compile(
+    r'\[\s*("(?:[^"\\]|\\.)*")\s*,\s*("(?:[^"\\]|\\.)*"|null)'
+    r'(?:\s*,\s*(-?\d+|null))?(?:\s*,\s*(\d+|null))?\s*\]'
+)
+_OBJ_RE = re.compile(r"\{[^{}\[\]]*\}")
+
+
+def parse_extract_rows(text: str) -> list:
+    """``(title, artist, year, passage)`` tuples from the extractor's reply.
+
+    Whole JSON first; when the reply was cut mid-list, every complete row before
+    the cut is still read. The older ``{"title": ...}`` object shape is accepted
+    too, so a model that ignores the compact format still yields something.
+    """
+    if not text:
+        return []
+    obj = extract_json_object(text)
+    if isinstance(obj, dict):
+        items = obj.get("t", obj.get("tracks"))
+        if isinstance(items, list):
+            return [r for r in (_row(i) for i in items) if r]
+    rows = []
+    for m in _ROW_RE.finditer(text):
+        try:
+            rows.append(tuple(json.loads(g) if g else None for g in m.groups()))
+        except ValueError:
+            continue
+    if rows:
+        return rows
+    for m in _OBJ_RE.finditer(text):
+        try:
+            r = _row(json.loads(m.group(0)))
+        except ValueError:
+            continue
+        if r:
+            rows.append(r)
+    return rows
+
+
+def _row(item) -> Optional[tuple]:
+    if isinstance(item, list) and item:
+        item = list(item) + [None] * 4
+        return (item[0], item[1], item[2], item[3])
+    if isinstance(item, dict) and item.get("title"):
+        return (item.get("title"), item.get("artist"), item.get("year"), item.get("passage"))
+    return None

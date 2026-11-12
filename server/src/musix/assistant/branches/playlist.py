@@ -117,8 +117,14 @@ class PlaylistBranch(WebBranch):
                 if chunks:
                     extractor = TrackExtractor(self.agent.llm, self.cfg, self.sink)
                     with self.timings.span("llm.extract"):
+                        base = list(claims)
+
+                        async def enough(found: list) -> bool:
+                            got = await self._resolve_off_loop(base + found, plan)
+                            return len(got) >= target
+
                         claims += await extractor.from_passages(
-                            [(c.url, c.text) for c, _ in chunks], request=message
+                            [(c.url, c.text) for c, _ in chunks], request=message, enough=enough
                         )
                 resolved, _ = self._resolve(claims, plan)
             else:
