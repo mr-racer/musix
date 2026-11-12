@@ -1,5 +1,10 @@
-"""The turn job, on the `ai` queue with the interactive priority (it overtakes bulk
-enrichment, which is split into short per-entity jobs)."""
+"""The turn job, on its own `assistant` queue (worker-assistant, several turns at once).
+
+It used to share the single-slot `ai` worker with bulk enrichment, where priority only
+reorders the queue: a turn waited out a running bio («minutes») whole, and then held
+the slot for a minute of mostly network waits. Now the turns run beside the bulk jobs
+and the LLM is shared through `infra.llm.turn_lock`: bulk calls hold off while a turn
+runs."""
 
 from __future__ import annotations
 
@@ -51,6 +56,6 @@ async def defer(turn_id: uuid.UUID) -> None:
 
 
 def register(app: procrastinate.App) -> None:
-    app.task(name="assistant:turn", queue="ai")(turn)
+    app.task(name="assistant:turn", queue="assistant")(turn)
     p = app.task(name="assistant:prune", queue="default")(prune)
     app.periodic(cron="17 4 * * *", periodic_id="assistant_prune")(p)

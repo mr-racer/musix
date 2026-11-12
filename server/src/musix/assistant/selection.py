@@ -19,7 +19,7 @@ import re
 from typing import Optional
 
 from musix.assistant.llm import as_str
-from musix.assistant.prompts import CURATE_SYSTEM, TRIAGE_SYSTEM
+from musix.assistant.prompts import CURATE_SYSTEM, SELECT_CURATE_SYSTEM, TRIAGE_SYSTEM
 from musix.assistant.reason_gate import clean_reason
 from musix.assistant.library_catalog import filter_by_era
 
@@ -245,6 +245,86 @@ async def curate_tracks(llm, message: str, tracks: list, *, config, sink=None) -
         # which for a request like "хиты X" is the whole question.
         ordered.sort(key=lambda t: -t.weight)
 
+    if sink is not None:
+        sink.put("curated", tracks=len(ordered), with_reason=sum(1 for t in ordered if t.reason))
+    return (
+        as_str(raw.get("title"), 120) or fallback_title,
+        as_str(raw.get("comment"), 400),
+        ordered,
+    )
+
+
+def track_listing(keys: dict) -> str:
+    """The grouped, provenance-carrying listing the model calls here read; public
+    for the editor pass over the playlist's comment, which needs the same material."""
+    return _listing(keys)
+
+
+async def select_and_curate(
+    llm, message: str, tracks: list, *, cap: int, config, sink=None
+) -> tuple:
+    """Triage and curation in ONE call: ``(title, comment, tracks)``.
+
+    They were two calls back to back over the same listing — the second one paying
+    again for the prompt the first had just read, 2–5 s each on the local model.
+    The contract is unchanged: the model answers with ids only, cannot add or rename
+    a track, an id it was not offered is discarded, and an empty ``keep`` is read as
+    a format slip (everything stays) rather than a verdict.
+
+    The model sees the ranked pool up to twice the cap, so dropping a sidebar row
+    still lets the next real track move up into the playlist.
+    """
+    fallback_title = message.strip()[:80]
+    if not tracks:
+        return fallback_title, "", tracks
+    pool = tracks[: max(cap * 2, cap + 10)]
+    if not config.llm_triage or len(pool) < config.triage_min_candidates:
+        return await curate_tracks(llm, message, tracks[:cap], config=config, sink=sink)
+
+    lang = "Russian" if (config.lang or "").lower().startswith("ru") else "English"
+    keys = {f"T{i + 1}": t for i, t in enumerate(pool)}
+    if sink is not None:
+        sink.put("triage", candidates=len(keys))
+    raw = await llm.ask_json(
+        [
+            {"role": "system", "content": SELECT_CURATE_SYSTEM.format(lang=lang, cap=cap)},
+            {"role": "user", "content": f"Request: {message}\n\nCandidates:\n{_listing(keys)}"},
+        ],
+        required=("keep", "order"),
+    )
+    if raw is None:
+        logger.info("[selection] select+curate unavailable — keeping the top %d as ranked", cap)
+        return fallback_title, "", tracks[:cap]
+
+    wanted = {as_str(k, 8).upper() for k in (raw.get("keep") or []) if isinstance(k, (str, int))}
+    # Rank order, never the order the ids were typed in (see triage_tracks).
+    kept_keys = [k for k in keys if k in wanted]
+    if not kept_keys:
+        logger.info("[selection] select kept nothing — ignoring it")
+        kept_keys = list(keys)
+    dropped = len(keys) - len(kept_keys)
+    kept_keys = kept_keys[:cap]
+    why = as_str(raw.get("dropped_because"), 160)
+    if sink is not None:
+        sink.put("triage_done", kept=len(kept_keys), dropped=dropped, why=why)
+    logger.info("[selection] select dropped %d/%d: %s", dropped, len(keys), why)
+
+    allowed = set(kept_keys)
+    ordered: list = []
+    seen: set = set()
+    for item in raw.get("order") or []:
+        if not isinstance(item, dict):
+            continue
+        key = as_str(item.get("id"), 8).upper()
+        if key not in allowed or key in seen:
+            continue
+        seen.add(key)
+        track = keys[key]
+        track.reason = clean_reason(item.get("reason"), title=track.title, artist=track.artist)
+        ordered.append(track)
+    ordered += [keys[k] for k in kept_keys if k not in seen]
+    if getattr(config, "curate_respects_weight", True):
+        ordered.sort(key=lambda t: -t.weight)  # stable: see curate_tracks
     if sink is not None:
         sink.put("curated", tracks=len(ordered), with_reason=sum(1 for t in ordered if t.reason))
     return (

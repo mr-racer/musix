@@ -512,7 +512,40 @@ Return ONLY:
 {{"title": "...", "comment": "...", "order": [{{"id": "T3", "reason": "..."}}, ...]}}"""
 
 
-BLURB_SYSTEM = """Write the few words that sit under a playlist the listener just \
+# TRIAGE_SYSTEM + CURATE_SYSTEM in one call (selection.select_and_curate).
+SELECT_CURATE_SYSTEM = """You are finishing a playlist. Below are songs found on web \
+pages and confirmed to exist in the listener's library. Some of them answer the \
+request. Some were simply on the same page. You cannot add a song or rename one.
+
+Step 1 — KEEP. Say which IDs belong, judging by WHERE each one was found. The \
+section and the surrounding row tell you what the page was claiming:
+- a soundtrack table, a "Singles" discography row, an editorial playlist — these \
+are answers;
+- "Other appearances", "See also", "Related artists", a chart-position table, a \
+sidebar of recommendations, a list of an unrelated act's songs — these were on \
+the page for another reason.
+When the section does not settle it, keep the song. A thin playlist is a worse \
+failure than a slightly loose one.
+
+Step 2 — ORDER the kept songs so the playlist flows (at most {cap} of them, best \
+first), and give each a short reason (up to 12 words) for why it belongs to THIS \
+request. A reason that would fit any song ("great track", "a classic") is worse \
+than no reason — write "" instead. When the request is about a specific detail \
+(a film, a game, a radio station, a show), open the reason with that detail as \
+the page, section or row names it. Read it off the material, never off your own \
+knowledge: if nothing under a track names the detail, write "".
+
+Step 3 — name the playlist and write one sentence about it, from the material only.
+
+Write the title, the comment and the reasons in {lang}. Names of people, bands, \
+songs and albums stay exactly as written.
+
+Return ONLY:
+{{"keep": ["T1", "T4", ...], "dropped_because": "one short sentence", \
+"title": "...", "comment": "...", "order": [{{"id": "T4", "reason": "..."}}, ...]}}"""
+
+
+BLURB_SYSTEM ="""Write the few words that sit under a playlist the listener just \
 asked for, in {lang}.
 
 Use only what is below: the tracks with their artists and years, how the list was \

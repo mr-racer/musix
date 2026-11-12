@@ -72,6 +72,28 @@ def close_all() -> None:
             pass
 
 
+_turns = 0
+
+
+def turn_started() -> None:
+    """A turn is running in this process (several may: the `assistant` queue runs
+    them side by side)."""
+    global _turns
+    with _open_lock:
+        _turns += 1
+
+
+def turn_finished() -> None:
+    """A turn ended; the connections close with the last one running — closing them
+    under another turn's feet would fail its next read mid-answer."""
+    global _turns
+    with _open_lock:
+        _turns = max(0, _turns - 1)
+        last = _turns == 0
+    if last:
+        close_all()
+
+
 def rows(sql: str, params: dict[str, Any]) -> list[tuple[Any, ...]]:
     with _conn().cursor() as cur:
         cur.execute(sql, params)  # type: ignore[arg-type]

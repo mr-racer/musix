@@ -9,6 +9,7 @@ x-server: &server
   environment: &server-env
     MUSIX_DATABASE_URL: postgresql://musix:musix@postgres:5432/musix
     MUSIX_QDRANT_URL: http://qdrant:6333
+    MUSIX_SERPER_API_KEY: ${MUSIX_SERPER_API_KEY:-}  # assistant web search; empty = SearXNG only
     MUSIX_MEDIA_DIR: /mnt/data/musix-v2-media
     MUSIX_LIBRARY_ROOTS: '["/mnt/data/music", "/mnt/data/musix-v2-media/dev-subset"]'
     MUSIX_ML_URL: http://ml:8002
@@ -70,7 +71,7 @@ services:
 
   worker:
     <<: *server
-    # every queue but `ai`, which has its own single-slot worker below
+    # every queue but `ai` and `assistant`, which have their own workers below
     command: procrastinate --app=musix.workers.app.app worker --concurrency 3 --queues default,ingest,media,net,ml
     volumes:
       - /mnt/data/musix-v2-media:/mnt/data/musix-v2-media
@@ -103,6 +104,26 @@ services:
     # (`docker compose --profile ai up -d worker-ai`); until then `ai` jobs wait queued.
     profiles: [ai]
     command: procrastinate --app=musix.workers.app.app worker --concurrency 1 --queues ai
+    environment:
+      <<: *server-env
+      MUSIX_LLM_BASE_URL: ${MUSIX_LLM_BASE_URL:-http://192.168.0.168:8082/v1}
+      MUSIX_LLM_MODEL: ${MUSIX_LLM_MODEL:-qwen3.8-27b-ud-iq3_s}
+      MUSIX_LLM_YIELD_TO_TURNS: "1"  # bulk calls hold off while a turn runs
+    volumes:
+      - /mnt/data/musix-v2-media:/mnt/data/musix-v2-media
+      - secrets:/var/lib/musix/secrets:ro  # the Fernet key only: the admin's LLM API key
+    depends_on: {migrate: {condition: service_completed_successfully}}
+    healthcheck:
+      test: ["CMD", "procrastinate", "--app=musix.workers.app.app", "healthchecks"]
+      interval: 10s
+      retries: 6
+
+  worker-assistant:
+    <<: *server
+    # assistant turns, several at once (mostly network waits); the LLM is shared with
+    # worker-ai through infra/llm.turn_lock
+    profiles: [ai]
+    command: procrastinate --app=musix.workers.app.app worker --concurrency ${MUSIX_ASSISTANT_CONCURRENCY:-3} --queues assistant
     environment:
       <<: *server-env
       MUSIX_LLM_BASE_URL: ${MUSIX_LLM_BASE_URL:-http://192.168.0.168:8082/v1}

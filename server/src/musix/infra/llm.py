@@ -11,15 +11,20 @@ enrichment job, or the same question twice, costs a PK lookup instead of a gener
 
 Concurrency and priority are the queue's job: LLM work runs on the `ai` queue, whose
 worker has concurrency 1 (one local model); interactive jobs defer with a higher
-priority than bulk enrichment. This module never sleeps or retries on its own."""
+priority than bulk enrichment. This module never retries on its own; the one wait
+is the bulk side of `turn_lock` (a bulk call holds off while an assistant turn runs)."""
 
 from __future__ import annotations
 
+import asyncio
+import contextlib
 import hashlib
 import json
 import logging
+import os
 import re
-from collections.abc import Callable
+import time
+from collections.abc import AsyncIterator, Callable
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -36,6 +41,41 @@ from musix.errors import Unavailable
 DEFAULT_MODEL = "openai/gpt-oss-20b"  # v1's
 DEFAULT_KEY = "lm-studio"  # v1's: local servers want *a* key
 TIMEOUT = httpx.Timeout(600.0, connect=5.0)  # a 27b model writes a bio in minutes
+CONFIG_TTL = 5.0
+# The turn lock: an assistant turn holds it SHARED for its whole run, a bulk call
+# (MUSIX_LLM_YIELD_TO_TURNS=1) waits until nobody does. Any constant works: it only
+# has to be the same in every process.
+TURN_LOCK_KEY = 0x6D75_7369  # "musi"
+TURN_POLL = 1.0
+TURN_WAIT_MAX = 300.0
+
+
+@contextlib.asynccontextmanager
+async def turn_lock(sm: async_sessionmaker[AsyncSession]) -> AsyncIterator[None]:
+    """Hold the turn lock (shared) for the block. On an AUTOCOMMIT connection of its
+    own: a session-level advisory lock outlives transactions, and nothing sits idle
+    in a transaction for the minute a turn takes. Never fails the turn."""
+    engine = sm.kw.get("bind")
+    conn = None
+    try:
+        if engine is not None:
+            conn = await engine.connect()
+            conn = await conn.execution_options(isolation_level="AUTOCOMMIT")
+            await conn.execute(sa.text("SELECT pg_advisory_lock_shared(:k)"), {"k": TURN_LOCK_KEY})
+    except Exception:  # without the lock bulk work simply does not yield
+        log.warning("[llm] turn lock not taken", exc_info=True)
+        if conn is not None:
+            await conn.close()
+        conn = None
+    try:
+        yield
+    finally:
+        if conn is not None:
+            with contextlib.suppress(Exception):
+                await conn.execute(
+                    sa.text("SELECT pg_advisory_unlock_shared(:k)"), {"k": TURN_LOCK_KEY}
+                )
+            await conn.close()
 
 
 class LlmRejected(Unavailable):
@@ -136,13 +176,48 @@ class Llm:
         self.env = (env_base, env_model, env_key)
         # trust_env=False: never route the (usually LAN) endpoint through a shell proxy
         self.http = httpx.AsyncClient(timeout=TIMEOUT, trust_env=False, transport=transport)
+        self._cfg: tuple[float, LlmConfig] | None = None
+        # The `ai` worker's bulk enrichment sets this: its calls wait while an
+        # assistant turn is running (they share one single-slot llama-server), so a
+        # turn's next call is not stuck behind a bio that takes minutes.
+        self.yield_to_turns = os.environ.get("MUSIX_LLM_YIELD_TO_TURNS") == "1"
 
     async def close(self) -> None:
         await self.http.aclose()
 
     async def config(self) -> LlmConfig:
+        """The admin's row, re-read at most every few seconds: a turn makes a dozen
+        calls, and the setting changes once a month."""
+        now = time.monotonic()
+        if self._cfg is not None and now < self._cfg[0]:
+            return self._cfg[1]
         async with self.sm() as s:
-            return await config(s, self.fernet, *self.env)
+            cfg = await config(s, self.fernet, *self.env)
+        self._cfg = (now + CONFIG_TTL, cfg)
+        return cfg
+
+    async def _wait_for_turns(self) -> None:
+        """Bulk side of the turn lock: hold off while any turn holds it shared.
+
+        A try-lock poll, never a blocking request — a queued exclusive request would
+        make every NEW turn queue behind it. Bounded, so bulk work cannot starve."""
+        waited = 0.0
+        while waited < TURN_WAIT_MAX:
+            try:
+                async with self.sm() as s:
+                    free = await s.scalar(
+                        sa.text("SELECT pg_try_advisory_xact_lock(:k)"), {"k": TURN_LOCK_KEY}
+                    )
+                    await s.commit()
+            except Exception:  # no lock table is no priority, not no LLM
+                log.debug("[llm] turn lock unreadable", exc_info=True)
+                return
+            if free:
+                if waited:
+                    log.info("[llm] bulk call waited %.0fs for assistant turns", waited)
+                return
+            await asyncio.sleep(TURN_POLL)
+            waited += TURN_POLL
 
     async def ask(
         self,
@@ -190,6 +265,8 @@ class Llm:
                 if on_delta is not None:
                     on_delta(str(hit))
                 return str(hit)
+        if self.yield_to_turns:
+            await self._wait_for_turns()
         body: dict[str, Any] = {
             "model": cfg.model,
             "messages": messages,

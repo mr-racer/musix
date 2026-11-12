@@ -215,6 +215,26 @@ TRIAGE_MIN_CANDIDATES = 8
 # cuts is not a flow decision, it is the evidence being ignored. Stable sort:
 # equal weights keep the order the model chose.
 CURATE_RESPECTS_WEIGHT = True
+# Triage and curation as one model call (selection.select_and_curate): the same
+# listing, read once instead of twice.
+MERGE_TRIAGE_CURATE = True
+# The curate step's sentence, through the editor, is the playlist's blurb; the page
+# then skips its own blurb call (contexts/assistant/service._enrich).
+PLAYLIST_COMMENT_AS_BLURB = True
+# An artist request starts its discography rescue alongside the first round rather
+# than after every round came back short; the claims are used only if needed.
+DISCOGRAPHY_SPECULATIVE = True
+# One round's searches all start at once. At the soft deadline the searches still
+# unanswered are abandoned if anything has been read; nothing waits past the hard
+# one. From this host a search is a cascade of 6–8 s timeouts (2026-11 logs).
+SEARCH_SOFT_DEADLINE = 12.0
+# `site:` (host-pinned) queries skip SearXNG: from this host it answered none.
+SEARX_FOR_SITE_QUERIES = False
+SEARCH_HARD_DEADLINE = 25.0
+# Apple is not dropped at the soft deadline (best source for mood playlists, and the
+# old code always waited for it). Measured 2026-11-12: costs ~8 s a round when the
+# Apple search is late, which from this host it often is.
+SEARCH_WAIT_FOR_APPLE = True
 
 # ── lyrics search ───────────────────────────────────────────────────────────
 # Qdrant candidates pulled before the cross-encoder sees any of them.
@@ -336,6 +356,13 @@ class AgentConfig:
     llm_triage: bool = LLM_TRIAGE
     triage_min_candidates: int = TRIAGE_MIN_CANDIDATES
     curate_respects_weight: bool = CURATE_RESPECTS_WEIGHT
+    merge_triage_curate: bool = MERGE_TRIAGE_CURATE
+    playlist_comment_as_blurb: bool = PLAYLIST_COMMENT_AS_BLURB
+    discography_speculative: bool = DISCOGRAPHY_SPECULATIVE
+    search_soft_deadline: float = SEARCH_SOFT_DEADLINE
+    search_hard_deadline: float = SEARCH_HARD_DEADLINE
+    search_wait_for_apple: bool = SEARCH_WAIT_FOR_APPLE
+    searx_for_site_queries: bool = SEARX_FOR_SITE_QUERIES
 
     # lyrics
     lyrics_pool: int = LYRICS_POOL

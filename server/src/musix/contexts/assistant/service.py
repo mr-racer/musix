@@ -171,26 +171,37 @@ async def run(
             .values(status="running")
         )
         await s.commit()
+    from musix.assistant import data
+    from musix.infra.llm import turn_lock
+
+    if row.created_at is not None:
+        # what the listener waited before the turn even started: the queue's share
+        log.info(
+            "[assistant] turn %s started after %.1fs in the queue",
+            turn_id,
+            (dt.datetime.now(dt.UTC) - row.created_at).total_seconds(),
+        )
     bind(sm, llm, conninfo, asyncio.get_running_loop())
     compat.set_config(await llm.config())
     req = dict(row.request)
     sink = EventSink(req.get("lang"))
     pump = asyncio.create_task(_Pump(sm, row.account_id, turn_id, sink.queue).run())
     status, result, error = "done", None, None
+    data.turn_started()
     try:
-        if row.kind == "track_chat":
-            result = await _track_chat(sm, row.account_id, req, sink)
-        else:
-            result = await _assistant(sm, q, ml, llm, row.account_id, req, sink)
+        async with turn_lock(sm):
+            if row.kind == "track_chat":
+                result = await _track_chat(sm, row.account_id, req, sink)
+            else:
+                result = await _assistant(sm, q, ml, llm, row.account_id, req, sink)
     except Exception as e:
         log.exception("[assistant] turn %s failed", turn_id)
         status, error = "error", f"{type(e).__name__}: {e}"[:500]
     finally:
         sink.queue.put_nowait(None)
         await pump
-        from musix.assistant import data
-
-        await asyncio.to_thread(data.close_all)
+        # turns run side by side now: the connections close when the LAST one ends
+        await asyncio.to_thread(data.turn_finished)
     async with sm() as s:
         await s.execute(
             sa.update(assistant_turns)

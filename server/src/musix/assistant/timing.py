@@ -103,6 +103,19 @@ class Timings:
             self._stack.pop()
             self.spans.append((name, lane or lane_for(name), self._clock() - started))
 
+    @contextmanager
+    def concurrent(self, name: str, lane: str = ""):
+        """A span that may overlap others (the searches of one round run at once).
+
+        Not pushed on the leaf stack: two of these open together are the point,
+        not a nesting mistake. The report then shows ``spans overlap`` — the
+        rows are each search's own wait, and their sum exceeds the wall clock."""
+        started = self._clock()
+        try:
+            yield
+        finally:
+            self.spans.append((name, lane or lane_for(name), self._clock() - started))
+
     # ── reading back ──────────────────────────────────────────────────────
 
     def rows(self) -> list:

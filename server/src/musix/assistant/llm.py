@@ -26,12 +26,27 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import re
 from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
 
 _FENCE_RE = re.compile(r"```(?:json)?\s*(.+?)\s*```", re.S | re.I)
+
+# JSON mode for ``ask_json`` (see LLMClient.chat). MUSIX_LLM_JSON_MODE=0 turns it off.
+JSON_MODE = os.environ.get("MUSIX_LLM_JSON_MODE", "1") != "0"
+# `json_schema`, not `json_object`: this llama.cpp build accepts `json_object` and
+# ignores it (the reply came back in a ``` fence), while a schema becomes a grammar
+# (checked against the prod llama-server 2026-11-12).
+JSON_BODY = {
+    "response_format": {
+        "type": "json_schema",
+        "json_schema": {"name": "reply", "schema": {"type": "object"}},
+    },
+    "presence_penalty": 0.0,
+}
+_json_mode_ok = True
 
 
 def extract_json_object(text: str) -> Optional[dict]:
@@ -183,24 +198,44 @@ class LLMClient:
         temperature: Optional[float] = None,
         max_tokens: Optional[int] = None,
         on_delta=None,
+        json_mode: bool = False,
     ) -> str:
         """Raw completion text. Returns "" on any transport or server error.
-        ``on_delta(text so far)``: the completion is streamed as it is written."""
+        ``on_delta(text so far)``: the completion is streamed as it is written.
+
+        ``json_mode``: the server is asked for a JSON object (llama.cpp turns that
+        into a grammar, so prose around the object cannot be generated at all) and
+        for no presence penalty — llama-server here runs with ``--presence-penalty
+        1.5`` by default, which punishes exactly what a JSON list repeats: its keys.
+        An endpoint that rejects the parameter (4xx) is asked again without it, and
+        not asked with it again by this process."""
         # v2: the instance's client (musix.infra.llm): settings, the key and
         # llm_cache resolve in one place.
+        global _json_mode_ok
         from musix.assistant.compat import get_llm
+        from musix.infra.llm import LlmRejected
 
         self.calls += 1
         self.last_error = None
+        use_json = json_mode and _json_mode_ok and JSON_MODE
+        kwargs = dict(
+            kind="assistant",
+            temperature=(self.cfg.llm_temperature if temperature is None else temperature),
+            max_tokens=max_tokens or self.cfg.llm_max_tokens,
+            request_timeout=self.cfg.llm_timeout,
+            on_delta=on_delta,
+        )
         try:
-            text = await get_llm().chat(
-                messages,
-                kind="assistant",
-                temperature=(self.cfg.llm_temperature if temperature is None else temperature),
-                max_tokens=max_tokens or self.cfg.llm_max_tokens,
-                request_timeout=self.cfg.llm_timeout,
-                on_delta=on_delta,
-            )
+            try:
+                text = await get_llm().chat(
+                    messages, extra_body=JSON_BODY if use_json else None, **kwargs
+                )
+            except LlmRejected:
+                if not use_json:
+                    raise
+                _json_mode_ok = False
+                logger.warning("[llm] the endpoint refused JSON mode — asking without it from now on")
+                text = await get_llm().chat(messages, **kwargs)
         except Exception as exc:  # noqa: BLE001 — an unreachable LLM is a state
             self.last_error = f"{type(exc).__name__}: {exc}"
             logger.warning("[llm] call failed — %s", self.last_error)
@@ -226,7 +261,9 @@ class LLMClient:
         treated as a failed parse and gets the single repair round, because a
         half-filled object is the shape that causes silent nonsense downstream.
         """
-        text = await self.chat(messages, temperature=temperature, max_tokens=max_tokens, on_delta=on_delta)
+        text = await self.chat(
+            messages, temperature=temperature, max_tokens=max_tokens, on_delta=on_delta, json_mode=True
+        )
         obj = extract_json_object(text)
         if obj is not None and all(k in obj for k in required):
             return obj
@@ -250,7 +287,7 @@ class LLMClient:
             {"role": "assistant", "content": text[:2000]},
             {"role": "user", "content": demand},
         ]
-        text = await self.chat(repair, temperature=0.0, max_tokens=max_tokens)
+        text = await self.chat(repair, temperature=0.0, max_tokens=max_tokens, json_mode=True)
         obj = extract_json_object(text)
         if obj is not None and all(k in obj for k in required):
             return obj

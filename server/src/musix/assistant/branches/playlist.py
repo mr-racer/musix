@@ -15,7 +15,13 @@ from typing import Optional
 
 from musix.assistant.branches.base import WebBranch
 from musix.assistant.contracts import Plan, PlaylistResult
-from musix.assistant.selection import curate_tracks, select_tracks, triage_tracks
+from musix.assistant.selection import (
+    curate_tracks,
+    select_and_curate,
+    select_tracks,
+    track_listing,
+    triage_tracks,
+)
 from musix.assistant.tracklists import TrackExtractor, has_structured_parser, structured_tracks
 from musix.assistant.web_urls import dedupe_by_url
 
@@ -60,27 +66,63 @@ class PlaylistBranch(WebBranch):
         notes: list = []
         iterations = relaxations = 0
 
+        # The discography rescue is a deterministic query («<artist> singles
+        # discography»), so for an artist request it starts now, alongside the
+        # first round, instead of after every round has come back short. Its claims
+        # are only used if the rounds do come back short.
+        rescue = None
+        if self.cfg.discography_speculative and plan.filters.artist and not plan.filters.work:
+            # Its own SearchSources: the speculative searches must not spend the
+            # round budget the relaxation rounds may still need.
+            from musix.assistant.web_sources import SearchSources
+
+            rescue = asyncio.ensure_future(
+                self._discography(
+                    plan, found=0, quiet=True, sources=SearchSources(self.cfg, self.sink)
+                )
+            )
+
         while iterations < self.cfg.playlist_max_iterations:
             iterations += 1
             self.sink.put("iteration", n=iterations, queries=queries)
+            stop = asyncio.Event()
+            late_prose: list = []
+
+            async def on_structured(pages: list) -> None:
+                # A parseable page is matched against the library as it arrives;
+                # once the target is met the round stops waiting for the rest.
+                parsed, prose_left = await self._harvest(pages, artist=artist)
+                late_prose.extend(prose_left)
+                if not parsed:
+                    return
+                claims.extend(parsed)
+                got = await self._resolve_off_loop(claims, plan)
+                if len(got) >= target:
+                    stop.set()
 
             structured_pages, prose_pages = await self.gather(
-                plan, queries, ce_query, structured=True
+                plan, queries, ce_query, structured=True, on_structured=on_structured, stop=stop
             )
 
-            parsed, prose = await self._harvest(structured_pages + prose_pages, artist=artist)
+            parsed, prose = await self._harvest(prose_pages, artist=artist)
             claims += parsed
-
-            self.index(prose)
-            chunks = self.best_chunks(ce_query)
-            if chunks:
-                extractor = TrackExtractor(self.agent.llm, self.cfg, self.sink)
-                with self.timings.span("llm.extract"):
-                    claims += await extractor.from_passages(
-                        [(c.url, c.text) for c, _ in chunks], request=message
-                    )
+            prose = late_prose + prose
 
             resolved, _ = self._resolve(claims, plan)
+            # The model reading prose is the slowest and least reliable way to a
+            # track list: it only runs when the tables did not already deliver.
+            if len(resolved) < target:
+                self.index(prose)
+                chunks = self.best_chunks(ce_query)
+                if chunks:
+                    extractor = TrackExtractor(self.agent.llm, self.cfg, self.sink)
+                    with self.timings.span("llm.extract"):
+                        claims += await extractor.from_passages(
+                            [(c.url, c.text) for c, _ in chunks], request=message
+                        )
+                resolved, _ = self._resolve(claims, plan)
+            else:
+                notes.append("tables met the target — prose extraction skipped")
             self.sink.put("matched", claims=len(claims), resolved=len(resolved), target=target)
 
             if len(resolved) >= target:
@@ -106,21 +148,39 @@ class PlaylistBranch(WebBranch):
         resolved, missing = self._resolve(claims, plan)
         if len(resolved) < self.cfg.discography_min_tracks:
             with self.timings.span("discography"):
-                rescued = await self._discography(plan, found=len(resolved))
+                if rescue is not None:
+                    self.sink.put("discography", artist=plan.filters.artist, found=len(resolved))
+                    try:
+                        rescued = await rescue
+                    except Exception:  # noqa: BLE001 — a failed rescue is no rescue
+                        logger.warning("[playlist] speculative discography failed", exc_info=True)
+                        rescued = []
+                    rescue = None
+                else:
+                    rescued = await self._discography(plan, found=len(resolved))
             if rescued:
                 claims += rescued
                 resolved, missing = self._resolve(claims, plan)
                 notes.append(f"discography rescue added {len(rescued)} claims")
+        if rescue is not None:
+            rescue.cancel()
 
-        with self.timings.span("llm.triage"):
-            resolved = await triage_tracks(
-                self.agent.llm, message, resolved, config=self.cfg, sink=self.sink
-            )
-        resolved = resolved[:cap]
-        with self.timings.span("llm.curate"):
-            title, comment, resolved = await curate_tracks(
-                self.agent.llm, message, resolved, config=self.cfg, sink=self.sink
-            )
+        if self.cfg.merge_triage_curate:
+            with self.timings.span("llm.select"):
+                title, comment, resolved = await select_and_curate(
+                    self.agent.llm, message, resolved, cap=cap, config=self.cfg, sink=self.sink
+                )
+        else:
+            with self.timings.span("llm.triage"):
+                resolved = await triage_tracks(
+                    self.agent.llm, message, resolved, config=self.cfg, sink=self.sink
+                )
+            resolved = resolved[:cap]
+            with self.timings.span("llm.curate"):
+                title, comment, resolved = await curate_tracks(
+                    self.agent.llm, message, resolved, config=self.cfg, sink=self.sink
+                )
+        comment = await self._edit_comment(comment, resolved)
         self.sink.put("result", tracks=len(resolved), missing=len(missing))
         return PlaylistResult(
             title=title,
@@ -156,7 +216,8 @@ class PlaylistBranch(WebBranch):
             if not has_structured_parser(page):
                 prose.append(page)
                 continue
-            with self.timings.span("structured.tables"):
+            # concurrent: pages of one round are parsed as each arrives
+            with self.timings.concurrent("structured.tables"):
                 found = await asyncio.to_thread(structured_tracks, page, default_artist=artist)
             if found:
                 claims += found
@@ -183,7 +244,39 @@ class PlaylistBranch(WebBranch):
         """
         return self.agent.library_artist(plan.filters.artist)
 
-    async def _discography(self, plan: Plan, *, found: int) -> list:
+    async def _edit_comment(self, comment: str, tracks: list) -> str:
+        """The curate step's one sentence becomes the playlist's blurb — through the
+        same editor every other text the listener reads goes through (a draft once
+        invented a chart record for «Blinding Lights»). It replaces the separate
+        blurb call the page used to make after the agent: one call instead of two."""
+        if not self.cfg.playlist_comment_as_blurb:
+            return ""  # the page writes its own blurb, as before
+        if not comment or not tracks:
+            return comment
+        from musix.assistant.editor import edit
+
+        keys = {f"T{i + 1}": t for i, t in enumerate(tracks)}
+        with self.timings.span("llm.edit"):
+            text, _ = await edit(self.agent.llm, self.cfg.lang, track_listing(keys), comment)
+        return text or ""
+
+    async def _resolve_off_loop(self, claims: list, plan: Plan) -> list:
+        """``_resolve`` for the middle of a round: on a thread (it can take a second
+        on a large library) and without the stage frames, which the round's final
+        resolve sends once."""
+        with self.timings.concurrent("resolve.library"):
+            tracks, _ = await asyncio.to_thread(
+                select_tracks,
+                self.agent.catalog,
+                list(claims),
+                era=plan.filters.era,
+                source_weights=self.cfg.source_weights,
+            )
+        return tracks
+
+    async def _discography(
+        self, plan: Plan, *, found: int, quiet: bool = False, sources=None
+    ) -> list:
         """Last resort: go and read the artist's discography article.
 
         The failure this exists for is specific and common. "Хиты Канье после
@@ -202,8 +295,13 @@ class PlaylistBranch(WebBranch):
             return []
         artist = self._library_artist(plan) or artist
 
-        self.sink.put("discography", artist=artist, found=found)
-        logger.info("[playlist] only %d tracks — reading %s's discography", found, artist)
+        if not quiet:
+            self.sink.put("discography", artist=artist, found=found)
+        logger.info(
+            "[playlist] %s %s's discography",
+            "speculatively reading" if quiet else f"only {found} tracks — reading",
+            artist,
+        )
 
         refs: list = []
         tried = 0
@@ -212,7 +310,7 @@ class PlaylistBranch(WebBranch):
                 break
             tried += 1
             query = template.format(artist=artist)
-            hits = await asyncio.to_thread(self.sources.wikipedia, query, 2, True)
+            hits = await asyncio.to_thread((sources or self.sources).wikipedia, query, 2, True)
             pages = await self.fetcher.fetch_many(dedupe_by_url(hits), limit=1)
             for page in pages:
                 got = await asyncio.to_thread(structured_tracks, page, default_artist=artist)
@@ -225,7 +323,8 @@ class PlaylistBranch(WebBranch):
             # spelling is tried rather than giving up.
             logger.info("[playlist] %r yielded no rows, trying the next title", query)
 
-        self.sink.put("discography_done", queries=tried, claims=len(refs))
+        if not quiet:
+            self.sink.put("discography_done", queries=tried, claims=len(refs))
         return refs
 
     # ── selection, all of it code ─────────────────────────────────────────

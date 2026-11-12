@@ -326,6 +326,11 @@ def search_searxng(query: str, max_results: int = 5, engines: str | None = None)
     """
     if not _WEB_SEARCH_AVAILABLE:
         return []
+    from musix.assistant.resources import serper_client
+
+    rows = serper_client.search(query, max_results)
+    if rows:
+        return rows
     params = {
         "q": query,
         "format": "json",

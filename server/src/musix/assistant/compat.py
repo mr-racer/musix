@@ -251,7 +251,15 @@ SOURCES: dict[str, tuple[float, float, bool]] = {
     "duckduckgo": (1.0, 2.0, True),
     "bing": (1.0, 2.0, True),
     "reddit": (0.5, 1.0, True),
+    # The search fallbacks, one breaker PER ROAD: they are hedged (direct and proxy at
+    # once), and a road that drops («Network is unreachable») must neither close the
+    # other one nor the page fetches that share the plain «wikipedia» budget.
+    "wikipedia-direct": (5.0, 5.0, True),
+    "wikipedia-proxy": (5.0, 5.0, True),
+    "ddgs-direct": (1.0, 3.0, True),
+    "ddgs-proxy": (1.0, 3.0, True),
     "web-pages": (8.0, 8.0, False),  # arbitrary hosts: paced as one, no shared breaker
+    "serper": (5.0, 5.0, False),  # paid per query; serper_client rests on its own refusals
     "searxng": (1.0 / 1.5, 1.0, False),  # = searxng_client's pacing (a local instance)
 }
 

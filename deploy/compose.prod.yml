@@ -23,6 +23,7 @@ x-server: &server
     MUSIX_LLM_BASE_URL: ${MUSIX_LLM_BASE_URL:-http://192.168.0.168:8082/v1}
     MUSIX_LLM_MODEL: ${MUSIX_LLM_MODEL:-qwen3.8-27b-ud-iq3_s}
     MUSIX_PROXY_URL: ${MUSIX_PROXY_URL:-}  # outbound knowledge sources only; the operator's env
+    MUSIX_SERPER_API_KEY: ${MUSIX_SERPER_API_KEY:-}  # assistant web search; empty = SearXNG only (operator env file)
     SEARXNG_URL: http://searxng:8080
   volumes:
     - /mnt/data/musix-v2-prod/media:/mnt/data/musix-v2-prod/media
@@ -168,6 +169,19 @@ services:
     <<: *server
     profiles: [ai]
     command: procrastinate --app=musix.workers.app.app worker --concurrency 1 --queues ai
+    environment:
+      <<: *server-env
+      # bulk LLM calls hold off while an assistant turn runs (infra/llm.turn_lock)
+      MUSIX_LLM_YIELD_TO_TURNS: "1"
+    depends_on: {migrate: {condition: service_completed_successfully}}
+
+  # assistant turns: mostly network waits, so several at once; they share the LLM with
+  # worker-ai through the turn lock instead of queueing behind its bulk jobs
+  worker-assistant:
+    <<: *server
+    profiles: [ai]
+    command: procrastinate --app=musix.workers.app.app worker --concurrency ${MUSIX_ASSISTANT_CONCURRENCY:-3} --queues assistant
+    stop_grace_period: 120s
     depends_on: {migrate: {condition: service_completed_successfully}}
 
   nginx:

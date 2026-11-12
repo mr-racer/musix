@@ -27,7 +27,7 @@ import re
 from typing import Optional
 from urllib.parse import urlparse
 
-from musix.assistant.resources import searxng_client
+from musix.assistant.resources import searxng_client, serper_client
 from musix.assistant.config import AgentConfig
 from musix.assistant.contracts import SearchHit
 from musix.assistant.spam import is_spam_host, spam_report
@@ -63,10 +63,31 @@ _SEARX_REST = 600.0
 _searx_state = {"fails": 0, "until": 0.0}
 
 
+_SHARED_CHECK_EVERY = 30.0
+_shared_state = {"checked": 0.0, "open": False}
+
+
 def _searx_resting() -> bool:
+    """Local state first; then `source_health` (shared by every worker process, so
+    a fresh process does not pay two failed searches to learn what another already
+    knows), read at most every 30 s."""
     import time
 
-    return time.monotonic() < _searx_state["until"]
+    now = time.monotonic()
+    if now < _searx_state["until"]:
+        return True
+    if now - _shared_state["checked"] > _SHARED_CHECK_EVERY:
+        _shared_state["checked"] = now
+        try:
+            from musix.assistant import data
+
+            got = data.rows(
+                "SELECT open_until > now() FROM source_health WHERE source = 'searxng'", {}
+            )
+            _shared_state["open"] = bool(got and got[0][0])
+        except Exception:  # noqa: BLE001 — no shared state is the old behaviour
+            _shared_state["open"] = False
+    return _shared_state["open"]
 
 
 def _searx_outcome(ok: bool) -> None:
@@ -79,6 +100,62 @@ def _searx_outcome(ok: bool) -> None:
     if _searx_state["fails"] >= 2 and not _searx_resting():
         _searx_state["until"] = time.monotonic() + _SEARX_REST
         logger.info("[sources] SearXNG answers nothing — going direct for %.0f min", _SEARX_REST / 60)
+        try:
+            from musix.assistant import data
+
+            data.rows(
+                "INSERT INTO source_health (source, failures, open_until, last_error) "
+                "VALUES ('searxng', 0, now() + make_interval(secs => %(s)s), 'assistant: empty answers') "
+                "ON CONFLICT (source) DO UPDATE SET open_until = excluded.open_until, "
+                "last_error = excluded.last_error RETURNING 1",
+                {"s": _SEARX_REST},
+            )
+            _shared_state.update(checked=time.monotonic(), open=True)
+        except Exception:  # noqa: BLE001
+            logger.info("[sources] could not share the SearXNG rest", exc_info=True)
+
+
+# Search results are public and change slowly — «<game> soundtrack», «<artist> singles
+# discography». Kept in `web_pages` beside the pages themselves (same 7-day sweep),
+# under a key no URL can take.
+SEARCH_CACHE_DAYS = 3
+
+
+def _cache_key(key: str, limit: int, host_pinned: bool) -> str:
+    import hashlib
+
+    return "search:v1:" + hashlib.sha1(f"{key}|{limit}|{int(host_pinned)}".encode()).hexdigest()
+
+
+def _cache_get(ckey: str) -> Optional[list]:
+    try:
+        from musix.assistant import data
+
+        got = data.rows(
+            "SELECT page FROM web_pages WHERE url = %(u)s AND fetched_at > now() - make_interval(days => %(d)s)",
+            {"u": ckey, "d": SEARCH_CACHE_DAYS},
+        )
+    except Exception:  # noqa: BLE001 — a miss, never an error
+        return None
+    if not got:
+        return None
+    rows = (got[0][0] or {}).get("rows")
+    return rows if isinstance(rows, list) and rows else None
+
+
+def _cache_put(ckey: str, query: str, rows: list) -> None:
+    import json
+
+    try:
+        from musix.assistant import data
+
+        data.rows(
+            "INSERT INTO web_pages (url, page, fetched_at) VALUES (%(u)s, %(p)s::jsonb, now()) "
+            "ON CONFLICT (url) DO UPDATE SET page = excluded.page, fetched_at = now() RETURNING 1",
+            {"u": ckey, "p": json.dumps({"query": query, "rows": rows}, ensure_ascii=False, default=str)},
+        )
+    except Exception:  # noqa: BLE001
+        logger.info("[sources] search cache write failed", exc_info=True)
 
 
 def _host(url: str) -> str:
@@ -279,6 +356,30 @@ class SearchSources:
         if key in self._seen_queries:
             logger.info("[sources] repeat refused: %r", query)
             return []
+        ckey = _cache_key(key, limit, host_pinned)
+        cached = _cache_get(ckey)
+        if cached is not None:
+            # Free: no budget spent, no engine asked.
+            self._seen_queries.add(key)
+            logger.info("[sources] %r -> %d cached results", query, len(cached))
+            return cached
+        rows = self._searx_live(
+            query, key=key, engines=engines, limit=limit, force=force, host_pinned=host_pinned
+        )
+        if rows:
+            _cache_put(ckey, query, rows)
+        return rows
+
+    def _searx_live(
+        self,
+        query: str,
+        *,
+        key: str,
+        engines: Optional[str],
+        limit: int,
+        force: bool,
+        host_pinned: bool,
+    ) -> list:
         if self.searches >= self.cfg.max_web_searches:
             if not force:
                 logger.info("[sources] search budget spent (%d)", self.searches)
@@ -289,6 +390,34 @@ class SearchSources:
             logger.info("[sources] budget spent, running %r anyway (forced)", query)
         self._seen_queries.add(key)
         self.searches += 1
+
+        if serper_client.available():
+            # Serper first (Google's ranking, ~1 s, honours `site:`); ``None`` means it
+            # did not serve this one — out of credits, resting, the network — and the
+            # query takes the old road below.
+            wiki = engines == "wikipedia"
+            rows = serper_client.search(
+                serper_client.wikipedia_query(query) if wiki else query, limit=limit
+            )
+            if rows is not None:
+                return (
+                    self._clean(
+                        query,
+                        {"results": rows},
+                        engines=engines,
+                        limit=limit,
+                        host_pinned=host_pinned or wiki,
+                        asked="serper",
+                    )
+                    if rows
+                    else []
+                )
+
+        if host_pinned and not self.cfg.searx_for_site_queries:
+            # `site:` queries: SearXNG answered none of them from this host
+            # (2026-10/11 logs), so they go straight to the road that honours it.
+            rows = searxng_client.search_pinned(query, limit=self.cfg.searx_pool)
+            return self._clean(query, {"results": rows}, engines=engines, limit=limit, host_pinned=True, asked=engines) if rows else []
 
         results = None if _searx_resting() else self._searx_raw(
             query, engines=engines, limit=limit, host_pinned=host_pinned

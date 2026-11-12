@@ -44,14 +44,45 @@ class WebBranch:
         # listicles syndicating each other do constantly.
         self._chunk_hashes: set = set()
 
-    async def gather(self, plan: Plan, queries: list, ce_query: str, *, structured: bool) -> tuple:
-        """Run one round of search + fetch.
+    async def gather(
+        self,
+        plan: Plan,
+        queries: list,
+        ce_query: str,
+        *,
+        structured: bool,
+        on_structured=None,
+        stop: Optional[asyncio.Event] = None,
+    ) -> tuple:
+        """Run one round of search + fetch, every search of the round at once.
 
         Returns ``(structured_pages, prose_pages)``. Structured sources skip the
         relevance pass: pinning the host has already done that work, and an Apple
         playlist page has almost no text for a reranker to read.
+
+        The round used to be four phases one after another — Apple, Fandom, then
+        Wikipedia, then the open web — and on this host each phase is a cascade of
+        timeouts, so the phases added up: 70 of the 84 s of the GTA V playlist
+        (2026-11 logs). Nothing about one search depends on another, so they all
+        start together now, and a structured page is read the moment its search
+        answers rather than when the slowest search does.
+
+        ``on_structured(pages)`` is awaited for each batch of structured pages as it
+        is read; it may set ``stop`` — the caller has what it came for — and then
+        the round ends there: unanswered searches are abandoned and the open-web
+        lane (which only feeds the slow LLM extraction) is skipped.
+
+        Two deadlines bound the round. ``search_soft_deadline``: searches still
+        unanswered by then are abandoned if anything at all has been read.
+        ``search_hard_deadline``: nothing is waited on past it.
         """
-        structured_hits, web_hits = [], []
+        loop = asyncio.get_running_loop()
+        started = loop.time()
+        soft = started + self.cfg.search_soft_deadline
+        hard = started + self.cfg.search_hard_deadline
+        stop = stop or asyncio.Event()
+
+        searches: dict = {}  # task -> source name
         for i, query in enumerate(queries):
             self.used_queries.append(query)
             # Host-pinned sources on the first query only by default: a rephrasing
@@ -59,82 +90,157 @@ class WebBranch:
             # another turn of the burst that gets the good engines rate-limited.
             first_only = self.cfg.structured_first_query_only
             if structured and (i == 0 or not first_only):
-                with self.timings.span("search.apple"):
-                    structured_hits += await asyncio.to_thread(self.sources.apple_music, query)
+                searches[self._search("search.apple", self.sources.apple_music, query)] = "apple"
                 if plan.filters.work:
-                    with self.timings.span("search.fandom"):
-                        structured_hits += await asyncio.to_thread(self.sources.fandom, query)
+                    searches[self._search("search.fandom", self.sources.fandom, query)] = "fandom"
+        for query in queries:
+            searches[self._search("search.wikipedia", self.sources.wikipedia, query)] = "wikipedia"
+        web_task = asyncio.ensure_future(self._web_lane(queries))
 
-        # All the queries at once: one after another they cost 2–5 s each from this
-        # host (SearXNG empty → Bing → Wikipedia), 19 s for four (2026-10-23 logs).
-        with self.timings.span("search.wikipedia"):
-            for hits in await asyncio.gather(
-                *(asyncio.to_thread(self.sources.wikipedia, q) for q in queries)
-            ):
-                structured_hits += hits
+        structured_pages: list = []
+        structured_keys: set = set()
+        # Apple rows are the most trusted source and its search is already capped
+        # at a few hits, so it never competes for the budget the others share.
+        budget = {"left": self.cfg.max_pages_per_iteration}
+        reads: set = set()
 
-        # Start reading them NOW, with the web searches still to come. Nothing
-        # about which structured pages get read depends on those searches — these
-        # skip the relevance pass entirely — so the only thing waiting bought was
-        # wall clock. And the wait is long: SearXNG is paced by a blocking sleep
-        # inside a worker thread, so for most of the search phase the loop has
-        # nothing to do at all.
-        #
-        # The list is deduplicated first because the fetch budget is spent on this
-        # exact order, and ``fetch_many`` must see the same queue it would have
-        # seen at the end.
-        structured_hits = dedupe_by_url(structured_hits)
-        reading = asyncio.create_task(
-            self.fetcher.fetch_many(structured_hits, limit=self.cfg.max_pages_per_iteration)
-        )
+        async def read(hits: list) -> None:
+            with self.timings.concurrent("fetch.structured"):
+                pages = await self.fetcher.fetch_many(hits, limit=len(hits))
+            if not pages:
+                return
+            structured_pages.extend(pages)
+            if on_structured is not None:
+                await on_structured(pages)
+
+        def take(source: str, hits: list) -> list:
+            fresh = []
+            for hit in dedupe_by_url(hits):
+                key = canonical_url(hit.url)
+                if key in structured_keys:
+                    continue
+                if source != "apple":
+                    if budget["left"] <= 0:
+                        break
+                    budget["left"] -= 1
+                structured_keys.add(key)
+                fresh.append(hit)
+            return fresh
 
         try:
-            with self.timings.span("search.web"):
-                for hits in await asyncio.gather(
-                    *(asyncio.to_thread(self.sources.web, q) for q in queries)
-                ):
-                    web_hits += hits
-
-            kept: list = []
-            if web_hits:
-                with self.timings.span("rerank.ce"):
-                    kept = await asyncio.to_thread(
-                        rerank_hits,
-                        web_hits,
-                        ce_query,
-                        hub=self.agent.hub,
-                        threshold=self.cfg.ce_threshold_docs,
+            while (searches or reads) and not stop.is_set():
+                now = loop.time()
+                droppable = [
+                    f
+                    for f, src in searches.items()
+                    if not (src == "apple" and self.cfg.search_wait_for_apple)
+                ]
+                if droppable and now >= soft and (structured_pages or reads):
+                    # Soft deadline: the slow searches go, the reads in flight stay.
+                    # Apple is the exception and waits for the hard one: its editorial
+                    # playlists are the best source a mood request has (weight 2.0),
+                    # and in the 2026-11-12 runs it was the search most often late.
+                    logger.info(
+                        "[branch] soft search deadline: abandoning %d search(es)", len(droppable)
                     )
-            self.sink.put(
-                "rerank",
-                candidates=len(web_hits),
-                kept=len(kept),
-                threshold=self.cfg.ce_threshold_docs,
+                    self.sink.put("search_deadline", abandoned=len(droppable))
+                    for fut in droppable:
+                        fut.cancel()
+                        searches.pop(fut)
+                    continue
+                if now >= hard:
+                    logger.info("[branch] hard search deadline")
+                    break
+                limit = soft if (droppable and now < soft) else hard
+                done, _ = await asyncio.wait(
+                    set(searches) | reads, timeout=limit - now, return_when=asyncio.FIRST_COMPLETED
+                )
+                for fut in done:
+                    if fut in reads:
+                        reads.discard(fut)
+                        if not fut.cancelled() and fut.exception() is not None:
+                            logger.warning(
+                                "[branch] structured read failed", exc_info=fut.exception()
+                            )
+                        continue
+                    source = searches.pop(fut)
+                    if fut.exception() is not None:
+                        logger.warning(
+                            "[branch] %s search failed", source, exc_info=fut.exception()
+                        )
+                        continue
+                    fresh = take(source, fut.result() or [])
+                    if fresh:
+                        reads.add(asyncio.ensure_future(read(fresh)))
+        finally:
+            for fut in list(searches) + list(reads):
+                fut.cancel()
+
+        if stop.is_set():
+            web_task.cancel()
+            self.sink.put("early_stop", pages=len(structured_pages))
+            logger.info(
+                "[branch] enough after %.1fs — open-web lane skipped", loop.time() - started
             )
-        except BaseException:
-            # A search that raised must not leave a fetch running behind it,
-            # spending the next iteration's concurrency on pages nobody will read.
-            reading.cancel()
-            raise
+            return structured_pages, []
+
+        try:
+            web_hits = await asyncio.wait_for(web_task, timeout=max(0.0, hard - loop.time()))
+        except asyncio.TimeoutError:
+            logger.info("[branch] open-web lane missed the hard deadline")
+            web_hits = []
+        except Exception:  # noqa: BLE001 — a failed search is fewer pages, not a failed turn
+            logger.warning("[branch] open-web lane failed", exc_info=True)
+            web_hits = []
+
+        kept: list = []
+        if web_hits:
+            with self.timings.span("rerank.ce"):
+                kept = await asyncio.to_thread(
+                    rerank_hits,
+                    web_hits,
+                    ce_query,
+                    hub=self.agent.hub,
+                    threshold=self.cfg.ce_threshold_docs,
+                )
+        self.sink.put(
+            "rerank",
+            candidates=len(web_hits),
+            kept=len(kept),
+            threshold=self.cfg.ce_threshold_docs,
+        )
 
         # Deduplicated ACROSS the two lists, not within each: a Wikipedia article
         # reached by the pinned-host stream and again by the open-web stream is one
         # page. Structured goes first so the shared page keeps its structured
         # treatment (tables parsed, not chunked as prose).
-        structured_keys = {canonical_url(h.url) for h in structured_hits}
         prose_hits = [h for h in dedupe_by_url(kept) if canonical_url(h.url) not in structured_keys]
-
-        # What this span measures has changed with the overlap: the structured
-        # read is mostly already done by the time it is awaited, so ``fetch`` no
-        # longer accounts for the time it cost — and the lanes in the timing report
-        # no longer sum to the wall clock. That is the saving showing up, not a bug
-        # in the report.
         with self.timings.span("fetch"):
-            structured_pages = await reading
             prose_pages = await self.fetcher.fetch_many(
                 prose_hits, limit=self.cfg.max_pages_per_iteration
             )
         return structured_pages, prose_pages
+
+    def _search(self, span: str, call, query: str):
+        """One blocking search on a worker thread, timed as a concurrent span."""
+
+        async def run() -> list:
+            with self.timings.concurrent(span):
+                return await asyncio.to_thread(call, query) or []
+
+        return asyncio.ensure_future(run())
+
+    async def _web_lane(self, queries: list) -> list:
+        hits: list = []
+        for got in await asyncio.gather(
+            *(self._search("search.web", self.sources.web, q) for q in queries),
+            return_exceptions=True,
+        ):
+            if isinstance(got, BaseException):
+                logger.warning("[branch] web search failed: %s", got)
+                continue
+            hits += got
+        return hits
 
     def seed(self, chunks: list, used_queries: Optional[list] = None) -> int:
         """Adopt a previous turn's chunks instead of downloading them again.

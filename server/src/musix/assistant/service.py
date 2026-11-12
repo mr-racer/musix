@@ -255,7 +255,15 @@ def _playlist_payload(result, slots, lang: str) -> dict:
         "intent": "playlist",
         "human": human("select_done", lang, picked=len(tracks)),
         "slots": slots.model_dump(),
-        "playlist": {"title": result.title, "steps": [], "tracks": tracks},
+        "playlist": {
+            "title": result.title,
+            "steps": [],
+            "tracks": tracks,
+            # the curate sentence, already through the editor (branches/playlist):
+            # with it set the page does not write a blurb of its own
+            "blurb": (result.comment or None) if tracks else None,
+            "source": "web",
+        },
     }
 
 
