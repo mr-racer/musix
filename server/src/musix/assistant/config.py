@@ -260,6 +260,20 @@ CLAP_LIMIT_PER_QUERY = 10
 CLAP_RESULT_COUNT = 15
 CLAP_RRF_K = 60
 
+# ── the song's sound profile in audio search (spec sound-search-profile) ────────
+# The profile's rankings together weigh this many CLAP prompts — about half of the
+# four, split evenly between the soft keys. Calibrated on the eval set.
+SOUND_PROFILE_WEIGHT = 2.0
+# How deep each profile ranking reaches into the library when no artist narrows it.
+SOUND_PROFILE_POOL = 100
+# An artist's whole catalog is scored, up to this many tracks.
+SOUND_ARTIST_POOL = 400
+# «похожее на <трек>, но …»: how many of the track's CLAP neighbours make the pool
+# (doubled when a hard key has to select inside it), and how much the neighbours' own
+# order weighs against the profile and the prompts in RRF.
+LIKE_TRACK_POOL = 60
+LIKE_TRACK_WEIGHT = 2.0
+
 # ── behaviour ───────────────────────────────────────────────────────────────
 LLM_TIMEOUT = 180.0
 # Output ceiling for every call in the package. Sized for the two that actually
@@ -376,6 +390,11 @@ class AgentConfig:
     clap_limit_per_query: int = CLAP_LIMIT_PER_QUERY
     clap_result_count: int = CLAP_RESULT_COUNT
     clap_rrf_k: int = CLAP_RRF_K
+    sound_profile_weight: float = SOUND_PROFILE_WEIGHT
+    sound_profile_pool: int = SOUND_PROFILE_POOL
+    sound_artist_pool: int = SOUND_ARTIST_POOL
+    like_track_pool: int = LIKE_TRACK_POOL
+    like_track_weight: float = LIKE_TRACK_WEIGHT
 
     # behaviour
     clarify_policy: str = CLARIFY_POLICY

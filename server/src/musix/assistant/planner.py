@@ -162,6 +162,52 @@ def _is_sound_word(folded_word: str) -> bool:
     return not any(folded_word.startswith(stem) for stem in _NOT_SOUND_STEMS)
 
 
+# Requests the web has to answer even when they name a sound: a credit, a list, a release.
+_WEB_STEMS = (
+    "участ",
+    "фит",
+    "feat",
+    "дискограф",
+    "альбом",
+    "сингл",
+    "саундтрек",
+    "кавер",
+    "ремикс",
+    "дуэт",
+    "сэмпл",
+    "семпл",
+    "клип",
+    "концерт",
+    "лайв",
+)
+
+
+def _sound_of_one_artist(message: str, filters: Filters) -> bool:
+    """«Coldplay где есть пианино», «Nickelback без гитары»: the model reads an artist plus
+    an instrument as a playlist about as often as a sound search (eval 2026-11-12: 2 of 3
+    runs). Nothing in such a sentence is for the web — no fame, no credit, no release —
+    and the artist's whole catalog, checked by the profile, is the honest answer."""
+    if not (filters.sound and filters.artist) or filters.work or filters.song:
+        return False
+    names = set(fold(filters.artist).split())
+    for word in fold(message).split():
+        if word in names:
+            continue
+        if not _is_sound_word(word) or word.startswith(_WEB_STEMS):
+            return False
+    return True
+
+
+def _fame_of_one_artist(message: str, filters: Filters) -> bool:
+    """«популярные медленные песни Coldplay»: the model took the sound and dropped the
+    fame (eval F3, 3 of 3). Which songs are popular only the web knows; the sound keys
+    then filter its list (the playlist branch, spec §5.3)."""
+    if not filters.artist:
+        return False
+    names = set(fold(filters.artist).split())
+    return any(w not in names and not _is_sound_word(w) for w in fold(message).split())
+
+
 def validate_style(raw, user_text: str) -> Optional[str]:
     """Keep the style only if the user wrote it AND it describes SOUND.
 
@@ -207,6 +253,47 @@ def validate_style(raw, user_text: str) -> Optional[str]:
         return " ".join(kept)
     logger.info("[planner] style %r dropped — not a description of sound the user gave", text)
     return None
+
+
+def validate_sound(raw, user_text: str, *, names=()) -> tuple:
+    """The planner's ``sound`` field, kept only where it can be traced to the user.
+
+    Every item is ``{"key", "word", "neg"}``. The key must be one of the closed list in
+    ``contexts.sound.query``; the word must be in the user's own sentence (the same test
+    as ``validate_style`` — the model offers "calm" to requests that never said it); a
+    soft key must not come from a word about fame («лучшие» is not «сложные»). The
+    lexicon then adds what the sentence names in plain words, so an instrument survives a
+    broken or empty field — and a word that sits inside the song's or the artist's name
+    is neither's.
+    """
+    from musix.contexts.sound import query as SQ
+
+    said = f" {fold(user_text)} "
+    taken = [fold(n) for n in names if n]
+    llm_keys = []
+    for item in raw if isinstance(raw, list) else []:
+        if not isinstance(item, dict):
+            continue
+        key = as_str(item.get("key"), 20).lower()
+        word = as_str(item.get("word"), 80)
+        folded = fold(word)
+        if key not in SQ.KEYS or not folded or f" {folded} " not in said:
+            logger.info(
+                "[planner] sound %r (%r) dropped — not a key or not the user's word", key, word
+            )
+            continue
+        if any(folded in name for name in taken):
+            logger.info("[planner] sound %r dropped — %r is a name", key, word)
+            continue
+        if key in SQ.SOFT and not all(_is_sound_word(w) for w in folded.split()):
+            logger.info("[planner] sound %r dropped — %r is about fame, not sound", key, word)
+            continue
+        neg = item.get("neg") is True or str(item.get("neg")).lower() == "true"
+        if not SQ.plain_word(key, word, neg):
+            logger.info("[planner] sound %r dropped — %r only hints at it", key, word)
+            continue
+        llm_keys.append(SQ.SoundKey(key, word, neg, "llm"))
+    return SQ.merge(llm_keys, SQ.lexicon(user_text, names=names))
 
 
 def strip_artist(text: str, artist: Optional[str]) -> str:
@@ -348,6 +435,17 @@ class Planner:
             count=_valid_count(as_int(raw.get("count"))),
         )
 
+        if intent in ("audio_search", "playlist"):
+            # a lyrics or general question names an instrument as a topic («песня про
+            # гитару», «кто играл на гитаре у Queen»), never as a filter
+            filters.sound = validate_sound(
+                raw.get("sound"), message, names=(filters.song, filters.artist, filters.work)
+            )
+
+        if intent == "playlist" and _sound_of_one_artist(message, filters):
+            intent = "audio_search"
+        elif intent == "audio_search" and _fame_of_one_artist(message, filters):
+            intent = "playlist"
         intent = self.settle_intent(intent, filters)
 
         queries = _dedupe_queries(as_str_list(raw.get("web_queries"), limit=4))
@@ -382,14 +480,19 @@ class Planner:
                 work=filters.work,
                 artist=filters.artist,
                 queries=plan.web_queries,
+                sound=[
+                    {"key": k.key, "word": k.word, "neg": k.neg, "source": k.source}
+                    for k in filters.sound
+                ],
             )
         logger.info(
-            "[planner] intent=%s era=%s style=%r work=%r artist=%r queries=%s",
+            "[planner] intent=%s era=%s style=%r work=%r artist=%r sound=%s queries=%s",
             intent,
             filters.era,
             filters.style,
             filters.work,
             filters.artist,
+            [("-" if k.neg else "") + k.key for k in filters.sound],
             queries,
         )
         return plan
@@ -418,7 +521,7 @@ class Planner:
                 filters.artist,
             )
             return "playlist"
-        if not filters.style:
+        if not filters.style and not filters.sound:
             logger.info(
                 "[planner] audio_search without a description of sound "
                 "— treating it as a playlist request"

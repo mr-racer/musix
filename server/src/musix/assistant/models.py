@@ -28,6 +28,10 @@ class SearchFilters(BaseModel):
     # Phase 1c — sonic descriptors. AND semantics across tags (track must carry every selected tag).
     sonic_tags: list[str] = []
 
+    # Content ids (media_file_id = the point id) a sound search may return: «похожее на
+    # трек, но мрачнее» ranks the CLAP prompt INSIDE the track's neighbours. Empty = any.
+    point_ids: list[str] = []
+
 
 class PlaylistDraft(BaseModel):
     """Playlist proposed by the playlist-builder agent (not yet persisted).

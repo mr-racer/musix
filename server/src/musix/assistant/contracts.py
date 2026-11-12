@@ -167,6 +167,10 @@ class Filters:
     artist: Optional[str] = None
     song: Optional[str] = None
     count: Optional[int] = None
+    # What the song's sound profile can check, as ``contexts.sound.query.SoundKey``s:
+    # a named instrument, the drums, the voice (hard keys select) and calm, unusual,
+    # spacious… (soft keys order). Validated against the user's words by the planner.
+    sound: tuple = ()
 
 
 @dataclass(slots=True)
@@ -288,6 +292,11 @@ class PlaylistResult:
     relaxations: int = 0
     clarify: Optional[ClarifyRequest] = None
     notes: list = field(default_factory=list)
+    # Set when the request's hard sound keys («хиты Канье с гитарой») left too few
+    # tracks: the line that says so, shown instead of the generic one.
+    sound_note: str = ""
+    # As ``AudioResult.tiers``: 1 — passed the hard sound keys, 2 — added after them.
+    tiers: list = field(default_factory=list)
 
 
 @dataclass(slots=True)
@@ -317,3 +326,8 @@ class AudioResult:
     queries: list = field(default_factory=list)
     clarify: Optional[ClarifyRequest] = None
     notes: list = field(default_factory=list)
+    # Set when the song's sound profile took part (spec sound-search-profile): the tier
+    # of each track (1 — passed every hard key, 2 — added because too few did) and the
+    # keys, «-guitar» for a negated one. The caption in ``comment`` is then shown.
+    tiers: list = field(default_factory=list)
+    sound_keys: list = field(default_factory=list)

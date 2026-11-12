@@ -96,6 +96,7 @@ _FIRST = {
     "hits": "Сверяю с чартом Deezer",
     "best": "Смотрю, что ты слушаешь чаще",
     "similar": "Сравниваю звучание",
+    "sound": "Смотрю, что звучит в песнях",
 }
 
 
@@ -121,7 +122,100 @@ async def parse(s: AsyncSession, account_id: uuid.UUID, text: str) -> dict[str, 
         for r in (await s.execute(_TITLES, a)).mappings():
             if want in (_key(r["title_display"] or r["title"]), _key(r["title"])):
                 return {"kind": "similar", "track_id": str(r["id"])}
-    return None
+        return None
+    return await _parse_sound(s, account_id, t)
+
+
+# Words around a sound ask that say nothing more: «найди мне песни с гитарой».
+_SOUND_FILLER = frozenset(
+    [
+        "найди",
+        "найти",
+        "подбери",
+        "поставь",
+        "включи",
+        "дай",
+        "покажи",
+        "хочу",
+        "мне",
+        "что",
+        "нибудь",
+        "то",
+        "нить",
+        "чтото",
+        "песни",
+        "песню",
+        "песня",
+        "трек",
+        "треки",
+        "треков",
+        "музыка",
+        "музыку",
+        "музыки",
+        "композиции",
+        "подборку",
+        "плейлист",
+        "с",
+        "со",
+        "и",
+        "или",
+        "где",
+        "есть",
+        "у",
+        "в",
+        "моей",
+        "библиотеке",
+        "из",
+        "без",
+        "какие",
+        "нибудь",
+        "find",
+        "play",
+        "give",
+        "show",
+        "me",
+        "some",
+        "something",
+        "songs",
+        "song",
+        "tracks",
+        "track",
+        "music",
+        "with",
+        "and",
+        "by",
+        "from",
+        "the",
+        "a",
+        "my",
+        "library",
+        "without",
+        "no",
+        "any",
+    ]
+)
+
+
+async def _parse_sound(s: AsyncSession, account_id: uuid.UUID, text: str) -> dict[str, Any] | None:
+    """«песни с саксофоном», «Kanye West с гитарой», «музыка без слов»: hard sound keys
+    and at most an artist of this library, nothing else. Anything more — a mood, a
+    decade, a second thought — is the agent's: CLAP and the planner read it there."""
+    from musix.contexts.sound import query as SQ
+
+    keys = SQ.normalize(SQ.lexicon(text))
+    if not keys or not all(k.hard for k in keys):
+        return None
+    rest = f" {fold(text)} "
+    for k in keys:
+        rest = rest.replace(f" {fold(k.word)} ", " ")
+    words = [w for w in rest.split() if w not in _SOUND_FILLER]
+    hint: dict[str, Any] = {"kind": "sound", "keys": [[k.key, k.neg] for k in keys]}
+    if not words:
+        return hint
+    art = await _my_artist(s, account_id, " ".join(words))
+    if art is None:
+        return None
+    return hint | {"artist_slug": art["slug"]}
 
 
 async def _my_artist(s: AsyncSession, account_id: uuid.UUID, raw: str) -> dict[str, Any] | None:
@@ -146,9 +240,9 @@ async def answer(
     async with sm() as s:
         hint = req.get("hint") or await parse(s, account_id, req.get("message", ""))
         kind = (hint or {}).get("kind")
-        if kind not in ("producer", "guest", "hits", "best", "similar"):
+        if kind not in ("producer", "guest", "hits", "best", "similar", "sound"):
             return None
-        intent = "audio_search" if kind == "similar" else "playlist"
+        intent = "audio_search" if kind in ("similar", "sound") else "playlist"
         sink.on_status({"stage": "plan", "intent": intent, "fast": kind, "human": _FIRST[kind]})
         got = await _collect(s, q, account_id, kind, hint or {})
     if got is None:
@@ -206,6 +300,8 @@ async def _collect(
         )
     if kind == "similar":
         return await _similar(s, q, account_id, str(hint.get("track_id") or ""))
+    if kind == "sound":
+        return await _sound(s, account_id, hint)
     art = (await s.execute(_ARTIST, {"slug": hint.get("artist_slug")})).mappings().first()
     if art is None:
         return None
@@ -259,6 +355,71 @@ async def _collect(
         hits,
         "chart",
         f"Сверил с чартом Deezer: у тебя {n} {plural_ru(n, 'хит', 'хита', 'хитов')}",
+    )
+
+
+async def _sound(
+    s: AsyncSession, account_id: uuid.UUID, hint: dict[str, Any]
+) -> tuple[str, list[dict[str, Any]], str, str] | None:
+    """The library's tracks whose «Звук» window shows what was asked, best measured
+    first (the instrument's calibrated claim) — one read of the profiles, no model."""
+    from musix.contexts.sound import query as SQ
+
+    try:
+        keys = SQ.normalize(SQ.SoundKey(str(k), "", bool(neg)) for k, neg in hint.get("keys") or [])
+    except (TypeError, ValueError):
+        return None
+    if not keys or not all(k.hard for k in keys):
+        return None
+    q = SQ.profile_select(account_id)
+    who = ""
+    if hint.get("artist_slug"):
+        art = (await s.execute(_ARTIST, {"slug": hint["artist_slug"]})).mappings().first()
+        if art is None:
+            return None
+        from musix.contexts.library.models import track_artists, tracks
+
+        who = art["name"]
+        q = q.where(
+            sa.or_(
+                tracks.c.primary_artist_id == art["id"],
+                tracks.c.id.in_(
+                    sa.select(track_artists.c.track_id).where(
+                        track_artists.c.artist_id == art["id"]
+                    )
+                ),
+            )
+        )
+    profiles = {}
+    for row in (await s.execute(q)).all():
+        p = SQ.Profile.from_row(row)
+        if SQ.passes_all(p, keys):
+            profiles[p.track_id] = p
+    if not profiles:
+        return None  # the agent says «нет» with what sounds close instead of an empty card
+    order = (SQ.rankings(profiles, keys) or [list(profiles)])[0][: LIMIT * 3]
+    mfs = [uuid.UUID(profiles[tid].media_file_id) for tid in order]
+    by_id = {
+        str(r["id"]): dict(r)
+        for r in (await s.execute(_BY_MF, {"a": account_id, "mfs": mfs})).mappings()
+    }
+    seen: set[Any] = set()
+    rows: list[dict[str, Any]] = []
+    for tid in order:
+        hit = by_id.get(tid)
+        if hit is None or (hit["song_id"] is not None and hit["song_id"] in seen):
+            continue
+        seen.add(hit["song_id"])
+        rows.append(hit)
+    asked = SQ.phrase(keys)
+    title = f"{who} — {asked}" if who else asked[:1].upper() + asked[1:]
+    n = len(profiles)
+    at = f" у {who}" if who else " в библиотеке"
+    return (
+        title,
+        rows,
+        "sound",
+        f"{asked[:1].upper()}{asked[1:]}{at}: {n} {plural_ru(n, 'трек', 'трека', 'треков')}",
     )
 
 

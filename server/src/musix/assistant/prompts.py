@@ -76,6 +76,18 @@ Fields:
   artist's name: a name in this sentence pulls the score towards every text by
   that artist instead of towards the line.
   For audio_search leave it null; the sound is rewritten separately.
+- sound: audio_search and playlist ONLY, otherwise []. What the user asked of the
+  SOUND that a song's measured profile can check, as a list of
+  {"key": ..., "word": ..., "neg": true/false}:
+  key is one of
+    instruments and voice: guitar, piano, keys, strings, brass, winds, bass_808,
+      synth_bass, bass_guitar, live_drums, drum_machine, no_vocals;
+    character: calm, energetic, odd (unusual, experimental), tech (complex,
+      virtuosic), spacious, intimate, wide, bass_heavy.
+  word is the word or phrase of the request the key came from, copied exactly as
+  the user wrote it. neg is true when the user asked for the opposite ("without",
+  "not too"). A name of a song or an artist is never a key. Use only these keys;
+  a mood with no key here stays in style alone. [] when there is none.
 - rationale: one short sentence, in the user's language, on what you understood.
 
 EXAMPLES
@@ -102,13 +114,49 @@ User: Спокойные песни Sade
 {"intent": "audio_search", "era": null, "style": "Спокойные", "work": null,
  "abbreviation": null, "artist": "Sade", "song": null, "count": null,
  "web_queries": [], "lyrics_query": null, "ce_query": null,
+ "sound": [{"key": "calm", "word": "Спокойные", "neg": false}],
  "rationale": "Спокойное звучание, только Sade."}
 
 User: что-нибудь резкое и быстрое под пробежку
 {"intent": "audio_search", "era": null, "style": "резкое и быстрое",
  "work": null, "abbreviation": null, "artist": null, "song": null, "count": null,
  "web_queries": [], "lyrics_query": null, "ce_query": null,
+ "sound": [{"key": "energetic", "word": "быстрое", "neg": false}],
  "rationale": "Резкое и быстрое звучание."}
+
+User: странное что-нибудь у Radiohead со скрипками, но не слишком медленное
+{"intent": "audio_search", "era": null, "style": "странное со скрипками",
+ "work": null, "abbreviation": null, "artist": "Radiohead", "song": null,
+ "count": null, "web_queries": [], "lyrics_query": null, "ce_query": null,
+ "sound": [{"key": "odd", "word": "странное", "neg": false},
+           {"key": "strings", "word": "скрипками", "neg": false},
+           {"key": "calm", "word": "медленное", "neg": true}],
+ "rationale": "Необычное звучание Radiohead со струнными, не медленное."}
+
+User: похожее на Moon, но с живыми барабанами
+{"intent": "audio_search", "era": null, "style": "с живыми барабанами",
+ "work": null, "abbreviation": null, "artist": null, "song": "Moon", "count": null,
+ "web_queries": [], "lyrics_query": null, "ce_query": null,
+ "sound": [{"key": "live_drums", "word": "живыми барабанами", "neg": false}],
+ "rationale": "Звучит как Moon, но с живыми барабанами."}
+(«похожее на <трек>» puts the track's title in `song`, exactly as the user wrote it; \
+what comes after «но» / «только» is the style and the sound keys.)
+
+User: как Midnight City, только спокойнее и мрачнее
+{"intent": "audio_search", "era": null, "style": "спокойнее и мрачнее",
+ "work": null, "abbreviation": null, "artist": null, "song": "Midnight City",
+ "count": null, "web_queries": [], "lyrics_query": null, "ce_query": null,
+ "sound": [{"key": "calm", "word": "спокойнее", "neg": false}],
+ "rationale": "Похожее на Midnight City, но спокойнее и мрачнее."}
+
+User: хиты Coldplay без пианино
+{"intent": "playlist", "era": null, "style": null, "work": null,
+ "abbreviation": null, "artist": "Coldplay", "song": null, "count": null,
+ "web_queries": ["Coldplay greatest hits list", "Coldplay most popular songs"],
+ "lyrics_query": null,
+ "ce_query": "A list of Coldplay's most popular songs.",
+ "sound": [{"key": "piano", "word": "пианино", "neg": true}],
+ "rationale": "Хиты Coldplay, где нет пианино."}
 
 User: Песни с неофициальным появлением Майкла Джексона
 {"intent": "playlist", "era": null, "style": null, "work": null,

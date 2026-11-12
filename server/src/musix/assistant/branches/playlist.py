@@ -165,6 +165,9 @@ class PlaylistBranch(WebBranch):
         if rescue is not None:
             rescue.cancel()
 
+        with self.timings.span("sound.filter"):
+            resolved, passed = await self._sound_filter(resolved, plan)
+
         if self.cfg.merge_triage_curate:
             with self.timings.span("llm.select"):
                 title, comment, resolved = await select_and_curate(
@@ -181,6 +184,16 @@ class PlaylistBranch(WebBranch):
                     self.agent.llm, message, resolved, config=self.cfg, sink=self.sink
                 )
         comment = await self._edit_comment(comment, resolved)
+        sound_note = ""
+        tiers: list = []
+        if passed is not None:
+            first = [t for t in resolved if str(t.track_id) in passed]
+            rest = [t for t in resolved if str(t.track_id) not in passed]
+            resolved = first + rest
+            tiers = [1] * len(first) + [2] * len(rest)
+            if rest:
+                sound_note = _sound_note(plan, len(first), len(rest), self.cfg.lang)
+                notes.append(f"sound keys: {len(first)} passed, {len(rest)} added")
         self.sink.put("result", tracks=len(resolved), missing=len(missing))
         return PlaylistResult(
             title=title,
@@ -190,7 +203,34 @@ class PlaylistBranch(WebBranch):
             iterations=iterations,
             relaxations=relaxations,
             notes=notes,
+            sound_note=sound_note,
+            tiers=tiers,
         )
+
+    async def _sound_filter(self, resolved: list, plan: Plan) -> tuple:
+        """``(tracks, passed_ids)`` — the hard sound keys («хиты Канье с гитарой») applied
+        to what the web found. Soft keys do not reorder a playlist: its order is fame.
+
+        When fewer than ``SOUND_PLAYLIST_MIN`` pass, the rest stay after them so the
+        answer is not three songs long, and the caption says so. ``passed_ids`` is None
+        when no hard key was asked (or nothing can read the profiles).
+        """
+        from musix.contexts.sound import query as SQ
+
+        hard = [k for k in plan.filters.sound if k.hard]
+        service = self.agent.search_service
+        if not hard or not resolved or not hasattr(service, "sound_profiles"):
+            return resolved, None
+        ids = [str(t.track_id) for t in resolved]
+        profiles = await service.sound_profiles(track_ids=ids)
+        passed = {tid for tid in ids if SQ.passes_all(profiles.get(tid), hard)}
+        first = [t for t in resolved if str(t.track_id) in passed]
+        self.sink.put("sound_filter", pool=len(resolved), passed=len(first), hard=len(hard))
+        if len(first) >= SOUND_PLAYLIST_MIN:
+            return first, passed
+        rest = [t for t in resolved if str(t.track_id) not in passed]
+        self.sink.put("sound_relaxed", first=len(first), added=len(rest))
+        return first + rest, passed
 
     async def _harvest(self, pages: list, *, artist: Optional[str]) -> tuple:
         """``(claims, prose)`` — parse what has a parser, hand back the rest.
@@ -371,6 +411,26 @@ class PlaylistBranch(WebBranch):
             if relaxed and relaxed not in out:
                 out.append(relaxed)
         return out or None
+
+
+SOUND_PLAYLIST_MIN = 3
+
+
+def _sound_note(plan: Plan, first: int, added: int, lang: str) -> str:
+    """«С гитарой нашлось 2 — остальные 6 без этого условия.» Written by code."""
+    from musix.contexts.sound import query as SQ
+
+    hard = [k for k in plan.filters.sound if k.hard]
+    what = SQ.phrase(hard, lang)
+    if (lang or "").lower().startswith("ru"):
+        if first == 0:
+            return f"Треков {what} среди них не нашлось — показываю все {added}."
+        return (
+            f"{what[:1].upper()}{what[1:]} нашлось {first} — остальные {added} без этого условия."
+        )
+    if first == 0:
+        return f"None of them with {what} — showing all {added}."
+    return f"Only {first} with {what}; the other {added} without it."
 
 
 def _strip(text: str, token: str) -> str:

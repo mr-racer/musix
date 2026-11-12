@@ -253,7 +253,9 @@ def _playlist_payload(result, slots, lang: str) -> dict:
     )
     return {
         "intent": "playlist",
-        "human": human("select_done", lang, picked=len(tracks)),
+        # the sound filter's own line when it left too few (written by code, not a model)
+        "human": getattr(result, "sound_note", "")
+        or human("select_done", lang, picked=len(tracks)),
         "slots": slots.model_dump(),
         "playlist": {
             "title": result.title,
@@ -286,7 +288,10 @@ def _audio_payload(result, slots, lang: str) -> dict:
     )
     return {
         "intent": "audio_search",
-        "human": human("select_done", lang, picked=len(tracks)),
+        # with the sound profile, the caption says what was asked and — when the hard
+        # keys left too few — what was added; the generic line would hide that
+        "human": (result.comment if getattr(result, "sound_keys", None) else "")
+        or human("select_done", lang, picked=len(tracks)),
         "slots": slots.model_dump(),
         "playlist": {"title": result.title, "steps": [], "tracks": tracks},
     }

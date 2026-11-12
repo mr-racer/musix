@@ -1,0 +1,113 @@
+# Eval set of sound requests (spec 2026-11-12-sound-search-profile-design §10).
+# Real questions to the main library (2026-11-12). Keys: "guitar" — hard, "-guitar" — hard
+# negated, "calm" — soft. `also` — soft keys a reading may add. `like` — «похожее на <трек>».
+# `fast: false` — must go to the agent. Grows with every failed
+# audio_search request from the assistant's logs.
+queries:
+  # A. one property, no artist
+  - {id: A1, group: A, q: "спокойные песни Kanye West", intent: audio_search, artist: Kanye West, keys: [calm],
+     expect: "Lord Lift Me Up, Moon, Hurricane, Drive Slow выше бодрых; скитов нет"}
+  - {id: A2, group: A, q: "что-нибудь с саксофоном", keys: [winds], expect: "духовые у всех; CLAP поднимает саксофон"}
+  - {id: A3, group: A, q: "песни с пианино", keys: [piano], expect: "пианино у всех; быстрый путь"}
+  - {id: A4, group: A, q: "музыка без слов", keys: [no_vocals], expect: "Moby, Men I Trust, L'Impératrice; скитов нет"}
+  - {id: A5, group: A, q: "что-нибудь со скрипками", keys: [strings], expect: "струнные у всех"}
+  - {id: A6, group: A, q: "трек с живыми барабанами", keys: [live_drums], expect: "быстрый путь"}
+  - {id: A7, group: A, q: "что-нибудь странное, экспериментальное", intent: audio_search, keys: [odd],
+     expect: "высокий odd, ни одного трека короче 90 с"}
+  - {id: A8, group: A, q: "очень просторное звучание, много воздуха", intent: audio_search, keys: [spacious],
+     also: [wide],
+     expect: "высокий space"}
+  - {id: A9, group: A, q: "сложная музыка, где много всего происходит", intent: audio_search, keys: [tech],
+     also: [odd],
+     expect: "высокий tech"}
+  - {id: A10, group: A, q: "песни с 808", keys: [bass_808], expect: "808-бас у всех"}
+
+  # B. artist + one property
+  - {id: B1, group: B, q: "Lana Del Rey с оркестром", artist: Lana Del Rey, keys: [strings], expect: "струнные (76 из 118)"}
+  - {id: B2, group: B, q: "самые бодрые песни Sade", intent: audio_search, artist: Sade, keys: [energetic],
+     expect: "бодрее остального Sade"}
+  - {id: B3, group: B, q: "Coldplay где есть пианино", intent: audio_search, artist: Coldplay, keys: [piano], expect: "пианино (28 из 65)"}
+  - {id: B4, group: B, q: "Linkin Park, где почти не поют", intent: audio_search, artist: Linkin Park, keys: [no_vocals],
+     expect: "5 из 123 → честное «мало», второй уровень"}
+  - {id: B5, group: B, q: "Jay-Z с живыми барабанами", artist: Jay-Z, keys: [live_drums], expect: "23 из 204"}
+  - {id: B6, group: B, q: "самое необычное у Radiohead", intent: audio_search, artist: Radiohead, keys: [odd],
+     expect: "по odd внутри Radiohead"}
+  - {id: B7, group: B, q: "Eminem с гитарой", artist: Eminem, keys: [guitar], expect: "гитара у всех, выше claim.guitar"}
+
+  # C. compound
+  - {id: C1, group: C, q: "экспериментальная песня Kanye West с гитарой", intent: audio_search, artist: Kanye West,
+     keys: [guitar, odd], expect: "только с гитарой (48 из 183), по необычности; скитов нет"}
+  - {id: C2, group: C, q: "спокойное с пианино и скрипками", intent: audio_search, keys: [piano, strings, calm],
+     expect: "оба инструмента у каждого трека первого уровня"}
+  - {id: C3, group: C, q: "медленный рок 90-х с живыми барабанами", intent: audio_search, era: [1990, 1999],
+     keys: [live_drums, calm], expect: "эпоха у всех; «рок» решает CLAP"}
+  - {id: C4, group: C, q: "бодрое с духовыми, как на вечеринке", intent: audio_search, keys: [winds, energetic],
+     expect: "духовые у всех, вверху бодрые"}
+  - {id: C5, group: C, q: "спокойная электроника без вокала", intent: audio_search, keys: [no_vocals, calm]}
+  - {id: C6, group: C, q: "10 треков Lana Del Rey, спокойных и просторных", intent: audio_search, artist: Lana Del Rey,
+     keys: [calm, spacious], expect: "ровно 10"}
+  - {id: C7, group: C, q: "агрессивное с живыми барабанами и гитарой после 2010", intent: audio_search,
+     era: [2010, 2027], keys: [energetic, live_drums, guitar]}
+  - {id: C8, group: C, q: "ночной хип-хоп с 808 и медленным битом", intent: audio_search, keys: [bass_808, calm]}
+  - {id: C9, group: C, q: "The Weeknd, что-нибудь бодрое с синт-басом", intent: audio_search, artist: The Weeknd,
+     keys: [synth_bass, energetic]}
+  - {id: C10, group: C, q: "спокойные песни Moby без голоса, штук 5", intent: audio_search, artist: Moby,
+     keys: [no_vocals, calm], expect: "5 треков"}
+
+  # D. negation
+  - {id: D1, group: D, q: "Nickelback без гитары", intent: audio_search, artist: Nickelback, keys: [-guitar],
+     expect: "гитара у 136 из 136 → честное «нет», второй уровень с подписью"}
+  - {id: D2, group: D, q: "хип-хоп без барабанов", intent: audio_search, keys: [-live_drums, -drum_machine]}
+  - {id: D3, group: D, q: "Lana Del Rey, но не слишком медленное", intent: audio_search, artist: Lana Del Rey,
+     keys: [energetic]}
+  - {id: D4, group: D, q: "рок без электрогитары, что-то акустическое", intent: audio_search, keys: [],
+     expect: "гитара не исключается; решает CLAP"}
+  - {id: D5, group: D, q: "песни Eminem с вокалом и пианино", artist: Eminem, keys: [piano, -no_vocals]}
+  - {id: D6, group: D, q: "что-нибудь без драм-машины, с живым звуком", intent: audio_search, keys: [-drum_machine],
+     expect: "«живым звуком» не становится live_drums"}
+
+  # E. comparative and «like a track»
+  - {id: E1, group: E, q: "что-то пободрее у Sade", intent: audio_search, artist: Sade, keys: [energetic]}
+  - {id: E2, group: E, q: "похожее на Moon, но с живыми барабанами", intent: audio_search, keys: [live_drums],
+     like: Moon, expect: "соседи Moon по CLAP, среди них — с живыми барабанами; самой Moon нет"}
+  - {id: E3, group: E, q: "как Midnight City, только спокойнее", intent: audio_search, keys: [calm],
+     like: Midnight City, expect: "соседи Midnight City, спокойные выше; самой песни нет"}
+  - {id: E6, group: E, q: "похожее на Moon, но мрачнее", intent: audio_search, like: Moon,
+     expect: "ключей нет: «мрачнее» — подсказка CLAP только внутри соседей"}
+  - {id: E4, group: E, q: "самое медленное у Red Hot Chili Peppers", intent: audio_search, artist: Red Hot Chili Peppers,
+     keys: [calm]}
+  - {id: E5, group: E, q: "что-то как Men I Trust, но с гитарой", intent: audio_search, keys: [guitar],
+     expect: "ориентир против фильтра — смотрим глазами"}
+
+  # F. fame + sound → playlist with a filter
+  - {id: F1, group: F, q: "хиты Канье с гитарой", intent: playlist, artist: Канье, keys: [guitar], fast: false}
+  - {id: F2, group: F, q: "лучшие песни Queen с пианино", intent: playlist, artist: Queen, keys: [piano], fast: false}
+  - {id: F3, group: F, q: "популярные медленные песни Coldplay", intent: playlist, artist: Coldplay, keys: [calm],
+     fast: false, expect: "мягкий ключ в playlist не применяется"}
+  - {id: F4, group: F, q: "хиты Green Day с пианино", intent: playlist, artist: Green Day, keys: [piano], fast: false,
+     expect: "2 из 51 → честное «мало»"}
+
+  # G. mood only — regression
+  - {id: G1, group: G, q: "мрачное и тягучее", intent: audio_search, keys: []}
+  - {id: G2, group: G, q: "летнее настроение, что-то солнечное", intent: audio_search, keys: []}
+  - {id: G3, group: G, q: "музыка как саундтрек к фильму", intent: audio_search, keys: []}
+  - {id: G4, group: G, q: "лучшие песни Sade", intent: playlist, artist: Sade, keys: []}
+  - {id: G5, group: G, q: "грустные песни The Weeknd", intent: audio_search, artist: The Weeknd, keys: []}
+
+  # H. traps — no key may appear
+  - {id: H1, group: H, q: "включи Piano Man", song: Piano Man, keys: []}
+  - {id: H2, group: H, q: "песня, где поют про гитару", intent: lyrics_search, keys: []}
+  - {id: H3, group: H, q: "кто играл на гитаре у Queen", intent: general, keys: []}
+  - {id: H4, group: H, q: "живые выступления Muse", keys: []}
+  - {id: H5, group: H, q: "тяжёлое, как Royal Blood", intent: audio_search, keys: []}
+  - {id: H6, group: H, q: "популярное", keys: []}
+
+  # K. how people really type
+  - {id: K1, group: K, q: "чё-нить чилловое с гитаркой", intent: audio_search, keys: [guitar, calm]}
+  - {id: K2, group: K, q: "скрипочки и чтоб медленно", intent: audio_search, keys: [strings, calm]}
+  - {id: K3, group: K, q: "чтоб бочка качала и басы жирные", intent: audio_search, keys: [bass_heavy],
+     expect: "оставляем bass_heavy, только если выдача осмысленна"}
+  - {id: K4, group: K, q: "calm songs with piano", intent: audio_search, keys: [piano, calm]}
+  - {id: K5, group: K, q: "spokoinye pesni s gitaroi", intent: audio_search, keys: [guitar, calm]}
+  - {id: K6, group: K, q: "хочу что-то типа инструментала но не скучного", intent: audio_search, keys: [no_vocals]}
+  - {id: K7, group: K, q: "Kanye спокойное гитара эксперимент", intent: audio_search, artist: Kanye, keys: [guitar, calm, odd]}
