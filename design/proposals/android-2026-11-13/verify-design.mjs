@@ -32,6 +32,8 @@ try {
     await page.evaluate(()=>phoneReview.setReviewHome('error'));await page.locator('#homeRetry').click();
     assert.equal(await page.locator('#page-home').getAttribute('data-home'),'ready');
     await page.locator('[data-search-mode=ai]').click();await page.locator('#homeSearch').click();
+    await page.waitForFunction(()=>document.querySelector('#homeSearchInput')===document.activeElement);
+    await page.locator('#homeAsk').click();
     await page.waitForFunction(()=>document.querySelector('#assistantForm input')===document.activeElement);
     for(const state of ['idle','working','ready','error']){
       await page.evaluate(s=>phoneReview.setReviewAssistant(s),state);await page.waitForTimeout(650);

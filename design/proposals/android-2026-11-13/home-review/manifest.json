@@ -1,0 +1,19 @@
+{
+  "status": "Предложение, не принято",
+  "parent_commit": "4d42b436d78a59a541e53393f7933124b1a19834",
+  "previous_html": "android-home-r0.html",
+  "previous_sha256": "fb7f90c9aca0ae8f8eae13e2adec0950782c758967a86f8107361aaeca5612cf",
+  "html": "android-home-review.html",
+  "source_sha256": {
+    "design/reference/home/logic.js": "d37eeef24274f1e1f8c0cbb34733ea9846adb3cb29ddba7561d433442bab9b6d",
+    "web/src/ui/Orb.tsx": "1682a5726a0b7c9f45fbde7aaf243fc9319871ec11372962da244059f2014547",
+    "web/src/lib/color.ts": "3cfdef115d6c57f42be27c65d7cb4552271e1949ded19ff87a6ca99f3b2397bb",
+    "design/proposals/android-2026-11-13/vendor/tactile-showcase.js": "d97db1e45699ca5dc35650970e95e57b61f9a997b9a99bad19ed95e933973d0d"
+  },
+  "adaptations": [
+    "Компоновка телефона и состояния",
+    "Координаты, плотность и остановка невидимого неба",
+    "Сегменты разной ширины для русских подписей",
+    "Только локальные сценарии, без API и аудио"
+  ]
+}

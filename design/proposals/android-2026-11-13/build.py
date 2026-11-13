@@ -38,11 +38,11 @@ for line in (ROOT / 'web/src/ui/icons.tsx').read_text().splitlines():
 
 css = '\n'.join([fonts, (ROOT / 'design/gen/web/tokens.css').read_text(),
                   (HERE / 'glass.css').read_text(), (HERE / 'phone.css').read_text(),
-                  (HERE / 'refinement.css').read_text()])
+                  (HERE / 'refinement.css').read_text(), (HERE / 'home.css').read_text()])
 script = 'window.PHONE_DATA=' + json.dumps(data, ensure_ascii=False) + ';\n'
 script += 'window.ICONS=' + json.dumps(icons) + ';\n'
 script += (HERE / 'vendor/tactile-lib.js').read_text() + '\n'
-script += (HERE / 'assistant.js').read_text() + '\n' + (HERE / 'home.js').read_text() + '\n' + (HERE / 'phone.js').read_text()
+script += (HERE / 'assistant.js').read_text() + '\n' + (HERE / 'home-sky.js').read_text() + '\n' + (HERE / 'home.js').read_text() + '\n' + (HERE / 'phone.js').read_text()
 page = (HERE / 'phone.html').read_text().replace('/* INLINE_CSS */', css).replace('/* INLINE_JS */', script.replace('</script', '<\\/script'))
 out = HERE / 'out'
 out.mkdir(exist_ok=True)

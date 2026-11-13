@@ -244,6 +244,7 @@ const titles={queue:'Далее',about:'О песне',playlist:'В плейли
 const addedToLists=new Map();
 function renderSheet(name){
   const body=$('sheetBody'),t=detailTrack||currentTrack();$('sheetTitle').textContent=titles[name]||name;body.innerHTML='';body.scrollTop=0;
+  if(homeRenderSheet(name))return;
   if(name==='queue'){body.innerHTML='<p class="muted">Тяните за ручку. Смахните песню, чтобы убрать.</p><div id="queueRows"></div>';renderQueue();return;}
   if(name==='about'){
     body.innerHTML=`<div class="segment-control"><button aria-pressed="true" data-about-tab="song">Песня</button><button aria-pressed="false" data-about-tab="sound">Звук</button></div><div id="aboutContent"></div>`;
@@ -282,7 +283,7 @@ function renderSheet(name){
   }else if(name==='add'){
     body.innerHTML='<p>Загрузите свои файлы или перенесите плейлисты из Яндекс Музыки.</p><button class="text-action" data-sheet="queue">Пока послушать очередь ›</button>';
   }
-  paintIcons(body);
+  decorateHomeSheet(name,t,body);paintIcons(body);
 }
 const extraLists=[];
 function soundContent(t){

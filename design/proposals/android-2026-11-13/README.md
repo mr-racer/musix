@@ -114,7 +114,9 @@ JoiPro — событие библиотеки, MultiStep — импорт/пе�
   Richbox-скачивание и прежний свайп, которые не приняты как готовые сценарии
   приложения; Richbox внутри Steps принят. Решения из §6 спеки имеют приоритет.
 - Телефонная адаптация находится в `phone.html`, `phone.css`, `phone.js`;
-  текущий проход — `refinement.css`, Steps — `assistant.js`, главная — `home.js`.
+  проход типографики — `refinement.css`, Steps — `assistant.js`.
+  Отдельное предложение главной: `home.js`, `home.css`, `home-sky.js`;
+  [описание первого раунда](home-review/README.md), прошлый эскиз — `android-home-r0.html`.
   Геометрия play/pause, пружины, пауза обложки, очередь, тосты и всплеск взяты
   из витрины. Отдельно адаптированы секции seek и отклонённая физика свайпа.
   Исправлена обработка pointer capture у кнопки отмены тоста; pointercancel
@@ -135,6 +137,7 @@ python3 design/proposals/android-2026-11-13/build.py
 node design/proposals/android-2026-11-13/verify.mjs
 node design/proposals/android-2026-11-13/verify-polish.mjs
 node design/proposals/android-2026-11-13/verify-design.mjs
+node design/proposals/android-2026-11-13/verify-home.mjs
 
 . /mnt/data/android/env.sh
 cd android
