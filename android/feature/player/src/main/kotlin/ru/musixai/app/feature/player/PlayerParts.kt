@@ -52,6 +52,8 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import ru.musixai.app.core.designsystem.MusixIcons
+import ru.musixai.app.core.designsystem.HapticCue
+import ru.musixai.app.core.designsystem.LocalMusixHaptics
 import ru.musixai.app.core.designsystem.MusixMotion
 import ru.musixai.app.core.designsystem.MusixTheme
 import ru.musixai.app.core.designsystem.component.Cover
@@ -192,7 +194,11 @@ private fun ActionIcon(icon: androidx.compose.ui.graphics.vector.ImageVector, la
 @Composable
 private fun TasteButton(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, fill: Color, active: Boolean, locked: Boolean, onClick: () -> Unit) {
     val c = MusixTheme.colors
-    Box(Modifier.size(44.dp).graphicsLayer { alpha = if (locked) 0.5f else 1f }.pressable(!locked, onClick), contentAlignment = Alignment.Center) {
+    val haptics = LocalMusixHaptics.current
+    Box(Modifier.size(44.dp).graphicsLayer { alpha = if (locked) 0.5f else 1f }.pressable(!locked) {
+        haptics.perform(if (active) HapticCue.ToggleOff else HapticCue.ToggleOn, fromUser = true)
+        onClick()
+    }, contentAlignment = Alignment.Center) {
         if (active) Icon(icon, null, Modifier.size(20.dp), tint = fill.copy(alpha = 0.9f))
         Icon(icon, label, Modifier.size(20.dp), tint = if (active) fill else c.textMuted)
     }

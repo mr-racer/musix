@@ -43,6 +43,7 @@ import ru.musixai.app.core.data.AccountRepository
 import ru.musixai.app.core.data.AuthRepository
 import ru.musixai.app.core.data.Device
 import ru.musixai.app.core.data.DevicePrefs
+import ru.musixai.app.core.data.HapticPreferences
 import ru.musixai.app.core.data.Release
 import ru.musixai.app.core.data.SettingsRepository
 import ru.musixai.app.core.data.ThemePref
@@ -68,7 +69,10 @@ class SettingsViewModel @Inject constructor(
     private val prefs: DevicePrefs,
     private val account: AccountRepository,
     private val auth: AuthRepository,
+    private val hapticPrefs: HapticPreferences,
 ) : ViewModel() {
+    val haptics = hapticPrefs.enabled
+    fun haptics(enabled: Boolean) = viewModelScope.launch { hapticPrefs.setEnabled(enabled) }
     private val extra = MutableStateFlow(SettingsUi())
     val ui: StateFlow<SettingsUi> = combine(settings.value, prefs.theme, extra, auth.server) { v, t, e, srv ->
         val q = v["quality"]?.let { runCatching { it.jsonObject }.getOrNull() }
@@ -98,6 +102,7 @@ private val TIERS = listOf(SegmentOption("lossless", "Lossless"), SegmentOption(
 @Composable
 fun SettingsRoute(onBack: () -> Unit, onImport: () -> Unit, onUpload: () -> Unit, onUpdate: (Release) -> Unit, vm: SettingsViewModel = hiltViewModel()) {
     val ui by vm.ui.collectAsStateWithLifecycle()
+    val haptics by vm.haptics.collectAsStateWithLifecycle()
     val c = MusixTheme.colors
     Column(Modifier.fillMaxSize().background(c.bg).verticalScroll(rememberScrollState()).statusBarsPadding().padding(20.dp), verticalArrangement = Arrangement.spacedBy(18.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -112,6 +117,7 @@ fun SettingsRoute(onBack: () -> Unit, onImport: () -> Unit, onUpload: () -> Unit
         }
         Card("Оформление") {
             Segmented(ui.theme, listOf(SegmentOption(ThemePref.System, "Как в системе"), SegmentOption(ThemePref.Dark, "Тёмная"), SegmentOption(ThemePref.Light, "Светлая")), vm::theme, small = true)
+            Line("Тактильный отклик") { ToggleSwitch(haptics, vm::haptics) }
         }
         Card("Музыка") {
             Link("Импорт из Яндекс Музыки", onImport)

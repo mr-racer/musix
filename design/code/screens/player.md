@@ -88,7 +88,7 @@ absent. Code: `web/src/player/{sound.ts,SoundRing,Instruments,Timeline,SoundWind
 
 ## Phone
 
-One screen, no scrolling, no wave.
+One screen, no scrolling; the cover shrinks to leave room for the controls. No spectrum.
 
 - Top bar: collapse; the Lossless badge in the middle; add to playlist and the overflow
   menu on the right («Слушать на…» lives in the menu).
@@ -98,6 +98,15 @@ One screen, no scrolling, no wave.
 - Controls: огонёк, вода, shuffle on the left; lyrics and the assistant on the right.
 - Peek rows: «О песне» (a sheet with the facts, the credits and the samples) and «Далее»
   (the queue sheet).
+
+Решение 2026-11-13, [спека Android](../../../docs/superpowers/specs/2026-11-13-android-rebuild-design.md#64-seek-плеера-блоки-и-волна):
+seek сохраняет разделы с зазорами 3 px, более яркие припевы, название текущего раздела
+и точки моментов. Пока песня играет, **только сыгранная часть каждого блока** идёт волной;
+на паузе она прямая. В зазорах волна не рисуется. Без профиля звука — один длинный блок.
+В мини-плеере остаётся прямая полоска. WEB seek не меняется.
+
+Телефонная компоновка каркаса и «Кино» находится на согласовании:
+`design/proposals/android-2026-11-13/`. До ответа владельца это предложение, не эталон.
 
 ## States
 

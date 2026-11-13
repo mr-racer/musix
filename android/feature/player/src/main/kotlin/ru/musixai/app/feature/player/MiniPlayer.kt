@@ -26,6 +26,8 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import ru.musixai.app.core.designsystem.MusixIcons
+import ru.musixai.app.core.designsystem.HapticCue
+import ru.musixai.app.core.designsystem.LocalMusixHaptics
 import ru.musixai.app.core.designsystem.MusixTheme
 import ru.musixai.app.core.designsystem.brush
 import ru.musixai.app.core.designsystem.component.pressable
@@ -38,6 +40,7 @@ fun MiniPlayer(onOpen: () -> Unit, vm: PlayerViewModel = hiltViewModel()) {
     val p = ui.player
     if (p.trackId == null) return
     val c = MusixTheme.colors
+    val haptics = LocalMusixHaptics.current
     Box(Modifier.fillMaxWidth().background(c.tabBarBg.brush(1080f, 140f)).pressable(onClick = onOpen)) {
         val frac = if (p.durationMs > 0) (p.positionMs.toFloat() / p.durationMs).coerceIn(0f, 1f) else 0f
         Box(Modifier.fillMaxWidth(frac).height(2.dp).background(Brush.horizontalGradient(listOf(c.accent, c.accentLight))))
@@ -48,7 +51,10 @@ fun MiniPlayer(onOpen: () -> Unit, vm: PlayerViewModel = hiltViewModel()) {
                 Text(p.artist, maxLines = 1, overflow = TextOverflow.Ellipsis, style = MusixTheme.type.body.copy(fontSize = 12.sp, color = c.textMuted))
             }
             Icon(MusixIcons.Prev, "Назад", Modifier.size(40.dp).pressable(onClick = vm::previous).padding(11.dp), tint = c.text)
-            Icon(if (p.isPlaying) MusixIcons.Pause else MusixIcons.Play, "Пауза", Modifier.size(44.dp).pressable(onClick = vm::toggle).padding(10.dp), tint = c.text)
+            Icon(if (p.isPlaying) MusixIcons.Pause else MusixIcons.Play, if (p.isPlaying) "Пауза" else "Воспроизвести", Modifier.size(44.dp).pressable {
+                haptics.perform(if (p.isPlaying) HapticCue.ToggleOff else HapticCue.ToggleOn, fromUser = true)
+                vm.toggle()
+            }.padding(10.dp), tint = c.text)
             Icon(MusixIcons.Next, "Дальше", Modifier.size(40.dp).pressable(onClick = vm::next).padding(11.dp), tint = c.text)
         }
     }

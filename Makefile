@@ -133,9 +133,11 @@ gates:
 	$(MAKE) recsys-eval SNAP=$(SNAP)
 
 # ── design tokens → CSS / Compose / XAML (design/) ──────────────────────────
-.PHONY: design design-check
+.PHONY: design design-check design-extract-v1
 design:
-	node design/extract.mjs && python3 design/gen/build.py
+	python3 design/gen/build.py
+design-extract-v1:
+	node design/extract.mjs
 design-check:
 	python3 design/gen/build.py --check
 

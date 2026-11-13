@@ -11,9 +11,12 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.unit.dp
 import com.github.takahirom.roborazzi.captureRoboImage
 import org.junit.Test
+import org.junit.Rule
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
@@ -38,8 +41,19 @@ import ru.musixai.app.core.designsystem.component.ToggleSwitch
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 @Config(sdk = [35], qualifiers = "w411dp-h891dp-xxhdpi")
 class GalleryScreenshots {
-    @Test fun dark() = captureRoboImage("build/outputs/roborazzi/gallery-dark.png") { Gallery(true) }
-    @Test fun light() = captureRoboImage("build/outputs/roborazzi/gallery-light.png") { Gallery(false) }
+    @get:Rule val compose = createComposeRule()
+
+    // Freeze the clock so the spinner and skeleton cannot keep the screenshot's
+    // main looper busy indefinitely, especially on the second theme in one JVM.
+    private fun capture(dark: Boolean, file: String) {
+        compose.mainClock.autoAdvance = false
+        compose.setContent { Gallery(dark) }
+        compose.mainClock.advanceTimeBy(500)
+        compose.onRoot().captureRoboImage(file)
+    }
+
+    @Test fun dark() = capture(true, "build/outputs/roborazzi/gallery-dark.png")
+    @Test fun light() = capture(false, "build/outputs/roborazzi/gallery-light.png")
 }
 
 @Composable

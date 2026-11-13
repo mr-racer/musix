@@ -9,14 +9,17 @@ import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dagger.hilt.android.AndroidEntryPoint
 import ru.musixai.app.core.data.DevicePrefs
+import ru.musixai.app.core.data.HapticPreferences
 import ru.musixai.app.core.data.ThemePref
 import ru.musixai.app.core.designsystem.MusixTheme
+import ru.musixai.app.core.designsystem.ProvideMusixHaptics
 import ru.musixai.app.ui.MusixApp
 import javax.inject.Inject
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
     @Inject lateinit var prefs: DevicePrefs
+    @Inject lateinit var hapticPrefs: HapticPreferences
 
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
@@ -24,7 +27,8 @@ class MainActivity : ComponentActivity() {
         setContent {
             val theme by prefs.theme.collectAsStateWithLifecycle()
             val dark = when (theme) { ThemePref.System -> isSystemInDarkTheme(); ThemePref.Dark -> true; ThemePref.Light -> false }
-            MusixTheme(dark) { MusixApp() }
+            val haptics by hapticPrefs.enabled.collectAsStateWithLifecycle()
+            ProvideMusixHaptics(haptics) { MusixTheme(dark) { MusixApp() } }
         }
     }
 }

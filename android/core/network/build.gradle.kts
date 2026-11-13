@@ -19,6 +19,20 @@ openApiGenerate {
     generateApiTests.set(false)
     generateModelTests.set(false)
 }
+tasks.named("openApiGenerate") {
+    val models = generated.get().dir("src/main/kotlin/app/musix/api/models").asFile
+    // The generator annotates a whole Map with @Contextual, but its date-valued
+    // elements still need a serializer. A file-level declaration also covers nested
+    // collections while retaining the existing java.time API and wire format.
+    doLast {
+        models.walkTopDown()
+            .filter { it.extension == "kt" }.forEach { model ->
+                val source = model.readText()
+                val annotation = "@file:kotlinx.serialization.UseContextualSerialization(java.time.OffsetDateTime::class, java.time.LocalDate::class, java.util.UUID::class)\n\n"
+                if (!source.startsWith(annotation)) model.writeText(annotation + source)
+            }
+    }
+}
 androidComponents.onVariants { v ->
     v.sources.kotlin?.addStaticSourceDirectory(generated.get().dir("src/main/kotlin").asFile.path)
 }

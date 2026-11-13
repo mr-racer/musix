@@ -40,6 +40,8 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import ru.musixai.app.core.designsystem.MusixFontFamilies
 import ru.musixai.app.core.designsystem.MusixIcons
+import ru.musixai.app.core.designsystem.HapticCue
+import ru.musixai.app.core.designsystem.LocalMusixHaptics
 import ru.musixai.app.core.designsystem.MusixTheme
 import ru.musixai.app.core.designsystem.component.RoundGlassButton
 import ru.musixai.app.core.designsystem.component.pressable
@@ -60,6 +62,7 @@ fun PlayerScreen(ui: PlayerUi, vm: PlayerViewModel, onClose: () -> Unit, onArtis
     val c = MusixTheme.colors
     val dark = MusixTheme.isDark
     val p = ui.player
+    val haptics = LocalMusixHaptics.current
     val ctx = ui.context
     val palette = ctx?.image?.palette
     // the ambient field: the server palette of the cover, not a device-side color guess
@@ -81,7 +84,10 @@ fun PlayerScreen(ui: PlayerUi, vm: PlayerViewModel, onClose: () -> Unit, onArtis
                 // the lyrics aura sits behind the cover row (v1 order); the spectrum wave that
                 // played behind the album is gone at the owner's word (2026-10-02)
                 LyricsAura(ui.lyricsOpen, accent, Modifier.matchParentSize().padding(vertical = 0.dp))
-                CoverStage(ui, flipped = ui.lyricsOpen, onToggle = vm::toggle, onNext = vm::next, onPrev = vm::previous,
+                CoverStage(ui, flipped = ui.lyricsOpen, onToggle = {
+                    haptics.perform(if (p.isPlaying) HapticCue.ToggleOff else HapticCue.ToggleOn, fromUser = true)
+                    vm.toggle()
+                }, onNext = vm::next, onPrev = vm::previous,
                     explain = ui.explain, onExplain = vm::explainLine, modifier = Modifier.padding(horizontal = 24.dp))
             }
             Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 14.dp), horizontalAlignment = Alignment.CenterHorizontally) {

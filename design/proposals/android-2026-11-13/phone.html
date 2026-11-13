@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#101014"><title>MusiX · Android: каркас и Кино</title><style>/* INLINE_CSS */</style></head>
+<body>
+<main class="review">
+  <aside class="review-controls">
+    <div class="wordmark">Musi<span>X</span> <small>ANDROID / 01—02</small></div>
+    <h1>Тот же MusiX.<br>Теперь в руке.</h1>
+    <p>Каркас и плеер «Кино». Принятые движения из витрины; телефонная компоновка для согласования.</p>
+    <label>Экран<select id="reviewSize"><option value="360,780">360 × 780 · компактный</option><option value="412,915" selected>412 × 915 · Pixel 9 Pro</option><option value="448,998">448 × 998 · крупный</option></select></label>
+    <label>Навигация<select id="reviewNav"><option value="island">А · стеклянный остров</option><option value="bar">Б · нижняя панель</option></select></label>
+    <label>Пружина обложки<select id="reviewSpring"><option value="balanced">А · собранная</option><option value="soft">Б · мягкая</option><option value="tight">В · упругая</option></select></label>
+    <label>Очередь<select id="reviewCount"><option value="4">4 песни из снимка</option><option value="1">1 песня</option><option value="1000">1000 строк · повтор снимка</option></select></label>
+    <label>Состояние плеера<select id="reviewState"><option value="ready">Обычное</option><option value="long">Длинное название</option><option value="loading">Буферизация</option><option value="empty">Ничего не играет</option><option value="error">Ошибка воспроизведения</option><option value="offline">Без сети</option><option value="noSound">Нет данных о разделах</option><option value="elsewhere">Играет на другом устройстве</option></select></label>
+    <div class="review-actions"><button id="reviewOpen">Открыть плеер</button><button id="reviewQueue">Очередь</button><button id="reviewToast">Стопка тостов</button></div>
+    <label class="check"><input type="checkbox" id="reviewHaptic" checked> Вибрация и её тип</label>
+    <p class="review-caption">Смахните обложку и верните палец до порога. Соседняя обложка видна уже во время жеста. Волна движется внутри сыгранных блоков и выпрямляется на паузе.</p>
+    <p class="review-caption">Метаданные и разделы — из сохранённой библиотеки. Воспроизведение, ответы и изменения очереди здесь демонстрационные; звук не включается.</p>
+    <a href="accepted-showcase.html" target="_blank" rel="noopener">Открыть исходную витрину компонентов ↗</a>
+    <a href="android-review.html" download>Скачать этот HTML</a>
+    <p id="reviewLive" class="review-caption" role="status">Макет готов к проверке</p>
+  </aside>
+
+  <div class="device-wrap"><div id="phone" class="phone" data-nav="island" data-state="ready">
+    <div class="statusbar" aria-hidden="true"><span>9:41</span><span>▴ ▴ ▰</span></div>
+    <div id="pages" class="pages">
+      <section id="page-home" class="page active" aria-label="Главная">
+        <header class="page-head"><span class="wordmark">Musi<span>X</span></span><button class="icon" data-sheet="settings" aria-label="Настройки" data-icon="Settings"></button></header>
+        <div class="home-hero"><span class="eyebrow">Твой вайб</span><h2>Музыка, в которой<br>хочется остаться.</h2><div class="wave-launch"><button id="orb" class="wave-orb" aria-label="Включить Поток"><i></i><i></i><i></i><span data-icon="Play"></span></button><div><strong>Поток</strong><button class="text-action" data-sheet="tune">Настроить волну ›</button></div></div></div>
+        <button class="quick-search lg" data-sheet="search"><span data-icon="Search"></span><span>Найти в библиотеке</span><small>ИИ</small></button>
+        <div class="vibes" id="vibes"></div>
+        <div class="section-head"><h3>Поставить альбом</h3><button class="text-action" data-page="library">Все ›</button></div><div class="home-albums" id="homeAlbums"></div>
+        <div class="home-week"><span>Твоя неделя<small>Из сохранённой библиотеки</small></span><div aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div><button class="text-action" data-sheet="stats">Статистика ›</button></div>
+      </section>
+      <section id="page-library" class="page" aria-label="Библиотека" hidden><header class="page-head"><h2>Библиотека</h2><button class="icon lg" data-sheet="search" aria-label="Поиск" data-icon="Search"></button></header><div class="tabs" id="libraryTabs"><button aria-selected="true">Альбомы</button><button>Артисты</button><button>Плейлисты</button><button>Статистика</button><span></span></div><div class="library-tools"><button class="chip lg" data-sheet="groups">Заслушаны до дыр <span data-icon="ChevronDown"></span></button><button class="icon" data-sheet="add" aria-label="Добавить музыку" data-icon="Plus"></button></div><div id="libraryContent" class="library-content"></div></section>
+      <section id="page-assistant" class="page" aria-label="Ассистент" hidden><header class="page-head"><h2>Ассистент</h2><button class="icon" data-sheet="settings" aria-label="Настройки" data-icon="Settings"></button></header><div class="assistant-hero"><div class="crystal" aria-hidden="true">✦</div><h2>Что будем слушать?</h2><p>Песня по строчке. Музыка по настроению.<br>История за знакомым голосом.</p></div><div class="ask-presets"><button data-ask="Подбери что-нибудь похожее">Похожее по звуку</button><button data-ask="Расскажи о текущей песне">История песни</button></div><div id="assistantAnswer"></div><form id="assistantForm" class="composer lg"><input aria-label="Вопрос ассистенту" placeholder="Спросить о музыке…" required><button class="icon" aria-label="Отправить" data-icon="ArrowUp"></button></form></section>
+      <section id="page-game" class="page" aria-label="Игра" hidden><header class="page-head"><h2>Игра</h2></header><div class="empty-screen"><span data-icon="Gamepad"></span><h2>Знакомые с первых нот</h2><p>Общая игра получит свой макет на этапе 8. Здесь проверяется переход между разделами.</p><button class="pill" data-page="home">На главную</button></div></section>
+    </div>
+
+    <div id="mini" class="mini" role="button" tabindex="0" aria-label="Открыть плеер"><div class="mini-progress"><i id="miniProgress"></i></div><img id="miniArt" alt=""><div class="mini-meta"><b id="miniTitle"></b><small id="miniArtist"></small></div><button id="miniPlay" class="icon morph-play" aria-label="Воспроизвести"><svg viewBox="0 0 24 24"><path/><path/></svg></button><button id="miniNext" class="icon" aria-label="Следующая песня" data-icon="Next"></button></div>
+    <nav id="nav" class="nav lg" aria-label="Разделы"><span id="navLens"></span><button data-page="home" aria-current="page"><span data-icon="Home"></span><small>Главная</small></button><button data-page="library"><span data-icon="Library"></span><small>Библиотека</small></button><button data-page="assistant"><span data-icon="Sparkles"></span><small>Ассистент</small></button><button data-page="game"><span data-icon="Gamepad"></span><small>Игра</small></button></nav>
+
+    <section id="player" class="player" aria-label="Плеер Кино" aria-hidden="true" inert>
+      <div class="backdrop" id="backdrop"></div><div class="player-shade"></div>
+      <div class="player-layout" id="playerLayout">
+        <header class="player-top" id="playerHandle"><button id="collapse" class="icon" aria-label="Свернуть плеер" data-icon="ChevronDown"></button><span class="lossless">Lossless</span><div><button class="icon" data-sheet="playlist" aria-label="В плейлист" data-icon="Plus"></button><button class="icon" data-sheet="more" aria-label="Ещё" data-icon="More"></button></div></header>
+        <div class="state-message" id="stateMessage" role="status"></div>
+        <div class="cover-area" id="coverArea">
+          <button id="prev" class="icon edge prev" aria-label="Предыдущая песня" data-icon="ChevronLeft"></button>
+          <div class="cover-slot" id="coverSlot" role="button" tabindex="0" aria-label="Пауза или воспроизведение"><img id="neighbor" class="neighbor" alt="Следующая обложка"><div id="cover" class="cover"><div class="cover-flip" id="coverFlip"><div class="cover-front"><img id="coverArt" alt=""><img id="coverBlur" alt="" class="paused-art"><span class="pause-icon lg" data-icon="Pause"></span></div><div class="lyrics"><small>Оборот обложки</small><h3 id="lyricsTitle"></h3><p>Текст не включён в этот снимок библиотеки.</p><button class="text-action" data-sheet="chat">Спросить о песне ›</button></div></div></div></div>
+          <button id="next" class="icon edge next" aria-label="Следующая песня" data-icon="ChevronRight"></button>
+        </div>
+        <div class="track-meta"><h2 id="trackTitle"></h2><button id="trackArtist" class="link" data-sheet="artist"></button><button id="trackAlbum" class="link album-link" data-sheet="album"></button><p id="trackVibe"></p><small id="streamReason" hidden>✦ Из вашей волны</small></div>
+        <div class="seek-wrap"><div id="seek" class="seek" role="slider" tabindex="0" aria-label="Позиция воспроизведения" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div id="moments" class="moments"></div><div id="segments" class="segments"></div><span class="seek-thumb" id="seekThumb"></span></div><div class="time-row"><span id="elapsed">0:00</span><span id="sectionName"></span><span id="duration">0:00</span></div></div>
+        <div class="player-actions"><div><button id="fire" class="icon reaction" aria-label="Огонёк" aria-pressed="false" data-icon="Flame"></button><button id="water" class="icon reaction" aria-label="Вода" aria-pressed="false" data-icon="Droplet"></button><button id="shuffle" class="icon" aria-label="Перемешивать" aria-pressed="false" data-icon="Shuffle"></button></div><button id="play" class="icon morph-play" aria-label="Воспроизвести"><svg viewBox="0 0 24 24"><path/><path/></svg></button><div><button id="lyrics" class="icon" aria-label="Текст песни" aria-pressed="false" data-icon="Lyrics"></button><button class="icon" data-sheet="chat" aria-label="Спросить о песне" data-icon="Sparkles"></button></div></div>
+        <div class="peeks"><button class="peek" data-sheet="about"><span data-icon="Sparkles"></span><span><small>О песне</small><b id="aboutPeek">История, звучание и детали</b></span><span data-icon="ChevronRight"></span></button><button class="peek" id="queuePeek" data-sheet="queue"><img id="nextArt" alt=""><span><small>Далее</small><b id="nextTitle"></b></span><span data-icon="Queue"></span></button></div>
+      </div>
+      <div id="emptyPlayer" class="empty-screen" hidden><h2>Поставим что-нибудь?</h2><p>Выберите песню или включите Поток.</p><button id="emptyPlay" class="pill">Включить Поток</button><button class="text-action" id="emptyClose">Свернуть</button></div>
+    </section>
+
+    <button id="scrim" class="scrim" aria-label="Закрыть окно" hidden tabindex="-1"></button>
+    <section id="sheet" class="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle" aria-hidden="true" inert><div class="sheet-grab" id="sheetGrab"></div><header id="sheetHeader"><h2 id="sheetTitle"></h2><button id="sheetClose" class="icon" aria-label="Закрыть" data-icon="Close"></button></header><div id="sheetBody" class="sheet-body"></div></section>
+    <div id="toasts" class="toasts" aria-live="polite"></div><div id="hchip" class="hchip" aria-hidden="true"><i></i><span></span></div><canvas id="burst" class="burst"></canvas><div class="gesture-bar" aria-hidden="true"></div>
+  </div><p class="device-caption">Живой HTML-макет · этапы 1 и 2</p></div>
+</main><script>/* INLINE_JS */</script></body></html>
