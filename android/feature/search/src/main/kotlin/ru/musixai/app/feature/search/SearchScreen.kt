@@ -56,6 +56,7 @@ import ru.musixai.app.core.designsystem.MusixTheme
 import ru.musixai.app.core.designsystem.component.Cover
 import ru.musixai.app.core.designsystem.component.Empty
 import ru.musixai.app.core.designsystem.component.Eyebrow
+import ru.musixai.app.core.designsystem.component.GlassScene
 import ru.musixai.app.core.designsystem.component.LiquidGlass
 import ru.musixai.app.core.designsystem.component.SegmentOption
 import ru.musixai.app.core.designsystem.component.Segmented
@@ -169,18 +170,20 @@ private val SUGGESTIONS = listOf("грустный синти-поп под но
 fun SearchRoute(onArtist: (String) -> Unit, onAlbum: (String) -> Unit, vm: SearchViewModel = hiltViewModel()) {
     val ui by vm.ui.collectAsStateWithLifecycle()
     val c = MusixTheme.colors
-    Column(Modifier.fillMaxSize().background(c.bg).statusBarsPadding()) {
-        Row(Modifier.fillMaxWidth().padding(start = 20.dp, end = 16.dp, top = 14.dp, bottom = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1f)) {
-                Text("РАЗДЕЛ · ПОИСК", style = MusixTheme.type.mono.copy(fontSize = 10.sp, letterSpacing = 0.22.em, color = c.textSubtle))
-                Text("Поиск", style = MusixTheme.type.title.copy(fontSize = 26.sp, color = c.text))
+    GlassScene(Modifier.fillMaxSize()) {
+        Column(Modifier.fillMaxSize().statusBarsPadding()) {
+            Row(Modifier.fillMaxWidth().padding(start = 20.dp, end = 16.dp, top = 14.dp, bottom = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("РАЗДЕЛ · ПОИСК", style = MusixTheme.type.mono.copy(fontSize = 10.sp, letterSpacing = 0.22.em, color = c.textSubtle))
+                    Text("Поиск", style = MusixTheme.type.title.copy(fontSize = 26.sp, color = c.text))
+                }
+                Segmented(ui.tab, listOf(SegmentOption(Tab.Search, "🔍 Поиск"), SegmentOption(Tab.Chat, "💬 Чат")), vm::tab, small = true)
             }
-            Segmented(ui.tab, listOf(SegmentOption(Tab.Search, "🔍 Поиск"), SegmentOption(Tab.Chat, "💬 Чат")), vm::tab, small = true)
-        }
-        androidx.compose.animation.Crossfade(ui.tab, label = "tab") { tab ->
-            when (tab) {
-                Tab.Search -> SearchTab(ui, vm, onArtist, onAlbum)
-                Tab.Chat -> ChatTab(ui, vm)
+            androidx.compose.animation.Crossfade(ui.tab, label = "tab") { tab ->
+                when (tab) {
+                    Tab.Search -> SearchTab(ui, vm, onArtist, onAlbum)
+                    Tab.Chat -> ChatTab(ui, vm)
+                }
             }
         }
     }

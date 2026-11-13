@@ -49,6 +49,7 @@ import ru.musixai.app.core.designsystem.component.BrandMark
 import ru.musixai.app.core.designsystem.component.CtaButton
 import ru.musixai.app.core.designsystem.component.Eyebrow
 import ru.musixai.app.core.designsystem.component.LiquidGlass
+import ru.musixai.app.core.designsystem.component.GlassScene
 import ru.musixai.app.core.designsystem.component.MusixField
 import ru.musixai.app.core.designsystem.component.TabPair
 import ru.musixai.app.core.designsystem.component.pressable
@@ -63,8 +64,7 @@ fun LoginRoute(vm: AuthViewModel = hiltViewModel()) {
  *  and the glass sign-in card; the feature tour stays on the web. */
 @Composable
 fun LoginScreen(ui: AuthUi, edit: (AuthUi.() -> AuthUi) -> Unit, saveServer: (String) -> Unit, submit: () -> Unit) {
-    Box(Modifier.fillMaxSize().background(Color(0xFF0A0A10))) {
-        Aurora()
+    GlassScene(Modifier.fillMaxSize(), background = { Aurora() }) {
         Column(
             Modifier.fillMaxSize().verticalScroll(rememberScrollState()).statusBarsPadding().imePadding()
                 .padding(start = 18.dp, end = 18.dp, top = 56.dp, bottom = 40.dp),

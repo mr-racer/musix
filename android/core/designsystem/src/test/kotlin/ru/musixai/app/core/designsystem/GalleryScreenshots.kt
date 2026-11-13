@@ -1,5 +1,6 @@
 package ru.musixai.app.core.designsystem
 
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -11,6 +12,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.unit.dp
@@ -27,6 +30,7 @@ import ru.musixai.app.core.designsystem.component.CtaButton
 import ru.musixai.app.core.designsystem.component.Empty
 import ru.musixai.app.core.designsystem.component.Eyebrow
 import ru.musixai.app.core.designsystem.component.LiquidGlass
+import ru.musixai.app.core.designsystem.component.GlassScene
 import ru.musixai.app.core.designsystem.component.MosaicCover
 import ru.musixai.app.core.designsystem.component.MusixField
 import ru.musixai.app.core.designsystem.component.SegmentOption
@@ -73,10 +77,18 @@ private fun Gallery(dark: Boolean) = MusixTheme(dark) {
         }
         Segmented("albums", listOf(SegmentOption("albums", "Альбомы"), SegmentOption("recent", "Недавние"), SegmentOption("stats", "Статистика")), {})
         TabPair(listOf("Песня", "Артист"), 0, {})
-        LiquidGlass(Modifier.fillMaxWidth()) {
-            Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                MusixField("", {}, "строчка из песни…")
-                CtaButton("Войти", {}, Modifier.fillMaxWidth())
+        GlassScene(Modifier.fillMaxWidth(), background = {
+            Canvas(Modifier.matchParentSize()) {
+                drawRect(c.bg)
+                drawCircle(Color(0xFF805EA5), size.height * .48f, Offset(size.width * .18f, size.height * .65f))
+                drawCircle(Color(0xFF45808B), size.height * .38f, Offset(size.width * .8f, size.height * .25f))
+            }
+        }) {
+            LiquidGlass(Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    MusixField("", {}, "строчка из песни…")
+                    CtaButton("Войти", {}, Modifier.fillMaxWidth())
+                }
             }
         }
         Skel(Modifier.fillMaxWidth().size(height = 46.dp, width = 300.dp), 12.dp)

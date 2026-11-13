@@ -43,6 +43,7 @@ import ru.musixai.app.core.designsystem.MusixIcons
 import ru.musixai.app.core.designsystem.MusixTheme
 import ru.musixai.app.core.designsystem.component.CtaButton
 import ru.musixai.app.core.designsystem.component.Eyebrow
+import ru.musixai.app.core.designsystem.component.GlassScene
 import ru.musixai.app.core.designsystem.component.LiquidGlass
 import ru.musixai.app.core.designsystem.component.RoundGlassButton
 import ru.musixai.app.core.designsystem.component.Spinner
@@ -105,54 +106,56 @@ fun ImportRoute(onBack: () -> Unit, vm: ImportViewModel = hiltViewModel()) {
     val ui by vm.ui.collectAsStateWithLifecycle()
     val c = MusixTheme.colors
     val ctx = LocalContext.current
-    LazyColumn(Modifier.fillMaxSize().background(c.bg).statusBarsPadding(), contentPadding = androidx.compose.foundation.layout.PaddingValues(20.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp)) {
-        item {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                RoundGlassButton(onBack, size = 40.dp) { Icon(MusixIcons.ChevronLeft, "Назад", Modifier.size(18.dp), tint = c.text) }
-                Text("Импорт из Яндекс Музыки", Modifier.padding(start = 14.dp), style = MusixTheme.type.title.copy(fontSize = 20.sp, color = c.text))
-            }
-        }
-        ui.error?.let { e -> item { Text(e, style = MusixTheme.type.body.copy(fontSize = 13.sp, color = c.red)) } }
-        when {
-            ui.linked == null -> item { Spinner(22.dp) }
-            ui.auth != null -> item {
-                val a = ui.auth!!
-                LiquidGlass(Modifier.fillMaxWidth()) {
-                    Column(Modifier.padding(22.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        Text("Откройте ${a.verificationUrl} и введите код", style = MusixTheme.type.body.copy(fontSize = 14.sp, color = c.textMuted))
-                        Text(a.userCode, style = MusixTheme.type.code.copy(fontSize = 34.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 0.2.em, color = c.text))
-                        CtaButton("Открыть Яндекс", { ctx.startActivity(Intent(Intent.ACTION_VIEW, a.verificationUrl.toUri())) }, Modifier.fillMaxWidth())
-                        Row(verticalAlignment = Alignment.CenterVertically) { Spinner(14.dp); Text("  Ждём подтверждения…", style = MusixTheme.type.body.copy(fontSize = 13.sp, color = c.textSubtle)) }
-                    }
+    GlassScene(Modifier.fillMaxSize()) {
+        LazyColumn(Modifier.fillMaxSize().statusBarsPadding(), contentPadding = androidx.compose.foundation.layout.PaddingValues(20.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            item {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    RoundGlassButton(onBack, size = 40.dp) { Icon(MusixIcons.ChevronLeft, "Назад", Modifier.size(18.dp), tint = c.text) }
+                    Text("Импорт из Яндекс Музыки", Modifier.padding(start = 14.dp), style = MusixTheme.type.title.copy(fontSize = 20.sp, color = c.text))
                 }
             }
-            ui.linked == false -> item {
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text("С подпиской Плюс плейлисты переезжают в пару кликов: треки скачиваются на сервер и попадают в вашу библиотеку.",
-                        style = MusixTheme.type.body.copy(fontSize = 14.sp, lineHeight = 1.5.em, color = c.textMuted))
-                    CtaButton("Привязать Яндекс", vm::link, Modifier.fillMaxWidth())
-                }
-            }
-            else -> {
-                item { Text("Аккаунт: ${ui.login ?: "привязан"}", style = MusixTheme.type.body.copy(fontSize = 13.sp, color = c.textMuted)) }
-                if (ui.job != null) item {
-                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Eyebrow(if (ui.finished) "Готово" else "Импорт идёт")
-                        Text("${ui.done} из ${ui.total}", style = MusixTheme.type.body.copy(fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = c.text))
-                    }
-                }
-                item { Eyebrow("Плейлисты") }
-                itemsIndexed(ui.sources) { i, s ->
-                    Row(Modifier.fillMaxWidth().pressable { vm.toggle(i) }, verticalAlignment = Alignment.CenterVertically) {
-                        Column(Modifier.weight(1f)) {
-                            Text(s.title, style = MusixTheme.type.body.copy(fontSize = 15.sp, color = c.text))
-                            Text("${s.trackCount} треков", style = MusixTheme.type.body.copy(fontSize = 12.sp, color = c.textMuted))
+            ui.error?.let { e -> item { Text(e, style = MusixTheme.type.body.copy(fontSize = 13.sp, color = c.red)) } }
+            when {
+                ui.linked == null -> item { Spinner(22.dp) }
+                ui.auth != null -> item {
+                    val a = ui.auth!!
+                    LiquidGlass(Modifier.fillMaxWidth()) {
+                        Column(Modifier.padding(22.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                            Text("Откройте ${a.verificationUrl} и введите код", style = MusixTheme.type.body.copy(fontSize = 14.sp, color = c.textMuted))
+                            Text(a.userCode, style = MusixTheme.type.code.copy(fontSize = 34.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 0.2.em, color = c.text))
+                            CtaButton("Открыть Яндекс", { ctx.startActivity(Intent(Intent.ACTION_VIEW, a.verificationUrl.toUri())) }, Modifier.fillMaxWidth())
+                            Row(verticalAlignment = Alignment.CenterVertically) { Spinner(14.dp); Text("  Ждём подтверждения…", style = MusixTheme.type.body.copy(fontSize = 13.sp, color = c.textSubtle)) }
                         }
-                        ToggleSwitch(i in ui.picked, { vm.toggle(i) })
                     }
                 }
-                if (ui.picked.isNotEmpty() && (ui.job == null || ui.finished)) item { CtaButton("Импортировать (${ui.picked.size})", vm::import, Modifier.fillMaxWidth()) }
+                ui.linked == false -> item {
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Text("С подпиской Плюс плейлисты переезжают в пару кликов: треки скачиваются на сервер и попадают в вашу библиотеку.",
+                            style = MusixTheme.type.body.copy(fontSize = 14.sp, lineHeight = 1.5.em, color = c.textMuted))
+                        CtaButton("Привязать Яндекс", vm::link, Modifier.fillMaxWidth())
+                    }
+                }
+                else -> {
+                    item { Text("Аккаунт: ${ui.login ?: "привязан"}", style = MusixTheme.type.body.copy(fontSize = 13.sp, color = c.textMuted)) }
+                    if (ui.job != null) item {
+                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Eyebrow(if (ui.finished) "Готово" else "Импорт идёт")
+                            Text("${ui.done} из ${ui.total}", style = MusixTheme.type.body.copy(fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = c.text))
+                        }
+                    }
+                    item { Eyebrow("Плейлисты") }
+                    itemsIndexed(ui.sources) { i, s ->
+                        Row(Modifier.fillMaxWidth().pressable { vm.toggle(i) }, verticalAlignment = Alignment.CenterVertically) {
+                            Column(Modifier.weight(1f)) {
+                                Text(s.title, style = MusixTheme.type.body.copy(fontSize = 15.sp, color = c.text))
+                                Text("${s.trackCount} треков", style = MusixTheme.type.body.copy(fontSize = 12.sp, color = c.textMuted))
+                            }
+                            ToggleSwitch(i in ui.picked, { vm.toggle(i) })
+                        }
+                    }
+                    if (ui.picked.isNotEmpty() && (ui.job == null || ui.finished)) item { CtaButton("Импортировать (${ui.picked.size})", vm::import, Modifier.fillMaxWidth()) }
+                }
             }
         }
     }

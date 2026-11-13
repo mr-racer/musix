@@ -23,7 +23,9 @@ try{
       results.push({width,height,state,...metrics});
     }
     await page.evaluate(()=>phoneReview.setState('ready'));await page.screenshot({path:resolve(out,`player-${width}.png`)});
-    await page.locator('#play').click();assert.equal(await page.locator('#play').getAttribute('aria-label'),'Пауза');
+    assert.equal(await page.locator('#play').count(),0,'play/pause lives only on the cover in the full player');
+    await page.locator('#coverSlot').click();assert.equal(await page.locator('#coverSlot').getAttribute('aria-label'),'Пауза');
+    assert(await page.locator('#coverHint').isHidden(),'cover hint dismisses after use');
     await page.locator('#seek').focus();await page.keyboard.press('End');assert.equal(await page.locator('#seek').getAttribute('aria-valuenow'),'100');
     await page.keyboard.press('Home');assert.equal(await page.locator('#seek').getAttribute('aria-valuenow'),'0');
     await page.evaluate(()=>phoneReview.setPlaying(false));await page.waitForTimeout(1500);assert.deepEqual(await page.evaluate(()=>phoneReview.live()),[],'paused springs must sleep');
@@ -53,7 +55,7 @@ try{
     await longQueue.screenshot({path:resolve(out,`queue-${count}-items.png`)});
   }
   await longQueue.evaluate(()=>{phoneReview.closeSheet();phoneReview.setPlaying(true);phoneReview.setPlayer(false);});await longQueue.waitForTimeout(1000);
-  assert(await longQueue.locator('.segment-wave').evaluateAll(nodes=>nodes.every(n=>getComputedStyle(n).animationPlayState==='paused')),'hidden player wave must stop');await longQueue.close();
+  assert(await longQueue.locator('.seek-wave').evaluateAll(nodes=>nodes.every(n=>getComputedStyle(n).animationPlayState==='paused')),'hidden player wave must stop');await longQueue.close();
   const offline=await browser.newPage();await offline.route('http**://**/*',r=>r.abort());await offline.goto('file://'+resolve(here,'out/android-review.html'));await offline.waitForTimeout(200);assert.equal(await offline.locator('#miniTitle').innerText(),'Frozen');await offline.close();
   assert.deepEqual(errors,[]);assert.deepEqual(external,[]);writeFileSync(resolve(out,'results.json'),JSON.stringify({passed:true,states:results,errors,external},null,2));console.log(`PASS: ${results.length} layout states, queue undo/reorder, player controls, navigation, reduced motion, offline file; screenshots: ${out}`);
 }finally{await browser.close();}

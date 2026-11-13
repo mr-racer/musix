@@ -1,5 +1,10 @@
 # Surfaces
 
+**Android, уточнение владельца 2026-11-13:** общий `LiquidGlass` переходит на
+Haze 2.1 / haze-glass, стандартный `GlassStyle.clear`. Источник фона — отдельный
+`hazeSource`, без захвата самого стекла. Телефонный HTML показывает CSS-аналог
+материала. WEB-рецепт ниже и остальные принятые компоненты не меняются.
+
 There are three, and most content uses none of them.
 
 | Surface | Where | Look |

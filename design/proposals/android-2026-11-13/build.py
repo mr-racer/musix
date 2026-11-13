@@ -36,7 +36,7 @@ for line in (ROOT / 'web/src/ui/icons.tsx').read_text().splitlines():
         icons[match[1]] = {'d': json.loads(match[2]), 'w': float(match[3]), 'fill': json.loads(match[4])}
 
 css = '\n'.join([fonts, (ROOT / 'design/gen/web/tokens.css').read_text(),
-                  (ROOT / 'web/src/ui/glass.module.css').read_text(), (HERE / 'phone.css').read_text()])
+                  (HERE / 'glass.css').read_text(), (HERE / 'phone.css').read_text()])
 script = 'window.PHONE_DATA=' + json.dumps(data, ensure_ascii=False) + ';\n'
 script += 'window.ICONS=' + json.dumps(icons) + ';\n'
 script += (HERE / 'vendor/tactile-lib.js').read_text() + '\n' + (HERE / 'phone.js').read_text()
