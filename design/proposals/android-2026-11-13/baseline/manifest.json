@@ -1,0 +1,14 @@
+{
+  "label": "Dream v1 — общий черновой ориентир, не окончательная приёмка экранов",
+  "source_commit": "877c233f131d0c5634848f58d8fc94ddbbd3be4f",
+  "html": "android-dream-v1.html",
+  "sha256": "f6f58f46a000bb2f9d1d0ab7b5449ceee67e92809a93e6edc852b30743cb0ef3",
+  "source_files": [
+    "phone.html",
+    "phone.css",
+    "phone.js",
+    "glass.css",
+    "build.py"
+  ],
+  "next": "Типографика и принятые шаги ответа, затем отдельный разбор экранов по спеке"
+}
