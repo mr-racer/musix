@@ -41,6 +41,7 @@ are taken from the mock where they fit the client's stack.
 | `screens/library.md` | Принятые библиотека «Стена» и статистика. |
 | `screens/settings.md` | Принятые настройки и «Добавить» в библиотеке. |
 | `screens/artist.md` | Принятая страница артиста «Кадр». |
+| `android.md` | Android: как предложить и собрать экран телефона — что читать, что должно быть в эскизе, библиотека компонентов и «Витрина». |
 
 Tokens live in `design/tokens/*.json`; `make design` regenerates `design/gen/` for the web
 (`--mx-*` custom properties), Android (`MusixTheme.kt`) and Windows (parked: its output is generated but nothing depends on it).
