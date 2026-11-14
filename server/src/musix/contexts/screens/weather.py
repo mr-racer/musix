@@ -1,8 +1,8 @@
 """The home's sky knows the weather (design/code/screens/home.md): clear, cloudy,
 rain or snow at the listener's place, from Open-Meteo (no key, no account). The
 place is the one chosen in the settings (`settings.weather.place`, asked at the first
-run and in the settings page); a listener who chose none gets the instance's default,
-Istanbul unless `MUSIX_WEATHER_LATLON` says otherwise.
+run and in the settings page); a listener who chose none gets the instance's configured
+default from `MUSIX_WEATHER_LATLON`.
 
 One fetch per place per twenty minutes per process, in the background (the request
 path only reads the cache), directly first and through the outbound proxy when the
@@ -28,7 +28,7 @@ log = logging.getLogger(__name__)
 Kind = Literal["clear", "cloudy", "rain", "snow"]
 URL = "https://api.open-meteo.com/v1/forecast"
 GEO = "https://geocoding-api.open-meteo.com/v1/search"
-ISTANBUL = "55.7522,37.6156"
+DEFAULT_LATLON = "55.7522,37.6156"
 TTL = 20 * 60.0
 _cache: dict[str, tuple[float, S.WeatherOut | None]] = {}
 _inflight: dict[str, asyncio.Task[None]] = {}
@@ -37,7 +37,7 @@ _places: dict[str, tuple[float, list[S.PlaceOut]]] = {}
 
 def latlon_of(settings_value: dict[str, Any] | None, instance_default: str | None) -> str:
     """The listener's place as "lat,lon": the settings' choice, else the instance's default
-    (Istanbul unless `MUSIX_WEATHER_LATLON` says otherwise; empty switches the weather off)."""
+    (`MUSIX_WEATHER_LATLON`; empty switches the weather off)."""
     place = ((settings_value or {}).get("weather") or {}).get("place") or {}
     try:
         return f"{float(place['lat']):.4f},{float(place['lon']):.4f}"

@@ -5,7 +5,7 @@ export type Settings = {
   quality?: { wifi?: string; cellular?: string };
   /** `autoplay`: «Автоплейлист», a finished list or album goes on with similar songs */
   playback?: { normalize?: boolean; autoplay?: boolean };
-  /** the city the home's sky follows; none means Istanbul (design/code/screens/home.md) */
+  /** the city's sky; no choice uses the instance default (design/code/screens/home.md) */
   weather?: { place?: { name: string; country?: string | null; admin?: string | null; lat: number; lon: number; timezone?: string | null } | null };
   /** `precip`: snow and rain fall on the home (off: only the sky's colour stays) */
   home?: { precip?: boolean };

@@ -107,7 +107,7 @@ function Home({ s }: { s: Settings }) {
   return (
     <section className={css.sec}>
       <h2>Главная</h2>
-      <Row wide label="Город для неба" hint="Небо на главной повторяет время суток и погоду в этом городе. Без выбора — Стамбул. По IP не определяем: с VPN это был бы чужой город."
+      <Row wide label="Город для неба" hint="Небо на главной повторяет время суток и погоду выбранного города. Город задаётся вручную. Без выбора используется настройка сервера."
         extra={<City place={s.weather?.place ?? null} />} />
       <Row label="Снег и дождь" hint="Осадки падают на главную и ложатся на её блоки. Выключи — останется только цвет неба.">
         <Switch on={precip} label="Снег и дождь" onChange={(v) => void setSetting(["home", "precip"], v)} />
@@ -117,9 +117,12 @@ function Home({ s }: { s: Settings }) {
 }
 
 type Place = NonNullable<NonNullable<Settings["weather"]>["place"]>;
-const ISTANBUL: Place = { name: "Стамбул", country: "Турция", lat: 41.01, lon: 28.98, timezone: "Europe/Istanbul" };
 /** The city's hour: by its zone when the geocoder named one, else by its longitude. */
-function localHour(p: Place): [number, number] {
+function localHour(p: Place | null): [number, number] {
+  if (!p) {
+    const now = new Date();
+    return [now.getHours(), now.getMinutes()];
+  }
   if (p.timezone) {
     try {
       const [h, m] = new Intl.DateTimeFormat("ru-RU", { timeZone: p.timezone, hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date()).split(":").map(Number);
@@ -140,22 +143,23 @@ const SKIES = { // the home's palettes, by the hour
  *  city's sky at its local hour; a new city dims the window and lights it again. */
 function City({ place }: { place: Place | null }) {
   const qc = useQueryClient();
-  const p = place ?? ISTANBUL;
-  const [q, setQ] = useState(p.name), [focus, setFocus] = useState(false);
+  const p = place;
+  const name = p?.name ?? "";
+  const [q, setQ] = useState(name), [focus, setFocus] = useState(false);
   const [hits, setHits] = useState<Schemas["PlaceOut"][]>([]), [hl, setHl] = useState(0);
   const [, tick] = useState(0);
   const field = useRef<HTMLLabelElement>(null), list = useRef<HTMLDivElement>(null), skyL = useRef<HTMLDivElement>(null);
-  useEffect(() => { if (!focus) setQ(p.name); }, [p.name, focus]);
+  useEffect(() => { if (!focus) setQ(name); }, [name, focus]);
   useEffect(() => { const t = setInterval(() => tick((x) => x + 1), 30_000); return () => clearInterval(t); }, []);
   useEffect(() => {
     const words = q.trim();
-    if (!focus || words.length < 2 || words === p.name) { setHits([]); return; }
+    if (!focus || words.length < 2 || words === name) { setHits([]); return; }
     let dead = false;
     const t = setTimeout(async () => {
       try { const got = await ok(api.GET("/api/v2/weather/places", { params: { query: { q: words } } })); if (!dead) { setHits(got.slice(0, 6)); setHl(0); } } catch { if (!dead) setHits([]); }
     }, 260);
     return () => { dead = true; clearTimeout(t); };
-  }, [q, focus, p.name]);
+  }, [q, focus, name]);
   const open = focus && hits.length > 0;
   const wasOpen = useRef(false);
   useLayoutEffect(() => {
@@ -202,7 +206,7 @@ function City({ place }: { place: Place | null }) {
         <div ref={skyL} className={css.skyL} style={{ background: sky.bg }} />
         <div className={css.stars} style={{ opacity: sky.stars }} />
         <div className={css.orb} style={{ background: sky.orb, boxShadow: sky.glow, transform: `translate(${18 + f * 110}px, ${18 + Math.abs(Math.sin(f * Math.PI * 2)) * 16}px)` }} />
-        <div className={css.skyCap}><span>{p.name}</span><small>{String(h).padStart(2, "0")}:{String(m).padStart(2, "0")} · {sky.name}</small></div>
+        <div className={css.skyCap}><span>{name || "Локальное время"}</span><small>{String(h).padStart(2, "0")}:{String(m).padStart(2, "0")} · {sky.name}</small></div>
       </div>
     </div>
   );

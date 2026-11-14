@@ -45,7 +45,7 @@ class Settings(BaseSettings):
     knowledge_langs: list[str] = ["ru"]  # the languages facts, vibe lines and bios are written in
     static_text_editor: Literal["off", "shadow", "apply"] = "off"
     proxy_url: str | None = None  # outbound knowledge sources only; internal traffic never
-    weather_latlon: str = "55.7522,37.6156"  # default place for the sky: Istanbul
+    weather_latlon: str = "55.7522,37.6156"  # instance fallback; users can choose another place
 
     @field_validator("database_url")
     @classmethod

@@ -52,7 +52,7 @@ account_achievement_state = sa.Table(
     sa.Column("seeded_at", TS),
 )
 
-DEFAULT_TZ = 180  # the instance is Moscow's until a client says otherwise
+DEFAULT_TZ = 180  # fallback UTC offset in minutes until the client supplies its timezone
 MON = ["января", "февраля", "марта", "апреля", "мая", "июня", "июля", "августа", "сентября",
        "октября", "ноября", "декабря"]  # fmt: skip
 

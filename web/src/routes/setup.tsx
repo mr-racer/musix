@@ -33,7 +33,7 @@ function Setup() {
     setError("");
     try {
       await setup(email.trim(), password, mode);
-      if (place) await setSetting(["weather", "place"], place); // the home's sky; nothing chosen means Istanbul
+      if (place) await setSetting(["weather", "place"], place); // no choice uses the instance default
       await nav({ to: "/admin/setup" });
     } catch (err) {
       setError(err instanceof AuthError && err.status === 409 ? "Сервер уже настроен" : err instanceof AuthError ? err.detail : "Сервер не отвечает");

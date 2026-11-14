@@ -413,8 +413,7 @@ def search_bing(query: str, max_results: int = 5) -> list[dict]:
     from musix.assistant.compat import outbound
 
     ru = bool(re.search("[а-яё]", query, re.I))
-    # cc/mkt: without them Bing localises by the server's IP (Russia) and answers an
-    # English music query with Russian portals
+    # cc/mkt: keep English searches independent of the server's network location.
     params = {"q": query, "setlang": "ru"} if ru else {"q": query, "setlang": "en", "cc": "US", "mkt": "en-US"}
     url = "https://www.bing.com/search?" + urlencode(params)
     headers = {

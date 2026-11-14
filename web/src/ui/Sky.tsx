@@ -54,8 +54,8 @@ export function hourTod(h = new Date().getHours()): Tod {
 }
 /** The hour by the sun at the listener's place (the server's sunrise and sunset, UTC): dark
  *  40 min after sunset, the evening's colours from 1.5 h before it, the morning's until 3 h
- *  after sunrise. In Istanbul in late October the fixed hours showed a pink evening for an
- *  hour and a half after dark (the owner's report). Without the sun, the fixed hours. */
+ *  after sunrise. Fixed clock hours can disagree with the local daylight cycle.
+ *  Without sunrise and sunset data, use the device's local clock. */
 export type Sun = { sunrise?: string | null; sunset?: string | null } | null | undefined;
 export function sunTod(sun: Sun, now = Date.now()): Tod {
   const rise = sun?.sunrise ? Date.parse(sun.sunrise) : NaN, set = sun?.sunset ? Date.parse(sun.sunset) : NaN;

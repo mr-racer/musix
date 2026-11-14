@@ -7,7 +7,7 @@ export type Place = { name: string; country?: string | null; admin?: string | nu
 
 /** The city the home's sky follows (design/code/screens/home.md): asked at the first run
  *  and in the settings. Typing asks the server's geocoding (`/weather/places`); a pick
- *  hands the place up. Nothing chosen means Istanbul. */
+ *  hands the place up. Nothing chosen means the configured instance default. */
 export function PlacePicker({ value, onChange, autoFocus, compact }: {
   value: Place | null;
   onChange: (p: Place | null) => void;
@@ -51,7 +51,7 @@ export function PlacePicker({ value, onChange, autoFocus, compact }: {
       ) : (
         <span className={css.field}>
           <Icon name="Search" size={14} />
-          <input value={q} autoFocus={autoFocus} placeholder="Стамбул" aria-label="Город для погоды" autoComplete="off" spellCheck={false}
+          <input value={q} autoFocus={autoFocus} placeholder="Найдите город" aria-label="Город для погоды" autoComplete="off" spellCheck={false}
             onChange={(e) => setQ(e.target.value)} onFocus={() => hits.length && setOpen(true)}
             onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); if (hits[0]) { onChange(hits[0]); setQ(""); setOpen(false); } } else if (e.key === "Escape") setOpen(false); }} />
           {busy && <span className={css.busy} aria-hidden />}

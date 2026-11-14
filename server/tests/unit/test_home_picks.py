@@ -50,5 +50,5 @@ def test_the_listeners_place_comes_from_the_settings_else_the_instance() -> None
     assert weather.latlon_of(chosen, "1,2") == "59.9300,30.3300"
     assert weather.latlon_of({"weather": {"place": {"lat": "x"}}}, "1,2") == "1,2"
     assert weather.latlon_of({}, None) == ""  # no instance default: no weather
-    assert weather.latlon_of({}, weather.ISTANBUL) == weather.ISTANBUL
+    assert weather.latlon_of({}, weather.DEFAULT_LATLON) == weather.DEFAULT_LATLON
     assert weather.latlon_of(None, "55.75,37.62") == "55.75,37.62"
