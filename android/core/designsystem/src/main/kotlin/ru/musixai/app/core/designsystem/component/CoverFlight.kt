@@ -34,6 +34,7 @@ import androidx.compose.ui.graphics.rememberGraphicsLayer
 import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.node.GlobalPositionAwareModifierNode
 import androidx.compose.ui.node.ModifierNodeElement
 import androidx.compose.ui.platform.LocalDensity
@@ -42,6 +43,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.round
+import androidx.compose.ui.unit.toSize
 import androidx.compose.ui.util.lerp
 import ru.musixai.app.core.designsystem.rememberReducedMotion
 
@@ -90,6 +92,9 @@ class CoverFlight {
     }
 
     internal fun aim(): Rect? = target ?: dock
+
+    /** A copy is on its way to the mini-player: its arrival is the bar cover's entrance. */
+    val inbound: Boolean get() = flights.isNotEmpty()
 }
 
 internal class Flight(val id: Int, val from: Rect, val radius: Dp, val picture: GraphicsLayer)
@@ -135,7 +140,9 @@ private class TargetElement(val flight: CoverFlight) : ModifierNodeElement<Targe
 
 private class TargetNode(var flight: CoverFlight) : Modifier.Node(), GlobalPositionAwareModifierNode {
     override fun onGloballyPositioned(coordinates: LayoutCoordinates) {
-        flight.target = coordinates.boundsInRoot()
+        // the whole cover, not the part that shows: the bar rising from under the screen
+        // clips its cover away at first, and the copy aims at where the cover is
+        flight.target = Rect(coordinates.positionInRoot(), coordinates.size.toSize())
     }
     override fun onDetach() {
         flight.target = null
@@ -188,7 +195,7 @@ private fun Copy(f: Flight, flight: CoverFlight, origin: Offset, done: () -> Uni
                 scaleY = sy
                 translationX = r.center.x - f.from.width * sx / 2 - f.from.left
                 translationY = r.center.y - f.from.height * sy / 2 - f.from.top
-                shape = RoundedCornerShape(lerp(f.radius.toPx(), LANDED.toPx(), k.value) / sx)
+                shape = RoundedCornerShape(lerp(f.radius.toPx(), LANDED.toPx(), k.value) / sx.coerceAtLeast(0.01f))  // a cover of no size: no infinite corner
                 clip = true
                 shadowElevation = lerp(LIFTED.toPx(), SETTLED.toPx(), k.value)
             }

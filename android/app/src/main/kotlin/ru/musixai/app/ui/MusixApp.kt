@@ -9,6 +9,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.animation.AnimatedVisibility
@@ -59,10 +60,12 @@ import ru.musixai.app.feature.player.MiniPlayer
 import ru.musixai.app.feature.player.miniPlayerCoverAbove
 import ru.musixai.app.core.designsystem.component.CoverFlight
 import ru.musixai.app.core.designsystem.component.CoverFlightLayer
+import ru.musixai.app.core.designsystem.component.LocalStageHeight
 import ru.musixai.app.core.designsystem.component.LocalCoverFlight
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import ru.musixai.app.feature.player.PlayerRoute
 import ru.musixai.app.feature.library.AlbumRoute
@@ -157,8 +160,15 @@ private fun Shell(vm: AppViewModel) {
     val density = LocalDensity.current
     CompositionLocalProvider(LocalCoverFlight provides flight) { Box(Modifier.fillMaxSize().background(MusixTheme.colors.bg)) {
         Column(Modifier.fillMaxSize()) {
-            Box(Modifier.weight(1f)) { Routes(nav, openPlayer = { playerOpen = true }, install = vm::install) }
-            MiniPlayer(onOpen = { playerOpen = true })
+            // the stage: the screens and the open mini-player over them share it; a screen gives way
+            // to the bar, its backdrop goes on under it (LocalStageHeight)
+            var stage by remember { mutableIntStateOf(0) }
+            Column(Modifier.weight(1f).onSizeChanged { stage = it.height }) {
+                Box(Modifier.weight(1f)) {
+                    CompositionLocalProvider(LocalStageHeight provides stage) { Routes(nav, openPlayer = { playerOpen = true }, install = vm::install) }
+                }
+                MiniPlayer(onOpen = { playerOpen = true })
+            }
             Box(Modifier.onGloballyPositioned { flight.dock = miniPlayerCoverAbove(it.boundsInRoot().top, density) }) {
                 BottomTabBar(tab, onNav = nav::toTab, Modifier.navigationBarsPadding())
             }

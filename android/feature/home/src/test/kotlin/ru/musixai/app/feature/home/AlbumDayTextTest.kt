@@ -94,11 +94,6 @@ class AlbumDayTextTest {
         assertEquals("«Frozen»", t.quote("Frozen", 24))
     }
 
-    @Test fun `the next phrase never repeats the previous one`() {
-        assertNotEquals(2, t.nextIndex(5, 2) { 0.45 })
-        assertEquals(0, t.nextIndex(1, 0) { 0.9 })
-    }
-
     @Test fun `the facts come from the day's album`() {
         val today = LocalDate.of(2026, 11, 13)
         val last = LocalDate.of(2026, 3, 2).atTime(20, 0).toInstant(ZoneOffset.UTC).toEpochMilli()
@@ -116,5 +111,34 @@ class AlbumDayTextTest {
 
     @Test fun `the finale has two lines`() {
         assertEquals(listOf("Обыграна! От первой песни до последней", "Обыграна! Альбом пройден, можно хвастаться"), t.finalePhrases())
+    }
+
+    private fun at(day: Int, hour: Int, minute: Int = 0) =
+        LocalDate.of(2026, 11, day).atTime(hour, minute).toInstant(ZoneOffset.UTC).toEpochMilli()
+
+    @Test fun `a phrase holds for three hours of the local day`() {
+        val slot = { ms: Long -> t.phraseSlot(ms, ZoneOffset.UTC) }
+        assertEquals(slot(at(14, 9)), slot(at(14, 11, 59)))
+        assertNotEquals(slot(at(14, 11, 59)), slot(at(14, 12)))
+        assertEquals(slot(at(14, 21, 30)) + 1, slot(at(15, 0, 10)))
+    }
+
+    @Test fun `the next three hours show another phrase`() {
+        for (n in 2..5) for (s in 0L..30L) assertNotEquals("n=$n slot=$s", t.phraseIndex("al1", s, n), t.phraseIndex("al1", s + 1, n))
+        assertEquals(0, t.phraseIndex("al1", 7, 1))
+    }
+
+    @Test fun `an edition at the end of the title moves to the grey line`() {
+        assertEquals("Born to Die" to "The Paradise Edition", t.edition("Born to Die (The Paradise Edition)"))
+        assertEquals("Superunknown" to "Super Deluxe", t.edition("Superunknown (Super Deluxe)"))
+        assertEquals("Born To Die" to "Paradise Edition", t.edition("Born To Die – Paradise Edition"))
+        assertEquals("Bangarang" to "EP", t.edition("Bangarang - EP"))
+        assertEquals("F1 The Album" to "Cinematic Edition", t.edition("F1 The Album [Cinematic Edition]"))
+        assertEquals("Black Panther: The Album" to "Music From and Inspired By", t.edition("Black Panther: The Album (Music From and Inspired By)"))
+    }
+
+    @Test fun `brackets that are part of the name stay`() {
+        for (title in listOf("Aglow (Intro)", "Blue (Da Ba Dee)", "Enter the Wu‐Tang (36 Chambers)", "(What's the Story) Morning Glory?",
+            "Mercury - Acts 1 & 2", "Мракобесие и джаз", "(Deluxe)")) assertEquals(title, title to null, t.edition(title))
     }
 }

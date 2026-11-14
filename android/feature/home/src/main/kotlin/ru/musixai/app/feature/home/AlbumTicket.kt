@@ -1,6 +1,13 @@
 package ru.musixai.app.feature.home
 
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.expandHorizontally
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearEasing
@@ -31,12 +38,11 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -67,15 +73,16 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
 import ru.musixai.app.core.designsystem.HapticCue
 import ru.musixai.app.core.designsystem.LocalMusixHaptics
-import ru.musixai.app.core.designsystem.MusixIcons
 import ru.musixai.app.core.designsystem.MusixTheme
 import ru.musixai.app.core.designsystem.component.Cover
+import ru.musixai.app.core.designsystem.component.PlayPauseGlyph
 import ru.musixai.app.core.designsystem.component.LocalCoverFlight
 import ru.musixai.app.core.designsystem.component.coverSource
 import ru.musixai.app.core.designsystem.component.pressable
@@ -91,11 +98,15 @@ import kotlin.math.sin
 
 /**
  * «Альбом дня», r3's ticket (≈ 210 dp, 186 dense): the cover 72 (56) with the label, title
- * and «artist · year», 🔀 in the corner; the phrase across, two lines at most; a bottom row
- * of 48 with the progress slot and a compact filled button (fill = songs heard, the 75 %
- * notch, the two-tone label of r2). After «Слушать» the slot's line flows into beads, one per
- * song (skits smaller and dimmer), the current one breathing while the album plays — the
- * card's only constant motion. Crossing 75 % plays the finale: «Обыграна ✓» and the JoiPro.
+ * and «artist · year · edition»; the phrase across, two lines at most, the next one every
+ * three hours ([AlbumDayText.phraseSlot]); a bottom row of 48 with the progress slot and a
+ * compact filled button (fill = songs heard, the 75 % notch, the two-tone label of r2).
+ * The title is one line, or two a size smaller before an ellipsis (as tall as the cover).
+ * «Слушать» folds the button away and the slot's line flows into beads, one per song (skits
+ * smaller and dimmer), spread over the row, the current one breathing while the album plays —
+ * the card's only constant motion. While the album is in the player the mini-player is its
+ * control (the owner, 2026-11-14: no second «Слушать»); when something else replaces it, the
+ * button comes back as «Продолжить». Crossing 75 % plays the finale: «Обыграна ✓» and the JoiPro.
  */
 @Composable
 internal fun AlbumTicket(
@@ -110,6 +121,7 @@ internal fun AlbumTicket(
     onListen: () -> Unit,
     onOpen: () -> Unit,
     modifier: Modifier = Modifier,
+    phraseSlot: Long = rememberPhraseSlot(),
 ) {
     val c = MusixTheme.colors
     val dark = MusixTheme.isDark
@@ -118,8 +130,13 @@ internal fun AlbumTicket(
     val phrases = remember(d) {
         AlbumDayText.phrases(d.kind, AlbumDayText.facts(d, LocalDate.now())).ifEmpty { listOf(Phrase(listOf("Пластинка на сегодня" to false))) }
     }
-    var index by rememberSaveable(d.albumId, d.day) { mutableIntStateOf((Math.random() * phrases.size).toInt()) }
     var started by rememberSaveable(d.albumId, d.day) { mutableStateOf(false) }
+    // «Слушать» tapped, the player has not taken the album yet: the button stays folded
+    // (a start that never comes gives it back after 5 s)
+    var pending by remember(d.albumId, d.day) { mutableStateOf(false) }
+    LaunchedEffect(albumPlaying) { if (albumPlaying) pending = false }
+    LaunchedEffect(pending) { if (pending) { delay(5_000); pending = false } }
+    val button = !albumPlaying && !pending
     var finale by remember { mutableStateOf<String?>(null) }
     val flight = LocalCoverFlight.current
     val coverSrc = rememberCoverSource()
@@ -146,12 +163,14 @@ internal fun AlbumTicket(
     val captionStyle = MusixTheme.type.body.copy(fontSize = 13.sp, lineHeight = 1.25.em, color = c.textMuted)
 
     BoxWithConstraints(modifier.fillMaxWidth()) {
-        // the shuffle keeps to the phrases that fit two lines at this width: an ellipsis
+        // the three-hour turn keeps to the phrases that fit two lines at this width: an ellipsis
         // would cut the punchline (the names are already capped by Facts.songMax/artistMax)
         val phraseWidth = constraints.maxWidth - with(LocalDensity.current) { (pad + 4.dp + 10.dp).roundToPx() }
         val fitting = remember(phrases, phraseWidth, phraseStyle) {
             phrases.filter { !measurer.measure(it.annotated(), phraseStyle, maxLines = 2, constraints = Constraints(maxWidth = phraseWidth.coerceAtLeast(1))).hasVisualOverflow }.ifEmpty { phrases }
         }
+        val index = AlbumDayText.phraseIndex(d.albumId, phraseSlot, fitting.size)
+        val (name, edition) = remember(d.title) { AlbumDayText.edition(d.title) }
         Column(
             Modifier.fillMaxWidth().clip(shape)
                 .background(if (dark) Color(0xB31C1922) else Color(0xD9FFFFFF))
@@ -161,23 +180,28 @@ internal fun AlbumTicket(
                 .border(1.dp, c.border, shape)
                 .padding(start = pad, end = 4.dp, top = pad, bottom = 2.dp),
         ) {
-            Row(verticalAlignment = Alignment.Top) {
+            Row(Modifier.padding(end = 10.dp), verticalAlignment = Alignment.Top) {
                 Box(Modifier.pressable(onClick = onOpen)) {
                     Cover(cover, d.title, d.artist.orEmpty(), Modifier.coverSource(coverSrc).testTag("ticket-cover"), size = coverSize, radius = 12.dp)
                 }
-                Column(Modifier.weight(1f).padding(start = 12.dp, top = 2.dp)) {
-                    Text("Альбом дня · ${AlbumDayText.dayLabel(d.day)}", maxLines = 1, style = MusixTheme.type.body.copy(fontSize = 12.sp, color = c.textMuted))
-                    Text(d.title, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 2.dp),
-                        style = MusixTheme.type.body.copy(fontSize = if (dense) 16.sp else 17.sp, fontWeight = FontWeight.SemiBold, lineHeight = 1.2.em, color = c.text))
-                    Text(listOfNotNull(d.artist, d.year?.toString()).joinToString(" · "), maxLines = 1, overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.padding(top = 1.dp), style = MusixTheme.type.body.copy(fontSize = 13.sp, color = c.textMuted))
-                }
-                Box(Modifier.size(48.dp).semantics { contentDescription = "Другая фраза" }
-                    .pressable { index = AlbumDayText.nextIndex(fitting.size, index.mod(fitting.size)) }, contentAlignment = Alignment.Center) {
-                    Icon(MusixIcons.Shuffle, null, Modifier.size(18.dp), tint = c.textMuted)
+                BoxWithConstraints(Modifier.weight(1f).padding(start = 12.dp, top = 1.dp)) {
+                    // one line at full size, else two a size smaller: with these line heights the
+                    // two-line block is as tall as the cover 72 (the dense card grows by ≈ 12)
+                    val one = MusixTheme.type.body.copy(fontSize = if (dense) 16.sp else 17.sp, fontWeight = FontWeight.SemiBold, lineHeight = 1.2.em, color = c.text)
+                    val two = one.copy(fontSize = if (dense) 14.sp else 15.sp, lineHeight = if (dense) 16.sp else 17.sp)
+                    val width = constraints.maxWidth
+                    val wraps = remember(name, width, one) { measurer.measure(name, one, maxLines = 1, constraints = Constraints(maxWidth = width)).hasVisualOverflow }
+                    Column {
+                        Text("Альбом дня · ${AlbumDayText.dayLabel(d.day)}", maxLines = 1,
+                            style = MusixTheme.type.body.copy(fontSize = 12.sp, lineHeight = 16.sp, color = c.textMuted))
+                        Text(name, maxLines = if (wraps) 2 else 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = if (wraps) 1.dp else 2.dp).testTag("ticket-title"),
+                            style = if (wraps) two else one)
+                        Text(listOfNotNull(d.artist, d.year?.toString(), edition).joinToString(" · "), maxLines = 1, overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.padding(top = if (wraps) 0.dp else 1.dp).testTag("ticket-meta"), style = MusixTheme.type.body.copy(fontSize = 13.sp, lineHeight = 16.sp, color = c.textMuted))
+                    }
                 }
             }
-            AnimatedContent(fitting[index.mod(fitting.size)], label = "phrase",
+            AnimatedContent(fitting[index], label = "phrase",
                 transitionSpec = { fadeIn(tween(180)) togetherWith fadeOut(tween(180)) },
                 modifier = Modifier.padding(top = if (dense) 6.dp else 8.dp, end = 10.dp)) { ph ->
                 Text(ph.annotated(), Modifier.testTag("ticket-phrase"), minLines = 2, maxLines = 2, overflow = TextOverflow.Ellipsis,
@@ -199,16 +223,31 @@ internal fun AlbumTicket(
                         )
                     }
                 }
-                Spacer(Modifier.width(10.dp))
-                FillButton(
-                    label = if (finale != null) "Обыграна" else AlbumDayText.buttonLabel(p),
-                    fraction = p.fraction, accent = accent, onAccent = onAccent, base = base, onBase = c.text,
-                    pause = albumPlaying && isPlaying, won = finale != null, notch = !p.done,
+                // the button folds towards its edge as the beads spread into its place, and
+                // unfolds the same way when another queue takes the player
+                val fold = spring<IntSize>(dampingRatio = 0.9f, stiffness = 380f)
+                AnimatedVisibility(
+                    button,
+                    enter = if (reduced) EnterTransition.None else expandHorizontally(fold, Alignment.Start) + fadeIn(tween(220, 80)) + scaleIn(tween(260), 0.85f),
+                    exit = if (reduced) ExitTransition.None else shrinkHorizontally(fold, Alignment.End) + fadeOut(tween(140)) + scaleOut(tween(220), 0.85f),
                 ) {
-                    // a start (not a pause of the album that plays) sends the cover to the mini-player
-                    if (!albumPlaying) flight?.launch(coverSrc, 12.dp)
-                    started = true
-                    onListen()
+                    Row {
+                        Spacer(Modifier.width(10.dp))
+                        FillButton(
+                            label = when {
+                                finale != null -> "Обыграна"
+                                started && p.heard > 0 && !p.done -> "Продолжить"
+                                else -> AlbumDayText.buttonLabel(p)
+                            },
+                            fraction = p.fraction, accent = accent, onAccent = onAccent, base = base, onBase = c.text,
+                            pause = false, won = finale != null, notch = !p.done,
+                        ) {
+                            flight?.launch(coverSrc, 12.dp)  // the cover flies to the mini-player
+                            started = true
+                            pending = true
+                            onListen()
+                        }
+                    }
                 }
             }
         }
@@ -240,7 +279,7 @@ private fun FillButton(
     val fill by animateFloatAsState(if (won) 1f else fraction, spring(dampingRatio = 0.8f, stiffness = 220f), label = "fill")
     val glyph by animateFloatAsState(if (pause) 1f else 0f, spring(dampingRatio = 0.8f, stiffness = 520f), label = "glyph")
     val pill = RoundedCornerShape(20.dp)
-    Box(Modifier.heightIn(min = 48.dp).pressable(onClick = onClick).semantics { contentDescription = label }, contentAlignment = Alignment.Center) {
+    Box(Modifier.heightIn(min = 48.dp).testTag("ticket-listen").pressable(onClick = onClick).semantics { contentDescription = label }, contentAlignment = Alignment.Center) {
         Box(Modifier.height(40.dp).widthIn(min = 92.dp).animateContentSize(spring(dampingRatio = 0.8f, stiffness = 400f)).clip(pill).background(base)
             .drawBehind {
                 if (notch) {
@@ -273,9 +312,10 @@ private fun Label(text: String, color: Color, glyph: Float, won: Boolean) {
 }
 
 /** One bead a song in album order: heard filled, the rest hollow, skits smaller and dimmer;
- *  the current one a ring that breathes while the album plays; a notch after the bead that
- *  reaches 75 %. More than 20 songs (or too tight a row) turn into ticks. They appear left
- *  to right, 20 ms apart. */
+ *  the current one a ring that breathes while the album plays. They spread over the row
+ *  (16 dp apart at most, so they follow the button folding away) and appear left to right,
+ *  20 ms apart. More than 20 songs (or too tight a row) turn into ticks. No 75 % notch: the
+ *  owner found it «ни о чём не говорит» (2026-11-14). */
 @Composable
 private fun Beads(d: DayAlbum, extraHeard: Set<String>, p: AlbumDayText.Progress, accent: Color, current: String?, breathing: Boolean, reduced: Boolean) {
     val c = MusixTheme.colors
@@ -291,15 +331,14 @@ private fun Beads(d: DayAlbum, extraHeard: Set<String>, p: AlbumDayText.Progress
         val big = 8.dp.toPx()
         val small = 5.dp.toPx()
         val sizes = d.tracks.map { if (it.durationMs > AlbumDayText.SKIT_MS) big else small }
-        val room = size.width - 14.dp.toPx()
-        val gap = if (n > 1) ((room - sizes.sum()) / (n - 1)).coerceAtMost(8.dp.toPx()) else 0f
+        val room = size.width - 4.dp.toPx()  // the card's inset at the right matches the left
+        val gap = if (n > 1) ((room - sizes.sum()) / (n - 1)).coerceAtMost(16.dp.toPx()) else 0f
         val ticks = n > 20 || gap < 3.dp.toPx()
         val step = if (ticks) room / n else 0f
         val cy = size.height / 2
         val stroke = 1.2.dp.toPx()
         val ms = (n * 20 + 180).toFloat()
         var x = 0f
-        var counted = 0
         d.tracks.forEachIndexed { i, tr ->
             val a = ((entry.value * ms - i * 20f) / 180f).coerceIn(0f, 1f)
             val heard = tr.heard || tr.id in extraHeard
@@ -319,13 +358,22 @@ private fun Beads(d: DayAlbum, extraHeard: Set<String>, p: AlbumDayText.Progress
                 if (tr.id == current) drawCircle(accent.copy(alpha = a * (0.9f - 0.4f * breath)), r + (3f + 2f * breath).dp.toPx(), Offset(cx, cy), style = Stroke(1.5.dp.toPx()))
                 x += sizes[i] + gap
             }
-            if (song) counted++
-            if (song && counted == p.finishAt && counted < p.total) {  // the finish notch
-                val nx = if (ticks) x else x - gap / 2
-                drawLine(c.textMuted.copy(alpha = a * 0.7f), Offset(nx, cy - 8.dp.toPx()), Offset(nx, cy + 8.dp.toPx()), 1.5.dp.toPx())
-            }
         }
     }
+}
+
+/** The phrase's three-hour slot, checked once a minute (a state write that changes nothing
+ *  recomposes nothing, so the idle home still draws no frames). */
+@Composable
+internal fun rememberPhraseSlot(): Long {
+    var slot by remember { mutableLongStateOf(AlbumDayText.phraseSlot(System.currentTimeMillis())) }
+    LaunchedEffect(Unit) {
+        while (true) {
+            delay(60_000)
+            slot = AlbumDayText.phraseSlot(System.currentTimeMillis())
+        }
+    }
+    return slot
 }
 
 /** JoiPro over the card: a superellipse pops in on a spring, dust flies out once, the

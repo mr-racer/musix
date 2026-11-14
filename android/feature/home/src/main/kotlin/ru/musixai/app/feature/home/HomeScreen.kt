@@ -76,8 +76,10 @@ import ru.musixai.app.core.designsystem.MusixTheme
 import ru.musixai.app.core.designsystem.component.Cover
 import ru.musixai.app.core.designsystem.component.GlassScene
 import ru.musixai.app.core.designsystem.component.LocalCoverFlight
+import ru.musixai.app.core.designsystem.component.LocalStageHeight
 import ru.musixai.app.core.designsystem.component.coverSource
 import ru.musixai.app.core.designsystem.component.rememberCoverSource
+import ru.musixai.app.core.designsystem.component.stageTall
 import ru.musixai.app.core.designsystem.rememberReducedMotion
 import ru.musixai.app.core.designsystem.component.Skel
 import ru.musixai.app.core.designsystem.component.pressable
@@ -131,14 +133,16 @@ fun HomeScreen(ui: HomeUi, a: HomeActions) {
     var capsule by remember { mutableStateOf<Rect?>(null) }
     var searchAt by remember { mutableStateOf<Rect?>(null) }
     var searchOpen by rememberSaveable { mutableStateOf(false) }
-    GlassScene(Modifier.fillMaxSize().onGloballyPositioned { origin = it.boundsInRoot().topLeft }, background = { Sky(blobs, wave, reduced) }) {
+    val tuneMorph = rememberMorph(ui.tune.open, reduced)
+    val searchMorph = rememberMorph(searchOpen, reduced)
+    GlassScene(Modifier.fillMaxSize().onGloballyPositioned { origin = it.boundsInRoot().topLeft }, background = { Sky(blobs, wave, reduced, Modifier.stageTall(LocalStageHeight.current)) }) {
         BoxWithConstraints(Modifier.fillMaxSize().statusBarsPadding()) {
             val spec = heroSpec(maxHeight.value)
             val gap = when (spec.form) { HeroForm.Compact -> 6.dp; HeroForm.Row -> 10.dp; HeroForm.Column -> 12.dp }
             Column(Modifier.fillMaxSize().padding(horizontal = 16.dp).padding(bottom = 12.dp), verticalArrangement = Arrangement.spacedBy(gap)) {
-                Header(home, searchHidden = searchOpen, onSearchAt = { searchAt = it }, onSearch = { searchOpen = true }, a)
+                Header(home, searchAlpha = { searchMorph.anchorAlpha }, onSearchAt = { searchAt = it }, onSearch = { searchOpen = true }, a)
                 VibePhrase(home, spec.form)
-                Hero(ui, spec, blobs, reduced, wave, onCapsuleAt = { capsule = it }, a, Modifier.weight(1f).testTag("home-hero"))
+                Hero(ui, spec, blobs, reduced, wave, capsuleAlpha = { tuneMorph.anchorAlpha }, onCapsuleAt = { capsule = it }, a, Modifier.weight(1f).testTag("home-hero"))
                 Vibes(home, a.vibe)
                 home?.dayAlbum?.let { d ->
                     val p = ui.player
@@ -152,10 +156,10 @@ fun HomeScreen(ui: HomeUi, a: HomeActions) {
                 }
             }
         }
-        MorphMenu(ui.tune.open, capsule?.translate(-origin), a.closeTune, radiusFrom = 20.dp, scrim = 0.28f, reduced = reduced,
-            face = { CapsuleFace(ui.tune) }) { TunerPanel(ui.tune, a.pick, a.reset, a.closeTune) }
-        MorphMenu(searchOpen, searchAt?.translate(-origin), { searchOpen = false }, radiusFrom = 20.dp, scrim = 0.4f, reduced = reduced,
-            face = { Box(Modifier.size(40.dp), contentAlignment = Alignment.Center) { Icon(MusixIcons.Search, null, Modifier.size(18.dp), tint = MusixTheme.colors.textMuted) } }) {
+        MorphMenu(tuneMorph, capsule?.translate(-origin), a.closeTune, radiusFrom = 20.dp, scrim = 0.28f) {
+            TunerPanel(ui.tune, a.pick, a.reset, a.closeTune)
+        }
+        MorphMenu(searchMorph, searchAt?.translate(-origin), { searchOpen = false }, radiusFrom = 20.dp, scrim = 0.4f) {
             SearchPanel(onSubmit = { q -> searchOpen = false; a.search(q) }, onAll = { searchOpen = false; a.search(null) })
         }
     }
@@ -163,7 +167,7 @@ fun HomeScreen(ui: HomeUi, a: HomeActions) {
 
 /** «MusiX  +4° · ясно      [▤] (⌕) (⚙)»: the library stack, the search, the settings, 48 each. */
 @Composable
-private fun Header(home: Home?, searchHidden: Boolean, onSearchAt: (Rect) -> Unit, onSearch: () -> Unit, a: HomeActions) {
+private fun Header(home: Home?, searchAlpha: () -> Float, onSearchAt: (Rect) -> Unit, onSearch: () -> Unit, a: HomeActions) {
     val c = MusixTheme.colors
     Row(Modifier.fillMaxWidth().height(48.dp), verticalAlignment = Alignment.CenterVertically) {
         Text(buildAnnotatedString {
@@ -176,7 +180,7 @@ private fun Header(home: Home?, searchHidden: Boolean, onSearchAt: (Rect) -> Uni
         }
         LibraryStack(home, a.library)
         Box(Modifier.size(48.dp).pressable(onClick = onSearch).semantics { contentDescription = "Поиск" }, contentAlignment = Alignment.Center) {
-            Box(Modifier.size(40.dp).onGloballyPositioned { onSearchAt(it.boundsInRoot()) }.graphicsLayer { alpha = if (searchHidden) 0f else 1f },
+            Box(Modifier.size(40.dp).onGloballyPositioned { onSearchAt(it.boundsInRoot()) }.graphicsLayer { alpha = searchAlpha() },
                 contentAlignment = Alignment.Center) { Icon(MusixIcons.Search, null, Modifier.size(18.dp), tint = c.textMuted) }
         }
         Box(Modifier.size(48.dp).pressable(onClick = a.settings).semantics { contentDescription = "Настройки" }, contentAlignment = Alignment.Center) {
@@ -237,7 +241,7 @@ private fun VibePhrase(home: Home?, form: HeroForm) {
 
 /** The orb, «Поток» and the capsule — a row, or a centred column on a tall page. */
 @Composable
-private fun Hero(ui: HomeUi, spec: HeroSpec, blobs: List<Color>, reduced: Boolean, wave: SkyWave, onCapsuleAt: (Rect) -> Unit, a: HomeActions, modifier: Modifier) {
+private fun Hero(ui: HomeUi, spec: HeroSpec, blobs: List<Color>, reduced: Boolean, wave: SkyWave, capsuleAlpha: () -> Float, onCapsuleAt: (Rect) -> Unit, a: HomeActions, modifier: Modifier) {
     val c = MusixTheme.colors
     val p = ui.player
     val live = p.mode == QueueMode.STREAM && p.trackId != null
@@ -262,7 +266,7 @@ private fun Hero(ui: HomeUi, spec: HeroSpec, blobs: List<Color>, reduced: Boolea
             Text(title, maxLines = 1, style = MusixTheme.type.body.copy(fontSize = if (spec.form == HeroForm.Compact) 18.sp else 20.sp, fontWeight = FontWeight.Medium, color = c.text))
         }
         val capsuleView = @Composable {
-            WaveCapsule(ui.tune, enabled = true, hidden = ui.tune.open, onOpen = a.tune, Modifier.testTag("home-capsule").onGloballyPositioned {
+            WaveCapsule(ui.tune, enabled = true, hidden = false, onOpen = a.tune, Modifier.graphicsLayer { alpha = capsuleAlpha() }.testTag("home-capsule").onGloballyPositioned {
                 // the visible 40 dp capsule inside the 48 dp target
                 val b = it.boundsInRoot()
                 val inset = (b.height - b.height * 40f / 48f) / 2f

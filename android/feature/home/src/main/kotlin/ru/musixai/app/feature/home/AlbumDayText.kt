@@ -124,11 +124,34 @@ internal object AlbumDayText {
 
     fun finalePhrases() = listOf("Обыграна! От первой песни до последней", "Обыграна! Альбом пройден, можно хвастаться")
 
-    /** A random index other than [prev] (the 🔀 never shows the same line twice in a row). */
-    fun nextIndex(len: Int, prev: Int, rnd: () -> Double = Math::random): Int {
-        if (len <= 1) return 0
-        val i = (rnd() * (len - 1)).toInt()
-        return if (i >= prev) i + 1 else i
+    /** The card's phrase changes every three hours of the local day (the owner, 2026-11-14):
+     *  00–03 is the day's first slot, 21–24 its eighth. */
+    fun phraseSlot(epochMs: Long, zone: ZoneId = ZoneId.systemDefault()): Long {
+        val t = Instant.ofEpochMilli(epochMs).atZone(zone)
+        return t.toLocalDate().toEpochDay() * 8 + t.hour / 3
+    }
+
+    /** The phrase for [slot] out of [n]: the next slot always shows the next one. */
+    fun phraseIndex(albumId: String, slot: Long, n: Int): Int =
+        if (n <= 1) 0 else Math.floorMod(albumId.hashCode().toLong() + slot, n.toLong()).toInt()
+
+    private val EDITION = Regex(
+        """(?i)\b(edition|deluxe|expanded|anniversary|remaster(ed)?|version|extended|edit|clean|explicit|soundtrack|s/t|inspired by|""" +
+            """motion picture|slowed|sped up|reverb|remix|japan|bonus|reissue|ep)\b|^from\s""",
+    )
+    private val BRACKETED = Regex("""^(.*\S)\s*[(\[]([^()\[\]]+)[)\]]$""")
+    private val DASHED = Regex("""^(.*\S)\s+[-–—]\s+([^-–—]+)$""")
+
+    /** «Born to Die (The Paradise Edition)» → the name and the edition, which goes to the grey
+     *  line under it; brackets that are part of the name («Aglow (Intro)») stay. */
+    fun edition(title: String): Pair<String, String?> {
+        val t = title.trim()
+        for (r in listOf(BRACKETED, DASHED)) {
+            val m = r.matchEntire(t) ?: continue
+            val (name, ed) = m.destructured
+            if (EDITION.containsMatchIn(ed.trim())) return name.trim() to ed.trim()
+        }
+        return title to null
     }
 
     fun dayLabel(day: LocalDate) = "${day.dayOfMonth} ${MONTHS_GEN[day.monthValue - 1]}"

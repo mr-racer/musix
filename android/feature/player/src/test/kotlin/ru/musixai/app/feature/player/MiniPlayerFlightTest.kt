@@ -59,7 +59,7 @@ class MiniPlayerFlightTest {
                     Box(Modifier.fillMaxSize()) {
                         Column(Modifier.fillMaxSize()) {
                             Box(Modifier.weight(1f).fillMaxWidth())
-                            MiniPlayerBar(PlayerState(trackId = "t1", title = "Песня", artist = "Артист"), {}, {}, {}, {})
+                            MiniPlayerBar(PlayerState(trackId = "t1", title = "Песня", artist = "Артист"), {}, {}, {})
                             Box(Modifier.fillMaxWidth().height(64.dp).testTag("tabs"))
                         }
                         Box(Modifier.offset(100.dp, 200.dp).size(72.dp).coverSource(source)) // a cover on a screen

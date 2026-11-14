@@ -90,9 +90,10 @@ class HomeFlightTest {
         assertTrue("lands on the mini-player's cover: $c", abs((c.left + c.right).value / 2 - 30f) <= 1f && abs((c.top + c.bottom).value / 2 - 729f) <= 1f)
     }
 
-    @Test fun pausingTheAlbumThatPlaysSendsNothing() {
+    @Test fun theAlbumThatPlaysLeavesNothingToSendFrom() {
+        // the mini-player is its control now: the ticket's button is folded away
         home(PlayerState(trackId = "d4", mode = QueueMode.LIST, isPlaying = true))
-        tap { compose.onNodeWithContentDescription("3 из 11").performClick() }
+        compose.onNodeWithTag("ticket-listen").assertDoesNotExist()
         assertTrue("no copy: ${copies().size}", copies().isEmpty())
     }
 

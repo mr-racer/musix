@@ -2,13 +2,16 @@ package ru.musixai.app.core.designsystem.component
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toPixelMap
@@ -17,6 +20,7 @@ import androidx.compose.ui.test.getBoundsInRoot
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.DpRect
 import androidx.compose.ui.unit.dp
 import org.junit.Assert.assertEquals
@@ -47,6 +51,8 @@ class CoverFlightTest {
     private val from = Rect(30f, 300f, 102f, 372f) // a 72 dp cover on a screen, red
     private val mini = Rect(10f, 709f, 50f, 749f) // the mini-player's 40 dp cover
     private var miniShown by mutableStateOf(true)
+    private var miniClip: Dp? = null // the bar rising: only this much of it shows yet
+    private var miniSize = 40.dp
 
     private fun scene(reduced: Boolean = false) {
         compose.mainClock.autoAdvance = false
@@ -54,7 +60,12 @@ class CoverFlightTest {
             source = rememberCoverSource()
             Box(Modifier.fillMaxSize()) {
                 Box(Modifier.offset(from.left.dp, from.top.dp).size(72.dp).coverSource(source).background(Color.Red))
-                if (miniShown) Box(Modifier.offset(mini.left.dp, mini.top.dp).size(40.dp).coverFlightTarget(flight).background(Color.Blue))
+                if (miniShown) {
+                    val cover = Modifier.size(miniSize).coverFlightTarget(flight).background(Color.Blue)
+                    val clip = miniClip
+                    if (clip == null) Box(Modifier.offset(mini.left.dp, mini.top.dp).then(cover))
+                    else Box(Modifier.offset(mini.left.dp, mini.top.dp).size(40.dp, clip).clipToBounds().wrapContentHeight(Alignment.Top, unbounded = true)) { Box(cover) }
+                }
                 CoverFlightLayer(flight, reduced = reduced)
             }
         }
@@ -147,5 +158,28 @@ class CoverFlightTest {
         assertEquals(mini, flightRect(from, mini, 1f))
         val half = flightRect(from, mini, 0.5f)
         assertEquals(Rect(20f, 504.5f, 76f, 560.5f), half)
+    }
+
+    /** The bar rises from nothing (MiniPlayerSlot): its cover is laid out whole while the clip
+     *  around it still shows none of it — the owner's emulator, 2026-11-14, crashed on a NaN
+     *  corner there. The aim is the cover itself, not the part of it that shows yet. */
+    @Test fun aCoverStillClippedAwayIsAimedAtWhole() {
+        miniClip = 0.dp
+        scene()
+        launch()
+        compose.mainClock.advanceTimeBy(FLY_MS + 80L)
+        val caught = copy()
+        near(mini.center.x, caught.cx(), "landed x")
+        near(mini.center.y, caught.cy(), "landed y")
+        assertTrue("caught whole: ${caught.w()}", caught.w() > mini.width + 2)
+    }
+
+    /** A cover of no size yet is nowhere to land well, but no frame of the copy may break. */
+    @Test fun aCoverOfNoSizeBreaksNothing() {
+        miniSize = 0.dp
+        scene()
+        launch()
+        compose.mainClock.advanceTimeBy(FLY_MS + CATCH_MS + 100L)
+        compose.onNodeWithTag(CoverFlightTag).assertDoesNotExist()
     }
 }

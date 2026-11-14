@@ -16,6 +16,8 @@ import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Stable
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -40,28 +42,54 @@ import kotlin.math.roundToInt
 /**
  * r2's «перетекающее меню» (morph-menu.js) in Compose: the anchor — a capsule, a round
  * button — flows into a panel of the screen's width minus 32 under it, and back, on one
- * spring (stiffness 320, damping 32). The anchor's face fades out as the panel's content
- * fades in; a scrim dims the rest. A tap outside, Back, or the caller closes it.
+ * spring (stiffness 320, damping 32). The panel's surface grows out of the anchor over the
+ * first 60 % of the way and melts back into it over the last 60 %, while the real anchor
+ * under the overlay fades the other way ([Morph.anchorAlpha]): no frame swaps one for the
+ * other (the owner, 2026-11-14: the search «резко превращается из белого в прозрачный»).
+ * The content fades in after the surface; a scrim dims the rest. A tap outside, Back, or the
+ * caller closes it.
  *
  * [anchor] is in this overlay's own coordinates. The overlay draws nothing when closed.
  */
+@Stable
+internal class Morph {
+    internal val p = Animatable(0f)
+    internal var open by mutableStateOf(false)
+
+    /** The real anchor under the overlay: gone while the panel covers it, back as its surface melts. */
+    val anchorAlpha: Float get() = 1f - morphSurface(p.value)
+}
+
+/** How much of the panel's fill and rim shows at [t] (0 = the anchor, 1 = open): a smoothstep
+ *  over the first 60 % of the way — the spring's slow tail, so the melt takes ≈ 10 frames. */
+internal fun morphSurface(t: Float): Float {
+    val x = (t / 0.6f).coerceIn(0f, 1f)
+    return x * x * (3f - 2f * x)
+}
+
+@Composable
+internal fun rememberMorph(open: Boolean, reduced: Boolean): Morph {
+    val m = remember { Morph() }
+    m.open = open
+    LaunchedEffect(open, reduced) {
+        if (reduced) m.p.snapTo(if (open) 1f else 0f)
+        else m.p.animateTo(if (open) 1f else 0f, spring(dampingRatio = 32f / (2f * kotlin.math.sqrt(320f)), stiffness = 320f))
+    }
+    return m
+}
+
 @Composable
 internal fun MorphMenu(
-    open: Boolean,
+    morph: Morph,
     anchor: Rect?,
     onClose: () -> Unit,
     radiusFrom: Dp,
     scrim: Float,
-    reduced: Boolean,
     radiusTo: Dp = 22.dp,
-    face: @Composable () -> Unit = {},
     content: @Composable () -> Unit,
 ) {
-    val p = remember { Animatable(0f) }
-    LaunchedEffect(open, reduced) {
-        if (reduced) p.snapTo(if (open) 1f else 0f)
-        else p.animateTo(if (open) 1f else 0f, spring(dampingRatio = 32f / (2f * kotlin.math.sqrt(320f)), stiffness = 320f))
-    }
+    val p = morph.p
+    val open = morph.open
     BackHandler(enabled = open, onBack = onClose)
     if (anchor == null || (!open && p.value == 0f)) return
     val c = MusixTheme.colors
@@ -84,22 +112,22 @@ internal fun MorphMenu(
         )
         val shape = RoundedCornerShape(lerp(radiusFrom.value, radiusTo.value, t.coerceIn(0f, 1f)).dp)
         val panelWidth = with(density) { target.width.toDp() }
+        val s = morphSurface(t)
         Box(
             Modifier.offset { IntOffset(cur.left.roundToInt(), cur.top.roundToInt()) }
                 .size(with(density) { cur.width.coerceAtLeast(1f).toDp() }, with(density) { cur.height.coerceAtLeast(1f).toDp() })
                 .clip(shape)
-                .background(if (dark) Color(0xFF1C1A24) else Color(0xFFFFFFFF))  // opaque: text under a translucent panel ghosts through its controls
-                .border(1.dp, c.border, shape)
+                // opaque once grown: text under a translucent panel ghosts through its controls
+                .background((if (dark) Color(0xFF1C1A24) else Color(0xFFFFFFFF)).copy(alpha = s))
+                .border(1.dp, c.border.copy(alpha = c.border.alpha * s), shape)
                 .pointerInput(Unit) { detectTapGestures { } },  // a tap inside is not «outside»
         ) {
             Box(
                 Modifier.wrapContentWidth(Alignment.Start, unbounded = true).requiredWidth(panelWidth)
                     .wrapContentHeight(Alignment.Top, unbounded = true)
                     .onSizeChanged { contentH = it.height }
-                    .graphicsLayer { alpha = ((t - 0.35f) / 0.65f).coerceIn(0f, 1f) },
+                    .graphicsLayer { alpha = ((t - 0.6f) / 0.4f).coerceIn(0f, 1f) },  // after the surface
             ) { content() }
-            Box(Modifier.size(with(density) { anchor.width.toDp() }, with(density) { anchor.height.toDp() })
-                .graphicsLayer { alpha = (1f - t * 3f).coerceIn(0f, 1f) }) { face() }
         }
     }
 }
