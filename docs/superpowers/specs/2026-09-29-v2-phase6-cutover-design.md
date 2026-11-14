@@ -50,7 +50,7 @@ listeners.
 
 | Step | Action | Budget |
 |---|---|---|
-| T−7 d | Announce to friends: the date, "install the new app from the link when asked", what changes | — |
+| T−7 d | Announce to users: the date, "install the new app from the link when asked", what changes | — |
 | T−1 d | Pre-build the `high` renditions for the most played tracks (top 2000 by `plays`) from the latest snapshot into the v2 volume | background |
 | T−0 | v1 → **read-only**: nginx on the VPS answers `503 Retry-After` with a status page for writes; reads still work | 1 min |
 | T+1 | Final snapshot (phase 0 tool) | 3 min (hashes cached) |
@@ -64,7 +64,7 @@ After the switch:
 
 - **Old 1.0.0 apps** keep calling `/api/v1/*`. v2's nginx answers those paths with `426
   Upgrade Required` and a JSON body naming `/download/musix.apk`. 1.0.0 shows the error;
-  friends install v2 **over** it (same package, same key), which is why §0 had the
+  users install v2 **over** it (same package, same key), which is why §0 had the
   announcement.
 - The remaining renditions build in the background, and the manifest falls back to
   `lossless` until each is ready.
@@ -72,7 +72,7 @@ After the switch:
 ## 4. After the cutover
 
 - **Day 0–3:** the owner watches `/metrics`, the queue backlog and the error logs.
-  Friends' devices appear in `devices` as they log in.
+  Users' devices appear in `devices` as they log in.
 - **Day 7:** if nothing forced a rollback, v1 containers and volumes are archived: the
   SQLite backup + the Qdrant snapshots go to `/mnt/data/musix-snapshots/final-v1/`, and the
   v1 volumes are deleted.
@@ -93,7 +93,7 @@ After the switch:
      signals, playlist edits, new invites/accounts.
      - The tool is `tools/migrate/reverse.py`, written and tested in the rehearsals.
      - New uploads stay on disk and get re-registered by a v1 rescan.
-  4. Friends fall back to the 1.0.0 APK, still at `downloads/musix-1.0.0.apk`.
+  4. Users fall back to the 1.0.0 APK, still at `downloads/musix-1.0.0.apk`.
 - **After 7 days** v1 is archived and a rollback means a restore; the runbook says so
   explicitly.
 
@@ -102,4 +102,4 @@ After the switch:
 | v1 habit | Cutover |
 |---|---|
 | Deploy = `docker compose up -d` over the running prod, with no rehearsal | A rehearsed runbook with budgets, gates and a tested rollback |
-| Friends learn about changes when something breaks | Announced, with a 426 + download link for old apps and an in-app updater from then on |
+| Users learn about changes when something breaks | Announced, with a 426 + download link for old apps and an in-app updater from then on |

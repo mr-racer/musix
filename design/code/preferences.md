@@ -169,7 +169,7 @@ do not design a replacement.
 **2026-10-07, on the implementation's video:** the segmented thumb «вылетает за края и
 обрезается» on a far switch; the snow «резко появляется по всей поверхности, а не только
 там куда упал». On the weather: ask the city in the settings and at the first run, «без
-определения по ip» (VPNs); если юзер не указывает город — дефолтный город инстанса.
+определения по ip»; если юзер не указывает город — дефолтный город инстанса.
 
 
 ## 2026-10-10 — the album gatefold, the brief

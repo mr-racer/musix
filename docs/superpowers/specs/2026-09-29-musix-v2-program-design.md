@@ -41,8 +41,7 @@ native Windows client — on a backend built for it.
 
 | Question | Answer |
 |---|---|
-| Audience | A **self-hosted product**. The owner's own instance runs as a service for friends. |
-| Scale of the owner's instance | **≤ 20 users** in a year, on **one home server** (GPU + music disks) behind the VPS proxy. |
+| Initial deployment scale | **≤ 20 users** in a year, on **one home server** (GPU + music disks) behind the VPS proxy. |
 | Client platforms | **Android** first, then **Windows**. No iOS, macOS or Linux for now. |
 | «Quality like Yandex/Spotify» means | **Smooth, fast UI**; **stream quality vs data** (quality tiers); the **ecosystem** (Android Auto, widgets, the watch incl. the queue, handing playback between devices). Offline downloads were not asked for. |
 | Why desktop must not be web | UI speed; **local music** on the PC's disk; a real app (window, installer, updates). |
@@ -277,9 +276,9 @@ phase spec in turn.
 | 1 | **Core v2** | Postgres schema + Alembic; accounts, devices, auth; library and catalog; media pipeline + tiers + nginx delivery; playback events; reactions (огонёк/вода); playlists; `/sync`; realtime channel; OpenAPI + generated clients | Budgets met; contract tests green |
 | 2 | **Intelligence** | Indexing pipeline on workers + the `ml` service; lyric/sound/hybrid search; «Поток» and вайбики; facts, bios, relations; the assistant; the quiz; Yandex import | Search and «Поток» gates equal to or better than v1 |
 | 3 | **Data migration** | A repeatable SQLite + Qdrant → v2 migrator; dry runs on prod snapshots | Migration gate green on the latest snapshot |
-| 4 | **Android on v2** | The Compose app: login/server, library, player, «Поток», search, playlists, artist, огонёк/вода, settings incl. quality; the Media3 core on v2 | Covers everything friends use daily; budgets met on a Pixel |
+| 4 | **Android on v2** | The Compose app: login/server, library, player, «Поток», search, playlists, artist, огонёк/вода, settings incl. quality; the Media3 core on v2 | Covers everything users use daily; budgets met on a Pixel |
 | 5 | **Web on v2** | The lean TS client: player + admin | Covers browser listening and the admin |
-| 6 | **Cutover** | Rehearsal on a snapshot, the switch, a rollback plan (the old stack kept restorable for N days), a new APK and friends' re-login | Everyone on v2; the old stack retired |
+| 6 | **Cutover** | Rehearsal on a snapshot, the switch, a rollback plan (the old stack kept restorable for N days), a new APK and users' re-login | Everyone on v2; the old stack retired |
 | 7 | **Windows** | The WinUI 3 client: v2 features + local files + upload; installer and updates | Daily use on the owner's PC |
 | 8 | **Ecosystem** | Playback handoff between devices; Android Auto browse; widgets; the watch's Up Next (via `dumpsys media_session` evidence, Android spec §11) | Each item works end to end on real devices |
 
@@ -288,7 +287,7 @@ No dates are promised here; each phase spec estimates its own.
 
 ## 7. Cutover and the frozen prod
 
-- The old stack keeps running untouched until phase 6. Friends keep MusiX 1.0.0, the
+- The old stack keeps running untouched until phase 6. Users keep MusiX 1.0.0, the
   Capacitor app on v1, and the current web.
   **No improvements reach them before the cutover.** That is the price of this strategy,
   accepted on 2026-09-29.
@@ -305,7 +304,7 @@ No dates are promised here; each phase spec estimates its own.
 
 | Risk | Mitigation |
 |---|---|
-| Months without releases for friends | Accepted. Phase order keeps the cutover as early as the gate allows; Windows is after it. |
+| Months without releases for users | Accepted. Phase order keeps the cutover as early as the gate allows; Windows is after it. |
 | Behaviour drift in search and recs during the port | The §5 gates, built BEFORE the port, compared on the same snapshot. |
 | Three clients reproducing one design by hand drift apart | Design tokens + component specs are the single source (phase 0). |
 | Migration of a 36-table legacy schema loses meaning, not just rows | Per-entity mapping in the phase 3 spec, with checksums and per-account spot checks, rehearsed repeatedly. |

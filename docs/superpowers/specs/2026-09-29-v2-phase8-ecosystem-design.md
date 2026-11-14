@@ -55,7 +55,7 @@ The model is Spotify Connect's, on our own realtime channel (phase 1 §8):
 - **Artwork:** Auto requires content URIs or bitmaps. It reuses the artwork bytes (the watch
   fix), and a `ContentProvider` serves cached cover variants by id.
 - **Sideloading caveat:** Android Auto shows apps from unknown sources only with Auto's
-  developer settings enabled. That is documented in the app's help for friends.
+  developer settings enabled. That is documented in the app's help for users.
 
 ## 3. Widgets (Android, Glance)
 

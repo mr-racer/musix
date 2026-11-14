@@ -134,7 +134,7 @@ Changes:
 ## 6. Cutover scope — decided by usage, not by guess
 
 The phase 0 benches and HAR runs, together with the v1 access logs, give per-feature usage
-for the owner's instance. **Every surface with real usage by the friends goes into the
+for the owner's instance. **Every surface with real usage by the users goes into the
 cutover scope** (phase 6 cannot remove something people use). The rest may follow in
 point releases after the cutover.
 

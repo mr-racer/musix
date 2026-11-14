@@ -24,8 +24,8 @@ cutover scope complete, budgets measured, and a screenshot review ready for the 
 - The prod phone is not on the LAN: the budgets are measured on the emulator and marked
   as such. The Pixel 9 check is phase 6's.
 - **Cutover scope by usage (spec §6, from the snapshot + the prod access log):**
-  - the friends' libraries come entirely from Yandex import (1801 tracks) and uploads;
-  - 3 friends play the quiz;
+  - the users' libraries come entirely from Yandex import (1801 tracks) and uploads;
+  - 3 users play the quiz;
   - the stats screens get light use;
   - no assistant calls in the log window.
   So the scope is auth, home, «Поток», player, library, playlists, search, artist, settings

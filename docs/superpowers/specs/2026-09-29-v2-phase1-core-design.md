@@ -193,7 +193,7 @@ integrated LUFS + true peak) → `renditions` (§5.4).
 - The track becomes **playable as soon as it is registered**, in `lossless` or `high` if that
   rendition exists.
 - **Dedup:** a file whose sha256 is already known skips everything but `register`.
-  Two friends uploading the same album cost one encode.
+  Two users uploading the same album cost one encode.
 
 ### 5.2 Uploads
 

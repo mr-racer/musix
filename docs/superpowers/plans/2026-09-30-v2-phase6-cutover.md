@@ -4,7 +4,7 @@
 > subject). Tests only for clear functionality: 1 for this phase (the reverse export).
 > **Every step that touches prod is a separate stop: I ask the owner right then, and act
 > only on a yes given for that step.** The VPS counts as prod, and so do v1's containers,
-> its SQLite, the tunnel, `downloads/`, and anything the friends receive.
+> its SQLite, the tunnel, `downloads/`, and anything the users receive.
 
 **Spec:** `docs/superpowers/specs/2026-09-29-v2-phase6-cutover-design.md`.
 **Owner's answer (2026-09-30):** no second VPS. v2 staging for the week of daily use runs
@@ -24,7 +24,7 @@ on the same VPS, and the desktop (v1 at `musixai.ru/`) must keep working.
   staging stack runs (staging doubles as phase 7's backend).
 - **Secrets:** fresh v2 secrets in the prod volume. The Yandex token key comes only from
   the operator's env at the real run. Nothing is printed.
-- **Friends are not touched before the owner says so:** no APK in `downloads/` and no
+- **Users are not touched before the owner says so:** no APK in `downloads/` and no
   announcement.
 
 ---
@@ -91,7 +91,7 @@ on the same VPS, and the desktop (v1 at `musixai.ru/`) must keep working.
 ## Block 5 — The real run (the owner sets T; each step asked)
 
 - **What:**
-  - the announcement text for the friends (the owner sends it);
+  - the announcement text for the users (the owner sends it);
   - T−1 d renditions;
   - T−0: v1 read-only (VPS: 503 on writes);
   - the final snapshot → migrate → gate;
