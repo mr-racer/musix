@@ -111,11 +111,12 @@ async def home(
     qdrant: Any = None,
     weather: S.WeatherOut | None = None,
 ) -> S.HomeOut:
-    from musix.contexts.screens import picks, stats
+    from musix.contexts.screens import day_album, picks, stats
 
     live = sa.select(T.id).where(T.id == St.track_id, T.deleted_at.is_(None))
     wave = asyncio.create_task(stats.wave(c))  # gather's typing stops at six
     anchor_ids = asyncio.create_task(stats.anchor_ids(c))
+    day = asyncio.create_task(day_album.pick(c, tz, stats.local_today(tz)))
     recent_ids, added_ids, pls, cnt, vibe_rows, pulse = await asyncio.gather(
         _ids(  # walks account_track_stats_recent_idx, probing tracks by key
             c,
@@ -149,11 +150,13 @@ async def home(
             break
     pls = pls[:12]
     chosen = await album_picks
+    of_day = await day
     imgs = await c.images(
         [
             *_covers(both),
             *(p.cover_image_id for p in pls),
             *(a.album.cover_image_id for a in chosen),
+            of_day.album.cover_image_id if of_day else None,
         ]
     )
     return S.HomeOut(
@@ -167,6 +170,7 @@ async def home(
         pulse=pulse,
         album_picks=chosen,
         weather=weather,
+        day_album=of_day,
         images=imgs,
     )
 

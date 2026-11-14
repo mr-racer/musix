@@ -223,3 +223,67 @@ async def test_editorial_image_kinds_pass_the_kind_check(sm) -> None:  # type: i
         for k in ("artist_photo", "artist_wide", "artist_logo"):
             await s.execute(sa.insert(images).values(id=f"{k:0<64}"[:64], kind=k, variants={}))
         await s.rollback()
+
+
+async def test_the_album_of_the_day_holds_all_day_and_counts_what_was_heard(
+    sm, client: TestClient, listener, monkeypatch
+) -> None:  # type: ignore[no-untyped-def]
+    import datetime as dt
+
+    import sqlalchemy as sa
+
+    from musix.contexts.library.models import tracks
+    from musix.contexts.screens import day_album
+
+    tok, acct, (a, b, c) = listener
+    h = bearer(tok)
+    monkeypatch.setattr(day_album, "MIN_SONGS", 3)  # the fixture holds three songs
+    async with sm() as s:  # one album of three full-length songs
+        album = await s.scalar(
+            sa.select(tracks.c.album_id)
+            .where(tracks.c.account_id == acct, tracks.c.album_id.is_not(None))
+            .limit(1)
+        )
+        await s.execute(
+            sa.update(tracks)
+            .where(tracks.c.account_id == acct)
+            .values(album_id=album, duration_ms=200_000)
+        )
+        await s.commit()
+    assert client.get("/api/v2/home", headers=h).json()["dayAlbum"] is None  # nothing played
+
+    def ev(track: uuid.UUID, at: dt.datetime, ms: int) -> dict[str, object]:
+        return {
+            "clientEventId": str(uuid.uuid4()),
+            "sessionId": "s",
+            "trackId": str(track),
+            "startedAt": at.isoformat(),
+            "playedMs": ms,
+            "durationMs": 200_000,
+            "endReason": "completed" if ms == 200_000 else "stopped",
+        }
+
+    now = dt.datetime.now(dt.UTC)
+    q = {"tzOffsetMinutes": 720 - (now.hour * 60 + now.minute)}  # local noon: far from midnight
+    old = now - dt.timedelta(days=40)
+    spread = [a, a, a, b, b, b, c, c]  # 8 plays and no song on repeat: «long» only
+    loved = [ev(t, old + dt.timedelta(minutes=5 * i), 200_000) for i, t in enumerate(spread)]
+    assert client.post("/api/v2/events/listens:batch", json={"events": loved}, headers=h).is_success
+    day = client.get("/api/v2/home", params=q, headers=h).json()["dayAlbum"]
+    assert day["kind"] == "long"
+    assert day["album"]["id"] == str(album)
+    assert (day["plays"], day["songId"], day["songPlays"]) == (8, str(a), 3)
+    assert day["lastPlayedAt"] is not None
+    assert day["artistPlayedMin"] == (8 * 200_000 // 60_000 if day["artistRank"] else 0)
+    assert len(day["tracks"]) == 3
+    assert not any(t["heard"] for t in day["tracks"])
+    today = [ev(b, now - dt.timedelta(minutes=2), 50_000), ev(c, now, 120_000)]
+    assert client.post("/api/v2/events/listens:batch", json={"events": today}, headers=h).is_success
+    again = client.get("/api/v2/home", params=q, headers=h).json()["dayAlbum"]
+    assert (again["kind"], again["album"]["id"], again["day"]) == (
+        "long",
+        str(album),
+        day["day"],
+    )  # playing the pick never swaps it mid-day
+    assert again["plays"] == 8  # the numbers stand as the day began
+    assert {t["id"] for t in again["tracks"] if t["heard"]} == {str(c)}  # 25 % is not heard

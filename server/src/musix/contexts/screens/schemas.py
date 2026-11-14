@@ -75,6 +75,34 @@ class AlbumPick(Model):
     score: float  # cosine(vibe centroid, album mean CLAP)
 
 
+class DayAlbumTrack(Model):
+    id: uuid.UUID
+    title: str  # as shown
+    duration_ms: int | None  # a minute or less is a skit: it never counts
+    disc_no: int | None
+    track_no: int | None
+    heard: bool  # half of it or four minutes played in the last 30 local days
+
+
+class DayAlbumOut(Model):
+    """«Альбом дня» on the phone's home (screens/day_album.py): one a day, the same on every
+    device. The numbers stand as the day began, so playing the pick never swaps it; only
+    `tracks[].heard` moves during the day. The client writes the phrases from them."""
+
+    kind: Literal["long", "one", "never"]  # loved and left · a song on repeat · never played
+    day: dt.date  # the local day it belongs to
+    album: AlbumOut
+    tracks: list[DayAlbumTrack]  # the account's own, in the album page's order
+    plays: int  # the album's plays before the day
+    last_played_at: dt.datetime | None
+    song_id: uuid.UUID | None  # its most played song («one»: the one on repeat)
+    song_plays: int
+    artist_rank: int | None  # the album artist by plays, 1 = the most played; None = unplayed
+    artist_plays: int
+    artist_played_min: int  # minutes: the clients read JSON integers as 32-bit
+    other_albums_heard: int  # the album artist's other albums played at least once
+
+
 class WeatherOut(Model):
     kind: Literal["clear", "cloudy", "rain", "snow"]
     code: int  # WMO
@@ -112,6 +140,7 @@ class HomeOut(Model):
     pulse: WeeklyPulse
     album_picks: list[AlbumPick] = Field(default_factory=list)
     weather: WeatherOut | None = None  # the instance's place, when one is configured
+    day_album: DayAlbumOut | None = None  # the phone's «Альбом дня»; None = no candidates
     images: dict[str, ImageData]
 
 

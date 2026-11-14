@@ -1696,6 +1696,166 @@
         "title": "Counts",
         "type": "object"
       },
+      "DayAlbumOut": {
+        "description": "«Альбом дня» on the phone's home (screens/day_album.py): one a day, the same on every\ndevice. The numbers stand as the day began, so playing the pick never swaps it; only\n`tracks[].heard` moves during the day. The client writes the phrases from them.",
+        "properties": {
+          "album": {
+            "$ref": "#/components/schemas/AlbumOut"
+          },
+          "artistPlayedMin": {
+            "title": "Artistplayedmin",
+            "type": "integer"
+          },
+          "artistPlays": {
+            "title": "Artistplays",
+            "type": "integer"
+          },
+          "artistRank": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Artistrank"
+          },
+          "day": {
+            "format": "date",
+            "title": "Day",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "long",
+              "one",
+              "never"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "lastPlayedAt": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lastplayedat"
+          },
+          "otherAlbumsHeard": {
+            "title": "Otheralbumsheard",
+            "type": "integer"
+          },
+          "plays": {
+            "title": "Plays",
+            "type": "integer"
+          },
+          "songId": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Songid"
+          },
+          "songPlays": {
+            "title": "Songplays",
+            "type": "integer"
+          },
+          "tracks": {
+            "items": {
+              "$ref": "#/components/schemas/DayAlbumTrack"
+            },
+            "title": "Tracks",
+            "type": "array"
+          }
+        },
+        "required": [
+          "kind",
+          "day",
+          "album",
+          "tracks",
+          "plays",
+          "lastPlayedAt",
+          "songId",
+          "songPlays",
+          "artistRank",
+          "artistPlays",
+          "artistPlayedMin",
+          "otherAlbumsHeard"
+        ],
+        "title": "DayAlbumOut",
+        "type": "object"
+      },
+      "DayAlbumTrack": {
+        "properties": {
+          "discNo": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Discno"
+          },
+          "durationMs": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Durationms"
+          },
+          "heard": {
+            "title": "Heard",
+            "type": "boolean"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "trackNo": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Trackno"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "durationMs",
+          "discNo",
+          "trackNo",
+          "heard"
+        ],
+        "title": "DayAlbumTrack",
+        "type": "object"
+      },
       "DayCount": {
         "properties": {
           "count": {
@@ -2254,6 +2414,16 @@
           },
           "counts": {
             "$ref": "#/components/schemas/Counts"
+          },
+          "dayAlbum": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DayAlbumOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "images": {
             "additionalProperties": {
