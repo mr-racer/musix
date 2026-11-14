@@ -58,4 +58,28 @@ showcase = showcase.replace('</head>', '<style>' + fonts + (HERE / 'vendor/tacti
 showcase = showcase.replace('<script src="lib.js"></script>', '<script>' + (HERE / 'vendor/tactile-lib.js').read_text() + '</script>')
 showcase = showcase.replace('<script src="showcase.js"></script>', '<script>' + (HERE / 'vendor/tactile-showcase.js').read_text() + '</script>')
 (out / 'accepted-showcase.html').write_text(showcase)
+
+# Home, round 2: the same shell with its own home section, styles and scripts. Round 1 above
+# is left byte for byte as it was; round 2 files that do not exist yet are simply empty.
+def optional(name):
+    path = HERE / name
+    return path.read_text() if path.exists() else ''
+
+albums = json.loads((args.snapshot.parent / 'albums.json').read_text())
+r2_css = '\n'.join([fonts, (ROOT / 'design/gen/web/tokens.css').read_text(),
+                     (HERE / 'glass.css').read_text(), (HERE / 'phone.css').read_text(),
+                     (HERE / 'refinement.css').read_text(), optional('home-r2.css'), optional('album-day.css')])
+r2_script = 'window.PHONE_DATA=' + json.dumps(data, ensure_ascii=False) + ';\n'
+r2_script += 'window.PHONE_ALBUMS=' + json.dumps(albums, ensure_ascii=False) + ';\n'
+r2_script += 'window.ICONS=' + json.dumps(icons) + ';\n'
+r2_script += (HERE / 'vendor/tactile-lib.js').read_text() + '\n'
+r2_script += '\n'.join([(HERE / 'assistant.js').read_text(), (HERE / 'home-sky.js').read_text(),
+                         optional('album-day-model.js'), optional('morph-menu.js'), optional('album-day.js'),
+                         (HERE / 'home-r2.js').read_text(), (HERE / 'phone.js').read_text()])
+shell = re.sub(r'<section id="page-home"[\s\S]*?(?=\s*<section id="page-library")', lambda _: (HERE / 'home-r2.html').read_text().strip(),
+               (HERE / 'phone.html').read_text(), count=1)
+r2 = shell.replace('/* INLINE_CSS */', r2_css).replace('/* INLINE_JS */', r2_script.replace('</script', '<\\/script'))
+r2 = r2.replace('<body>', '<body data-review-focus="home-r2">').replace(
+    '<title>MusiX · Android: Dream и экраны</title>', '<title>MusiX · Android: главная, раунд 2</title>')
+(out / 'android-home-r2.html').write_text(r2)
 print(f'Built {out / "android-review.html"}: {len(page.encode()) // 1024} KiB, {len(data["tracks"])} real tracks; no external assets')

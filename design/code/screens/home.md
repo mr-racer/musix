@@ -30,7 +30,7 @@ Gone from v1's home: the taste anchors (their stack is a component now, `compone
   the viewport, stretched, under a grain and the shade. Three spots of sky in real colours
   for the hour (morning, day, evening, night by the clock) and the weather (clear, cloudy,
   rain, snow from `/home.weather` for the listener's city: chosen at the first run or in
-  the settings; nothing chosen means Istanbul, the instance's `MUSIX_WEATHER_LATLON`), the
+  the settings; no choice uses the instance's `MUSIX_WEATHER_LATLON`), the
   sun or the moon, and two quieter spots in the taste's colours (muted at night: no acid
   colours) which take the playing cover's colours while music plays. Rain and snow fall on
   a second canvas in front of the page and know the edges marked `data-sky-edge`: the

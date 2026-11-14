@@ -1,0 +1,24 @@
+{
+  "status": "Предложение, не принято",
+  "parent_commit": "d9ab8ca71365fba9cf03e708ff18f00d73d7e1db",
+  "previous_html": "android-home-review.html",
+  "previous_sha256": "eeffef34accdb3e437631b0d20bd9b8863688264e582edbfda075be142ac2890",
+  "html": "android-home-r2.html",
+  "html_sha256_file": "out/android-home-r2.html.sha256",
+  "unchanged_r1_sources_sha256": {
+    "home.js": "33c4d70a21434cf33782e96d6f064cfa321fa4acceebab93fc36219e14ee7fd5",
+    "home.css": "de4f4d1a8e87ffcf31f4929ab441924e0c7c038274638cb3bddabf72fa8d2f6d",
+    "phone.js": "3314685aa3d9d1a098192811967b94bb1276b6fd14946c3a93f279146469ffc7",
+    "phone.html": "ec4476c40f99134c1f0d4cea391bee75fe52a22dff2887510404c87ca3d7fc4d",
+    "refinement.css": "bdcc5cac7be56be451805ee9c61e708deaf26eba30a01fdd2e28328e45dc06a7",
+    "vendor/tactile-lib.js": "bae6c698326bfdf9ee361db0654b0a7b35dd17e49ab32749ddc602c48a9f6c22"
+  },
+  "new_sources": ["home-r2.html", "home-r2.js", "home-r2.css", "album-day-model.js", "album-day.js", "album-day.css", "morph-menu.js", "bake_albums.py"],
+  "adaptations": [
+    "Главная в один экран без прокрутки, статистика убрана с телефона",
+    "Альбом дня трёх типов с налитой кнопкой, засечкой 75 % и финалом JoiPro",
+    "Аккордеон «Моя волна» ↔ полоска альбома 56 dp на одной пружине",
+    "MorphMenu: кнопка перетекает в панель поиска и обратно",
+    "Только локальные сценарии, без API и аудио"
+  ]
+}

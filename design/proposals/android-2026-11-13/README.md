@@ -28,6 +28,7 @@ Steps с Richbox, подготовлен [первый отдельный рау
 - [Телефонный HTML](http://100.65.53.57:8765/android-review.html).
 - [Этапы ответа с Richbox](http://100.65.53.57:8765/android-review.html?answer=working).
 - [Главная — отдельный раунд](http://100.65.53.57:8765/android-home-review.html).
+- [Главная — второй раунд: без прокрутки, Альбом дня, аккордеон, MorphMenu](http://100.65.53.57:8765/android-home-r2.html?time=evening). Заметки — `home-review-r2/README.md`.
 - [Исходный Dream v1](http://100.65.53.57:8765/android-dream-v1.html).
 - [Исходная витрина](http://100.65.53.57:8765/accepted-showcase.html).
 - [APK основы 2.1.1](http://100.65.53.57:8765/musix-2.1.1-stage0.apk).
