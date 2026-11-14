@@ -35,7 +35,12 @@ ORGANIC = {
 
 @pytest.fixture(autouse=True)
 def _clean(monkeypatch):
+    from musix.assistant import compat
+
     monkeypatch.setenv("MUSIX_SERPER_API_KEY", "test-key")
+    # outside a turn outbound() is a no-op: no loop or sessionmaker bound
+    monkeypatch.setattr(compat, "_loop", None)
+    monkeypatch.setattr(compat, "_sm", None)
     monkeypatch.setattr(
         serper_client, "_state", {"until": 0.0, "checked": 1e18, "shared_open": False}
     )

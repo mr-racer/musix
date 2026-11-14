@@ -15,6 +15,19 @@ from tests.integration.conftest import bearer, new_listener
 pytestmark = pytest.mark.integration
 
 
+@pytest.fixture(autouse=True)
+def _unbind_the_turn(monkeypatch):  # type: ignore[no-untyped-def]
+    """service.run() binds the turn's loop, sessionmaker, llm and config into module
+    globals (in the worker they live as long as the process). Here the loop is a
+    thread's asyncio.run() and dies with it: restore them at teardown, or a later
+    outbound() call (tests/unit/test_serper.py) runs on a closed loop."""
+    from musix.assistant import compat, data
+
+    for name in ("_loop", "_sm", "_llm", "_cfg"):
+        monkeypatch.setattr(compat, name, getattr(compat, name))
+    monkeypatch.setattr(data, "_conninfo", data._conninfo)
+
+
 async def test_the_catalog_and_facts_hold_only_the_accounts_own_tracks(
     sm, tmp_path, client: TestClient, listener, owner, settings
 ) -> None:  # type: ignore[no-untyped-def]
