@@ -89,9 +89,9 @@ import ru.musixai.app.core.data.AssistantTurns
 import ru.musixai.app.core.data.PlaylistRepository
 import ru.musixai.app.core.designsystem.MusixFontFamilies
 import ru.musixai.app.core.designsystem.MusixTheme
-import ru.musixai.app.core.designsystem.component.Cover
-import ru.musixai.app.core.designsystem.component.pressable
-import ru.musixai.app.core.designsystem.component.rise
+import ru.musixai.app.core.designsystem.content.Cover
+import ru.musixai.app.core.designsystem.gesture.pressable
+import ru.musixai.app.core.designsystem.motion.rise
 import ru.musixai.app.core.player.PlayerController
 import javax.inject.Inject
 
@@ -496,6 +496,6 @@ private fun SampleStar(s: AsxSampleCard, onClick: () -> Unit) {
 private fun DraftAnswer(text: String) {
     val c = MusixTheme.colors
     Column(Modifier.padding(top = 22.dp).fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(c.aiBubble).padding(horizontal = 18.dp, vertical = 16.dp)) {
-        ru.musixai.app.core.designsystem.component.Markdown(text, MusixTheme.type.body.copy(fontSize = 14.5.sp, lineHeight = 1.65.em, color = c.text))
+        ru.musixai.app.core.designsystem.content.Markdown(text, MusixTheme.type.body.copy(fontSize = 14.5.sp, lineHeight = 1.65.em, color = c.text))
     }
 }

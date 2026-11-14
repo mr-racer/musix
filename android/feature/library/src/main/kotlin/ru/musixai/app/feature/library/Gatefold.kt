@@ -56,7 +56,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import ru.musixai.app.core.designsystem.MusixFontFamilies
 import ru.musixai.app.core.designsystem.MusixTheme
-import ru.musixai.app.core.designsystem.component.pressable
+import ru.musixai.app.core.designsystem.gesture.pressable
 import ru.musixai.app.core.designsystem.oklch
 
 /** The grid cover the user tapped, in root coordinates: the gatefold flies out of it and

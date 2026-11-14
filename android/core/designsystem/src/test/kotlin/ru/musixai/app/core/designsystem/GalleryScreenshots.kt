@@ -24,21 +24,21 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
-import ru.musixai.app.core.designsystem.component.BrandMark
-import ru.musixai.app.core.designsystem.component.Cover
-import ru.musixai.app.core.designsystem.component.CtaButton
-import ru.musixai.app.core.designsystem.component.Empty
-import ru.musixai.app.core.designsystem.component.Eyebrow
-import ru.musixai.app.core.designsystem.component.LiquidGlass
-import ru.musixai.app.core.designsystem.component.GlassScene
-import ru.musixai.app.core.designsystem.component.MosaicCover
-import ru.musixai.app.core.designsystem.component.MusixField
-import ru.musixai.app.core.designsystem.component.SegmentOption
-import ru.musixai.app.core.designsystem.component.Segmented
-import ru.musixai.app.core.designsystem.component.Skel
-import ru.musixai.app.core.designsystem.component.Spinner
-import ru.musixai.app.core.designsystem.component.TabPair
-import ru.musixai.app.core.designsystem.component.ToggleSwitch
+import ru.musixai.app.core.designsystem.BrandMark
+import ru.musixai.app.core.designsystem.content.Cover
+import ru.musixai.app.core.designsystem.legacy.CtaButton
+import ru.musixai.app.core.designsystem.content.Empty
+import ru.musixai.app.core.designsystem.legacy.Eyebrow
+import ru.musixai.app.core.designsystem.surface.LiquidGlass
+import ru.musixai.app.core.designsystem.surface.GlassScene
+import ru.musixai.app.core.designsystem.content.MosaicCover
+import ru.musixai.app.core.designsystem.legacy.MusixField
+import ru.musixai.app.core.designsystem.legacy.SegmentOption
+import ru.musixai.app.core.designsystem.legacy.Segmented
+import ru.musixai.app.core.designsystem.content.Skel
+import ru.musixai.app.core.designsystem.content.Spinner
+import ru.musixai.app.core.designsystem.legacy.TabPair
+import ru.musixai.app.core.designsystem.legacy.ToggleSwitch
 
 /** The component gallery in both themes, for review against design/golden (not an assertion). */
 @RunWith(RobolectricTestRunner::class)

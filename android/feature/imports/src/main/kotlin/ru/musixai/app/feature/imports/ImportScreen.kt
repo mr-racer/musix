@@ -41,14 +41,14 @@ import ru.musixai.app.core.data.YandexAuth
 import ru.musixai.app.core.data.YandexSource
 import ru.musixai.app.core.designsystem.MusixIcons
 import ru.musixai.app.core.designsystem.MusixTheme
-import ru.musixai.app.core.designsystem.component.CtaButton
-import ru.musixai.app.core.designsystem.component.Eyebrow
-import ru.musixai.app.core.designsystem.component.GlassScene
-import ru.musixai.app.core.designsystem.component.LiquidGlass
-import ru.musixai.app.core.designsystem.component.RoundGlassButton
-import ru.musixai.app.core.designsystem.component.Spinner
-import ru.musixai.app.core.designsystem.component.ToggleSwitch
-import ru.musixai.app.core.designsystem.component.pressable
+import ru.musixai.app.core.designsystem.legacy.CtaButton
+import ru.musixai.app.core.designsystem.legacy.Eyebrow
+import ru.musixai.app.core.designsystem.surface.GlassScene
+import ru.musixai.app.core.designsystem.surface.LiquidGlass
+import ru.musixai.app.core.designsystem.legacy.RoundGlassButton
+import ru.musixai.app.core.designsystem.content.Spinner
+import ru.musixai.app.core.designsystem.legacy.ToggleSwitch
+import ru.musixai.app.core.designsystem.gesture.pressable
 import javax.inject.Inject
 
 data class ImportUi(

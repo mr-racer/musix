@@ -53,16 +53,16 @@ import kotlinx.coroutines.launch
 import ru.musixai.app.core.data.SearchRepository
 import ru.musixai.app.core.designsystem.MusixIcons
 import ru.musixai.app.core.designsystem.MusixTheme
-import ru.musixai.app.core.designsystem.component.Cover
-import ru.musixai.app.core.designsystem.component.Empty
-import ru.musixai.app.core.designsystem.component.Eyebrow
-import ru.musixai.app.core.designsystem.component.GlassScene
-import ru.musixai.app.core.designsystem.component.LiquidGlass
-import ru.musixai.app.core.designsystem.component.SegmentOption
-import ru.musixai.app.core.designsystem.component.Segmented
-import ru.musixai.app.core.designsystem.component.Spinner
-import ru.musixai.app.core.designsystem.component.pressable
-import ru.musixai.app.core.designsystem.component.skeButton
+import ru.musixai.app.core.designsystem.content.Cover
+import ru.musixai.app.core.designsystem.content.Empty
+import ru.musixai.app.core.designsystem.legacy.Eyebrow
+import ru.musixai.app.core.designsystem.surface.GlassScene
+import ru.musixai.app.core.designsystem.surface.LiquidGlass
+import ru.musixai.app.core.designsystem.legacy.SegmentOption
+import ru.musixai.app.core.designsystem.legacy.Segmented
+import ru.musixai.app.core.designsystem.content.Spinner
+import ru.musixai.app.core.designsystem.gesture.pressable
+import ru.musixai.app.core.designsystem.legacy.skeButton
 import ru.musixai.app.core.model.SearchResult
 import ru.musixai.app.core.model.Track
 import ru.musixai.app.core.player.PlayerController
@@ -302,7 +302,7 @@ private fun ChatBubble(m: ChatMsg, vm: SearchViewModel) {
         val shell = Modifier.widthIn(max = 320.dp).clip(if (m.mine) RoundedCornerShape(16.dp, 16.dp, 5.dp, 16.dp) else RoundedCornerShape(16.dp, 16.dp, 16.dp, 5.dp))
             .background(if (m.mine) c.accent else c.aiBubble).padding(horizontal = 15.dp, vertical = 11.dp)
         val style = MusixTheme.type.body.copy(fontSize = 15.sp, lineHeight = 1.55.em, color = if (m.mine) Color.White else c.text)
-        if (m.mine) Text(m.text, shell, style = style) else ru.musixai.app.core.designsystem.component.Markdown(m.text, style, shell)
+        if (m.mine) Text(m.text, shell, style = style) else ru.musixai.app.core.designsystem.content.Markdown(m.text, style, shell)
         m.tracks.take(5).forEachIndexed { i, t ->
             Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(Color(0x08FFFFFF)).pressable { vm.play(m.tracks, i) }.padding(8.dp),
                 verticalAlignment = Alignment.CenterVertically) {

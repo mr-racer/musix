@@ -1,6 +1,6 @@
 package ru.musixai.app.feature.player
 
-import ru.musixai.app.core.designsystem.component.rise
+import ru.musixai.app.core.designsystem.motion.rise
 import kotlinx.coroutines.delay
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.key
@@ -60,12 +60,12 @@ import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
 import ru.musixai.app.core.designsystem.MusixIcons
 import ru.musixai.app.core.designsystem.MusixTheme
-import ru.musixai.app.core.designsystem.component.Empty
-import ru.musixai.app.core.designsystem.component.Eyebrow
-import ru.musixai.app.core.designsystem.component.Skel
-import ru.musixai.app.core.designsystem.component.pressable
-import ru.musixai.app.core.designsystem.component.skeButton
-import ru.musixai.app.core.designsystem.component.skeInset
+import ru.musixai.app.core.designsystem.content.Empty
+import ru.musixai.app.core.designsystem.legacy.Eyebrow
+import ru.musixai.app.core.designsystem.content.Skel
+import ru.musixai.app.core.designsystem.gesture.pressable
+import ru.musixai.app.core.designsystem.legacy.skeButton
+import ru.musixai.app.core.designsystem.legacy.skeInset
 import ru.musixai.app.core.designsystem.oklch
 import ru.musixai.app.core.model.Fact
 import ru.musixai.app.core.model.PlayerContext

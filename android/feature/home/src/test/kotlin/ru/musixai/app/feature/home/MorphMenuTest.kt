@@ -30,6 +30,8 @@ import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 import ru.musixai.app.core.designsystem.MusixTheme
 import kotlin.math.abs
+import ru.musixai.app.core.designsystem.surface.MorphMenu
+import ru.musixai.app.core.designsystem.surface.rememberMorph
 
 /**
  * The search's way back (the owner, 2026-11-14: «резко превращается из белого в прозрачный»):

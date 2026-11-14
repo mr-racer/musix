@@ -12,7 +12,7 @@ import ru.musixai.app.core.data.DevicePrefs
 import ru.musixai.app.core.data.HapticPreferences
 import ru.musixai.app.core.data.ThemePref
 import ru.musixai.app.core.designsystem.MusixTheme
-import ru.musixai.app.core.designsystem.ProvideMusixHaptics
+import ru.musixai.app.core.designsystem.gesture.ProvideMusixHaptics
 import ru.musixai.app.ui.MusixApp
 import javax.inject.Inject
 

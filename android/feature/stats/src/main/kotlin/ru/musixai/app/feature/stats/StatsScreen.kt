@@ -50,10 +50,10 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import ru.musixai.app.core.data.StatsRepository
 import ru.musixai.app.core.designsystem.MusixTheme
-import ru.musixai.app.core.designsystem.component.skeDisplay
-import ru.musixai.app.core.designsystem.component.Cover
-import ru.musixai.app.core.designsystem.component.Eyebrow
-import ru.musixai.app.core.designsystem.component.Skel
+import ru.musixai.app.core.designsystem.legacy.skeDisplay
+import ru.musixai.app.core.designsystem.content.Cover
+import ru.musixai.app.core.designsystem.legacy.Eyebrow
+import ru.musixai.app.core.designsystem.content.Skel
 import ru.musixai.app.core.designsystem.oklch
 import ru.musixai.app.core.model.Image
 import java.time.OffsetDateTime

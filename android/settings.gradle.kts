@@ -20,4 +20,4 @@ include(":core:common", ":core:model", ":core:network", ":core:database", ":core
         ":core:designsystem", ":core:testing")
 include(":feature:auth", ":feature:home", ":feature:player", ":feature:library", ":feature:search",
         ":feature:artist", ":feature:settings", ":feature:imports", ":feature:upload", ":feature:quiz",
-        ":feature:stats", ":feature:assistant")
+        ":feature:stats", ":feature:assistant", ":feature:catalog")

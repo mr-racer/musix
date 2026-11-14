@@ -49,14 +49,21 @@ import ru.musixai.app.core.data.SettingsRepository
 import ru.musixai.app.core.data.ThemePref
 import ru.musixai.app.core.designsystem.MusixIcons
 import ru.musixai.app.core.designsystem.MusixTheme
-import ru.musixai.app.core.designsystem.component.CtaButton
-import ru.musixai.app.core.designsystem.component.Eyebrow
-import ru.musixai.app.core.designsystem.component.RoundGlassButton
-import ru.musixai.app.core.designsystem.component.SegmentOption
-import ru.musixai.app.core.designsystem.component.Segmented
-import ru.musixai.app.core.designsystem.component.ToggleSwitch
-import ru.musixai.app.core.designsystem.component.pressable
+import ru.musixai.app.core.designsystem.legacy.CtaButton
+import ru.musixai.app.core.designsystem.legacy.Eyebrow
+import ru.musixai.app.core.designsystem.legacy.RoundGlassButton
+import ru.musixai.app.core.designsystem.legacy.SegmentOption
+import ru.musixai.app.core.designsystem.legacy.Segmented
+import ru.musixai.app.core.designsystem.legacy.ToggleSwitch
+import ru.musixai.app.core.designsystem.gesture.pressable
 import javax.inject.Inject
+import android.os.SystemClock
+import androidx.compose.runtime.remember
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.ui.input.pointer.pointerInput
+import ru.musixai.app.core.designsystem.gesture.HapticCue
+import ru.musixai.app.core.designsystem.gesture.LocalMusixHaptics
+import ru.musixai.app.core.designsystem.surface.LocalToasts
 
 data class SettingsUi(
     val wifi: String = "lossless", val cellular: String = "high", val normalize: Boolean = true, val theme: ThemePref = ThemePref.System,
@@ -72,6 +79,8 @@ class SettingsViewModel @Inject constructor(
     private val hapticPrefs: HapticPreferences,
 ) : ViewModel() {
     val haptics = hapticPrefs.enabled
+    val catalog = hapticPrefs.catalog
+    fun unlockCatalog() = viewModelScope.launch { hapticPrefs.unlockCatalog() }
     fun haptics(enabled: Boolean) = viewModelScope.launch { hapticPrefs.setEnabled(enabled) }
     private val extra = MutableStateFlow(SettingsUi())
     val ui: StateFlow<SettingsUi> = combine(settings.value, prefs.theme, extra, auth.server) { v, t, e, srv ->
@@ -100,9 +109,10 @@ private val TIERS = listOf(SegmentOption("lossless", "Lossless"), SegmentOption(
 /** v1 `SettingsPanel` for the phone: quality per network, normalization, the theme, this
  *  account's devices, the cache, the update, and the way out. */
 @Composable
-fun SettingsRoute(onBack: () -> Unit, onImport: () -> Unit, onUpload: () -> Unit, onUpdate: (Release) -> Unit, vm: SettingsViewModel = hiltViewModel()) {
+fun SettingsRoute(onBack: () -> Unit, onImport: () -> Unit, onUpload: () -> Unit, onUpdate: (Release) -> Unit, onCatalog: () -> Unit = {}, vm: SettingsViewModel = hiltViewModel()) {
     val ui by vm.ui.collectAsStateWithLifecycle()
     val haptics by vm.haptics.collectAsStateWithLifecycle()
+    val catalog by vm.catalog.collectAsStateWithLifecycle()
     val c = MusixTheme.colors
     Column(Modifier.fillMaxSize().background(c.bg).verticalScroll(rememberScrollState()).statusBarsPadding().padding(20.dp), verticalArrangement = Arrangement.spacedBy(18.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -140,10 +150,33 @@ fun SettingsRoute(onBack: () -> Unit, onImport: () -> Unit, onUpload: () -> Unit
             Text("Сервер: ${ui.server.removePrefix("https://")}", style = MusixTheme.type.body.copy(fontSize = 13.sp, color = c.textMuted))
             if (r != null && r.versionCode > APP_VERSION_CODE) CtaButton("Обновить до ${r.versionName}", { onUpdate(r) }, Modifier.fillMaxWidth())
             else Text("Установлена последняя версия", style = MusixTheme.type.body.copy(fontSize = 13.sp, color = c.textMuted))
+            VersionLine(catalog, vm::unlockCatalog)
+            if (catalog) Link("Витрина компонентов", onCatalog)
         }
         Text("Выйти из аккаунта", Modifier.align(Alignment.CenterHorizontally).pressable(onClick = vm::signOut).padding(12.dp),
             style = MusixTheme.type.body.copy(fontSize = 15.sp, fontWeight = FontWeight.Medium, color = c.red))
     }
+}
+
+/** «Версия 2.3.0». Seven taps within three seconds open «Витрина» — once; then it stays. */
+@Composable
+private fun VersionLine(unlocked: Boolean, onUnlock: () -> Unit) {
+    val haptics = LocalMusixHaptics.current
+    val toasts = LocalToasts.current
+    val taps = remember { longArrayOf(0L, 0L) }  // [count, first tap]
+    Text("Версия ${AuthRepository.APP_VERSION ?: "—"}", Modifier.pointerInput(unlocked) {
+        detectTapGestures {
+            if (unlocked) return@detectTapGestures
+            val now = SystemClock.uptimeMillis()
+            if (now - taps[1] > 3_000) { taps[1] = now; taps[0] = 0 }
+            if (++taps[0] >= 7) {
+                taps[0] = 0
+                onUnlock()
+                haptics.perform(HapticCue.Confirm, fromUser = true)
+                toasts?.show("Витрина открыта — строка ниже")
+            }
+        }
+    }.padding(vertical = 4.dp), style = MusixTheme.type.body.copy(fontSize = 13.sp, color = MusixTheme.colors.textMuted))
 }
 
 /** Set by the app at start (BuildConfig lives in :app). */

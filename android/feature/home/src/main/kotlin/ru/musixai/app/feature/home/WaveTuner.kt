@@ -50,8 +50,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import ru.musixai.app.core.designsystem.MusixIcons
 import ru.musixai.app.core.designsystem.MusixTheme
-import ru.musixai.app.core.designsystem.component.LiquidGlass
-import ru.musixai.app.core.designsystem.component.pressable
+import ru.musixai.app.core.designsystem.surface.LiquidGlass
+import ru.musixai.app.core.designsystem.gesture.pressable
 import ru.musixai.app.core.model.WavePreset
 import kotlin.math.roundToInt
 

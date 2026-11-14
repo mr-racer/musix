@@ -45,9 +45,9 @@ import app.musix.api.models.Collection
 import app.musix.api.models.EngagedTrack
 import app.musix.api.models.StatsOut
 import ru.musixai.app.core.designsystem.MusixTheme
-import ru.musixai.app.core.designsystem.component.Arrive
-import ru.musixai.app.core.designsystem.component.Cover
-import ru.musixai.app.core.designsystem.component.skeInset
+import ru.musixai.app.core.designsystem.motion.Arrive
+import ru.musixai.app.core.designsystem.content.Cover
+import ru.musixai.app.core.designsystem.legacy.skeInset
 import ru.musixai.app.core.designsystem.oklch
 import ru.musixai.app.core.model.Image
 

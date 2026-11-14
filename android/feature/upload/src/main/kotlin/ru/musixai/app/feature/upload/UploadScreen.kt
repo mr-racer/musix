@@ -43,8 +43,8 @@ import kotlinx.coroutines.launch
 import ru.musixai.app.core.data.AccountRepository
 import ru.musixai.app.core.designsystem.MusixIcons
 import ru.musixai.app.core.designsystem.MusixTheme
-import ru.musixai.app.core.designsystem.component.CtaButton
-import ru.musixai.app.core.designsystem.component.RoundGlassButton
+import ru.musixai.app.core.designsystem.legacy.CtaButton
+import ru.musixai.app.core.designsystem.legacy.RoundGlassButton
 import javax.inject.Inject
 
 data class UploadItem(val name: String, val size: Long, val sent: Long = 0, val state: String = "в очереди")

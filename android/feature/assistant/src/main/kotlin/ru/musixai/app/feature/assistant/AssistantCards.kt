@@ -61,9 +61,9 @@ import ru.musixai.app.core.data.AsxTrack
 import ru.musixai.app.core.data.AsxWho
 import ru.musixai.app.core.designsystem.MusixFontFamilies
 import ru.musixai.app.core.designsystem.MusixTheme
-import ru.musixai.app.core.designsystem.component.Cover
-import ru.musixai.app.core.designsystem.component.pressable
-import ru.musixai.app.core.designsystem.component.rise
+import ru.musixai.app.core.designsystem.content.Cover
+import ru.musixai.app.core.designsystem.gesture.pressable
+import ru.musixai.app.core.designsystem.motion.rise
 import ru.musixai.app.core.designsystem.oklch
 
 /** v1 `ASX_INTENT_COLOR`: colour is the page's only legend. */
@@ -163,7 +163,7 @@ internal fun PlaylistCard(p: AsxPlaylist, query: String, saved: Boolean, saving:
 @Composable
 private fun PlBtn(text: String, enabled: Boolean = true, onClick: () -> Unit) {
     Text(text, Modifier.graphicsLayer { alpha = if (enabled) 1f else 0.6f }.clip(RoundedCornerShape(999.dp)).background(Color.White.copy(alpha = 0.14f))
-        .border(1.dp, Color.White.copy(alpha = 0.24f), RoundedCornerShape(999.dp)).pressable(enabled, onClick).padding(horizontal = 17.dp, vertical = 9.dp),
+        .border(1.dp, Color.White.copy(alpha = 0.24f), RoundedCornerShape(999.dp)).pressable(enabled, onClick = onClick).padding(horizontal = 17.dp, vertical = 9.dp),
         style = MusixTheme.type.body.copy(fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold, color = Color.White))
 }
 
@@ -242,7 +242,7 @@ internal fun AnswerCard(a: AsxAnswer, query: String, onAsk: (String, ru.musixai.
             }
         }
         val known = a.evidence.map { it.n }.toSet()
-        ru.musixai.app.core.designsystem.component.Markdown(a.text,
+        ru.musixai.app.core.designsystem.content.Markdown(a.text,
             MusixTheme.type.body.copy(fontSize = 14.5.sp, lineHeight = 1.65.em, color = if (unexplained) c.textMuted else c.text),
             inline = { b, run -> citations(b, run, known, dark) { n -> open = n; showSrc = true } })
         if (a.evidence.isNotEmpty()) {

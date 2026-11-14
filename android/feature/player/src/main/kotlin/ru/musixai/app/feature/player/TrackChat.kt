@@ -68,8 +68,8 @@ import androidx.compose.ui.unit.sp
 import ru.musixai.app.core.designsystem.MusixIcons
 import ru.musixai.app.core.designsystem.MusixTheme
 import ru.musixai.app.core.designsystem.brush
-import ru.musixai.app.core.designsystem.component.Spinner
-import ru.musixai.app.core.designsystem.component.pressable
+import ru.musixai.app.core.designsystem.content.Spinner
+import ru.musixai.app.core.designsystem.gesture.pressable
 
 /** v1 `TRACK_CHAT_SUGGESTED_PROMPTS`: the chip shows the label; a tap drops the full question into the input to read or edit. */
 private val PROMPTS = listOf(
@@ -200,7 +200,7 @@ private fun Bubble(mine: Boolean, text: String) {
             .clip(if (mine) RoundedCornerShape(14.dp, 14.dp, 4.dp, 14.dp) else RoundedCornerShape(14.dp, 14.dp, 14.dp, 4.dp))
             .then(if (mine) Modifier.background(c.userBubble.brush(500f, 120f)) else Modifier.background(c.aiBubble))
             .padding(horizontal = 13.dp, vertical = 9.dp)
-        if (mine) Text(text, shell, style = style) else ru.musixai.app.core.designsystem.component.Markdown(text, style, shell)
+        if (mine) Text(text, shell, style = style) else ru.musixai.app.core.designsystem.content.Markdown(text, style, shell)
     }
 }
 

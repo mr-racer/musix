@@ -73,16 +73,16 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.delay
 import ru.musixai.app.core.designsystem.MusixIcons
 import ru.musixai.app.core.designsystem.MusixTheme
-import ru.musixai.app.core.designsystem.component.Cover
-import ru.musixai.app.core.designsystem.component.GlassScene
-import ru.musixai.app.core.designsystem.component.LocalCoverFlight
-import ru.musixai.app.core.designsystem.component.LocalStageHeight
-import ru.musixai.app.core.designsystem.component.coverSource
-import ru.musixai.app.core.designsystem.component.rememberCoverSource
-import ru.musixai.app.core.designsystem.component.stageTall
-import ru.musixai.app.core.designsystem.rememberReducedMotion
-import ru.musixai.app.core.designsystem.component.Skel
-import ru.musixai.app.core.designsystem.component.pressable
+import ru.musixai.app.core.designsystem.content.Cover
+import ru.musixai.app.core.designsystem.surface.GlassScene
+import ru.musixai.app.core.designsystem.motion.LocalCoverFlight
+import ru.musixai.app.core.designsystem.LocalStageHeight
+import ru.musixai.app.core.designsystem.motion.coverSource
+import ru.musixai.app.core.designsystem.motion.rememberCoverSource
+import ru.musixai.app.core.designsystem.stageTall
+import ru.musixai.app.core.designsystem.motion.rememberReducedMotion
+import ru.musixai.app.core.designsystem.content.Skel
+import ru.musixai.app.core.designsystem.gesture.pressable
 import ru.musixai.app.core.designsystem.hexColor
 import ru.musixai.app.core.designsystem.oklch
 import ru.musixai.app.core.model.Home
@@ -91,6 +91,9 @@ import ru.musixai.app.core.model.WavePreset
 import ru.musixai.app.core.model.Weather
 import ru.musixai.app.core.player.QueueMode
 import kotlin.math.roundToInt
+import ru.musixai.app.core.designsystem.bleed
+import ru.musixai.app.core.designsystem.surface.MorphMenu
+import ru.musixai.app.core.designsystem.surface.rememberMorph
 
 @Composable
 fun HomeRoute(onSearch: (String?) -> Unit, onSettings: () -> Unit, onLibrary: () -> Unit, onAlbum: (String) -> Unit = {}, vm: HomeViewModel = hiltViewModel()) {
@@ -374,11 +377,3 @@ private fun dusty(c: Color, lightness: Float): Color {
 }
 
 
-/** Lets a clipping scroller run past its slot: measured [h] wider on each side and placed back
- *  by as much, so the chips scroll edge to edge instead of being cut (shadows and all) at the
- *  column's 16 dp; the slot keeps its width for the layout around it. */
-private fun Modifier.bleed(h: Dp) = layout { m, c ->
-    val dx = h.roundToPx()
-    val p = m.measure(c.offset(horizontal = 2 * dx))
-    layout(p.width - 2 * dx, p.height) { p.place(-dx, 0) }
-}

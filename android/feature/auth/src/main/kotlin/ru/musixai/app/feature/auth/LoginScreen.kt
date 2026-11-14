@@ -42,17 +42,17 @@ import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import ru.musixai.app.core.designsystem.component.rise
+import ru.musixai.app.core.designsystem.motion.rise
 import ru.musixai.app.core.designsystem.MusixFontFamilies
 import ru.musixai.app.core.designsystem.MusixTheme
-import ru.musixai.app.core.designsystem.component.BrandMark
-import ru.musixai.app.core.designsystem.component.CtaButton
-import ru.musixai.app.core.designsystem.component.Eyebrow
-import ru.musixai.app.core.designsystem.component.LiquidGlass
-import ru.musixai.app.core.designsystem.component.GlassScene
-import ru.musixai.app.core.designsystem.component.MusixField
-import ru.musixai.app.core.designsystem.component.TabPair
-import ru.musixai.app.core.designsystem.component.pressable
+import ru.musixai.app.core.designsystem.BrandMark
+import ru.musixai.app.core.designsystem.legacy.CtaButton
+import ru.musixai.app.core.designsystem.legacy.Eyebrow
+import ru.musixai.app.core.designsystem.surface.LiquidGlass
+import ru.musixai.app.core.designsystem.surface.GlassScene
+import ru.musixai.app.core.designsystem.legacy.MusixField
+import ru.musixai.app.core.designsystem.legacy.TabPair
+import ru.musixai.app.core.designsystem.gesture.pressable
 
 @Composable
 fun LoginRoute(vm: AuthViewModel = hiltViewModel()) {

@@ -74,8 +74,8 @@ import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import ru.musixai.app.core.designsystem.MusixIcons
 import ru.musixai.app.core.designsystem.MusixTheme
-import ru.musixai.app.core.designsystem.component.Cover
-import ru.musixai.app.core.designsystem.component.pressable
+import ru.musixai.app.core.designsystem.content.Cover
+import ru.musixai.app.core.designsystem.gesture.pressable
 import ru.musixai.app.core.model.Image
 import ru.musixai.app.core.model.PlayerContext
 import kotlinx.coroutines.coroutineScope
@@ -272,7 +272,7 @@ private fun CoverFace(img: CoverImage?, title: String, artist: String, track: St
             val state by painter.state.collectAsState()
             LaunchedEffect(state) { (state as? coil3.compose.AsyncImagePainter.State.Success)?.let { held = it.painter } }
             val shownAlpha by animateFloatAsState(if (held != null) 1f else 0f, tween(180), label = "cover")
-            if (held == null) img.blurhash?.let { ru.musixai.app.core.designsystem.component.Blurhash(it) }
+            if (held == null) img.blurhash?.let { ru.musixai.app.core.designsystem.content.Blurhash(it) }
             held?.let { androidx.compose.foundation.Image(it, null, Modifier.fillMaxSize().graphicsLayer { alpha = shownAlpha }, contentScale = androidx.compose.ui.layout.ContentScale.Crop) }
             if (state is coil3.compose.AsyncImagePainter.State.Error && held == null && known) Cover(null, title, artist, Modifier.fillMaxSize(), size = null, radius = 20.dp, shadow = false)
         } else if (known) {
@@ -425,7 +425,7 @@ private val SECTION = Regex("""^\s*[\[(][^\])]{1,40}[\])]\s*$""")
 
 @Composable
 private fun ExplainCard(text: String, dark: Boolean, muted: Boolean) {
-    ru.musixai.app.core.designsystem.component.Markdown(text,
+    ru.musixai.app.core.designsystem.content.Markdown(text,
         MusixTheme.type.body.copy(fontSize = 13.5.sp, lineHeight = 1.5.em, color = (if (dark) Color(0xFFD8CCFF) else Color(0xFF4A3A86)).copy(alpha = if (muted) 0.7f else 1f)),
         Modifier.fillMaxWidth().padding(top = 4.dp, bottom = 10.dp)
             .clip(RoundedCornerShape(12.dp)).background(if (dark) Color(0x147C5BFF) else Color(0x0F7C5BFF))

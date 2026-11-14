@@ -23,7 +23,7 @@ import kotlinx.serialization.json.Json
 import ru.musixai.app.core.common.AppScope
 
 @Serializable
-internal data class InteractionPreferences(val haptics: Boolean = true)
+internal data class InteractionPreferences(val haptics: Boolean = true, val catalog: Boolean = false)
 
 internal object InteractionSerializer : Serializer<InteractionPreferences> {
     private val json = Json { ignoreUnknownKeys = true }
@@ -52,4 +52,11 @@ class HapticPreferences @Inject constructor(@ApplicationContext context: Context
     }.map { it.haptics }.stateIn(scope, SharingStarted.Eagerly, false)
 
     suspend fun setEnabled(enabled: Boolean) { store.updateData { it.copy(haptics = enabled) } }
+
+    /** «Витрина» in Settings: seven taps on the version open it, and it stays open on this device. */
+    val catalog = store.data.catch { error ->
+        if (error is IOException) emit(InteractionPreferences()) else throw error
+    }.map { it.catalog }.stateIn(scope, SharingStarted.Eagerly, false)
+
+    suspend fun unlockCatalog() { store.updateData { it.copy(catalog = true) } }
 }

@@ -19,7 +19,7 @@ import androidx.compose.ui.unit.sp
 import ru.musixai.app.core.designsystem.MusixIcons
 import ru.musixai.app.core.designsystem.MusixTheme
 import ru.musixai.app.core.designsystem.brush
-import ru.musixai.app.core.designsystem.component.pressable
+import ru.musixai.app.core.designsystem.gesture.pressable
 
 private data class Tab(val dest: Any, val route: String, val label: String, val icon: androidx.compose.ui.graphics.vector.ImageVector)
 

@@ -65,7 +65,7 @@ import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
 import ru.musixai.app.core.designsystem.MusixIcons
 import ru.musixai.app.core.designsystem.MusixTheme
-import ru.musixai.app.core.designsystem.component.RoundGlassButton
+import ru.musixai.app.core.designsystem.legacy.RoundGlassButton
 import ru.musixai.app.core.designsystem.hexColor
 import ru.musixai.app.core.designsystem.oklch
 import ru.musixai.app.core.model.ArtistPage

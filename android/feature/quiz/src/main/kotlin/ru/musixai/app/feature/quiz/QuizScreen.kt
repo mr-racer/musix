@@ -78,14 +78,14 @@ import ru.musixai.app.core.data.QuizRound
 import ru.musixai.app.core.designsystem.MusixFontFamilies
 import ru.musixai.app.core.designsystem.MusixIcons
 import ru.musixai.app.core.designsystem.MusixTheme
-import ru.musixai.app.core.designsystem.component.Arrive
-import ru.musixai.app.core.designsystem.component.Cover
-import ru.musixai.app.core.designsystem.component.CtaButton
-import ru.musixai.app.core.designsystem.component.Spinner
-import ru.musixai.app.core.designsystem.component.pressable
-import ru.musixai.app.core.designsystem.component.rise
-import ru.musixai.app.core.designsystem.component.skeButton
-import ru.musixai.app.core.designsystem.component.skeInset
+import ru.musixai.app.core.designsystem.motion.Arrive
+import ru.musixai.app.core.designsystem.content.Cover
+import ru.musixai.app.core.designsystem.legacy.CtaButton
+import ru.musixai.app.core.designsystem.content.Spinner
+import ru.musixai.app.core.designsystem.gesture.pressable
+import ru.musixai.app.core.designsystem.motion.rise
+import ru.musixai.app.core.designsystem.legacy.skeButton
+import ru.musixai.app.core.designsystem.legacy.skeInset
 import ru.musixai.app.core.designsystem.oklch
 import ru.musixai.app.core.player.PlayerController
 import javax.inject.Inject
@@ -210,7 +210,7 @@ private fun ModeCard(m: ModeInfo, available: Boolean, onClick: () -> Unit) {
     val shape = RoundedCornerShape(24.dp)
     Column(Modifier.fillMaxWidth().graphicsLayer { alpha = if (available) 1f else 0.38f }.clip(shape)
         .background(Brush.verticalGradient(if (MusixTheme.isDark) listOf(Color(0xFF1B1B20), Color(0xFF141418)) else listOf(Color.White, Color(0xFFF7F6FA))))
-        .border(1.dp, c.border, shape).pressable(available, onClick)) {
+        .border(1.dp, c.border, shape).pressable(available, onClick = onClick)) {
         // .quiz-mode::before: the mode's colour as a hairline on the top edge
         Box(Modifier.padding(horizontal = 18.dp).fillMaxWidth().height(2.dp)
             .background(Brush.horizontalGradient(listOf(oklch(66f, 0.16f, m.hue, 0.85f), oklch(66f, 0.16f, m.hue, 0f)))))
@@ -344,7 +344,7 @@ private fun OptionRow(
             val verdict = when { isAnswer -> c.greenBg; answered && picked -> c.redBg; else -> null }
             Row(Modifier.weight(1f).height(62.dp).skeButton(15.dp).clip(shape)
                 .then(if (verdict != null) Modifier.background(Brush.verticalGradient(listOf(verdict, Color.Transparent))) else Modifier)
-                .pressable(!answered, onPick).padding(horizontal = 14.dp),
+                .pressable(!answered, onClick = onPick).padding(horizontal = 14.dp),
                 verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 if (cover != null) Box(if (bloomCover) Modifier.rise(distance = 8.dp, scaleFrom = 0.94f, durationMs = 420) else Modifier) {
                     Cover(cover, o.title, o.artist, size = 40.dp)

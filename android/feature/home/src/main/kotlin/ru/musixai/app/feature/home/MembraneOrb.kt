@@ -58,12 +58,13 @@ import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
-import ru.musixai.app.core.designsystem.HapticCue
-import ru.musixai.app.core.designsystem.LocalMusixHaptics
+import ru.musixai.app.core.designsystem.gesture.HapticCue
+import ru.musixai.app.core.designsystem.gesture.LocalMusixHaptics
 import ru.musixai.app.core.designsystem.MusixTheme
-import ru.musixai.app.core.designsystem.component.PlayPauseGlyph
-import ru.musixai.app.core.designsystem.component.pressable
+import ru.musixai.app.core.designsystem.control.PlayPauseGlyph
+import ru.musixai.app.core.designsystem.gesture.pressable
 import ru.musixai.app.core.designsystem.oklch
+import ru.musixai.app.core.designsystem.motion.rememberParkingLoop
 
 /**
  * «Поток»'s orb, r3: the r1 insides (a conic ring, four palette blobs, an iridescent glass
@@ -95,21 +96,7 @@ internal fun MembraneOrb(
     val density = LocalDensity.current
     val c = blobs.map { animateColorAsState(it, tween(1600), label = "blob").value }
     val membrane = remember { Membrane() }
-    var frame by remember { mutableIntStateOf(0) }
-    var wake by remember { mutableIntStateOf(0) }
-    LaunchedEffect(wake) {
-        if (wake == 0) return@LaunchedEffect
-        var last = 0L
-        while (true) {
-            val moving = withFrameNanos { t ->
-                val dt = if (last == 0L) 1f / 60f else (t - last) / 1e9f
-                last = t
-                membrane.step(dt)
-            }
-            frame++
-            if (!moving) break
-        }
-    }
+    val loop = rememberParkingLoop { dt -> membrane.step(dt) }
     val scope = rememberCoroutineScope()
     val tiltX = remember { Animatable(0f) }
     val tiltY = remember { Animatable(0f) }
@@ -144,8 +131,8 @@ internal fun MembraneOrb(
             Modifier.requiredSize(size)
                 .onGloballyPositioned { val b = it.boundsInRoot(); center = b.center }
                 .graphicsLayer {
-                    frame  // read: a new outline every frame the membrane moves
-                    shape = MembraneShape(membrane, frame)
+                    loop.frame  // read: a new outline every frame the membrane moves
+                    shape = MembraneShape(membrane, loop.frame)
                     clip = true
                     rotationX = tiltX.value
                     rotationY = tiltY.value
@@ -168,7 +155,7 @@ internal fun MembraneOrb(
                             down.consume()
                             haptics.perform(HapticCue.Lift, fromUser = true)
                             membrane.press(angleOf(down.position.x - mid.x, down.position.y - mid.y))
-                            wake++
+                            loop.wake()
                             fun tilt(p: Offset) = scope.launch {
                                 val n = (p - mid) / r
                                 launch { tiltY.animateTo(4f * n.x.coerceIn(-1f, 1f), spring(stiffness = 900f)) }
@@ -189,7 +176,7 @@ internal fun MembraneOrb(
                                 val d = ch.position - mid
                                 if (!gone && d.getDistance() > r * 1.15f) {
                                     gone = true  // the finger left: cancel, the skin settles
-                                    membrane.release(); wake++; untilt()
+                                    membrane.release(); loop.wake(); untilt()
                                 }
                                 if (!gone) { membrane.move(angleOf(d.x, d.y)); tilt(ch.position) }
                                 ch.consume()
@@ -208,7 +195,7 @@ internal fun MembraneOrb(
                                 }
                                 tap()
                             }
-                            wake++
+                            loop.wake()
                         }
                     },
                 ),

@@ -25,6 +25,7 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -58,10 +59,10 @@ import ru.musixai.app.feature.auth.LoginRoute
 import ru.musixai.app.feature.home.HomeRoute
 import ru.musixai.app.feature.player.MiniPlayer
 import ru.musixai.app.feature.player.miniPlayerCoverAbove
-import ru.musixai.app.core.designsystem.component.CoverFlight
-import ru.musixai.app.core.designsystem.component.CoverFlightLayer
-import ru.musixai.app.core.designsystem.component.LocalStageHeight
-import ru.musixai.app.core.designsystem.component.LocalCoverFlight
+import ru.musixai.app.core.designsystem.motion.CoverFlight
+import ru.musixai.app.core.designsystem.motion.CoverFlightLayer
+import ru.musixai.app.core.designsystem.LocalStageHeight
+import ru.musixai.app.core.designsystem.motion.LocalCoverFlight
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
@@ -79,10 +80,21 @@ import ru.musixai.app.feature.upload.UploadRoute
 import ru.musixai.app.feature.quiz.QuizRoute
 import ru.musixai.app.feature.stats.StatsRoute
 import ru.musixai.app.feature.assistant.AssistantRoute
-import ru.musixai.app.core.designsystem.component.SegmentOption
-import ru.musixai.app.core.designsystem.component.Segmented
+import ru.musixai.app.core.designsystem.legacy.SegmentOption
+import ru.musixai.app.core.designsystem.legacy.Segmented
 import androidx.compose.foundation.layout.statusBarsPadding
 import javax.inject.Inject
+import androidx.navigation.navDeepLink
+import ru.musixai.app.core.designsystem.surface.LocalToasts
+import ru.musixai.app.core.designsystem.surface.SheetHost
+import ru.musixai.app.core.designsystem.surface.ToastHost
+import ru.musixai.app.core.designsystem.surface.rememberToasts
+import ru.musixai.app.feature.catalog.CatalogRoute
+import androidx.compose.animation.AnimatedContentScope
+import ru.musixai.app.core.designsystem.motion.PageDirection
+import ru.musixai.app.core.designsystem.motion.PageFocus
+import ru.musixai.app.core.designsystem.motion.pageFocusBlur
+import ru.musixai.app.core.designsystem.motion.rememberPageFocus
 
 // type-safe routes (Navigation 2.8+): the tabs, then the pushed screens
 @Serializable data object HomeDest
@@ -96,6 +108,7 @@ import javax.inject.Inject
 @Serializable data object SettingsDest
 @Serializable data object ImportDest
 @Serializable data object UploadDest
+@Serializable data object CatalogDest
 
 @HiltViewModel
 class AppViewModel @Inject constructor(auth: AuthRepository, val player: PlayerController, val updates: AppUpdates,
@@ -151,6 +164,13 @@ internal fun NavHostController.toTab(dest: Any) {
 private fun Shell(vm: AppViewModel) {
     LaunchedEffect(Unit) { vm.player.connect() }
     val nav = rememberNavController()
+    // a link while the app is open (singleTask: it arrives as a new intent) — musix://catalog
+    val activity = androidx.activity.compose.LocalActivity.current as? androidx.activity.ComponentActivity
+    DisposableEffect(activity, nav) {
+        val listener = androidx.core.util.Consumer<android.content.Intent> { if (it.data != null) nav.handleDeepLink(it) }
+        activity?.addOnNewIntentListener(listener)
+        onDispose { activity?.removeOnNewIntentListener(listener) }
+    }
     var playerOpen by rememberSaveable { mutableStateOf(false) }
     val entry by nav.currentBackStackEntryAsState()
     val tab = remember(entry) { nav.currentTab() }
@@ -158,7 +178,9 @@ private fun Shell(vm: AppViewModel) {
     // has played there is no bar yet, so the dock is where its cover will stand, over the tab bar
     val flight = remember { CoverFlight() }
     val density = LocalDensity.current
-    CompositionLocalProvider(LocalCoverFlight provides flight) { Box(Modifier.fillMaxSize().background(MusixTheme.colors.bg)) {
+    // sheets (one at a time, over everything) and the stack of toasts (above the mini-player)
+    val toasts = rememberToasts()
+    CompositionLocalProvider(LocalCoverFlight provides flight, LocalToasts provides toasts) { SheetHost { Box(Modifier.fillMaxSize().background(MusixTheme.colors.bg)) {
         Column(Modifier.fillMaxSize()) {
             // the stage: the screens and the open mini-player over them share it; a screen gives way
             // to the bar, its backdrop goes on under it (LocalStageHeight)
@@ -166,6 +188,7 @@ private fun Shell(vm: AppViewModel) {
             Column(Modifier.weight(1f).onSizeChanged { stage = it.height }) {
                 Box(Modifier.weight(1f)) {
                     CompositionLocalProvider(LocalStageHeight provides stage) { Routes(nav, openPlayer = { playerOpen = true }, install = vm::install) }
+                    ToastHost(toasts, Modifier.align(Alignment.BottomCenter))
                 }
                 MiniPlayer(onOpen = { playerOpen = true })
             }
@@ -199,50 +222,66 @@ private fun Shell(vm: AppViewModel) {
             }
             PlayerRoute(onClose = { playerOpen = false }, onArtist = { playerOpen = false; nav.navigate(ArtistDest(it)) })
         }
-    } }
+    } } }
 }
+
+/** A page of the shell: out of focus while it changes (the web's focus change, API 31+). */
+@Composable
+private fun AnimatedContentScope.Page(content: @Composable () -> Unit) =
+    Box(Modifier.fillMaxSize().pageFocusBlur(this)) { content() }
 
 @Composable
 private fun Routes(nav: NavHostController, openPlayer: () -> Unit, install: (ru.musixai.app.core.data.Release) -> Unit) {
     val back: () -> Unit = { nav.popBackStack() }
-    // A pushed screen slides in from the right over the one below, which drifts a third of
-    // the way left (a light parallax); back — and the predictive back gesture, which scrubs
-    // these same transitions — is the mirror: the screen follows the finger to the right.
-    // Between tabs: v1's tabFadeIn, a quick cross-fade.
-    val tabs: (androidx.navigation.NavBackStackEntry) -> Boolean = { e -> TAB_ROUTES.any { e.destination.hasRoute(it) } }
-    val slide = tween<IntOffset>(360, easing = CubicBezierEasing(0.22f, 0.9f, 0.3f, 1f))
-    val scrub = tween<IntOffset>(360, easing = LinearEasing)  // a gesture drives it: the screen stays under the finger
+    // Page changes are the web's «focus» change (the owner, 2026-11-14 — it replaces the slide
+    // to the right): nothing travels across the screen. What leaves goes out of focus, what
+    // arrives comes into focus (fade, blur 8 dp on API 31+, a short way off, critically damped).
+    // Between sections — the tabs — a column, down to a later tab and up to an earlier one;
+    // a screen opened over a section comes forward (from 1.03); back steps back (from .975),
+    // and the predictive back gesture scrubs that same change.
+    val tab: (androidx.navigation.NavBackStackEntry) -> Int = { e -> TAB_ROUTES.indexOfFirst { e.destination.hasRoute(it) } }
+    val down = rememberPageFocus(PageDirection.Column, sign = 1)
+    val up = rememberPageFocus(PageDirection.Column, sign = -1)
+    val forward = rememberPageFocus(PageDirection.Forward)
+    val backward = rememberPageFocus(PageDirection.Back)
+    // a section change: tab to tab, or a tab press away from a screen that is not kept below
+    fun section(from: androidx.navigation.NavBackStackEntry, to: androidx.navigation.NavBackStackEntry, pop: Boolean): PageFocus? {
+        val a = tab(from); val b = tab(to)
+        if (a >= 0 && b >= 0) return if (b >= a) down else up
+        if (!pop && b >= 0 && nav.currentBackStack.value.none { it.id == from.id }) return down
+        return null
+    }
     NavHost(
         nav, startDestination = HomeDest,
-        enterTransition = { if (tabs(initialState) && tabs(targetState)) fadeIn(tween(220)) else slideInHorizontally(slide) { it } },
-        exitTransition = { if (tabs(initialState) && tabs(targetState)) fadeOut(tween(160)) else slideOutHorizontally(slide) { -it / 3 } + fadeOut(tween(360), 0.6f) },
-        popEnterTransition = { if (tabs(initialState) && tabs(targetState)) fadeIn(tween(220)) else slideInHorizontally(slide) { -it / 3 } + fadeIn(tween(360), 0.6f) },
-        popExitTransition = { if (tabs(initialState) && tabs(targetState)) fadeOut(tween(160)) else slideOutHorizontally(slide) { it } },
-        // the back gesture scrubs these; Navigation's default shrinks the screen "into the
-        // distance", the owner wants it to leave to the right over a light parallax (from either edge)
-        predictivePopEnterTransition = { _ -> if (tabs(initialState) && tabs(targetState)) fadeIn(tween(220)) else slideInHorizontally(scrub) { -it / 3 } + fadeIn(tween(360, easing = LinearEasing), 0.6f) },
-        predictivePopExitTransition = { _ -> if (tabs(initialState) && tabs(targetState)) fadeOut(tween(160)) else slideOutHorizontally(scrub) { it } },
+        enterTransition = { (section(initialState, targetState, false) ?: forward).enter },
+        exitTransition = { (section(initialState, targetState, false) ?: forward).exit },
+        popEnterTransition = { (section(initialState, targetState, true) ?: backward).enter },
+        popExitTransition = { (section(initialState, targetState, true) ?: backward).exit },
+        // Navigation's default shrinks the screen "into the distance": the gesture scrubs the focus change instead
+        predictivePopEnterTransition = { _ -> (section(initialState, targetState, true) ?: backward).enter },
+        predictivePopExitTransition = { _ -> (section(initialState, targetState, true) ?: backward).exit },
     ) {
-        composable<HomeDest> {
+        composable<HomeDest> { Page {
             HomeRoute(onSearch = { q -> nav.navigate(SearchDest(q)) }, onSettings = { nav.navigate(SettingsDest) }, onLibrary = { nav.toTab(LibraryDest) }, onAlbum = { nav.navigate(AlbumDest(it)) })
-        }
-        composable<AssistantDest> { AssistantTab(onArtist = { nav.navigate(ArtistDest(it)) }, onAlbum = { nav.navigate(AlbumDest(it)) }) }
-        composable<LibraryDest> {
+        } }
+        composable<AssistantDest> { Page { AssistantTab(onArtist = { nav.navigate(ArtistDest(it)) }, onAlbum = { nav.navigate(AlbumDest(it)) }) } }
+        composable<LibraryDest> { Page {
             LibraryRoute(onAlbum = { nav.navigate(AlbumDest(it)) }, onPlaylist = { nav.navigate(PlaylistDest(it)) }, stats = { StatsRoute() })
-        }
-        composable<QuizDest> { QuizRoute() }
-        composable<SearchDest> { SearchRoute(onArtist = { nav.navigate(ArtistDest(it)) }, onAlbum = { nav.navigate(AlbumDest(it)) }) }
-        composable<ArtistDest> { ArtistRoute(onBack = back, onAlbum = { nav.navigate(AlbumDest(it)) }) }
+        } }
+        composable<QuizDest> { Page { QuizRoute() } }
+        composable<SearchDest> { Page { SearchRoute(onArtist = { nav.navigate(ArtistDest(it)) }, onAlbum = { nav.navigate(AlbumDest(it)) }) } }
+        composable<ArtistDest> { Page { ArtistRoute(onBack = back, onAlbum = { nav.navigate(AlbumDest(it)) }) } }
         // the gatefold draws its own flight and flip over the screen it came from
         dialog<AlbumDest>(dialogProperties = androidx.compose.ui.window.DialogProperties(
             usePlatformDefaultWidth = false, decorFitsSystemWindows = false, dismissOnBackPress = false, dismissOnClickOutside = false,
         )) { AlbumRoute(onBack = back, onArtist = { id -> nav.popBackStack(); nav.navigate(ArtistDest(id)) }) }
-        composable<PlaylistDest> { PlaylistRoute(onBack = back) }
-        composable<SettingsDest> {
-            SettingsRoute(onBack = back, onImport = { nav.navigate(ImportDest) }, onUpload = { nav.navigate(UploadDest) }, onUpdate = { install(it) })
-        }
-        composable<ImportDest> { ImportRoute(onBack = back) }
-        composable<UploadDest> { UploadRoute(onBack = back) }
+        composable<PlaylistDest> { Page { PlaylistRoute(onBack = back) } }
+        composable<SettingsDest> { Page {
+            SettingsRoute(onBack = back, onImport = { nav.navigate(ImportDest) }, onUpload = { nav.navigate(UploadDest) }, onUpdate = { install(it) }, onCatalog = { nav.navigate(CatalogDest) })
+        } }
+        composable<ImportDest> { Page { ImportRoute(onBack = back) } }
+        composable<UploadDest> { Page { UploadRoute(onBack = back) } }
+        composable<CatalogDest>(deepLinks = listOf(navDeepLink<CatalogDest>(basePath = "musix://catalog"))) { Page { CatalogRoute(onBack = back) } }
     }
 }
 

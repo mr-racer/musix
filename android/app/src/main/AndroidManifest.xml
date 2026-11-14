@@ -26,6 +26,13 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+            <!-- «Витрина» of the component library: musix://catalog (adb, a link in a note) -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="musix" android:host="catalog" />
+            </intent-filter>
         </activity>
         <receiver android:name=".ui.InstallResult" android:exported="false" />
         <!-- WorkManager is configured by MusixApplication (Hilt workers), not by androidx.startup -->

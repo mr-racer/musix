@@ -25,14 +25,14 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 import ru.musixai.app.core.designsystem.MusixTheme
-import ru.musixai.app.core.designsystem.component.CoverFlight
-import ru.musixai.app.core.designsystem.component.CoverFlightLayer
-import ru.musixai.app.core.designsystem.component.CoverFlightTag
-import ru.musixai.app.core.designsystem.component.CoverSource
-import ru.musixai.app.core.designsystem.component.FLY_MS
-import ru.musixai.app.core.designsystem.component.LocalCoverFlight
-import ru.musixai.app.core.designsystem.component.coverSource
-import ru.musixai.app.core.designsystem.component.rememberCoverSource
+import ru.musixai.app.core.designsystem.motion.CoverFlight
+import ru.musixai.app.core.designsystem.motion.CoverFlightLayer
+import ru.musixai.app.core.designsystem.motion.CoverFlightTag
+import ru.musixai.app.core.designsystem.motion.CoverSource
+import ru.musixai.app.core.designsystem.motion.FLY_MS
+import ru.musixai.app.core.designsystem.motion.LocalCoverFlight
+import ru.musixai.app.core.designsystem.motion.coverSource
+import ru.musixai.app.core.designsystem.motion.rememberCoverSource
 import ru.musixai.app.core.player.PlayerState
 import kotlin.math.abs
 

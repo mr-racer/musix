@@ -22,7 +22,7 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 import ru.musixai.app.core.designsystem.MusixTheme
-import ru.musixai.app.core.designsystem.component.LocalStageHeight
+import ru.musixai.app.core.designsystem.LocalStageHeight
 import kotlin.math.abs
 
 /**

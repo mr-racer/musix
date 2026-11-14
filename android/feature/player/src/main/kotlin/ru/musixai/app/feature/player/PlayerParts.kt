@@ -7,7 +7,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.em
-import ru.musixai.app.core.designsystem.component.Eyebrow
+import ru.musixai.app.core.designsystem.legacy.Eyebrow
 import ru.musixai.app.core.player.Handoff
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.Animatable
@@ -52,12 +52,12 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import ru.musixai.app.core.designsystem.MusixIcons
-import ru.musixai.app.core.designsystem.HapticCue
-import ru.musixai.app.core.designsystem.LocalMusixHaptics
+import ru.musixai.app.core.designsystem.gesture.HapticCue
+import ru.musixai.app.core.designsystem.gesture.LocalMusixHaptics
 import ru.musixai.app.core.designsystem.MusixMotion
 import ru.musixai.app.core.designsystem.MusixTheme
-import ru.musixai.app.core.designsystem.component.Cover
-import ru.musixai.app.core.designsystem.component.pressable
+import ru.musixai.app.core.designsystem.content.Cover
+import ru.musixai.app.core.designsystem.gesture.pressable
 import ru.musixai.app.core.model.Image
 import ru.musixai.app.core.player.QueueMode
 import kotlin.math.abs
@@ -158,7 +158,7 @@ fun DevicesCard(ui: PlayerUi, vm: PlayerViewModel, modifier: Modifier = Modifier
 private fun DeviceRow(name: String, sub: String, here: Boolean, enabled: Boolean, onClick: () -> Unit) {
     val c = MusixTheme.colors
     val tint = if (here) c.accentLight else c.text
-    Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).pressable(enabled && !here, onClick).padding(vertical = 10.dp, horizontal = 6.dp)
+    Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).pressable(enabled && !here, onClick = onClick).padding(vertical = 10.dp, horizontal = 6.dp)
         .graphicsLayer { alpha = if (enabled || here) 1f else 0.5f }, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         Icon(MusixIcons.Devices, null, Modifier.size(18.dp), tint = tint)
         Column {

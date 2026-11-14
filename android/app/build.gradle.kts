@@ -19,8 +19,8 @@ android {
         applicationId = "ru.musixai.app"
         targetSdk = 36  // 37 once its behaviour changes are reviewed
         // Bump BOTH for every APK handed out; 1.0.0 was versionCode 1
-        versionCode = 11
-        versionName = "2.2.1"
+        versionCode = 12
+        versionName = "2.3.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
     signingConfigs {
@@ -67,6 +67,7 @@ dependencies {
     implementation(project(":feature:quiz"))
     implementation(project(":feature:stats"))
     implementation(project(":feature:assistant"))
+    implementation(project(":feature:catalog"))
     implementation(project(":core:player"))
     implementation(libs.activity.compose)
     implementation(libs.core.ktx)

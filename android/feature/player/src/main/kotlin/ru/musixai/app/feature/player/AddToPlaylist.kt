@@ -34,9 +34,9 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.delay
 import ru.musixai.app.core.designsystem.MusixTheme
-import ru.musixai.app.core.designsystem.component.CtaButton
-import ru.musixai.app.core.designsystem.component.MusixField
-import ru.musixai.app.core.designsystem.component.pressable
+import ru.musixai.app.core.designsystem.legacy.CtaButton
+import ru.musixai.app.core.designsystem.legacy.MusixField
+import ru.musixai.app.core.designsystem.gesture.pressable
 import ru.musixai.app.core.model.Playlist
 
 /**

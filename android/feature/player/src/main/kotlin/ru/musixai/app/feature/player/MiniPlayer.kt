@@ -52,15 +52,15 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import kotlinx.coroutines.delay
-import ru.musixai.app.core.designsystem.HapticCue
-import ru.musixai.app.core.designsystem.LocalMusixHaptics
+import ru.musixai.app.core.designsystem.gesture.HapticCue
+import ru.musixai.app.core.designsystem.gesture.LocalMusixHaptics
 import ru.musixai.app.core.designsystem.MusixIcons
 import ru.musixai.app.core.designsystem.MusixTheme
-import ru.musixai.app.core.designsystem.component.LocalCoverFlight
-import ru.musixai.app.core.designsystem.component.PlayPauseGlyph
-import ru.musixai.app.core.designsystem.component.coverFlightTarget
-import ru.musixai.app.core.designsystem.component.pressable
-import ru.musixai.app.core.designsystem.rememberReducedMotion
+import ru.musixai.app.core.designsystem.motion.LocalCoverFlight
+import ru.musixai.app.core.designsystem.control.PlayPauseGlyph
+import ru.musixai.app.core.designsystem.motion.coverFlightTarget
+import ru.musixai.app.core.designsystem.gesture.pressable
+import ru.musixai.app.core.designsystem.motion.rememberReducedMotion
 import ru.musixai.app.core.player.PlayerState
 
 /**
