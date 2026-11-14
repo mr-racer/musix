@@ -109,6 +109,8 @@ def css(t: dict[str, Any]) -> str:
         scope = ', [data-mx-theme="dark"]' if theme == "dark" else ""  # a dark surface in a light app
         out.append(f':root[data-theme="{theme}"]{scope} {{')
         out += [f"  --mx-{kebab(k)}: {themed(v, theme)};" for k, v in t["color"].items()]
+        r, g, b, _ = rgba(themed(t["color"]["text"], theme))
+        out.append(f"  --mx-ink-rgb: {r}, {g}, {b};")
         out.append("}")
     return "\n".join(out) + "\n"
 

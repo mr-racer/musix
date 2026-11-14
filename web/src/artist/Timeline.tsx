@@ -1,3 +1,4 @@
+import { MediaImage } from "../ui/MediaImage";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { image, imageUrl } from "../lib/images";
 import { playAlbum } from "../library/actions";
@@ -96,7 +97,7 @@ function Sleeve({ al, i, S, dpr, style, onHot }: { al: Album; i: number; S: numb
       onClick={(e) => openAlbum(e, al.id, al.cover, deck.current?.querySelector("img") ?? deck.current)}>
       <span ref={deck} className={css.sl} data-album-cover={al.id}>
         <span className={css.disc} style={{ ["--lab" as string]: lab }} />
-        {src ? <img src={src} alt="" loading="lazy" decoding="async" /> : <span className={css.nocover} />}
+        {src ? <MediaImage seed={al.id} tint={pal?.muted} src={src} alt="" loading="lazy" decoding="async" /> : <span className={css.nocover} />}
         {/* a control inside the album's link: a span with the button role (a <button> may not sit in an <a>) */}
         <span role="button" tabIndex={0} className={cx("pl", glass.lg)} aria-label={`Слушать «${al.clean}»`}
           onClick={(e) => { e.preventDefault(); e.stopPropagation(); void playAlbum(al.id, deck.current); }}

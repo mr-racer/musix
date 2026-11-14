@@ -1,3 +1,4 @@
+import { MediaImage } from "../ui/MediaImage";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { api, ApiError, ok } from "../api/client";
@@ -25,6 +26,7 @@ const reduce = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
 export function YandexWindow({ onClose }: { onClose: () => void }) {
   const qc = useQueryClient();
   const win = useRef<HTMLDivElement>(null);
+  const leaving = useRef<Animation | null>(null);
   const link = useQuery(linkQuery).data;
   const linked = !!link?.linked;
   const sourcesQ = useQuery({ ...sourcesQuery, enabled: linked });
@@ -64,10 +66,13 @@ export function YandexWindow({ onClose }: { onClose: () => void }) {
     window.addEventListener("keydown", esc);
     return () => window.removeEventListener("keydown", esc);
   }); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => () => { leaving.current?.cancel(); }, []);
   function close() {
+    if (leaving.current) return;
     const w = win.current;
     if (!w || reduce()) return onClose();
-    w.animate([{ opacity: 1, transform: "none" }, { opacity: 0, transform: "translate(140px, -36px) scale(.7)", filter: "blur(10px)" }], { duration: 260, easing: "cubic-bezier(.4,0,1,1)", fill: "forwards" }).onfinish = onClose;
+    leaving.current = w.animate([{ opacity: 1, transform: "none" }, { opacity: 0, transform: "translate(140px, -36px) scale(.7)", filter: "blur(10px)" }], { duration: 260, easing: "cubic-bezier(.4,0,1,1)", fill: "forwards" });
+    leaving.current.onfinish = onClose;
   }
 
   const mirrors = sources.filter((s) => s.playlistId || moving.has(keyOf(s.source)));
@@ -217,11 +222,11 @@ function Art({ s, mirrored }: { s: Source; mirrored?: boolean }) {
   }, [s.playlistId], [] as string[]) ?? [];
   const badge = mirrored ? <span className={css.yb2}><YandexMark /></span> : null;
   if (s.source === "likes") return <span className={css.likes}><span>♥</span>{badge}</span>;
-  if (covers.length >= 4) return <span className={css.mos}>{covers.map((c) => <img key={c} src={imageUrl(c, 64) ?? undefined} alt="" />)}{badge}</span>;
+  if (covers.length >= 4) return <span className={css.mos}>{covers.map((c) => <MediaImage key={c} src={imageUrl(c, 64) ?? undefined} alt="" />)}{badge}</span>;
   // no cover: a soft field in the title's own colour, like a song in the inbox before its tags
   const hue = [...s.title].reduce((h, c) => (h * 31 + c.charCodeAt(0)) % 360, 7);
   return <span className={css.mos1} style={s.cover ? undefined : { background: `radial-gradient(120% 90% at 20% 15%, hsl(${hue} 70% 62%), hsl(${hue + 30} 55% 26%) 70%)` }}>
-    {s.cover ? <img src={s.cover} alt="" loading="lazy" referrerPolicy="no-referrer" /> : null}{badge}</span>;
+    {s.cover ? <MediaImage src={s.cover} alt="" loading="lazy" referrerPolicy="no-referrer" /> : null}{badge}</span>;
 }
 
 function MirrorRow({ s, fresh, run, onOne }: { s: Source; fresh: number | undefined; run: { done: number; total: number } | null; onOne: () => void }) {

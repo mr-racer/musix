@@ -9,16 +9,16 @@ One grid: nav island · cover · text column. The cover is 31 % of the stage's w
 46 % of the screen's height and 520 px; the text column is at most 760 px. The two form one
 group. While the stage is narrow the group fills it edge to edge, as in the probe; on a
 wide screen the room left over is split on both sides and the group stands in the middle of
-the screen (the owner's 2560×1440, 2026-10-05). The cover's top edge is the group's top.
+the screen (the owner's 2560×1440, 2026-10-05).
 
-The cover alone decides the group's height: it stands at the same place for every song.
-The text column runs down past the cover's bottom edge when a song has more to say, and
-moves the group up only when it needs more than the room under the cover. The seek line and
-the controls are at the bottom.
+С 2026-10-31 обложка и текст центрируются по вертикали в общей области над спектром.
+Её высота определяется экраном; длинный текст не сдвигает обложку и не отбирает место у
+спектра. Если информация не помещается, прокручивается правая колонка. При смене песни
+она возвращается к заголовку. Таймлайн и управление остаются внизу.
 
 Text column, top to bottom:
 
-1. Title (capitals start at the cover's top edge).
+1. Title.
 2. Artist, then album and year: links.
 3. The vibe line (Noto Sans italic). In «Поток»: the reason line under it.
 4. Credits: «Звучат» (instrument glyphs, see «Sound»), producers (links), genre, «Семплирует»,
@@ -27,7 +27,12 @@ Text column, top to bottom:
 
 The title shares its row with the sound ring, whose right edge is the facts plate's (640 px).
 
-Bottom: the spectrum over the seek line. Controls on the left: previous, next, огонёк,
+Факты показываются целиком, без ограничения тремя строками и скрытого раскрытия по клику.
+Скрытые измерители сохраняют высоту области фактов при листании; длинный текст доступен
+прокруткой колонки. Подсказки инструментов учитывают её края.
+
+Bottom: the spectrum over the seek line, with its own reserved space (56–104 px on desktop).
+Controls on the left: previous, next, огонёк,
 вода, shuffle. On the right: lyrics, add to playlist, devices, volume (its icon; the slider
 on hover), the Lossless badge. At the far right: «Далее» with the next track; it opens the
 queue window.
@@ -104,3 +109,35 @@ is disabled), playing on another device.
 
 `/tracks/{id}/context` (track, audio, lyrics), `/tracks/{id}/knowledge` (facts, vibe,
 producers, samples, sampled by), the envelope (spectrum), image variants with the backdrop.
+
+## Ошибки и повтор — 2026-10-31
+
+- Ошибка потока видна рядом с его запуском на главной и в пустом плеере; ожидание
+  заканчивается и после отказа сервера. Кнопка «Повторить» запускает новую попытку.
+- Ошибка выбранного трека остаётся в полном и мини-плеере. Повтор заново получает
+  адрес выбранного трека: старое аудио не должно играть под новым названием.
+- Пока новый адрес загружается, повторный Play не возобновляет прежний источник.
+- После остановки или нового выбора запоздавшее продолжение потока не возвращает
+  старую очередь. Ручные добавления сохраняются. При сбое продолжения «Повторить»
+  повторяет именно этот запрос, а не предыдущий трек.
+- Высота мини-плеера измеряется по содержимому; сообщения не обрезаются, соседние
+  экраны и альбом учитывают его размер. На телефоне содержимое страницы плавно
+  затухает под контролами, включая дополнительную строку ошибки.
+- Недоступная обложка заменяется локальным изображением в цветах альбома. Её место,
+  перелёты и переключения сохраняются; новый URL снова пробуется загрузить.
+
+## Производительность — 2026-10-31
+
+- Очередь монтируется при первом открытии и рисует видимые строки с запасом. Полный
+  список доступен прокруткой, Tab, стрелками и Home/End; выбор, удаление и перетаскивание
+  сохранены. Фокусируемая и перетаскиваемая строки не удаляются при смене видимой области.
+  После закрытия список остаётся для исходящей анимации и сохранения позиции.
+- Desktop-панель перекрывает общие верхние кнопки: они скрыты, пока панель открыта,
+  чтобы её закрытие не перехватывалось оболочкой. В нижней панели узкого экрана кнопка
+  темы остаётся доступной; используется фактическая ширина stage.
+- Невидимый spinner не вращается. Позиция мини-плеера обновляет только seek, часы —
+  целую секунду. На телефоне спектр мини-плеера не монтируется и не запрашивает данные.
+- Reduced motion остаётся статичным после возвращения во вкладку со звуковой сценой.
+- Неудачная фоновая предзагрузка повторяется через 1/2/4/8/16/30 секунд; явный выбор
+  трека и повтор не ждут этого ограничения. Кеш манифестов ограничен 64 записями,
+  история исключений автоподбора — прежними последними 200 треками.

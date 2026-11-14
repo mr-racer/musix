@@ -1,9 +1,11 @@
 import { Link } from "@tanstack/react-router";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { imageUrl } from "../lib/images";
+import { transparentImage } from "../lib/imageFallback";
 import { flagUrl } from "../library/flags";
 import glass from "../ui/glass.module.css";
 import { Icon } from "../ui/icons";
+import { MediaImage } from "../ui/MediaImage";
 import css from "./artist.module.css";
 import { extendEdge } from "./layout";
 import { LAUREL_STEM, laurelLeaves, laurelPath, pl, type Model } from "./model";
@@ -28,6 +30,8 @@ export function Hero({ m, onPlay, onShuffle, onStream, onBio, streaming, heroRef
   const hbg = useRef<HTMLDivElement>(null);
   const [src, setSrc] = useState<string | null>(null);
   const [on, setOn] = useState(false);
+  const [failedSrc, setFailedSrc] = useState<string | null>(null);
+  const failed = !!src && failedSrc === src;
   const shot = m.shot;
   const sq = shot?.kind === "sq";
 
@@ -42,6 +46,7 @@ export function Hero({ m, onPlay, onShuffle, onStream, onBio, streaming, heroRef
 
   // decoded before it fades in, so the first frames of the arrival never stall on a decode
   useEffect(() => {
+    setFailedSrc(null);
     if (!src) return;
     let gone = false;
     const im = new Image();
@@ -52,10 +57,10 @@ export function Hero({ m, onPlay, onShuffle, onStream, onBio, streaming, heroRef
       const pl0 = extendEdge(ext.current, photo.current, im);
       hbg.current?.style.setProperty("--pl", pl0 == null ? "0px" : `${pl0}px`);
     };
-    im.decode().catch(() => undefined).then(() => {
+    im.decode().then(() => {
       if (gone) return;
-      requestAnimationFrame(() => { draw(); setOn(true); });
-    });
+      requestAnimationFrame(() => { if (!gone) { draw(); setOn(true); } });
+    }, () => { if (!gone) setFailedSrc(src); });
     // the continuation follows the photo's box: redrawn once a resize settles
     let t = 0;
     const ro = new ResizeObserver(() => { clearTimeout(t); t = window.setTimeout(draw, 120); });
@@ -68,18 +73,18 @@ export function Hero({ m, onPlay, onShuffle, onStream, onBio, streaming, heroRef
   const flag = flagUrl(m.cc);
   const logo = m.logo ? imageUrl(m.logo, 1024) : null;
   return (
-    <section ref={(el) => { hero.current = el; heroRef?.(el); }} className={cx("hero", m.light && "light", sq && "sq", !shot && "bare")}>
+    <section ref={(el) => { hero.current = el; heroRef?.(el); }} data-mx-theme={shot && !failed ? "dark" : undefined} className={cx("hero", m.light && "light", sq && !failed && "sq", (!shot || failed) && "bare")}>
       <div ref={hbg} className={css.hbg}>
-        {sq && <><canvas ref={ext} className={cx("ext", on && "on")} width={1} height={1} /><i className={css.extdim} /></>}
-        {shot && <div ref={photo} className={cx("photo", shot.kind, m.light && "light", on && "on")} style={{ ["--img" as string]: img }} />}
-        {shot?.kind === "wide" && <div className={cx("pblur", on && "on")} aria-hidden>{BLUR.map(([b, r]) => <i key={b} style={{ ["--b" as string]: `${b}px`, ["--r" as string]: r, ["--img" as string]: img }} />)}</div>}
+        {sq && !failed && <><canvas ref={ext} className={cx("ext", on && "on")} width={1} height={1} /><i className={css.extdim} /></>}
+        {shot && !failed && <div ref={photo} className={cx("photo", shot.kind, m.light && "light", on && "on")} style={{ ["--img" as string]: img }} />}
+        {shot?.kind === "wide" && !failed && <div className={cx("pblur", on && "on")} aria-hidden>{BLUR.map(([b, r]) => <i key={b} style={{ ["--b" as string]: `${b}px`, ["--r" as string]: r, ["--img" as string]: img }} />)}</div>}
         <i className={css.scrim} /><i className={css.grain} />
       </div>
       <Link to="/library" search={{ tab: "artists" }} className={cx("back", glass.lg)}><Icon name="ChevronLeft" size={18} />Артисты</Link>
       <div className={css.htext}>
-        <Name m={m} logo={logo} hero={hero} />
+        <Name m={m} logo={failed ? null : logo} hero={hero} />
         <div className={css.meta}>
-          {m.country && <span>{flag && <img className={css.flag} src={flag} alt="" />}{m.country}{m.city && <small> {m.city}</small>}</span>}
+          {m.country && <span>{flag && <MediaImage className={css.flag} src={flag} fallback={transparentImage} alt="" />}{m.country}{m.city && <small> {m.city}</small>}</span>}
           {m.genre && <span>{m.genre}</span>}
           {span && <span>{span}</span>}
           {m.grammy && <Grammy g={m.grammy} hero={hero} light={m.light} />}
@@ -101,6 +106,8 @@ export function Hero({ m, onPlay, onShuffle, onStream, onBio, streaming, heroRef
 
 /** The name in big type (or Apple Music's transparent logo), the «?» that tells where it came from. */
 function Name({ m, logo, hero }: { m: Model; logo: string | null; hero: React.RefObject<HTMLElement | null> }) {
+  const [failedLogo, setFailedLogo] = useState<string | null>(null);
+  useEffect(() => setFailedLogo(null), [logo]);
   const q = useRef<HTMLButtonElement>(null);
   const pop = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
@@ -131,8 +138,8 @@ function Name({ m, logo, hero }: { m: Model; logo: string | null; hero: React.Re
   const qBtn = m.nameOrigin ? <button ref={q} type="button" className={css.q} onClick={toggle} aria-label="Откуда название" aria-expanded={open}>?</button> : null;
   return (
     <>
-      {logo
-        ? <><h1 className={css.sr}>{m.name}</h1><div className={css.namerow}><img className={css.logo} src={logo} alt="" />{qBtn}</div></>
+      {logo && logo !== failedLogo
+        ? <><h1 className={css.sr}>{m.name}</h1><div className={css.namerow}><img key={logo} className={css.logo} src={logo} alt="" onError={() => setFailedLogo(logo)} />{qBtn}</div></>
         : <h1 className={css.name}>{m.name.split(/\s+/).map((w, i) => <span key={i}><span className={css.w} style={{ ["--i" as string]: i }}>{w}</span>{" "}</span>)}{qBtn}</h1>}
       {m.nameOrigin && <div ref={pop} className={cx("origin", glass.lg, open && "on")} role="dialog" aria-label="Откуда название"><b>Откуда название</b>{m.nameOrigin}</div>}
     </>

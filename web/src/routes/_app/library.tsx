@@ -67,11 +67,21 @@ function Library() {
   const { tab = "albums", sort, view = "grid", add } = Route.useSearch();
   const nav = useNavigate({ from: "/library" });
   // the Yandex window and files dragged over the page take the library out of focus
-  const [yandex, setYandex] = useState(add === "yandex");
+  // The URL owns the overlay until it closes, including while its lazy chunk is loading.
+  const yandex = add === "yandex";
+  const yandexFromMenu = useRef(false);
+  const openYandex = () => {
+    yandexFromMenu.current = true;
+    void nav({ search: (s) => ({ ...s, add: "yandex" }), resetScroll: false });
+  };
+  const closeYandex = () => {
+    if (yandexFromMenu.current) window.history.back();
+    else void nav({ search: (s) => ({ ...s, add: undefined }), replace: true, resetScroll: false });
+  };
   const [over, dropPanel] = useDrop(!yandex);
   useEffect(() => {
-    if (add) void nav({ search: (s) => ({ ...s, add: undefined }), replace: true, resetScroll: false });
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+    if (add === "files") void nav({ search: (s) => ({ ...s, add: undefined }), replace: true, resetScroll: false });
+  }, [add, nav]);
   useEffect(() => {
     const root = document.documentElement;
     if (yandex || over) root.dataset.libFocus = "";
@@ -105,10 +115,28 @@ function Library() {
   const cover = usePlayer((s) => s.queue[s.index]?.coverImageId);
   const acc = image(cover)?.palette?.accent.light ?? "#cfd0ff";
 
-  const tabsEl = useRef<HTMLDivElement>(null), viewsEl = useRef<HTMLDivElement>(null);
+  const barEl = useRef<HTMLDivElement>(null), tabsEl = useRef<HTMLDivElement>(null), viewsEl = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const bar = barEl.current;
+    if (!bar) return;
+    const measure = () => {
+      bar.parentElement?.style.setProperty("--bar-h", `${bar.offsetHeight}px`);
+      const active = tabsEl.current?.querySelector<HTMLElement>("[aria-pressed='true']");
+      if (active) place(tabsEl.current!.querySelector("[data-ul]"), { "--x": `${active.offsetLeft}px`, "--w": `${active.offsetWidth}px` });
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(bar);
+    return () => observer.disconnect();
+  }, []);
   useLayoutEffect(() => {
     const t = tabsEl.current?.querySelector<HTMLElement>("[aria-pressed='true']");
-    if (t) place(tabsEl.current!.querySelector("[data-ul]"), { "--x": `${t.offsetLeft}px`, "--w": `${t.offsetWidth}px` });
+    if (t) {
+      place(tabsEl.current!.querySelector("[data-ul]"), { "--x": `${t.offsetLeft}px`, "--w": `${t.offsetWidth}px` });
+      const tabs = tabsEl.current!;
+      if (t.offsetLeft < tabs.scrollLeft) tabs.scrollLeft = t.offsetLeft;
+      else if (t.offsetLeft + t.offsetWidth > tabs.scrollLeft + tabs.clientWidth) tabs.scrollLeft = t.offsetLeft + t.offsetWidth - tabs.clientWidth;
+    }
     const v = viewsEl.current?.querySelector<HTMLElement>("[aria-pressed='true']");
     if (v) place(viewsEl.current!.querySelector("[data-thumb]"), { "--x": `${v.offsetLeft}px` });
   });
@@ -121,7 +149,7 @@ function Library() {
 
   return (
     <div className={css.page} style={{ ["--acc" as string]: acc }}>
-      <div className={css.bar} data-bar data-searching={searching ? "" : undefined}>
+      <div ref={barEl} className={css.bar} data-bar data-searching={searching ? "" : undefined}>
         <span className={css.ttl}>Библиотека</span>
         <div ref={tabsEl} className={css.tabs} data-tabs role="group" aria-label="Раздел">
           {TABS.map((t) => (
@@ -151,7 +179,7 @@ function Library() {
             </div>
           )}
           <SearchButton onSearching={setSearching} />
-          <span className={addCss.wrap} data-tool><AddMusic onYandex={() => setYandex(true)} drop={over} startOpen={add === "files"} /></span>
+          <span className={addCss.wrap} data-tool><AddMusic onYandex={openYandex} drop={over} startOpen={add === "files"} /></span>
         </div>
       </div>
 
@@ -165,7 +193,7 @@ function Library() {
       {tab === "playlists" && <Lists />}
       {tab === "stats" && <Stats />}
       <div className={css.veil} aria-hidden />
-      {yandex && <Suspense fallback={<div className={yCss.scrim} aria-hidden />}><YandexWindow onClose={() => setYandex(false)} /></Suspense>}
+      {yandex && <Suspense fallback={<div className={yCss.scrim} onClick={closeYandex} aria-hidden />}><YandexWindow onClose={closeYandex} /></Suspense>}
       {over && <><div className={yCss.scrimDrop} aria-hidden /><DropPanel panel={dropPanel} /></>}
     </div>
   );
@@ -195,7 +223,7 @@ function SortPill({ name, options, current, pick }: { name: string; options: [st
         <Icon name="Bars" size={15} /><span>{name}</span><span className={css.chev}><Icon name="ChevronDown" size={16} /></span>
       </button>
       {at && (
-        <div ref={menu} className={`${css.menuGlass} ${glass.lg}`} role="menu" style={{ left: Math.min(at.x, innerWidth - 280), top: at.y }}>
+        <div ref={menu} className={`${css.menuGlass} ${glass.lg}`} role="menu" style={{ left: Math.max(12, Math.min(at.x, innerWidth - 280)), top: at.y, maxHeight: Math.max(120, innerHeight - at.y - 96) }}>
           {options.map(([k, n, d]) => (
             <button key={k} type="button" role="menuitemradio" aria-pressed={k === current} onClick={() => { setAt(null); pick(k); }}>
               <span className={css.nm}>{n}</span><small>{d}</small>

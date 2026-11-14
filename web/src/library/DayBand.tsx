@@ -1,3 +1,4 @@
+import { MediaImage } from "../ui/MediaImage";
 import { mediaUrl } from "../api/client";
 import { image, imageUrl } from "../lib/images";
 import { plural } from "../lib/format";
@@ -25,7 +26,7 @@ export function DayBand({ pick, albums }: { pick: Summary["dayPick"]; albums: Ma
       <div className={css.lit} style={{ backgroundImage: bg ? `url(${bg})` : undefined }} />
       <div className={css.sl} onClick={(e) => openFrom(a.id, a.cover, e.currentTarget, false)}>
         <span className={css.vinyl}><i style={{ background: label }} /></span>
-        <img src={imageUrl(a.cover, 512) ?? undefined} alt="" />
+        <MediaImage seed={a.id} tint={pal?.muted} src={imageUrl(a.cover, 512) ?? undefined} alt="" />
       </div>
       <div className={css.dtx}>
         <span className={css.dl}>Пластинка дня<small>{day(new Date())}</small></span>

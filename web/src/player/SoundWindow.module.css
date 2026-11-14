@@ -9,7 +9,7 @@
 .win:not([data-open]) .sc, .win:not([data-open]) .character p, .win:not([data-open]) .scene { animation: none; }
 .x { position: absolute; top: 12px; right: 12px; width: 34px; height: 34px; display: grid; place-items: center; border-radius: 50%; color: var(--glass-ink2);
   transition: background .2s var(--mx-ease-standard), color .2s var(--mx-ease-standard), transform .25s var(--mx-ease-spring); }
-.x:hover { background: rgba(255,255,255,.12); color: var(--glass-ink); }
+.x:hover { background: rgba(var(--mx-ink-rgb),.12); color: var(--glass-ink); }
 .x:active { transform: scale(.88); }
 
 /* the score: the ring, and the three scales as bars in their hues beside it */
@@ -22,12 +22,12 @@
 .sc[data-k="tech"] { --c: var(--mx-sound-tech); }
 .sc[data-k="space"] { --c: var(--mx-sound-space); }
 .sc[data-k="odd"] { --c: var(--mx-sound-odd); }
-.sc[data-on] { background: rgba(255,255,255,.07); }
+.sc[data-on] { background: rgba(var(--mx-ink-rgb),.07); }
 .sc[data-off] { opacity: .55; }
 .nm { grid-area: nm; display: inline-flex; align-items: center; gap: 8px; font-size: 13.5px; font-weight: 500; line-height: 1.2; color: var(--glass-ink); text-shadow: var(--glass-glow); }
 .nm::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--c); box-shadow: 0 0 8px var(--c); }
 .v { grid-area: v; font-family: var(--mx-font-mono); font-size: 13px; line-height: 1.2; color: var(--glass-ink); font-variant-numeric: tabular-nums; }
-.bar { grid-area: bar; position: relative; height: 5px; border-radius: 3px; overflow: hidden; background: rgba(255,255,255,.12);
+.bar { grid-area: bar; position: relative; height: 5px; border-radius: 3px; overflow: hidden; background: rgba(var(--mx-ink-rgb),.12);
   transform-origin: left center; transition: transform .35s var(--mx-ease-spring); }
 .bar > i { position: absolute; inset: 0; border-radius: inherit; background: var(--c); transform-origin: left center;
   transition: transform .9s cubic-bezier(.2,.8,.2,1) calc(160ms + var(--n) * 70ms); box-shadow: 0 0 10px color-mix(in srgb, var(--c) 60%, transparent); }

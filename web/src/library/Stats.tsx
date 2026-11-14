@@ -1,3 +1,4 @@
+import { MediaImage } from "../ui/MediaImage";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { Schemas } from "../api/client";
@@ -12,6 +13,7 @@ import { countryName, genreRu } from "./model";
 import { fromTrack, player } from "../player/engine";
 import { flyToMini } from "../player/MiniPlayer";
 import css from "./stats.module.css";
+import { statsYears } from "./statsYears";
 
 /** The library's statistics (design/code/screens/library.md; the mock's variant А after the
  *  owner's three rounds of fixes). The accent is the favourite song's cover colour (--fav). */
@@ -95,9 +97,10 @@ function useReveal<T extends HTMLElement>() {
   const [state, setState] = useState<"wait" | "growing" | "in">("wait");
   useEffect(() => {
     const el = ref.current; if (!el) return;
-    const io = new IntersectionObserver(([e]) => { if (e?.isIntersecting) { io.disconnect(); setState("growing"); setTimeout(() => setState("in"), 1600); } }, { threshold: 0.3 });
+    let timer = 0;
+    const io = new IntersectionObserver(([e]) => { if (e?.isIntersecting) { io.disconnect(); setState("growing"); timer = window.setTimeout(() => setState("in"), 1600); } }, { threshold: 0.3 });
     io.observe(el);
-    return () => io.disconnect();
+    return () => { io.disconnect(); clearTimeout(timer); };
   }, []);
   return { ref, attrs: { "data-wait": state === "wait" ? "" : undefined, "data-growing": state === "growing" ? "" : undefined } };
 }
@@ -158,13 +161,16 @@ function Time({ st, list }: { st: St; list: string[] }) {
 }
 
 function Days({ st }: { st: St }) {
-  const days = st.rhythm.days, by = new Map(days.map((d) => [d.date, d.count]));
-  const start = st.listening.since ? new Date(st.listening.since) : new Date(days[0]?.date ?? Date.now());
-  start.setHours(12, 0, 0, 0);
-  const cells: { d: string; c: number }[] = [];
-  const today = new Date(); today.setHours(12, 0, 0, 0);
-  for (const d = new Date(start); d <= today; d.setDate(d.getDate() + 1)) { const k = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; cells.push({ d: k, c: by.get(k) ?? 0 }); }
-  const off = (start.getDay() + 6) % 7, max = Math.max(1, ...cells.map((c) => c.c));
+  const days = st.rhythm.days, todayKey = new Date().toDateString();
+  const { cells, off, max } = useMemo(() => {
+    const by = new Map(days.map((d) => [d.date, d.count]));
+    const start = st.listening.since ? new Date(st.listening.since) : new Date(days[0]?.date ?? todayKey);
+    start.setHours(12, 0, 0, 0);
+    const cells: { d: string; c: number }[] = [];
+    const today = new Date(todayKey); today.setHours(12, 0, 0, 0);
+    for (const d = new Date(start); d <= today; d.setDate(d.getDate() + 1)) { const k = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; cells.push({ d: k, c: by.get(k) ?? 0 }); }
+    return { cells, off: (start.getDay() + 6) % 7, max: Math.max(1, ...cells.map((c) => c.c)) };
+  }, [days, st.listening.since, todayKey]);
   const out = `${days.length}<small>из ${cells.length}</small>`;
   const s = useSay(out);
   return (
@@ -175,7 +181,7 @@ function Days({ st }: { st: St }) {
         {Array.from({ length: off }, (_, i) => <i key={"e" + i} data-empty="" />)}
         {cells.map((c, i) => (
           <i key={c.d} data-today={i === cells.length - 1 ? "" : undefined}
-            style={{ background: c.c ? `color-mix(in srgb, var(--fav) ${Math.round(22 + 78 * Math.sqrt(c.c / max))}%, rgba(255,255,255,.06))` : "rgba(255,255,255,.06)" }}
+            style={{ background: c.c ? `color-mix(in srgb, var(--fav) ${Math.round(22 + 78 * Math.sqrt(c.c / max))}%, rgba(var(--mx-ink-rgb),.06))` : "rgba(var(--mx-ink-rgb),.06)" }}
             onPointerEnter={() => s.say(c.c ? `${c.c}<small>${plural(c.c, "песня", "песни", "песен")} · ${ru(c.d)}</small>` : `—<small>тишина · ${ru(c.d)}</small>`)} />
         ))}
       </div>
@@ -230,7 +236,7 @@ function Fav({ kind, st }: { kind: "artist" | "track"; st: St }) {
       <div ref={deck} className={css.deck}>
         {list.map((f, k) => (
           <div key={f.id} className={css.card2} data-pos={(k - i + n) % n} onClick={() => k !== i && go(k, k > i ? 1 : -1)}>
-            <img src={imageUrl(f.img, 512) ?? undefined} alt="" />
+            <MediaImage seed={f.id} src={imageUrl(f.img, 512) ?? undefined} alt="" />
           </div>
         ))}
         <button type="button" className={css.dplay} aria-label="Слушать" onClick={play}><Icon name="Play" size={18} /></button>
@@ -263,24 +269,7 @@ function Years({ st }: { st: St }) {
   const x = st.extra!, col = st.collection;
   const rv = useReveal<HTMLDivElement>();
   const [hover, setHover] = useState<{ y: number; f: number; top: number } | null>(null);
-  const g = useMemo(() => {
-    const ys = x.years.map((y) => [y.year, y.tracks] as const);
-    if (ys.length < 2) return null;
-    const raw = new Map(ys);
-    const y0 = Math.max(1965, Math.min(...ys.map((y) => y[0]))), y1 = Math.max(...ys.map((y) => y[0]));
-    const xs: number[] = []; for (let y = y0; y <= y1; y++) xs.push(y);
-    const sm = xs.map((y) => [1, 2, 3, 2, 1].reduce((a, w, k) => a + w * (raw.get(y - 2 + k) ?? 0), 0) / 9);
-    const mx = Math.max(...sm, 1), X = (y: number) => ((y - y0) / Math.max(1, y1 - y0)) * 1000, Y = (v: number) => 200 - (v / mx) * 176;
-    const pts = xs.map((y, i) => [X(y), Y(sm[i]!)] as const);
-    let d = `M${pts[0]![0]},${pts[0]![1]}`;
-    for (let i = 1; i < pts.length; i++) {
-      const p0 = pts[i - 2] ?? pts[i - 1]!, p1 = pts[i - 1]!, p2 = pts[i]!, p3 = pts[i + 1] ?? p2;
-      d += ` C${(p1[0] + (p2[0] - p0[0]) / 6).toFixed(1)},${(p1[1] + (p2[1] - p0[1]) / 6).toFixed(1)} ${(p2[0] - (p3[0] - p1[0]) / 6).toFixed(1)},${(p2[1] - (p3[1] - p1[1]) / 6).toFixed(1)} ${p2[0].toFixed(1)},${p2[1].toFixed(1)}`;
-    }
-    const pk = ys.reduce((a, b) => (b[1] > a[1] ? b : a));
-    const decs: number[] = []; for (let y = Math.ceil(y0 / 10) * 10; y <= y1; y += 10) decs.push(y);
-    return { y0, y1, raw, sm, mx, X, Y, d, pk, decs, xs };
-  }, [x.years]);
+  const g = useMemo(() => statsYears(x.years), [x.years]);
   if (!g) return null;
   const core = col?.decades.reduce((a, b) => (b.count > a.count ? b : a), col.decades[0]!);
   const total = x.years.reduce((n, y) => n + y.tracks, 0);
@@ -289,7 +278,8 @@ function Years({ st }: { st: St }) {
       <h3 className={css.lbl}>Песни по годам<small>{num(total)}</small></h3>
       <div ref={rv.ref} className={css.yr} {...rv.attrs}
         onPointerMove={(e) => { const r = e.currentTarget.getBoundingClientRect(), f = Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)), y = Math.round(g.y0 + f * (g.y1 - g.y0));
-          setHover({ y, f: (y - g.y0) / Math.max(1, g.y1 - g.y0), top: (g.Y(g.sm[y - g.y0] ?? 0) / 200) * (r.height - 34) }); }}
+          const top = (g.Y(g.sm[y - g.y0] ?? 0) / 200) * (r.height - 34);
+          setHover((previous) => previous?.y === y && previous.top === top ? previous : { y, f: (y - g.y0) / Math.max(1, g.y1 - g.y0), top }); }}
         onPointerLeave={() => setHover(null)}>
         {g.decs.map((y) => <span key={y} className={css.gl} style={{ left: `${g.X(y) / 10}%` }} />)}
         <svg viewBox="0 0 1000 200" preserveAspectRatio="none" aria-hidden>

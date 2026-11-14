@@ -1,6 +1,7 @@
 import { useLayoutEffect, useRef, useState } from "react";
 import { coverFill } from "../lib/coverFill";
 import { image, imageUrl } from "../lib/images";
+import { MediaImage } from "./MediaImage";
 import css from "./Cover.module.css";
 
 /** An album cover at a pixel size. The placeholder is the server palette's colour (no
@@ -27,20 +28,20 @@ export function Cover({ id, size, radius = 10, alt = "", className, eager, fresh
   return (
     <span className={css.cover + (className ? " " + className : "")}
       style={{ ["--size" as string]: `${size}px`, ["--r" as string]: `${radius}px`, ["--tint" as string]: tint ?? "var(--mx-surface-2)", ...(!src && seed ? { background: coverFill(seed) } : null) }}>
-      {src && (fresh
-        ? <Fresh key={src} src={src} alt={alt} size={size} />
-        : <img src={src} alt={alt} loading={eager ? "eager" : "lazy"} decoding="async" width={size} height={size} />)}
+      {fresh
+        ? <Fresh key={src ?? seed ?? id} src={src} alt={alt} size={size} seed={seed ?? id} tint={tint} />
+        : <MediaImage src={src} seed={seed ?? id} tint={tint} alt={alt} loading={eager ? "eager" : "lazy"} decoding="async" width={size} height={size} />}
     </span>
   );
 }
 
-function Fresh({ src, alt, size }: { src: string; alt: string; size: number }) {
+function Fresh({ src, alt, size, seed, tint }: { src: string | null; alt: string; size: number; seed?: string | null; tint?: string | null }) {
   const el = useRef<HTMLImageElement>(null);
   const [state, setState] = useState<"wait" | "had" | "came">("wait");
   // already in the browser's cache (a preloaded neighbour): there before the first paint, no fade
   useLayoutEffect(() => { if (el.current?.complete && el.current.naturalWidth) setState("had"); }, []);
   return (
-    <img ref={el} src={src} alt={alt} width={size} height={size} data-ready={state === "wait" ? undefined : ""}
+    <MediaImage ref={el} src={src} seed={seed} tint={tint} alt={alt} width={size} height={size} data-ready={state === "wait" ? undefined : ""}
       className={state === "had" ? undefined : css.fresh} onLoad={() => setState((s) => (s === "wait" ? "came" : s))} />
   );
 }

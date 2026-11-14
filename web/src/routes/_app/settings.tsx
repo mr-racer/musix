@@ -7,7 +7,8 @@ import { readSettings, type Settings } from "../../api/settings";
 import { image, remember } from "../../lib/images";
 import { useLive } from "../../lib/live";
 import { Account } from "../../settings/Account";
-import { Options, type Tab, TABS } from "../../settings/Options";
+import { Options } from "../../settings/Options";
+import { TABS, type Tab } from "../../settings/tabs";
 import { Promo } from "../../settings/Promo";
 import css from "../../settings/settings.module.css";
 

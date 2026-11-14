@@ -5,8 +5,10 @@ import { api, ok, type Schemas } from "../api/client";
 import { incognitoUntil, setSetting, type Settings } from "../api/settings";
 import { bulk } from "../library/film";
 import { Icon, type IconName } from "../ui/icons";
+import { toast } from "../ui/toast";
 import glass from "../ui/glass.module.css";
 import { day } from "./Account";
+import { TABS, type Tab } from "./tabs";
 import css from "./settings.module.css";
 
 /** The options under the account, as tabs (the owner chose them over two columns, 2026-10-14):
@@ -14,14 +16,19 @@ import css from "./settings.module.css";
  *  focus to its side and what comes arrives into focus a beat later, the underline glides —
  *  the library's tabs in small. */
 
-export type Tab = "sound" | "home" | "privacy" | "devices" | "keys";
-export const TABS: [Tab, string][] = [["sound", "Звук"], ["home", "Главная"], ["privacy", "Приватность"], ["devices", "Устройства"], ["keys", "Клавиши"]];
 const reduce = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
 const EMPH = "cubic-bezier(.2,.8,.2,1)", STD = "cubic-bezier(.22,.9,.3,1)", SPRING = "cubic-bezier(.34,1.56,.64,1)";
+
+async function saveSetting(path: string[], value: unknown): Promise<boolean> {
+  try { await setSetting(path, value); return true; }
+  catch { toast("Настройка не сохранилась — попробуй ещё раз"); return false; }
+}
 
 export function Options({ s, tab, setTab, devices }: { s: Settings; tab: Tab; setTab: (t: Tab) => void; devices: Schemas["DeviceOut"][] | undefined }) {
   const tabs = useRef<HTMLElement>(null), body = useRef<HTMLDivElement>(null);
   const placed = useRef(false);
+  const motion = useRef<Animation | null>(null), intent = useRef(0);
+  useEffect(() => () => { intent.current++; motion.current?.cancel(); }, []);
   const place = (still = false) => {
     const b = tabs.current?.querySelector<HTMLElement>("[aria-pressed='true']"), ul = tabs.current?.querySelector<HTMLElement>("[data-ul]");
     if (!b || !ul) return;
@@ -40,13 +47,25 @@ export function Options({ s, tab, setTab, devices }: { s: Settings; tab: Tab; se
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const order = TABS.map((t) => t[0]);
   function go(t: Tab) {
-    if (t === tab) return;
+    const request = ++intent.current;
     const dir = Math.sign(order.indexOf(t) - order.indexOf(tab)), old = body.current?.firstElementChild as HTMLElement | null;
+    const current = old ? getComputedStyle(old) : null;
+    const from = { opacity: current?.opacity ?? "1", filter: current?.filter ?? "none", transform: current?.transform ?? "none" };
+    motion.current?.cancel();
+    if (t === tab) {
+      place();
+      if (old && !reduce()) motion.current = old.animate([from, { opacity: 1, filter: "blur(0)", transform: "none" }], { duration: 240, easing: EMPH });
+      return;
+    }
     if (reduce() || !old) return setTab(t);
-    old.animate([{ opacity: 1, filter: "blur(0)", transform: "none" }, { opacity: 0, filter: "blur(8px)", transform: `translateX(${-dir * 18}px)` }], { duration: 180, easing: "cubic-bezier(.4,0,1,1)", fill: "forwards" }).onfinish = () => {
+    const leave = old.animate([from, { opacity: 0, filter: "blur(8px)", transform: `translateX(${-dir * 18}px)` }], { duration: 180, easing: "cubic-bezier(.4,0,1,1)", fill: "forwards" });
+    motion.current = leave;
+    leave.onfinish = () => {
+      if (request !== intent.current) return;
+      leave.cancel();
       flushSync(() => setTab(t));
-      (body.current?.firstElementChild as HTMLElement | null)?.animate(
-        [{ opacity: 0, filter: "blur(8px)", transform: `translateX(${dir * 30}px)` }, { opacity: 1, filter: "blur(0)", transform: "none" }], { duration: 520, easing: EMPH });
+      motion.current = (body.current?.firstElementChild as HTMLElement | null)?.animate(
+        [{ opacity: 0, filter: "blur(8px)", transform: `translateX(${dir * 30}px)` }, { opacity: 1, filter: "blur(0)", transform: "none" }], { duration: 520, easing: EMPH }) ?? null;
     };
     // the underline leaves at once, with the press
     const b = tabs.current?.querySelector<HTMLElement>(`[data-t="${t}"]`), ul = tabs.current?.querySelector<HTMLElement>("[data-ul]");
@@ -90,13 +109,13 @@ function Sound({ s }: { s: Settings }) {
       <h2>Звук</h2>
       <Row label="Выравнивать громкость" hint="Тихие и громкие записи звучат на одном уровне. Альбом выравнивается целиком — тихое интро остаётся тихим."
         extra={<div className={css.lufs} data-on={norm ? "" : undefined}>{LUFS.map((h, k) => <i key={k} style={{ ["--h" as string]: h, ["--k" as string]: k }} />)}<span>−14 LUFS</span></div>}>
-        <Switch on={norm} label="Выравнивать громкость" onChange={(v) => void setSetting(["playback", "normalize"], v)} />
+        <Switch on={norm} label="Выравнивать громкость" onChange={(v) => void saveSetting(["playback", "normalize"], v)} />
       </Row>
       <Row label="Автоплейлист" hint="Когда плейлист или альбом закончился, музыка не замолкает: дальше сами играют похожие песни.">
-        <Switch on={auto} label="Автоплейлист" onChange={(v) => void setSetting(["playback", "autoplay"], v)} />
+        <Switch on={auto} label="Автоплейлист" onChange={(v) => void saveSetting(["playback", "autoplay"], v)} />
       </Row>
       <Row label="Звук ачивок" hint="Тихий «бульк», когда приходит новая ачивка.">
-        <Switch on={ach} label="Звук ачивок" onChange={(v) => { void setSetting(["sound", "achievements"], v); if (v) bulk(); }} />
+        <Switch on={ach} label="Звук ачивок" onChange={(v) => { void saveSetting(["sound", "achievements"], v); if (v) bulk(); }} />
       </Row>
     </section>
   );
@@ -110,7 +129,7 @@ function Home({ s }: { s: Settings }) {
       <Row wide label="Город для неба" hint="Небо на главной повторяет время суток и погоду выбранного города. Город задаётся вручную. Без выбора используется настройка сервера."
         extra={<City place={s.weather?.place ?? null} />} />
       <Row label="Снег и дождь" hint="Осадки падают на главную и ложатся на её блоки. Выключи — останется только цвет неба.">
-        <Switch on={precip} label="Снег и дождь" onChange={(v) => void setSetting(["home", "precip"], v)} />
+        <Switch on={precip} label="Снег и дождь" onChange={(v) => void saveSetting(["home", "precip"], v)} />
       </Row>
     </section>
   );
@@ -171,8 +190,10 @@ function City({ place }: { place: Place | null }) {
     wasOpen.current = open;
   }, [open]);
   function pick(h: Schemas["PlaceOut"]) {
-    void setSetting(["weather", "place"], { name: h.name, country: h.country, admin: h.admin, lat: h.lat, lon: h.lon, timezone: h.timezone });
-    void qc.invalidateQueries({ queryKey: ["home"] });
+    void saveSetting(["weather", "place"], { name: h.name, country: h.country, admin: h.admin, lat: h.lat, lon: h.lon, timezone: h.timezone }).then((saved) => {
+      if (saved) void qc.invalidateQueries({ queryKey: ["home"] });
+      else setQ(name);
+    });
     setHits([]); setQ(h.name);
     field.current?.querySelector("input")?.blur();
     if (!reduce()) skyL.current?.animate([{ opacity: 1 }, { opacity: 0.25 }, { opacity: 1 }], { duration: 900, easing: STD });
@@ -216,7 +237,7 @@ function Privacy({ s }: { s: Settings }) {
   const until = incognitoUntil(s);
   function set(on: boolean) {
     const now = new Date();
-    void setSetting(["privacy", "incognito"], on
+    void saveSetting(["privacy", "incognito"], on
       ? { from: now.toISOString(), until: new Date(now.getTime() + 6 * 3_600_000).toISOString() }
       : s.privacy?.incognito ? { from: s.privacy.incognito.from, until: now.toISOString() } : null);
   }
@@ -255,20 +276,28 @@ function Devices({ list }: { list: Schemas["DeviceOut"][] | undefined }) {
     else { keys.add(key); live.push(d); }
   }
   async function revoke(id: string) {
+    try {
+      await ok(api.DELETE("/api/v2/devices/{device_id}", { params: { path: { device_id: id } } }));
+      return true;
+    } catch {
+      toast("Не удалось отключить устройство — попробуй ещё раз");
+      return false;
+    }
+  }
+  function forget(id: string) {
     setGone((g) => new Set(g).add(id));
-    await ok(api.DELETE("/api/v2/devices/{device_id}", { params: { path: { device_id: id } } })).catch(() => undefined);
     void qc.invalidateQueries({ queryKey: ["devices"] });
   }
   return (
     <section className={css.sec}>
       <h2>Устройства</h2>
-      {live.map((d, k) => <Dev key={d.id} d={d} k={k} sub={d.current ? "сейчас" : seen(d.lastSeenAt)} onRevoke={revoke} />)}
+      {live.map((d, k) => <Dev key={d.id} d={d} k={k} sub={d.current ? "сейчас" : seen(d.lastSeenAt)} onRevoke={revoke} onGone={forget} />)}
       {old.length > 0 && (
         <div className={css.old} data-open={openOld ? "" : undefined}>
           <button type="button" onClick={() => setOpenOld((v) => !v)}><Icon name="ChevronDown" size={16} /><span>Старые входы · {old.length}</span></button>
           <div className={css.fold}><div inert={!openOld}>
-            {old.map(([d, sub], k) => <Dev key={d.id} d={d} k={k} sub={sub} onRevoke={revoke} />)}
-            <button type="button" className={css.cleanall} onClick={() => old.forEach(([d], i) => setTimeout(() => void revoke(d.id), i * 90))}>Отключить все старые</button>
+            {old.map(([d, sub], k) => <Dev key={d.id} d={d} k={k} sub={sub} onRevoke={revoke} onGone={forget} />)}
+            <button type="button" className={css.cleanall} onClick={() => old.forEach(([d]) => { void revoke(d.id).then((saved) => { if (saved) forget(d.id); }); })}>Отключить все старые</button>
           </div></div>
         </div>
       )}
@@ -276,17 +305,23 @@ function Devices({ list }: { list: Schemas["DeviceOut"][] | undefined }) {
   );
 }
 
-function Dev({ d, k, sub, onRevoke }: { d: Schemas["DeviceOut"]; k: number; sub: string; onRevoke: (id: string) => void }) {
+function Dev({ d, k, sub, onRevoke, onGone }: { d: Schemas["DeviceOut"]; k: number; sub: string; onRevoke: (id: string) => Promise<boolean>; onGone: (id: string) => void }) {
   const [glyph, pn] = PLAT[d.platform] ?? (["Devices", d.platform] as [IconName, string]);
   const [armed, setArmed] = useState(false);
+  const [busy, setBusy] = useState(false);
   const row = useRef<HTMLDivElement>(null), t = useRef(0);
-  function click() {
+  useEffect(() => () => clearTimeout(t.current), []);
+  async function click() {
+    if (busy) return;
     if (!armed) { setArmed(true); clearTimeout(t.current); t.current = window.setTimeout(() => setArmed(false), 3200); return; }
+    clearTimeout(t.current);
+    setBusy(true);
+    if (!(await onRevoke(d.id))) { setBusy(false); setArmed(false); return; }
     const r = row.current;
-    if (!r || reduce()) return onRevoke(d.id);
+    if (!r || reduce()) return onGone(d.id);
     r.style.height = `${r.offsetHeight}px`;
     r.classList.add(css.goneRow!);
-    r.addEventListener("animationend", () => onRevoke(d.id), { once: true });
+    r.addEventListener("animationend", () => onGone(d.id), { once: true });
   }
   return (
     <div ref={row} className={css.dev} style={{ ["--k" as string]: k }}>
@@ -295,7 +330,7 @@ function Dev({ d, k, sub, onRevoke }: { d: Schemas["DeviceOut"]; k: number; sub:
         <span className={css.nm}>{d.name}{d.current && <em>это устройство</em>}</span>
         <span className={css.sub2}>{pn}{d.appVersion ? <> · <span className={css.mono}>{d.appVersion}</span></> : null} · {sub}</span>
       </span>
-      {d.current ? <span /> : <button type="button" className={css.revoke} data-arm={armed ? "" : undefined} onClick={click}>{armed ? "Точно отключить?" : "Отключить"}</button>}
+      {d.current ? <span /> : <button type="button" className={css.revoke} data-arm={armed ? "" : undefined} disabled={busy} aria-busy={busy} onClick={() => void click()}>{busy ? "Отключаем…" : armed ? "Точно отключить?" : "Отключить"}</button>}
     </div>
   );
 }

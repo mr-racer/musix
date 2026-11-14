@@ -1,3 +1,4 @@
+import { MediaImage } from "../ui/MediaImage";
 import { useMemo, useRef, useState } from "react";
 import type { Schemas } from "../api/client";
 import { db, rowToTrack } from "../api/db";
@@ -62,7 +63,7 @@ function Cover({ al, i, onSay }: { al: Model["albums"][number]; i: number; onSay
       onPointerEnter={() => onSay({ t: al.clean, y: al.year, heard: al.heard, n: al.n })} onPointerLeave={() => onSay(null)}
       onFocus={() => onSay({ t: al.clean, y: al.year, heard: al.heard, n: al.n })} onBlur={() => onSay(null)}
       onClick={(e) => openAlbum(e as unknown as React.MouseEvent, al.id, al.cover, el.current)}>
-      {src ? <><img className={css.g} src={src} alt="" loading="lazy" decoding="async" /><img className={css.c} src={src} alt="" loading="lazy" decoding="async" /></> : <span className={css.nocover} />}
+      {src ? <><MediaImage className={css.g} seed={al.id} src={src} alt="" loading="lazy" decoding="async" /><MediaImage className={css.c} seed={al.id} src={src} alt="" loading="lazy" decoding="async" /></> : <span className={css.nocover} />}
       <i className={css.ln} />
       {p >= 1 && <i className={css.ok}><Icon name="Check" size={11} /></i>}
     </button>
@@ -113,7 +114,7 @@ export function Songs({ id, top, plays, total, heard }: { id: string; top: Track
           return (
             <button key={t.id} type="button" className={cx("row", i >= first.length && "late")} style={{ ["--j" as string]: i - first.length }} onClick={(e) => play(i, e.currentTarget.querySelector("span") as HTMLElement)}>
               <span className={css.n}>{i + 1}</span>
-              <span className={css.cv}>{src ? <img src={src} alt="" loading="lazy" decoding="async" /> : <span className={css.nocover} />}<Icon name="Play" size={16} /></span>
+              <span className={css.cv}>{src ? <MediaImage src={src} alt="" loading="lazy" decoding="async" /> : <span className={css.nocover} />}<Icon name="Play" size={16} /></span>
               <span className={css.tt}><b>{t.titleDisplay ?? t.title}</b><span>{t.album ?? ""}</span></span>
               <span className={css.pc}>{n > 0 && <><i style={{ ["--p" as string]: (n / max).toFixed(3) }} />{n}</>}</span>
             </button>

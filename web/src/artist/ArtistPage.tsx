@@ -1,3 +1,4 @@
+import { MediaImage } from "../ui/MediaImage";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -13,16 +14,11 @@ import { Icon } from "../ui/icons";
 import css from "./artist.module.css";
 import { Facts, Songs, You } from "./Body";
 import { cx, Hero } from "./Hero";
-import { level, prep, type Bio } from "./model";
+import { level, prep } from "./model";
+import { bioQuery } from "./queries";
 import { QuizCard, QuizWindow } from "./Quiz";
 import { Timeline } from "./Timeline";
 import { BioWindow } from "./Windows";
-
-export const bioQuery = (id: string) => ({
-  queryKey: ["bio", id],
-  queryFn: async (): Promise<Bio> => (await api.GET("/api/v2/artists/{artist_id}/bio", { params: { path: { artist_id: id } } })).data ?? null,
-  staleTime: 30 * 60_000,
-});
 
 /** The artist page «Кадр» (design/reference/artist, approved 2026-10-17). */
 export function ArtistPage({ id }: { id: string }) {
@@ -98,8 +94,8 @@ export function ArtistPage({ id }: { id: string }) {
         </div>
       </div>
       {createPortal(
-        <div className={cx("tok", "minihead", glass.lg, head && "on")} data-mx-theme="dark" aria-hidden={!head}>
-          {avatar && <img src={avatar} alt="" />}<b>{m.name}</b>
+        <div className={cx("tok", "minihead", glass.lg, head && "on")} aria-hidden={!head}>
+          {avatar && <MediaImage src={avatar} alt="" />}<b>{m.name}</b>
           <button type="button" className={css.pp} aria-label="Слушать" onClick={() => onPlay(null)}><Icon name="Play" size={13} /></button>
         </div>,
         document.body,

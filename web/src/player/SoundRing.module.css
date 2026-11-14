@@ -1,7 +1,7 @@
 /* The sound ring (SoundRing.tsx). The number is centred by the grid alone: no caption inside,
    one line height, tabular figures, so it never wanders when it changes. */
 .wrap { display: inline-grid; justify-items: center; gap: 7px; flex: none; }
-.ring { position: relative; display: grid; place-items: center; border-radius: 50%; color: var(--text, #eeeef3);
+.ring { position: relative; display: grid; place-items: center; border-radius: 50%; color: var(--text, var(--mx-text));
   transition: transform .5s var(--mx-ease-spring); -webkit-tap-highlight-color: transparent; }
 .ring:hover { transform: scale(1.06); }
 .ring:active { transform: scale(.93); transition-duration: .18s; }
@@ -13,7 +13,7 @@
 .ring:hover .arc, .wrap[data-focus] .arc { transform: translate(var(--dx), var(--dy)); }
 .arc[data-off] { opacity: .32; }
 .track { fill: none; stroke: color-mix(in srgb, currentColor 18%, rgba(255,255,255,.08)); stroke-linecap: round; }
-.mono { stroke-dasharray: 1.5 4; stroke: rgba(255,255,255,.28); }
+.mono { stroke-dasharray: 1.5 4; stroke: rgba(var(--mx-ink-rgb),.38); }
 .fill { fill: none; stroke: currentColor; stroke-linecap: round; transition: stroke-width .35s var(--mx-ease-spring), filter .25s var(--mx-ease-standard);
   filter: drop-shadow(0 0 3px color-mix(in srgb, currentColor 45%, transparent)); }
 .arc[data-on] .fill { filter: drop-shadow(0 0 7px color-mix(in srgb, currentColor 75%, transparent)) brightness(1.12); }
@@ -29,7 +29,7 @@
    them lie in one cell, so the caption never changes its width or moves the ring */
 .cap { display: grid; justify-items: center; font-size: 12px; font-weight: 500; line-height: 1; white-space: nowrap; pointer-events: none; }
 .cap > span { grid-area: 1 / 1; transition: opacity .2s var(--mx-ease-standard), transform .3s var(--mx-ease-spring); }
-.capIdle { color: var(--subtle, rgba(238,238,243,.46)); letter-spacing: .02em; }
+.capIdle { color: var(--subtle, var(--mx-text-subtle)); letter-spacing: .02em; }
 .capScale { opacity: 0; transform: translateY(4px); }
 .wrap[data-focus] .capIdle { opacity: 0; transform: translateY(-4px); }
 .wrap[data-focus="tech"] .capScale[data-k="tech"],
@@ -40,3 +40,5 @@
 @media (prefers-reduced-motion: reduce) {
   .ring, .arc, .fill, .cap > span { transition-duration: .01s; }
 }
+
+:global(:root[data-theme="light"]) .num { text-shadow: none; }

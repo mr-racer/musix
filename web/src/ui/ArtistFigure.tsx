@@ -1,4 +1,6 @@
 import { useCallback, useState } from "react";
+import { transparentImage } from "../lib/imageFallback";
+import { MediaImage } from "./MediaImage";
 import css from "./ArtistFigure.module.css";
 
 /** v1's atlas cutout hero (main.jsx Atlas, mode `cutout`):
@@ -11,15 +13,16 @@ export function ArtistFigure({ src, hue }: { src: string; hue: number }) {
   const [ped, setPed] = useState<{ w: number } | null>(null);
   // the pedestal is as wide as the figure is DRAWN (object-fit: contain), not as its box
   const measure = useCallback((img: HTMLImageElement) => {
+    if (img.dataset.imageFallback !== undefined) { setPed(null); return; }
     if (!img.naturalWidth || !img.naturalHeight) return;
     const box = img.getBoundingClientRect();
     setPed({ w: Math.min(box.width, (box.height * img.naturalWidth) / img.naturalHeight) });
   }, []);
   return (
     <div className={css.figure} style={{ ["--hue" as string]: hue }} aria-hidden>
-      <img src={src} alt="" className={css.echo} />
+      <MediaImage src={src} fallback={transparentImage} alt="" className={css.echo} />
       {ped && <div className={css.pedestal} style={{ width: Math.max(160, ped.w * 1.05) }}><i /><i /><i /></div>}
-      <img src={src} alt="" className={css.cutout} onLoad={(e) => measure(e.currentTarget)} />
+      <MediaImage src={src} fallback={transparentImage} alt="" className={css.cutout} onLoad={(e) => measure(e.currentTarget)} />
     </div>
   );
 }

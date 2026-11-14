@@ -47,6 +47,7 @@ export function AddMusic({ onYandex, drop, startOpen }: { onYandex: () => void; 
   const link = useQuery(linkQuery).data;
   // the «+N» is asked once the menu has been opened (one Yandex call per mirrored playlist)
   const [askFresh, setAskFresh] = useState(!!startOpen);
+  useEffect(() => { if (startOpen) { setOpen(true); setAskFresh(true); } }, [startOpen]);
   const fresh = useQuery({ ...freshQuery, enabled: askFresh && !!link?.linked }).data;
   const freshN = (fresh ?? []).reduce((a, f) => a + f.fresh, 0);
 

@@ -4,7 +4,8 @@
    - then the right page swings out from behind the left one and the spread slides to the
      middle. Left: the cover, sharp in the middle, blurred and darkened under the liner notes
      at the top and the poster at the bottom. Right: the tracklist on the cover's colour field;
-   - the close plays it all backwards. Dark in both themes, like v1's. */
+   - the close plays it all backwards. The paper follows the theme; text printed over the
+     sharp cover keeps its own dark backing and white ink. */
 /* the player opening over the album: the album leaves as one picture (styles/pages.css) */
 :global(html[data-nav="player-open"]) .overlay { view-transition-name: gatefold; }
 .overlay {
@@ -20,10 +21,14 @@
   --d0: 700ms;                                     /* when the content rises; 0 after the opening */
   --text: #f6f6f9; --muted: rgba(246,246,249,.88); --subtle: rgba(246,246,249,.76);   /* measured on 12 covers, white ones too: ≥ 7:1 and ≥ 4.5:1 */
   --hair: rgba(255,255,255,.1);
+  --mark: color-mix(in srgb, var(--acc) 30%, #fff);
   position: absolute; left: calc(50% - var(--L) / 2); top: calc(var(--cy) - var(--L) / 2);
   width: var(--L); height: var(--L); perspective: 2000px; color: var(--text);
   font-family: var(--mx-font-sans);
 }
+.gf:focus { outline: none; }
+.gf :is(button, a, [role="button"]):focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
+.gf .row:focus-visible { outline-offset: -2px; }
 .sleeve { position: absolute; inset: 0; z-index: 2; perspective: 1800px; will-change: transform; }
 .flip { position: relative; width: 100%; height: 100%; transform-style: preserve-3d; transform: rotateY(0deg); }
 .face {
@@ -72,8 +77,8 @@
 .stack button { position: relative; width: 38px; height: 38px; flex: none; border-radius: 10px; overflow: hidden; border: 2px solid #121217;
   box-shadow: 0 6px 14px rgba(0,0,0,.45); margin-left: -11px; transition: margin .4s cubic-bezier(.34,1.56,.64,1), transform .35s cubic-bezier(.34,1.56,.64,1); }
 .stack button:first-child { margin-left: 0; }
-.stack:hover button { margin-left: 4px; }
-.stack:hover button:first-child { margin-left: 0; }
+.stack:hover button, .stack:focus-within button { margin-left: 4px; }
+.stack:hover button:first-child, .stack:focus-within button:first-child { margin-left: 0; }
 .stack button:hover, .stack button:focus-visible { transform: translateY(-6px) scale(1.06); z-index: 2; }
 .stack button:active { transform: translateY(-3px) scale(.96); }
 .stack img { width: 100%; height: 100%; object-fit: cover; display: block; }
@@ -208,7 +213,7 @@
   font: 500 12px/1 var(--mx-font-sans); color: var(--text); white-space: nowrap; opacity: 0; transform: translateX(4px); pointer-events: none;
   transition: opacity .15s, transform .25s cubic-bezier(.34,1.56,.64,1);
 }
-.q:hover .tip { opacity: 1; transform: none; transition-delay: .35s; }
+.q:hover .tip, .q:focus-visible .tip { opacity: 1; transform: none; transition-delay: .35s; }
 .state { padding: 16px; color: var(--muted); font: 400 15px/1.5 var(--mx-font-sans); }
 .state button { margin-top: 8px; }
 .loadingRows { display: grid; gap: 26px; margin-top: 28px; }
@@ -234,13 +239,50 @@
 .peek { position: fixed; z-index: 120; pointer-events: none; transform-origin: 50% 100%; }
 
 /* phones: one full-screen page, the same opening; the poster above the list */
-.narrow { position: fixed; left: 0; top: 0; width: 100dvw; height: 100dvh; }
+.narrow { position: fixed; left: 0; top: 0; width: 100dvw; height: var(--H, 100dvh); }
 .narrow .face { border-radius: 0; }
-.phoneBody { position: absolute; inset: 0; display: flex; flex-direction: column; gap: 14px;
+.phoneBody { position: absolute; inset: 0; display: flex; flex-direction: column; gap: 14px; overflow: auto; overscroll-behavior: contain;
   padding: calc(env(safe-area-inset-top, 0px) + 18px) 14px calc(env(safe-area-inset-bottom, 0px) + 14px); }
-.narrow .poster { position: relative; padding: 0 44px 0 0; animation-delay: 450ms; }
+.narrow .poster { position: relative; flex: none; padding: 0 44px 0 0; animation-delay: 450ms; }
 .narrow .row, .narrow .discHead { animation-delay: calc(500ms + var(--i, 0) * 24ms); }
 .narrow .title { font-size: 30px; }
+.narrow .list { flex: 1 0 160px; }
+
+/* Light paper keeps a trace of the cover's colour, without washing out the artwork on
+   the sleeve. Only the desktop cover's printed bands retain white ink. */
+:root[data-theme="light"] .overlay { background: rgba(36,31,47,.22); }
+:root[data-theme="light"] .gf {
+  --text: var(--mx-text); --muted: var(--mx-text-muted); --subtle: var(--mx-text-subtle);
+  --hair: rgba(var(--mx-ink-rgb),.12);
+  --mark: oklch(from var(--acc) min(l, .46) c h);
+}
+:root[data-theme="light"] .face, :root[data-theme="light"] .leaf {
+  background: var(--mx-surface);
+  box-shadow: 0 30px 80px rgba(36,31,47,.2), 0 0 0 1px rgba(36,31,47,.08);
+}
+:root[data-theme="light"] .back, :root[data-theme="light"] .leaf { text-shadow: none; }
+:root[data-theme="light"] .gf:not(.narrow) .back {
+  --text: #f6f6f9; --muted: rgba(246,246,249,.88); --subtle: rgba(246,246,249,.76);
+  color: var(--text); text-shadow: 0 1px 12px rgba(0,0,0,.5);
+}
+:root[data-theme="light"] .paper i {
+  background: linear-gradient(180deg, rgba(250,249,252,.94), rgba(246,245,250,.91) 55%, rgba(250,249,252,.95));
+}
+:root[data-theme="light"] .crease { background: linear-gradient(90deg, rgba(52,44,65,.15), transparent); }
+:root[data-theme="light"] .list { scrollbar-color: rgba(var(--mx-ink-rgb),.28) transparent; }
+:root[data-theme="light"] .row:hover, :root[data-theme="light"] .row:focus-visible { background: rgba(var(--mx-ink-rgb),.065); }
+:root[data-theme="light"] .x:hover { box-shadow: inset 0 0 0 1px rgba(var(--mx-ink-rgb),.2); }
+:root[data-theme="light"] .q:hover { background: rgba(var(--mx-ink-rgb),.09); }
+:root[data-theme="light"] .k { background: var(--mx-text); color: var(--mx-text-inverse); }
+:root[data-theme="light"] .tip, :root[data-theme="light"] .pill {
+  background: var(--mx-surface); color: var(--mx-text); border-color: var(--mx-border-strong);
+  box-shadow: 0 12px 32px rgba(36,31,47,.15);
+}
+:root[data-theme="light"] .pill span { color: var(--mx-text-muted); }
+:root[data-theme="light"] .loadingRows i { background: rgba(var(--mx-ink-rgb),.08); }
+:root[data-theme="light"] .fire { color: #ac4200; filter: none; }
+:root[data-theme="light"] .narrow .play { background: var(--mx-text); color: var(--mx-text-inverse); }
+:root[data-theme="light"] .narrow .who { text-decoration-color: color-mix(in srgb, currentColor 42%, transparent); }
 
 @media (prefers-reduced-motion: reduce) {
   .liner, .poster, .bands, .row, .discHead, .paperIn { animation: none; }

@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { image } from "../lib/images";
+import { useTheme } from "../lib/theme";
 import { usePlayer } from "../player/engine";
 import css from "./Sky.module.css";
 
@@ -105,10 +106,11 @@ function findEdges(): Edge[] {
 }
 
 export function Sky({ weather, taste, precip = true, sun }: { weather: Weather; taste: string[]; precip?: boolean; sun?: Sun }) {
+  const light = useTheme() === "light";
   const sky = useRef<HTMLCanvasElement>(null);
   const wx = useRef<HTMLCanvasElement>(null);
-  const state = useRef({ weather, taste, precip, sun });
-  state.current = { weather, taste, precip, sun };
+  const state = useRef({ weather, taste, precip, sun, light });
+  state.current = { weather, taste, precip, sun, light };
 
   useEffect(() => {
     const cv = sky.current, wc = wx.current;
@@ -173,6 +175,7 @@ export function Sky({ weather, taste, precip = true, sun }: { weather: Weather; 
     };
     const weatherFrame = (dt: number, now: number) => {
       const W = window.innerWidth, H = window.innerHeight;
+      const light = state.current.light;
       // «Снег и дождь» off (the settings): the sky keeps the weather's colour, nothing falls
       const snowing = state.current.precip && state.current.weather === "snow", raining = state.current.precip && state.current.weather === "rain";
       const lying = Object.values(caps).some((c) => c.cells.some((v) => v > 0.05));
@@ -201,7 +204,7 @@ export function Sky({ weather, taste, precip = true, sun }: { weather: Weather; 
         return null;
       };
       if (raining) {
-        wcx.strokeStyle = "rgba(205,220,245,.55)"; wcx.lineWidth = 1; wcx.beginPath();
+        wcx.strokeStyle = light ? "rgba(72,99,143,.55)" : "rgba(205,220,245,.55)"; wcx.lineWidth = 1; wcx.beginPath();
         for (const d of falls) {
           const l = 9 + d.v * 13, ny = d.y + dt * (0.5 + d.v * 0.55), h = hit(d, ny);
           if (h) {
@@ -215,7 +218,7 @@ export function Sky({ weather, taste, precip = true, sun }: { weather: Weather; 
         }
         wcx.stroke();
       } else if (snowing) {
-        wcx.fillStyle = "rgba(255,255,255,.85)";
+        wcx.fillStyle = light ? "rgba(114,132,161,.85)" : "rgba(255,255,255,.85)";
         for (const d of falls) {
           const r = 1 + d.s * 1.7, ny = d.y + dt * (0.028 + d.v * 0.035), h = hit(d, ny);
           if (h && h.e.kind !== "text") {
@@ -235,7 +238,7 @@ export function Sky({ weather, taste, precip = true, sun }: { weather: Weather; 
         wcx.globalAlpha = 1;
       }
       if (splash.length) {
-        wcx.fillStyle = "rgba(215,228,250,.8)";
+        wcx.fillStyle = light ? "rgba(72,99,143,.8)" : "rgba(215,228,250,.8)";
         for (const q of splash) {
           q.life += dt; q.vy += dt * 0.0025; q.x += q.vx * dt; q.y += q.vy * dt;
           wcx.globalAlpha = Math.max(0, 1 - q.life / 520); wcx.beginPath(); wcx.arc(q.x, q.y, 1.5, 0, Math.PI * 2); wcx.fill();
@@ -254,7 +257,7 @@ export function Sky({ weather, taste, precip = true, sun }: { weather: Weather; 
         const hAt = (i: number) => ((c.cells[Math.max(0, i - 1)]! + 2 * c.cells[i]! + c.cells[Math.min(c.n - 1, i + 1)]!) / 4) * taper(i);
         // the band: its top is the snow's profile, its bottom sinks 3 px into the surface only
         // where snow lies (a bare cell is a point), so nothing shows where nothing fell
-        const band = (grow: number, alpha: number) => {
+        const band = (grow: number, alpha: number, color = "248,250,255") => {
           wcx.beginPath();
           const top = (i: number) => { const h = hAt(i); return e.t - h - grow * Math.min(1, h); };
           const bottom = (i: number) => e.t + 3 * Math.min(1, hAt(i));
@@ -267,9 +270,13 @@ export function Sky({ weather, taste, precip = true, sun }: { weather: Weather; 
           wcx.lineTo(c.x0 + c.n * CW, e.t);
           for (let i = c.n - 1; i >= 0; i--) wcx.lineTo(c.x0 + i * CW + CW / 2, bottom(i));
           wcx.closePath();
-          wcx.fillStyle = `rgba(248,250,255,${alpha})`; wcx.fill();
+          wcx.fillStyle = `rgba(${color},${alpha})`; wcx.fill();
         };
-        band(1.6, 0.28); band(0.6, 0.4); band(0, 0.86);
+        // White settled snow keeps its material; the existing soft underlayers give it a
+        // cool edge on pale glass. Theme switches preserve every flake and accumulated cell.
+        band(1.6, 0.28, light ? "72,99,143" : "248,250,255");
+        band(0.6, 0.4, light ? "174,190,214" : "248,250,255");
+        band(0, 0.86);
       }
     };
 

@@ -1,6 +1,5 @@
 /* The player «Кино» (design/code/screens/player.md), ported from the approved probe
-   (design/reference/player-kino). A dark, cover-lit surface in both app themes: the colours
-   below are the stage's own, not the theme's.
+   (design/reference/player-kino). The cover colours tint a backdrop adapted to the app theme.
    Cost rule: nothing repaints per frame. The backdrop is static between track changes (its
    blur is baked into the image); only the small spectrum canvas moves, and only while the
    music plays. */
@@ -8,17 +7,17 @@
 @property --pl-acc2 { syntax: "<color>"; inherits: true; initial-value: #5664b3; }
 
 .stage {
-  --text: #eeeef3; --muted: rgba(238,238,243,.66); --subtle: rgba(238,238,243,.46);
-  --line: rgba(255,255,255,.08); --line-2: rgba(255,255,255,.14);
-  --float: #16161c; --plate: rgba(255,255,255,.075);
+  --text: var(--mx-text); --muted: var(--mx-text-muted); --subtle: var(--mx-text-subtle);
+  --line: var(--mx-border); --line-2: var(--mx-border-strong);
+  --float: var(--mx-float); --plate: var(--mx-plate);
   --r-cover: 10px;
-  position: relative; isolation: isolate; min-height: 100dvh; color: var(--text); color-scheme: dark;
+  position: relative; isolation: isolate; min-height: 100dvh; color: var(--text);
   container: stage / inline-size;
   transition: --pl-acc .6s var(--mx-ease-standard), --pl-acc2 .6s var(--mx-ease-standard);
 }
 
 /* background: the server's pre-blurred, tamed backdrop; two static layers cross-fade on a track change */
-.bg { position: fixed; inset: 0; z-index: -1; pointer-events: none; background: #0d0d10; overflow: hidden; }
+.bg { position: fixed; inset: 0; z-index: -1; pointer-events: none; background: var(--mx-bg); overflow: hidden; }
 .bgCover { position: absolute; inset: 0; background-size: cover; background-position: center; opacity: .9; animation: bgIn 900ms var(--mx-ease-standard); }
 /* a cover stored before the backdrop variant existed: its smallest variant, blurred and dimmed once */
 .bgSoft { inset: -8%; filter: blur(42px) saturate(1.4) brightness(.58); }
@@ -36,19 +35,17 @@
    edge; on a wide screen the room left over is split on both sides, so the group sits in the
    middle of the screen instead of clinging to the left (the owner's 2560×1440, 2026-10-05).
    The cover keeps its share of the stage (31 %) up to 520 px.
-   The cover alone sets the content row, and the two flexible rows around it are equal, so the
-   cover stands at the same height for every song. The text column spans the content row and
-   the flexible row under it: a song with more text runs down into that room without moving
-   anything, and only when it needs more than its half does the block rise, by exactly the
-   excess. (Centred on the text, the cover sat 82 px higher on one song than on the next:
-   every track change jumped, and a cover flight landed where the cover no longer was.) */
+   The main row has a fixed share of the viewport: both columns are centred within it.
+   Dense information scrolls in its own column, never displacing the cover or consuming
+   the spectrum's reserved space. Paging facts therefore cannot move a cover flight's target. */
 .frame {
-  --cw: clamp(260px, min(31cqw, 46dvh), 520px);
+  --cw: min(clamp(260px, min(31cqw, 46dvh), 520px), max(160px, 100dvh - 260px));
+  --spec-h: clamp(56px, calc(100dvh - 560px), 104px);
   --shift: clamp(0px, (100cqw - var(--cw) - 860px) / 2, 40px); /* 860 = the text column, the gap and the paddings */
-  position: relative; z-index: 1; min-height: 100dvh; display: grid;
+  position: relative; z-index: 1; height: 100dvh; display: grid;
   grid-template-columns: minmax(0, 1fr) auto minmax(0, 760px) minmax(0, 1fr);
-  grid-template-rows: minmax(8px, 1fr) auto minmax(8px, 1fr) auto auto auto;
-  grid-template-areas: ". . . ." ". cover text ." ". . text ." "note note note note" "scrub scrub scrub scrub" "bottom bottom bottom bottom";
+  grid-template-rows: minmax(0, 1fr) auto auto auto;
+  grid-template-areas: ". cover text ." "note note note note" "scrub scrub scrub scrub" "bottom bottom bottom bottom";
   padding: 32px 40px 28px 28px;
 }
 .topbar, .peeks, .coverRow .edge { display: none; }
@@ -58,11 +55,11 @@
 /* icon buttons */
 .ic { width: 40px; height: 40px; flex: none; display: inline-grid; place-items: center; border-radius: 50%; color: var(--muted);
   transition: background .2s var(--mx-ease-standard), color .2s var(--mx-ease-standard), transform .25s var(--mx-ease-spring); }
-.ic:hover:not(:disabled) { background: rgba(255,255,255,.08); color: var(--text); }
+.ic:hover:not(:disabled) { background: rgba(var(--mx-ink-rgb),.08); color: var(--text); }
 .ic:active:not(:disabled) { transform: scale(.9); }
 .ic:disabled { opacity: .45; cursor: default; }
 .on { color: var(--pl-acc); }
-.step { background: rgba(255,255,255,.1); color: var(--text); }
+.step { background: rgba(var(--mx-ink-rgb),.1); color: var(--text); }
 .fire { color: #ff7a18 !important; opacity: 1 !important; }
 .water { color: #38bdf8 !important; opacity: 1 !important; }
 /* a reaction that is on has a filled glyph (the probe's FILL 1) */
@@ -73,7 +70,7 @@
 /* `--shift`: the stage begins 92 px in from the screen's left edge (the nav island) and its paddings
    differ, so its own middle is 40 px right of the screen's. Where there is slack, the group
    gives those 40 px back and stands in the middle of the screen. */
-.coverRow { grid-area: cover; align-self: start; position: relative; left: calc(var(--shift) * -1); width: var(--cw); margin-right: var(--mx-space-6); }
+.coverRow { grid-area: cover; align-self: center; position: relative; left: calc(var(--shift) * -1); width: var(--cw); margin-right: var(--mx-space-6); }
 /* the mini player's cover flies into this one and back (styles/pages.css) */
 :global(html[data-nav^="player"]) .art { view-transition-name: np-cover; }
 :global(html[data-nav^="player"]) .title { view-transition-name: np-title; }
@@ -90,10 +87,11 @@
 .cover { width: 100% !important; height: 100% !important; transition: filter .6s var(--mx-ease-standard), transform .6s var(--mx-ease-standard); }
 /* a little larger while blurred: the blur's soft edge would otherwise frame the cover in black */
 .paused .cover { filter: blur(4px) brightness(.72) saturate(.9); transform: scale(1.06); }
-.backFace { transform: rotateY(180deg); background: linear-gradient(160deg, color-mix(in srgb, var(--pl-acc) 22%, #15151b), #101015 70%); }
+.backFace { transform: rotateY(180deg); background: linear-gradient(160deg, color-mix(in srgb, var(--pl-acc) 12%, var(--mx-surface)), var(--mx-bg) 70%); }
 .veil { position: absolute; inset: 0; display: grid; place-items: center; background: rgba(0,0,0,0.35); opacity: 0; transition: opacity 0.3s ease; pointer-events: none; }
 .veilOn { opacity: 1; }
-.spinner { width: 34px; height: 34px; border-radius: 50%; border: 3px solid rgba(255,255,255,0.25); border-top-color: #fff; animation: spin 0.9s linear infinite; }
+.spinner { width: 34px; height: 34px; border-radius: 50%; border: 3px solid rgba(255,255,255,0.25); border-top-color: #fff; animation: spin 0.9s linear infinite paused; }
+.veilOn .spinner { animation-play-state: running; }
 @keyframes spin { to { transform: rotate(360deg); } }
 /* the glare follows the cursor and is barely visible: 12 % */
 .glare { position: absolute; inset: 0; pointer-events: none; background: radial-gradient(circle at var(--gx, 50%) var(--gy, 0%), rgba(255,255,255,.12), transparent 46%); opacity: var(--go, 0); transition: opacity .4s var(--mx-ease-standard); }
@@ -102,7 +100,7 @@
    cover that button's padding and dark fill, a black frame around the picture */
 .leaving { position: absolute; inset: 0; z-index: 2; width: 100%; height: 100%; padding: 0; object-fit: cover; border-radius: var(--r-cover); pointer-events: none; }
 /* the pause icon: one of the two places where glass lives (design/code/surfaces.md) */
-.pauseGlass { position: absolute; left: 50%; top: 50%; z-index: 3; width: 36%; aspect-ratio: 1; translate: -50% -50%; border-radius: 50%; display: grid; place-items: center; pointer-events: none;
+.pauseGlass { color: var(--mx-on-image); position: absolute; left: 50%; top: 50%; z-index: 3; width: 36%; aspect-ratio: 1; translate: -50% -50%; border-radius: 50%; display: grid; place-items: center; pointer-events: none;
   border: 1px solid rgba(255,255,255,.13);
   background: linear-gradient(165deg, rgba(255,255,255,.16) 0%, rgba(255,255,255,.05) 32%, rgba(255,255,255,.02) 64%, rgba(255,255,255,.10) 100%), rgba(24,24,32,.36);
   -webkit-backdrop-filter: blur(28px) saturate(1.7); backdrop-filter: blur(28px) saturate(1.7);
@@ -132,7 +130,10 @@
 @media (hover: none) { .from { display: none; } }
 
 /* the text column */
-.col { grid-area: text; align-self: start; position: relative; left: calc(var(--shift) * -1); min-width: 0; display: flex; flex-direction: column; align-items: flex-start; }
+.col { grid-area: text; align-self: center; position: relative; left: calc(var(--shift) * -1); min-width: 0; min-height: 0; max-height: 100%;
+  display: flex; flex-direction: column; align-items: flex-start; overflow-y: auto; overflow-x: hidden;
+  padding: 8px 14px 8px 4px; margin-left: -4px; overscroll-behavior: contain; scrollbar-width: thin; }
+.col > * { flex-shrink: 0; }
 .meta { min-width: 0; width: 100%; max-width: 100%; display: grid; justify-items: start; text-align: left; animation: metaIn .48s var(--mx-ease-standard) .12s backwards; }
 @keyframes metaIn { from { opacity: 0; transform: translateY(10px); } }
 .title { font-family: var(--mx-font-sans); font-weight: 700; font-size: clamp(34px, 5.2cqw, 72px); line-height: .98; letter-spacing: -.035em; text-wrap: balance; margin-top: -.13em; }
@@ -182,8 +183,8 @@
 .credits dd { font-size: var(--mx-type-body); line-height: 1.35; }
 .chips { display: flex; flex-wrap: wrap; gap: var(--mx-space-2); margin-top: 3px; }
 .chip, .chipOff { display: inline-grid; align-items: center; gap: var(--mx-space-2); max-width: 100%; padding: 4px 12px 4px 4px; border: 1px solid var(--line-2); border-radius: 12px; text-align: left; text-shadow: none; }
-.chip { grid-template-columns: 36px minmax(0, auto); background: rgba(255,255,255,.06); transition: background .2s var(--mx-ease-standard), transform .25s var(--mx-ease-standard); }
-.chip:hover { background: rgba(255,255,255,.12); }
+.chip { grid-template-columns: 36px minmax(0, auto); background: rgba(var(--mx-ink-rgb),.06); transition: background .2s var(--mx-ease-standard), transform .25s var(--mx-ease-standard); }
+.chip:hover { background: rgba(var(--mx-ink-rgb),.12); }
 .chip:active { transform: scale(.98); }
 .chipOff { padding-left: 12px; border-style: dashed; }
 .chipArt { position: relative; width: 36px; height: 36px; border-radius: 8px; overflow: hidden; display: grid; place-items: center; }
@@ -195,7 +196,7 @@
 /* «Ещё N»: the samples beyond two */
 .more { align-self: center; display: inline-flex; align-items: center; gap: 4px; padding: 8px 10px 8px 12px; border-radius: 999px; font-size: var(--mx-type-sm); font-weight: 500; line-height: 1; color: var(--muted); text-shadow: none;
   transition: background .2s var(--mx-ease-standard), color .2s var(--mx-ease-standard), transform .25s var(--mx-ease-spring); }
-.more:hover { background: rgba(255,255,255,.08); color: var(--text); }
+.more:hover { background: rgba(var(--mx-ink-rgb),.08); color: var(--text); }
 .more:active { transform: scale(.96); }
 .more svg { transition: rotate .3s var(--mx-ease-standard); }
 /* the chips behind «Ещё N»: each rises in after the one before it, and fades when folded */
@@ -208,32 +209,31 @@
 .chipText b { font-size: 14px; font-weight: 500; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .chipText small { font-size: 12px; line-height: 1.2; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-/* the facts: one compact plate. A control row, then the text, clamped to three lines */
+/* Full readable facts. The bounded information column owns overflow on short screens. */
 .facts { width: 100%; max-width: 640px; margin-top: var(--mx-space-4); display: grid; gap: var(--mx-space-1);
   padding: 6px 10px 12px 14px; border-radius: 16px; background: var(--plate); text-align: left; }
 .factTop { display: flex; align-items: center; justify-content: space-between; gap: var(--mx-space-3); height: 32px; }
 .factTop > span { display: flex; align-items: center; gap: var(--mx-space-3); min-width: 0; }
 .factTop > span:first-child { overflow: hidden; }
 .factTop > span:last-child { flex: none; }
-.seg { display: inline-flex; padding: 2px; border-radius: 999px; background: rgba(255,255,255,.06); box-shadow: inset 0 1px 0 rgba(255,255,255,.07), inset 0 -1px 0 rgba(0,0,0,.35); }
+.seg { display: inline-flex; padding: 2px; border-radius: 999px; background: rgba(var(--mx-ink-rgb),.06); box-shadow: inset 0 1px 0 rgba(255,255,255,.07), inset 0 -1px 0 rgba(0,0,0,.35); }
 .seg button { padding: 5px 10px; border-radius: 999px; font-size: 12px; font-weight: 500; line-height: 1; color: var(--muted); white-space: nowrap; transition: background .2s var(--mx-ease-standard), color .2s var(--mx-ease-standard), transform .25s var(--mx-ease-spring); }
 .seg button:hover { color: var(--text); }
 .seg button:active { transform: scale(.96); }
-.seg button[aria-pressed="true"] { background: rgba(255,255,255,.13); color: var(--text); box-shadow: inset 0 1px 0 rgba(255,255,255,.14); }
+.seg button[aria-pressed="true"] { background: rgba(var(--mx-ink-rgb),.13); color: var(--text); box-shadow: inset 0 1px 0 rgba(255,255,255,.14); }
 .tag { font-size: var(--mx-type-sm); font-weight: 500; color: var(--pl-acc); white-space: nowrap; }
 .open { font-size: 12px; color: var(--subtle); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .askLink { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px 6px 6px; border-radius: 999px; color: var(--pl-acc); font-size: var(--mx-type-sm); font-weight: 500; line-height: 1; transition: background .2s var(--mx-ease-standard), transform .25s var(--mx-ease-spring); }
-.askLink:hover { background: rgba(255,255,255,.08); }
+.askLink:hover { background: rgba(var(--mx-ink-rgb),.08); }
 .askLink:active { transform: scale(.96); }
 .pager { display: inline-flex; align-items: center; gap: var(--mx-space-1); font-family: var(--mx-font-mono); font-size: 12px; font-variant-numeric: tabular-nums; color: var(--subtle); }
 .pager .ic { width: 32px; height: 32px; }
-.fact { font-family: var(--mx-font-text); font-size: var(--mx-type-body); line-height: 1.5; text-wrap: pretty; cursor: pointer;
-  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; animation: rise .32s var(--mx-ease-standard); }
-.factOpen { -webkit-line-clamp: unset; }
+.fact { font-family: var(--mx-font-text); font-size: var(--mx-type-body); line-height: 1.5; text-wrap: pretty;
+  overflow-wrap: anywhere; white-space: pre-line; animation: rise .32s var(--mx-ease-standard); }
 /* every fact of the track lies in one cell, only the current one visible: the plate has the
    height of the tallest, and paging moves nothing (the owner's «всё скачет», 2026-10-05) */
 .factBox { display: grid; }
-.factBox > * { grid-area: 1 / 1; }
+.factBox > * { grid-area: 1 / 1; align-self: start; }
 .fact[data-sizer] { visibility: hidden; pointer-events: none; animation: none; }
 .empty { font-family: var(--mx-font-text); font-style: italic; font-size: var(--mx-type-body); line-height: 1.5; color: var(--muted); animation: rise .32s var(--mx-ease-standard); }
 @keyframes rise { from { opacity: 0; transform: translateY(6px); } }
@@ -241,7 +241,7 @@
 /* the bottom: a note line, the seek line with the spectrum above it, the controls */
 .note { grid-area: note; display: flex; flex-wrap: wrap; align-items: center; gap: var(--mx-space-3); }
 .error { color: var(--mx-red); font-size: var(--mx-type-sm); }
-.scrub { grid-area: scrub; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: var(--mx-space-3); margin-top: var(--mx-space-5);
+.scrub { grid-area: scrub; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: var(--mx-space-3); padding-top: calc(var(--spec-h) + 16px);
   font-family: var(--mx-font-mono); font-size: 12px; font-variant-numeric: tabular-nums; color: var(--subtle); }
 .bar { position: relative; height: 20px; cursor: pointer; touch-action: none; border-radius: 4px; }
 /* with the song's form (player/Timeline.tsx) the plain line steps aside, and the section's
@@ -249,7 +249,7 @@
 .barForm::before, .barForm > i { opacity: 0; }
 .scrubForm { padding-bottom: 14px; }
 .bar::before, .bar > i { content: ""; position: absolute; left: 0; top: 8px; width: 100%; height: 4px; border-radius: 2px; }
-.bar::before { background: rgba(255,255,255,.16); }
+.bar::before { background: rgba(var(--mx-ink-rgb),.16); }
 /* no transition: the playhead moves a pixel or so 4 times a second, and a transition would keep the
    compositor animating 60 frames a second for it */
 .bar > i { background: var(--pl-acc); transform-origin: left center; transform: scaleX(var(--p)); }
@@ -307,22 +307,24 @@
 @keyframes blink { 50% { opacity: 0; } }
 .stageLine { font-size: var(--mx-type-sm); color: var(--muted); }
 .prompts { display: flex; flex-wrap: wrap; gap: var(--mx-space-2); }
-.prompt { padding: 8px 12px; border: 1px solid var(--line-2); border-radius: 999px; background: rgba(255,255,255,.04); font-size: var(--mx-type-sm); font-weight: 500; line-height: 1; transition: background .2s var(--mx-ease-standard), transform .25s var(--mx-ease-spring); }
-.prompt:hover:not(:disabled) { background: rgba(255,255,255,.1); }
+.prompt { padding: 8px 12px; border: 1px solid var(--line-2); border-radius: 999px; background: rgba(var(--mx-ink-rgb),.04); font-size: var(--mx-type-sm); font-weight: 500; line-height: 1; transition: background .2s var(--mx-ease-standard), transform .25s var(--mx-ease-spring); }
+.prompt:hover:not(:disabled) { background: rgba(var(--mx-ink-rgb),.1); }
 .prompt:active:not(:disabled) { transform: scale(.96); }
 .prompt:disabled { opacity: .5; cursor: default; }
 .ask { display: flex; align-items: center; gap: var(--mx-space-2); padding: 5px 5px 5px 16px; border-radius: 999px; background: rgba(0,0,0,.28); box-shadow: inset 0 1px 0 rgba(0,0,0,.4), inset 0 -1px 0 rgba(255,255,255,.06); }
 .ask input { flex: 1; min-width: 0; border: 0; background: transparent; outline: 0; font-size: 14px; }
 .ask input::placeholder { color: var(--subtle); }
 .ask:focus-within { box-shadow: inset 0 1px 0 rgba(0,0,0,.4), 0 0 0 2px var(--pl-acc); }
-.ask .ic { width: 36px; height: 36px; background: var(--pl-acc); color: #111; }
+.ask .ic { width: 36px; height: 36px; background: var(--pl-acc); color: var(--mx-text-inverse); }
 .ask .ic svg { transform: rotate(-90deg); }
 
 /* the queue rows (in the queue window) */
 .rows { list-style: none; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.rows[data-virtual] { display: block; position: relative; }
+.rows[data-virtual] > li { position: absolute; left: 0; right: 0; height: 60px; }
 .row, .rowOn, .rowPast { display: flex; align-items: center; border-radius: 14px; position: relative; transition: background .2s var(--mx-ease-standard), transform .25s var(--mx-ease-standard); }
 .row:active, .rowPast:active { transform: scale(.99); }
-.row:hover, .rowPast:hover { background: rgba(255,255,255,.06); }
+.row:hover, .rowPast:hover { background: rgba(var(--mx-ink-rgb),.06); }
 .rowPast { opacity: .5; }
 .rowOn { background: color-mix(in srgb, var(--pl-acc) 15%, transparent); }
 .rowMain { flex: 1; display: flex; align-items: center; gap: var(--mx-space-3); padding: 8px 10px; min-width: 0; text-align: left; }
@@ -350,22 +352,22 @@
 /* the shell keeps 72px under the page for its tab bar: the stage is the screen minus that (a container cannot restyle itself, hence the media query) */
 @media (max-width: 760px) { .stage { min-height: calc(100dvh - 72px - env(safe-area-inset-bottom, 0px)); } }
 @container stage (max-width: 780px) {
-  .frame { --cw: min(100%, max(180px, calc(100dvh - 520px))); min-height: calc(100dvh - 72px - env(safe-area-inset-bottom, 0px)); grid-template-columns: minmax(0, 1fr);
+  .frame { --cw: min(100%, max(180px, calc(100dvh - 520px))); height: auto; min-height: calc(100dvh - 72px - env(safe-area-inset-bottom, 0px)); grid-template-columns: minmax(0, 1fr);
     grid-template-rows: auto auto auto auto auto auto minmax(0, 1fr) auto;
     grid-template-areas: "top" "cover" "meta" "note" "scrub" "ctrl" "." "peeks"; padding: 8px 16px 14px; }
-  .topbar { grid-area: top; display: flex; align-items: center; justify-content: space-between; margin: 0 -8px; min-height: 40px; }
+  .topbar { grid-area: top; display: flex; align-items: center; justify-content: space-between; margin: 0 -8px; min-height: 40px; padding-right: 40px; }
   .topbar > span { display: flex; align-items: center; }
   .coverRow { justify-self: center; margin-right: 0; left: 0; }
   /* the plus is in the top bar here: its menu drops down from it, along the right edge */
   .addWrap > [role="dialog"] { bottom: auto; top: 46px; left: auto; right: -44px; translate: none; --mx-pop-origin: calc(100% - 64px) 0; }
-  .col { grid-area: meta; margin-top: var(--mx-space-4); left: 0; }
+  .col { grid-area: meta; margin-top: var(--mx-space-4); margin-left: 0; left: 0; max-height: none; overflow: visible; padding: 0; }
   .bottom { grid-area: ctrl; }
   .title { font-size: 30px; }
   .long { font-size: 26px; }
-  .scrub { margin-top: var(--mx-space-3); }
+  .scrub { margin-top: var(--mx-space-3); padding-top: 0; }
   .spectrum, .upnext, .desk { display: none; }
   /* previous / next sit on the edges of the cover, as in v1 */
-  .coverRow .edge { display: inline-grid; position: absolute; top: 50%; translate: 0 -50%; z-index: 6; background: rgba(13,13,16,.44); color: var(--text); }
+  .coverRow .edge { display: inline-grid; position: absolute; top: 50%; translate: 0 -50%; z-index: 6; background: rgba(13,13,16,.54); color: var(--mx-on-image); }
   .coverRow .edge:first-of-type { left: 8px; }
   .coverRow .edge:last-of-type { right: 8px; }
   /* over the lyrics they would cover the lines */
@@ -378,7 +380,7 @@
   .peeks { grid-area: peeks; display: grid; margin-top: var(--mx-space-3); }
   .peek { display: grid; grid-template-columns: 36px minmax(0, 1fr) auto; align-items: center; gap: var(--mx-space-3); height: 52px; border-top: 1px solid var(--line); text-align: left; }
   .peek:active { opacity: .7; }
-  .peekIcon { width: 36px; height: 36px; display: grid; place-items: center; border-radius: 8px; background: rgba(255,255,255,.08); color: var(--pl-acc); }
+  .peekIcon { width: 36px; height: 36px; display: grid; place-items: center; border-radius: 8px; background: rgba(var(--mx-ink-rgb),.08); color: var(--pl-acc); }
   .peek > span:nth-child(2) { display: grid; gap: 2px; min-width: 0; }
   .peek small { font-size: 12px; font-weight: 500; line-height: 1.2; color: var(--muted); }
   .peek b { font-size: 14px; font-weight: 400; line-height: 1.25; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -396,3 +398,20 @@
   .eq i, .typing::after, .meta, .fact, .empty, .bgCover, .slotIn, .slotOut, .titleAsk > span { animation: none !important; }
   .stage, .flipper, .tilt, .win, .pauseGlass, .line, .lineOn { transition-duration: .01s; }
 }
+
+/* The light stage keeps the baked cover's hues as a pale colour field. Only static
+   layers change; the cover cross-fade and the spectrum retain their existing motion. */
+:global(:root[data-theme="light"]) .bgCover { opacity: .16; }
+:global(:root[data-theme="light"]) .bgSoft { filter: blur(42px) saturate(1.1); }
+:global(:root[data-theme="light"]) .tint { opacity: .18; }
+:global(:root[data-theme="light"]) .shade { background:
+  linear-gradient(180deg, rgba(242,241,246,.3), rgba(242,241,246,.16) 38%, rgba(242,241,246,.94)),
+  linear-gradient(to left, rgba(242,241,246,.55), transparent 60%); }
+:global(:root[data-theme="light"]) :is(.meta, .credits, .scrub, .upnext, .titleAsk) { text-shadow: none; }
+:global(:root[data-theme="light"]) .ask { background: var(--mx-input-bg); box-shadow: inset 0 0 0 1px var(--line-2); }
+:global(:root[data-theme="light"]) .ask:focus-within { box-shadow: inset 0 0 0 1px var(--line-2), 0 0 0 2px var(--pl-acc); }
+:global(:root[data-theme="light"]) .fire { color: #b94208 !important; }
+:global(:root[data-theme="light"]) .water { color: #056da1 !important; }
+:global(:root[data-theme="light"]) .win { box-shadow: 0 24px 60px rgba(35,28,55,.18); }
+
+:global(:root[data-theme="light"]) :is(.front, .backFace) { box-shadow: 0 24px 54px -22px rgba(35,28,55,.38), 0 0 0 1px var(--mx-border); }
