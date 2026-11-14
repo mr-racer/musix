@@ -76,7 +76,34 @@ data class Home(
     val recentlyAdded: List<Track>,
     val playlists: List<Playlist>,
     val images: Map<String, Image>,
+    val dayAlbum: DayAlbum? = null,
+    val weather: Weather? = null,
 )
+
+/** The instance's sky: clear | cloudy | rain | snow, and the temperature when known. */
+data class Weather(val kind: String, val temperatureC: Double?)
+
+/** «Альбом дня» (`HomeOut.dayAlbum`): one a day, the same on every device. The numbers stand
+ *  as the day began; only [DayTrack.heard] moves. The phrases are written here, from them. */
+data class DayAlbum(
+    val kind: String,  // long | one | never
+    val day: java.time.LocalDate,
+    val albumId: String,
+    val title: String,
+    val artist: String?,
+    val year: Int?,
+    val coverImageId: String?,
+    val tracks: List<DayTrack>,
+    val plays: Int,
+    val lastPlayedAt: Long?,
+    val songId: String?,
+    val songPlays: Int,
+    val artistRank: Int?,
+    val artistPlayedMin: Int,  // minutes with the album artist, before the day
+    val otherAlbumsHeard: Int,
+)
+
+data class DayTrack(val id: String, val title: String, val durationMs: Long, val heard: Boolean)
 
 data class LyricLine(val atMs: Long, val text: String)
 

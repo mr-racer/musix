@@ -56,6 +56,14 @@ import ru.musixai.app.core.player.PlayerController
 import ru.musixai.app.feature.auth.LoginRoute
 import ru.musixai.app.feature.home.HomeRoute
 import ru.musixai.app.feature.player.MiniPlayer
+import ru.musixai.app.feature.player.miniPlayerCoverAbove
+import ru.musixai.app.core.designsystem.component.CoverFlight
+import ru.musixai.app.core.designsystem.component.CoverFlightLayer
+import ru.musixai.app.core.designsystem.component.LocalCoverFlight
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.platform.LocalDensity
 import ru.musixai.app.feature.player.PlayerRoute
 import ru.musixai.app.feature.library.AlbumRoute
 import ru.musixai.app.feature.library.LibraryRoute
@@ -143,12 +151,19 @@ private fun Shell(vm: AppViewModel) {
     var playerOpen by rememberSaveable { mutableStateOf(false) }
     val entry by nav.currentBackStackEntryAsState()
     val tab = remember(entry) { nav.currentTab() }
-    Box(Modifier.fillMaxSize().background(MusixTheme.colors.bg)) {
+    // a cover that starts playing flies into the mini-player's cover (r3 §5.5); before anything
+    // has played there is no bar yet, so the dock is where its cover will stand, over the tab bar
+    val flight = remember { CoverFlight() }
+    val density = LocalDensity.current
+    CompositionLocalProvider(LocalCoverFlight provides flight) { Box(Modifier.fillMaxSize().background(MusixTheme.colors.bg)) {
         Column(Modifier.fillMaxSize()) {
             Box(Modifier.weight(1f)) { Routes(nav, openPlayer = { playerOpen = true }, install = vm::install) }
             MiniPlayer(onOpen = { playerOpen = true })
-            BottomTabBar(tab, onNav = nav::toTab, Modifier.navigationBarsPadding())
+            Box(Modifier.onGloballyPositioned { flight.dock = miniPlayerCoverAbove(it.boundsInRoot().top, density) }) {
+                BottomTabBar(tab, onNav = nav::toTab, Modifier.navigationBarsPadding())
+            }
         }
+        CoverFlightLayer(flight)
         val offer by vm.updates.offer.collectAsStateWithLifecycle()
         val progress by vm.updates.progress.collectAsStateWithLifecycle()
         offer?.let { r ->
@@ -174,7 +189,7 @@ private fun Shell(vm: AppViewModel) {
             }
             PlayerRoute(onClose = { playerOpen = false }, onArtist = { playerOpen = false; nav.navigate(ArtistDest(it)) })
         }
-    }
+    } }
 }
 
 @Composable
@@ -199,7 +214,7 @@ private fun Routes(nav: NavHostController, openPlayer: () -> Unit, install: (ru.
         predictivePopExitTransition = { _ -> if (tabs(initialState) && tabs(targetState)) fadeOut(tween(160)) else slideOutHorizontally(scrub) { it } },
     ) {
         composable<HomeDest> {
-            HomeRoute(onSearch = { q -> nav.navigate(SearchDest(q)) }, onSettings = { nav.navigate(SettingsDest) }, onLibrary = { nav.toTab(LibraryDest) })
+            HomeRoute(onSearch = { q -> nav.navigate(SearchDest(q)) }, onSettings = { nav.navigate(SettingsDest) }, onLibrary = { nav.toTab(LibraryDest) }, onAlbum = { nav.navigate(AlbumDest(it)) })
         }
         composable<AssistantDest> { AssistantTab(onArtist = { nav.navigate(ArtistDest(it)) }, onAlbum = { nav.navigate(AlbumDest(it)) }) }
         composable<LibraryDest> {

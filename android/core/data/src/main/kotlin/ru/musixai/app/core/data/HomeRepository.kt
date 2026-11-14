@@ -10,7 +10,10 @@ import ru.musixai.app.core.database.KvEntity
 import ru.musixai.app.core.database.MusixDatabase
 import ru.musixai.app.core.model.ArtistRef
 import ru.musixai.app.core.model.Counts
+import ru.musixai.app.core.model.DayAlbum
+import ru.musixai.app.core.model.DayTrack
 import ru.musixai.app.core.model.Home
+import ru.musixai.app.core.model.Weather
 import ru.musixai.app.core.model.Image
 import ru.musixai.app.core.model.Palette
 import ru.musixai.app.core.model.Track
@@ -78,4 +81,14 @@ private fun HomeOut.model() = Home(
     recentlyAdded = recentlyAdded.map { it.model() },
     playlists = playlists.map { it.entity(0).model() },
     images = images.mapValues { it.value.model() },
+    dayAlbum = dayAlbum?.let { d ->
+        DayAlbum(
+            kind = d.kind.value, day = d.day, albumId = d.album.id.toString(), title = d.album.title,
+            artist = d.album.albumArtist?.name, year = d.album.originalYear ?: d.album.year, coverImageId = d.album.coverImageId,
+            tracks = d.tracks.map { DayTrack(it.id.toString(), it.title, (it.durationMs ?: 0).toLong(), it.heard) },
+            plays = d.plays, lastPlayedAt = d.lastPlayedAt?.toInstant()?.toEpochMilli(), songId = d.songId?.toString(),
+            songPlays = d.songPlays, artistRank = d.artistRank, artistPlayedMin = d.artistPlayedMin, otherAlbumsHeard = d.otherAlbumsHeard,
+        )
+    },
+    weather = weather?.let { Weather(it.kind.value, it.temperatureC?.toDouble()) },
 )

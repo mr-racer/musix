@@ -20,7 +20,10 @@ import ru.musixai.app.core.player.PlayerState
 import ru.musixai.app.core.player.QueueMode
 import javax.inject.Inject
 
-data class HomeUi(val home: Home? = null, val refreshing: Boolean = false, val tracks: Int = 0, val player: PlayerState = PlayerState(), val tune: Tune = Tune())
+/** [heard]: songs of the album of the day heard on this phone since the home came (the
+ *  server's `heard` catches up on the next fetch). */
+data class HomeUi(val home: Home? = null, val refreshing: Boolean = false, val tracks: Int = 0, val player: PlayerState = PlayerState(), val tune: Tune = Tune(),
+                  val heard: Set<String> = emptySet())
 
 /** «Настроить волну»: open or not, the presets (null: loading), the choice, a failed save.
  *  [shown] is the choice just tapped: it holds until the save lands, so a tap never flickers
@@ -38,11 +41,43 @@ class HomeViewModel @Inject constructor(
 ) : ViewModel() {
     private val refreshing = MutableStateFlow(false)
     private val tune = MutableStateFlow(Tune())
-    val ui: StateFlow<HomeUi> = combine(repo.home, refreshing, library.trackCount, player.state, combine(tune, repo.wave) { t, w -> val v = t.shown ?: w; t.copy(familiarity = v.first, sound = v.second) }) { h, r, n, p, t ->
-        HomeUi(h, r, n, p, t)
+    private val heard = MutableStateFlow<Pair<String, Set<String>>>("" to emptySet())  // (album·day, ids)
+    val ui: StateFlow<HomeUi> = combine(
+        repo.home, combine(refreshing, library.trackCount, ::Pair), player.state,
+        combine(tune, repo.wave) { t, w -> val v = t.shown ?: w; t.copy(familiarity = v.first, sound = v.second) }, heard,
+    ) { h, (r, n), p, t, s ->
+        val key = h.dayAlbum?.let { "${it.albumId}·${it.day}" }
+        HomeUi(h, r, n, p, t, if (s.first == key) s.second else emptySet())
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), HomeUi())
 
-    init { refresh() }
+    init {
+        refresh()
+        // a song of the album of the day is heard here once half of it (or four minutes) has
+        // played: the server's own rule, so the beads fill while the song is still on
+        viewModelScope.launch {
+            combine(repo.home, player.state, ::Pair).collect { (h, p) ->
+                val d = h.dayAlbum ?: return@collect
+                val id = p.trackId ?: return@collect
+                if (p.durationMs <= 0 || p.positionMs < minOf(HEARD_MS, p.durationMs / 2) || d.tracks.none { it.id == id }) return@collect
+                val key = "${d.albumId}·${d.day}"
+                heard.update { (k, ids) -> key to (if (k == key) ids else emptySet()) + id }
+            }
+        }
+    }
+
+    /** «Слушать» on the album of the day: from the first song not heard yet (from the top when
+     *  it is played through); when this album is the queue already, pause / resume it. */
+    fun albumDay() {
+        val d = ui.value.home?.dayAlbum ?: return
+        val p = player.state.value
+        val ids = d.tracks.map { it.id }
+        if (p.mode == QueueMode.LIST && p.trackId in ids) return player.toggle()
+        val here = ui.value.heard
+        val first = d.tracks.indexOfFirst { it.durationMs > AlbumDayText.SKIT_MS && !it.heard && it.id !in here }
+        player.playTracks(ids, if (first < 0 || AlbumDayText.progress(d.tracks, here).done) 0 else first, "album")
+    }
+
+    fun closeTune() = tune.update { it.copy(open = false, error = null) }
 
     fun refresh() = viewModelScope.launch {
         refreshing.value = true
@@ -96,7 +131,10 @@ class HomeViewModel @Inject constructor(
         }
     }
 
-    private companion object { const val DEFAULT = "mix" }
+    private companion object {
+        const val DEFAULT = "mix"
+        const val HEARD_MS = 240_000L
+    }
 
     /** A вайбик plays its tracks as a queue (autoplay continues it, like the web). */
     fun playVibe(v: Vibe) = player.playTracks(v.tracks.map { it.id }, 0, context = "queue")
