@@ -49,6 +49,9 @@ import kotlin.math.roundToInt
  * «резко превращается из белого в прозрачный»). The content fades in after the surface; a scrim
  * dims the rest. A tap outside, Back, or the caller closes it.
  *
+ * With [glass] the panel is liquid glass of that tone (over [GlassScene]'s picture, which holds
+ * only the background — the screen's text never ghosts through it), fading in with the surface.
+ *
  * The anchor's rectangle is in the overlay's own coordinates. The overlay draws nothing when closed.
  */
 @Stable
@@ -89,6 +92,7 @@ fun MorphMenu(
     radiusFrom: Dp,
     scrim: Float,
     radiusTo: Dp = 22.dp,
+    glass: GlassTone? = null,
     content: @Composable () -> Unit,
 ) {
     val p = morph.p
@@ -121,10 +125,11 @@ fun MorphMenu(
                 .size(with(density) { cur.width.coerceAtLeast(1f).toDp() }, with(density) { cur.height.coerceAtLeast(1f).toDp() })
                 .clip(shape)
                 // opaque once grown: text under a translucent panel ghosts through its controls
-                .background((if (dark) Color(0xFF1C1A24) else Color(0xFFFFFFFF)).copy(alpha = s))
+                .then(if (glass == null) Modifier.background((if (dark) Color(0xFF1C1A24) else Color(0xFFFFFFFF)).copy(alpha = s)) else Modifier)
                 .border(1.dp, c.border.copy(alpha = c.border.alpha * s), shape)
                 .pointerInput(Unit) { detectTapGestures { } },  // a tap inside is not «outside»
         ) {
+            if (glass != null) Box(Modifier.matchParentSize().graphicsLayer { alpha = s }.liquidGlass(shape, glass, shadow = false))
             Box(
                 Modifier.wrapContentWidth(Alignment.Start, unbounded = true).requiredWidth(panelWidth)
                     .wrapContentHeight(Alignment.Top, unbounded = true)

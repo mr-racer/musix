@@ -75,6 +75,8 @@ import ru.musixai.app.core.designsystem.MusixIcons
 import ru.musixai.app.core.designsystem.MusixTheme
 import ru.musixai.app.core.designsystem.content.Cover
 import ru.musixai.app.core.designsystem.surface.GlassScene
+import ru.musixai.app.core.designsystem.surface.GlassTone
+import ru.musixai.app.core.designsystem.surface.liquidGlass
 import ru.musixai.app.core.designsystem.motion.LocalCoverFlight
 import ru.musixai.app.core.designsystem.LocalStageHeight
 import ru.musixai.app.core.designsystem.motion.coverSource
@@ -159,7 +161,7 @@ fun HomeScreen(ui: HomeUi, a: HomeActions) {
                 }
             }
         }
-        MorphMenu(tuneMorph, capsule?.translate(-origin), a.closeTune, radiusFrom = 20.dp, scrim = 0.28f) {
+        MorphMenu(tuneMorph, capsule?.translate(-origin), a.closeTune, radiusFrom = 20.dp, scrim = 0.28f, glass = GlassTone.Deep) {
             TunerPanel(ui.tune, a.pick, a.reset, a.closeTune)
         }
         MorphMenu(searchMorph, searchAt?.translate(-origin), { searchOpen = false }, radiusFrom = 20.dp, scrim = 0.4f) {
@@ -320,11 +322,10 @@ private fun VibeChip(v: Vibe, home: Home, play: (Vibe) -> Unit) {
     val flight = LocalCoverFlight.current
     val firstSrc = rememberCoverSource()
     Row(
+        // clear glass (the owner, 2026-11-15): a button, nothing to read but its name
         Modifier.height(48.dp)
-            .dropShadow(shape, Shadow(radius = 18.dp, color = if (dark) Color(0x52000000) else Color(0x1A3C2D64), offset = DpOffset(0.dp, 6.dp)))
+            .liquidGlass(shape, GlassTone.Chip)
             .clip(shape)
-            .background(if (dark) Brush.linearGradient(listOf(Color(0x17FFFFFF), Color(0x08FFFFFF))) else Brush.linearGradient(listOf(Color(0xE6FFFFFF), Color(0x8CFFFFFF))))
-            .innerShadow(shape, Shadow(radius = 0.dp, color = if (dark) Color(0x1FFFFFFF) else Color(0xE6FFFFFF), offset = DpOffset(0.dp, 1.dp)))
             .pressable {
                 // the first song's cover flies to the mini-player: it is the one the bar will show
                 if (covers.isNotEmpty()) flight?.launch(firstSrc, 8.dp)

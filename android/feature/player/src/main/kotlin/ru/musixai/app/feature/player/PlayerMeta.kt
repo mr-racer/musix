@@ -50,6 +50,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextMeasurer
@@ -61,6 +62,7 @@ import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
@@ -156,7 +158,9 @@ internal fun Meta(ui: PlayerUi, side: Side, sound: TrackSound?, scaleKey: String
         // (the stream's «похоже на …» line is gone, the owner 2026-11-15: it pushed the line and the
         // controls down and did not fit the scene)
         val keep = (lines - (if (titleLines > 1) 1 else 0)).coerceAtLeast(1)
-        Box(Modifier.padding(top = 10.dp).fillMaxWidth().heightIn(min = (lines * 22).dp)) {
+        // the slot is at least [lines] lines of 15 sp (the screen's geometry keeps that room) and takes the air
+        // down to the line as well: a long phrase fits there, what follows never moves or squeezes
+        Box(Modifier.padding(top = 10.dp).fillMaxWidth().weight(1f, fill = true).heightIn(min = with(LocalDensity.current) { PHRASE_SP.sp.toDp() * PHRASE_LH * lines })) {
             AnimatedContent(Triple(p.trackId, side == Side.Sound, scaleKey), transitionSpec = { rise(90) }, label = "slot") { (_, onSound, pick) ->
                 if (onSound && sound != null) {
                     // the named things stand out by colour, not weight (the owner: «обычным, без жирнения»)
@@ -173,20 +177,44 @@ internal fun Meta(ui: PlayerUi, side: Side, sound: TrackSound?, scaleKey: String
 private fun rise(delayMs: Int) =
     (fadeIn(tween(320, delayMillis = 120 + delayMs)) + slideInVertically(springKcm(300f, 26f)) { it / 6 }) togetherWith fadeOut(tween(120))
 
+private const val PHRASE_SP = 15f
+private const val PHRASE_LH = 1.45f
+private const val PHRASE_MIN_SP = 12f
+
 /**
- * The phrase in [lines] lines and «ещё ›» right after its last word: two lines, three where the screen has
- * room; whatever does not fit waits in «О песне» (the mock's binary search over words, done with a measurer).
+ * The phrase in the room it is given (its slot: [lines] lines of 15 sp and the air under them), «ещё ›» right
+ * after its last word. A longer phrase steps its size down by half a point (to 12 sp, the lines a little
+ * tighter) and takes as many lines as the room holds (the owner 2026-11-15: a long fact must fit, the parts
+ * below must not squeeze). Only what still does not fit at 12 sp waits in «О песне».
  */
 @Composable
 private fun Phrase(text: String, lines: Int, onMore: () -> Unit) {
     val c = MusixTheme.colors
     val measurer = rememberTextMeasurer(8)
-    val style = MusixTheme.text.reading.copy(fontSize = 15.sp, lineHeight = 1.45.em, fontStyle = FontStyle.Italic, color = c.textMuted, letterSpacing = 0.em)
+    val style = MusixTheme.text.reading.copy(fontSize = PHRASE_SP.sp, lineHeight = PHRASE_LH.em, fontStyle = FontStyle.Italic, color = c.textMuted, letterSpacing = 0.em)
     val more = SpanStyle(fontFamily = MusixFontFamilies.Geist, fontStyle = FontStyle.Normal, fontWeight = FontWeight.Medium, fontSize = 14.sp, color = c.text)
-    BoxWithConstraints(Modifier.fillMaxWidth().pressable(role = Press.Row) { onMore() }) {
+    val density = LocalDensity.current
+    BoxWithConstraints(Modifier.fillMaxWidth()) {
         val w = constraints.maxWidth
-        val shown = remember(text, lines, w) { fit(measurer, text, lines, w, style, more) }
-        Text(shown, style = style)
+        val room = if (constraints.hasBoundedHeight) constraints.maxHeight.toFloat() else with(density) { PHRASE_SP.sp.toPx() } * PHRASE_LH * lines
+        val shown = remember(text, lines, w, room, style, density) { fitShrinking(measurer, text, room, w, style, more, density) }
+        Text(shown.first, Modifier.pressable(role = Press.Row) { onMore() }, style = shown.second)
+    }
+}
+
+/** The largest size, from 15 sp down to 12, at which the whole phrase fits [room] px; at 12 the words are cut. */
+private fun fitShrinking(m: TextMeasurer, text: String, room: Float, w: Int, style: TextStyle, more: SpanStyle, density: Density): Pair<AnnotatedString, TextStyle> {
+    var size = PHRASE_SP
+    while (true) {
+        // the line height eases from 1.45 at 15 sp to 1.35 at 12: small italic reads well a little tighter
+        val lh = PHRASE_LH - 0.1f * (PHRASE_SP - size) / (PHRASE_SP - PHRASE_MIN_SP)
+        val s = style.copy(fontSize = size.sp, lineHeight = lh.em)
+        val mo = more.copy(fontSize = (size - 1f).sp)
+        val n = maxOf(1, (room / (with(density) { size.sp.toPx() } * lh) + 0.001f).toInt())
+        val whole = withMore(text, mo)
+        if (m.measure(whole, s, constraints = Constraints(maxWidth = w)).lineCount <= n) return whole to s
+        if (size <= PHRASE_MIN_SP) return fit(m, text, n, w, s, mo) to s
+        size -= 0.5f
     }
 }
 
@@ -220,7 +248,8 @@ internal fun Tray(p: PlayerState, onOpen: () -> Unit, modifier: Modifier) {
     val press by animateFloatAsState(if (held) 1f else 0f, springKcm(420f, 30f), label = "tray")
     val ring = MusixTheme.colors.bg
     Box(
-        modifier.fillMaxWidth().padding(horizontal = 24.dp).padding(top = 4.dp).height(46.dp).pointerInput(Unit) {
+        // at least 46 dp: a large system font grows it instead of spilling onto the buttons
+        modifier.fillMaxWidth().padding(horizontal = 24.dp).padding(top = 4.dp).heightIn(min = 46.dp).pointerInput(Unit) {
             // a tap opens the queue; a pull up opens it after the finger
             awaitEachGesture {
                 val down = awaitFirstDown()

@@ -90,7 +90,13 @@ class PlayerViewModel @Inject constructor(
     }
     private val about = combine(context, sound, stage) { c, s, st -> Triple(c, s, st) }
 
-    val ui: StateFlow<PlayerUi> = combine(player.state, about, envelope, local, handoff.remote) { p, cs, env, l, remote ->
+    /** The play position alone. It ticks 4 times a second, so the screens read it through here — in a
+     *  clock or a draw — and [ui] carries none of it: a tick there recomposed the whole player and the bar. */
+    val position: StateFlow<Long> = player.state.map { it.positionMs }.distinctUntilChanged()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), player.state.value.positionMs)
+    private val still = player.state.map { it.copy(positionMs = 0L) }.distinctUntilChanged()
+
+    val ui: StateFlow<PlayerUi> = combine(still, about, envelope, local, handoff.remote) { p, cs, env, l, remote ->
         val (ctx, snd, st) = cs
         l.copy(player = p, context = ctx?.takeIf { it.track.id == p.trackId }, envelope = env, sound = snd, stage = st,
             remote = remote?.takeIf { it.playing },

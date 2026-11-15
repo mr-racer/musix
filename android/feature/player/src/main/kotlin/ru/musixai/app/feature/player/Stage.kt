@@ -298,7 +298,8 @@ private fun CoverCard(entry: QueueEntry?, slot: Int, turn: PageTurn, z: Float, a
             contentAlignment = Alignment.Center,
         ) {
             if (loading) Spinner(28.dp, Color.White.copy(alpha = 0.92f))
-            else PlayPauseGlyph(0f, Modifier.size(30.dp).graphicsLayer { translationX = 3.dp.toPx() }, Color.White.copy(alpha = 0.92f))
+            // no extra nudge: the glyph's ▶ already sits right of its box (0.22–0.92 of the width), optically centred
+            else PlayPauseGlyph(0f, Modifier.size(30.dp), Color.White.copy(alpha = 0.92f))
         }
     }
 }

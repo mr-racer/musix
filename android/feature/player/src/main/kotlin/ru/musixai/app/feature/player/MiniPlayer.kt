@@ -42,6 +42,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
@@ -79,7 +80,8 @@ import ru.musixai.app.core.player.PlayerState
 @Composable
 fun MiniPlayer(onOpen: () -> Unit, vm: PlayerViewModel = hiltViewModel()) {
     val ui by vm.ui.collectAsStateWithLifecycle()
-    MiniPlayerSlot(ui.player, onOpen, vm::toggle, vm::next)
+    val pos = vm.position.collectAsStateWithLifecycle()   // read only in the progress line's draw
+    MiniPlayerSlot(ui.player, onOpen, vm::toggle, vm::next, position = { pos.value })
 }
 
 internal const val MiniCoverTag = "mini-cover"
@@ -112,7 +114,7 @@ fun miniPlayerCoverAbove(top: Float, density: Density): Rect = with(density) {
  * The last song stays on the bar while it leaves.
  */
 @Composable
-internal fun MiniPlayerSlot(p: PlayerState, onOpen: () -> Unit, onToggle: () -> Unit, onNext: () -> Unit, reduced: Boolean = rememberReducedMotion()) {
+internal fun MiniPlayerSlot(p: PlayerState, onOpen: () -> Unit, onToggle: () -> Unit, onNext: () -> Unit, reduced: Boolean = rememberReducedMotion(), position: () -> Long = { p.positionMs }) {
     val shown = p.trackId != null
     val lastShown = remember { mutableStateOf(p) }
     SideEffect { if (shown) lastShown.value = p }
@@ -137,12 +139,12 @@ internal fun MiniPlayerSlot(p: PlayerState, onOpen: () -> Unit, onToggle: () -> 
         // a cover flying in heads for where the bar's cover will rest — the shell's dock — and
         // meets the bar there; while the bar rises its cover is still below that, so it is no aim
         val settled = transition.currentState == EnterExitState.Visible && transition.targetState == EnterExitState.Visible
-        MiniPlayerBar(bar, onOpen, onToggle, onNext, pop = { pop.value }, aim = settled)
+        MiniPlayerBar(bar, onOpen, onToggle, onNext, pop = { pop.value }, aim = settled, position = position)
     }
 }
 
 @Composable
-internal fun MiniPlayerBar(p: PlayerState, onOpen: () -> Unit, onToggle: () -> Unit, onNext: () -> Unit, pop: () -> Float = { 1f }, aim: Boolean = true) {
+internal fun MiniPlayerBar(p: PlayerState, onOpen: () -> Unit, onToggle: () -> Unit, onNext: () -> Unit, pop: () -> Float = { 1f }, aim: Boolean = true, position: () -> Long = { p.positionMs }) {
     val c = MusixTheme.colors
     val haptics = LocalMusixHaptics.current
     val glyph by animateFloatAsState(if (p.isPlaying) 1f else 0f, spring(dampingRatio = 0.8f, stiffness = 520f), label = "glyph")
@@ -171,9 +173,14 @@ internal fun MiniPlayerBar(p: PlayerState, onOpen: () -> Unit, onToggle: () -> U
     }
     Box(Modifier.fillMaxWidth().height(BarH).then(pull).pressable(onClick = onOpen).padding(horizontal = PadH)) {
         // the progress line across the top: the whole song faint, the played part in the accent
-        val frac = if (p.durationMs > 0) (p.positionMs.toFloat() / p.durationMs).coerceIn(0f, 1f) else 0f
-        Box(Modifier.fillMaxWidth().height(2.dp).clip(RoundedCornerShape(1.dp)).background(c.text.copy(alpha = 0.09f)).testTag("mini-progress"))
-        Box(Modifier.fillMaxWidth(frac).height(2.dp).clip(RoundedCornerShape(1.dp)).background(c.accent))
+        // the position is read in the draw: its ticks redraw a 2 dp line, the bar does not recompose
+        val accent = c.accent
+        val dur = p.durationMs
+        Box(Modifier.fillMaxWidth().height(2.dp).clip(RoundedCornerShape(1.dp)).background(c.text.copy(alpha = 0.09f)).testTag("mini-progress")
+            .drawBehind {
+                val frac = if (dur > 0) (position().toFloat() / dur).coerceIn(0f, 1f) else 0f
+                drawRect(accent, size = size.copy(width = size.width * frac))
+            })
         Row(Modifier.fillMaxSize(), verticalAlignment = Alignment.CenterVertically) {
             // covers that start playing land here (CoverFlight)
             AsyncImage(

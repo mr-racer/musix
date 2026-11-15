@@ -30,6 +30,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
@@ -54,6 +55,7 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import ru.musixai.app.core.designsystem.MusixTheme
 import ru.musixai.app.core.designsystem.gesture.HapticCue
 import ru.musixai.app.core.designsystem.gesture.LocalMusixHaptics
@@ -68,6 +70,7 @@ import ru.musixai.app.core.designsystem.text
 import ru.musixai.app.core.model.SoundMoment
 import ru.musixai.app.core.model.SoundSection
 import kotlin.math.PI
+import kotlin.math.abs
 import kotlin.math.sqrt
 
 /** The playing position, s — smooth between the player's reports (it reports a few times a second). */
@@ -77,18 +80,38 @@ class PlayClock { var sec by mutableFloatStateOf(0f) }
 /** A clock that runs from [positionMs] while [playing], and holds while [held] (a finger scrubs). */
 @Composable
 fun rememberPlayClock(positionMs: Long, playing: Boolean, held: Boolean): PlayClock {
+    val at = rememberUpdatedState(positionMs)
+    return rememberPlayClock({ at.value }, playing, held)
+}
+
+/**
+ * The same, reading the position through [positionMs] — a snapshot read the caller never does in
+ * composition, so the player's 4 Hz reports recompose nothing. While playing, the clock runs on frames
+ * from one anchor and takes a report only when it is off by more than [DRIFT_S] (a seek, a stall): it
+ * neither restarts on every report nor steps back by the report's age.
+ */
+@Composable
+fun rememberPlayClock(positionMs: () -> Long, playing: Boolean, held: Boolean): PlayClock {
     val clock = remember { PlayClock() }
-    val at by rememberUpdatedState(positionMs)
-    LaunchedEffect(positionMs, playing, held) {
+    val read by rememberUpdatedState(positionMs)
+    LaunchedEffect(playing, held) {
         if (held) return@LaunchedEffect
-        val start = at / 1000f
-        clock.sec = start
-        if (!playing) return@LaunchedEffect
-        val t0 = withFrameNanos { it }
-        while (true) withFrameNanos { clock.sec = start + (it - t0) / 1e9f }
+        if (!playing) { snapshotFlow { read() }.collect { clock.sec = it / 1000f }; return@LaunchedEffect }
+        var anchor = read() / 1000f
+        var t0 = -1L
+        clock.sec = anchor
+        launch {
+            snapshotFlow { read() }.collect { ms ->
+                val s = ms / 1000f
+                if (abs(s - clock.sec) > DRIFT_S) { anchor = s; t0 = -1L }
+            }
+        }
+        while (true) withFrameNanos { n -> if (t0 < 0) t0 = n; clock.sec = anchor + (n - t0) / 1e9f }
     }
     return clock
 }
+
+private const val DRIFT_S = 0.25f
 
 /** A moment of the line lit from outside (a part on the stage said when it comes in). */
 @Stable
@@ -153,8 +176,9 @@ fun SongLine(
             Modifier.fillMaxWidth().height(36.dp).onSizeChanged { width = it.width.toFloat() }
                 .semantics {
                     contentDescription = "Позиция в песне"
-                    stateDescription = "${time(clock.sec.toDouble())} из ${time(d)}"
-                    progressBarRangeInfo = ProgressBarRangeInfo((clock.sec / d).toFloat().coerceIn(0f, 1f), 0f..1f)
+                    // whole seconds: the semantics are not rebuilt on every frame of the clock
+                    stateDescription = "${time(second.toDouble())} из ${time(d)}"
+                    progressBarRangeInfo = ProgressBarRangeInfo((second / d).toFloat().coerceIn(0f, 1f), 0f..1f)
                     setProgress { onSeek(it * d); true }
                 }
                 .pointerInput(secs, d) {

@@ -374,17 +374,41 @@ internal fun GlassDemo() {
 @Composable
 internal fun MorphMenuDemo() {
     var open by remember { mutableStateOf(false) }
-    val morph = rememberMorph(open, rememberReducedMotion())
+    var glassOpen by remember { mutableStateOf(false) }
+    val reduced = rememberReducedMotion()
+    val morph = rememberMorph(open, reduced)
+    val glassMorph = rememberMorph(glassOpen, reduced)
     var anchor by remember { mutableStateOf<Rect?>(null) }
+    var glassAnchor by remember { mutableStateOf<Rect?>(null) }
     val c = MusixTheme.colors
-    Box(Modifier.fillMaxWidth().height(230.dp)) {
-        Row(Modifier.align(Alignment.TopEnd).onGloballyPositioned { anchor = it.boundsInParent() }.graphicsLayer { alpha = morph.anchorAlpha }) {
+    // left: the opaque panel (the default, the search); right: matte glass over the scene's picture
+    // (`glass = GlassTone.Deep`, the home's «Моя волна» tuner, 2026-11-15)
+    GlassScene(Modifier.fillMaxWidth().height(230.dp), background = {
+        Box(Modifier.matchParentSize().background(c.bg))
+        Box(Modifier.size(120.dp).align(Alignment.BottomEnd).padding(16.dp).background(Color(0xFFE85D9A), CircleShape))
+        Box(Modifier.size(90.dp).align(Alignment.CenterEnd).padding(12.dp).background(Color(0xFF7C5BFF), CircleShape))
+    }) {
+        Row(Modifier.align(Alignment.TopStart).onGloballyPositioned { anchor = it.boundsInParent() }.graphicsLayer { alpha = morph.anchorAlpha }) {
             Pill("Сортировка", onClick = { open = true }, leading = { Icon(MusixIcons.List, null, Modifier.size(16.dp), tint = c.text) })
+        }
+        Box(Modifier.align(Alignment.TopEnd).onGloballyPositioned { glassAnchor = it.boundsInParent() }.graphicsLayer { alpha = glassMorph.anchorAlpha }) {
+            LiquidGlass(Modifier.height(40.dp), radius = 20.dp) {
+                Text("Стекло", Modifier.align(Alignment.Center).pressable { glassOpen = true }.padding(horizontal = 16.dp),
+                    style = MusixTheme.text.label.copy(color = c.text))
+            }
         }
         MorphMenu(morph, anchor, onClose = { open = false }, radiusFrom = 20.dp, scrim = 0.12f) {
             Column(Modifier.padding(8.dp)) {
                 listOf("Недавно добавленные", "По названию", "По артисту", "По году").forEach { s ->
                     Text(s, Modifier.fillMaxWidth().pressable(role = Press.Row) { open = false }.padding(horizontal = 12.dp, vertical = 12.dp),
+                        style = MusixTheme.text.body.copy(color = c.text))
+                }
+            }
+        }
+        MorphMenu(glassMorph, glassAnchor, onClose = { glassOpen = false }, radiusFrom = 20.dp, scrim = 0.12f, glass = GlassTone.Deep) {
+            Column(Modifier.padding(8.dp)) {
+                listOf("Знакомое", "Новое", "Микс").forEach { s ->
+                    Text(s, Modifier.fillMaxWidth().pressable(role = Press.Row) { glassOpen = false }.padding(horizontal = 12.dp, vertical = 12.dp),
                         style = MusixTheme.text.body.copy(color = c.text))
                 }
             }

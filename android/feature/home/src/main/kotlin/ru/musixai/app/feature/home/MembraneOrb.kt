@@ -65,6 +65,10 @@ import ru.musixai.app.core.designsystem.control.PlayPauseGlyph
 import ru.musixai.app.core.designsystem.gesture.pressable
 import ru.musixai.app.core.designsystem.oklch
 import ru.musixai.app.core.designsystem.motion.rememberParkingLoop
+import ru.musixai.app.core.designsystem.surface.GlassTone
+import ru.musixai.app.core.designsystem.surface.glassSource
+import ru.musixai.app.core.designsystem.surface.liquidGlass
+import ru.musixai.app.core.designsystem.surface.rememberGlassSource
 
 /**
  * «Поток»'s orb, r3: the r1 insides (a conic ring, four palette blobs, an iridescent glass
@@ -119,6 +123,9 @@ internal fun MembraneOrb(
     val ringAlpha by animateFloatAsState(if (playing || loading) 1f else 0.65f, tween(300), label = "ring")
     val glyph by animateFloatAsState(if (playing) 1f else 0f, spring(dampingRatio = 0.8f, stiffness = 520f), label = "glyph")
     val u = size / 78f  // one r1 orb unit (the orb was 78 dp)
+    // the cap's own picture: the blobs it sits on, recorded inside the blur — sharp, so the lens has
+    // colour edges to bend (through the blurred ones the cap read as a flat disc)
+    val blobSrc = rememberGlassSource()
 
     Box(modifier.requiredSize(size * 1.42f), contentAlignment = Alignment.Center) {
         Canvas(Modifier.requiredSize(size * 1.41f).graphicsLayer { rotationZ = angle; alpha = ringAlpha }
@@ -201,7 +208,7 @@ internal fun MembraneOrb(
                 ),
             contentAlignment = Alignment.Center,
         ) {
-            Canvas(Modifier.requiredSize(size).then(if (Build.VERSION.SDK_INT >= 31) Modifier.blur(u * 11f) else Modifier)) {
+            Canvas(Modifier.requiredSize(size).then(if (Build.VERSION.SDK_INT >= 31) Modifier.blur(u * 11f) else Modifier).glassSource(blobSrc)) {
                 val k = this.size.width / 62f
                 val rr = 27f * k
                 fun blob(col: Color, left: Float, top: Float) =
@@ -209,15 +216,18 @@ internal fun MembraneOrb(
                     else drawCircle(Brush.radialGradient(listOf(col, col.copy(alpha = 0f)), Offset((left + 27f) * k, (top + 27f) * k), rr * 1.3f), rr * 1.3f, Offset((left + 27f) * k, (top + 27f) * k))
                 blob(c[2], -3f, 9f); blob(c[3], 7f, -3f); blob(c[0], 2f, 2f); blob(c[1], 9f, 6f)
             }
-            // the glass cap: the iridescent tint, a lit rim above and a shade below (no gloss)
-            Box(Modifier.requiredSize(u * 50f).clip(CircleShape)
+            // the cap: clear liquid glass (the owner, 2026-11-15) over the blobs — their colours bend
+            // at its rim; the dark body of glass on art keeps the white glyph legible in both themes
+            Box(Modifier.requiredSize(u * 50f)
+                .liquidGlass(CircleShape, GlassTone.Clear, shadow = false, source = blobSrc, onArt = true)
+                .clip(CircleShape)
                 .drawBehind {
+                    // r1's iridescent sheen at half strength: with a one-hue palette under it the glass
+                    // alone reads as a flat tinted disc
                     val d = Offset(0.643f, 0.766f) * (this.size.width * 1.409f / 2f)
                     val m = Offset(this.size.width / 2, this.size.height / 2)
-                    drawCircle(Brush.linearGradient(listOf(Color(0x807C5BFF), Color(0x6BFF78C8), Color(0x66E0B341)), m - d, m + d))
-                }
-                .innerShadow(CircleShape, Shadow(radius = 0.dp, color = Color(0x80FFFFFF), offset = DpOffset(0.dp, u * 1.25f)))
-                .innerShadow(CircleShape, Shadow(radius = u * 10f, color = Color(0x40000000), offset = DpOffset(0.dp, u * -3.75f))),
+                    drawCircle(Brush.linearGradient(listOf(Color(0x407C5BFF), Color(0x36FF78C8), Color(0x33E0B341)), m - d, m + d))
+                },
                 contentAlignment = Alignment.Center) {
                 if (loading) OrbSpinner(u * 17.5f) else PlayPauseGlyph(glyph, Modifier.size(u * 21f), Color.White)
             }

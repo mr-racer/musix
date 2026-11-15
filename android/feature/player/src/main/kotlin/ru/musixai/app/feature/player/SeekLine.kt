@@ -20,4 +20,4 @@ internal typealias Clock = PlayClock
 internal typealias LitMoment = ru.musixai.app.core.designsystem.control.LitMoment
 
 @Composable
-internal fun rememberClock(positionMs: Long, playing: Boolean, scrubbing: Boolean): Clock = rememberPlayClock(positionMs, playing, scrubbing)
+internal fun rememberClock(positionMs: () -> Long, playing: Boolean, scrubbing: Boolean): Clock = rememberPlayClock(positionMs, playing, scrubbing)

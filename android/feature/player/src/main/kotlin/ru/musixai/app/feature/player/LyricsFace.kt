@@ -135,7 +135,8 @@ internal fun LyricsFace(
             }.verticalScroll(scroll).padding(start = 28.dp, end = 28.dp, bottom = 130.dp, top = if (sync) cover * 0.28f else 20.dp),
         ) {
             lines.forEachIndexed { i, l ->
-                if (i > 0 && lines[i - 1].part != l.part) Spacer(Modifier.height(14.dp))
+                // a part keeps its wide gap (18 + the rows' 2 × 7 = 32 dp, as before); lines inside it sit closer
+                if (i > 0 && lines[i - 1].part != l.part) Spacer(Modifier.height(18.dp))
                 val on = i == now
                 val picked = i in sel
                 val color by animateColorAsState(when {
@@ -156,7 +157,7 @@ internal fun LyricsFace(
                             sel = pick(sel, i, lines)
                             tip.hide(false)
                         }
-                        .padding(horizontal = 10.dp, vertical = 9.dp)
+                        .padding(horizontal = 10.dp, vertical = 7.dp)
                         .graphicsLayer { transformOrigin = TransformOrigin(0f, 0.5f); scaleX = grow; scaleY = grow },
                     style = MusixTheme.text.body.copy(fontFamily = MusixFontFamilies.Geist, fontWeight = FontWeight.SemiBold, fontSize = if (cover < 340.dp) 18.sp else 20.sp, lineHeight = 1.3.em, letterSpacing = (-0.015).em, color = color),
                 )

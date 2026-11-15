@@ -126,7 +126,8 @@ internal fun PlayerScreen(ui: PlayerUi, vm: PlayerViewModel, fold: PlayerFold, o
     val light = remember { PlayerLight() }
     val lit = remember { LitMoment() }
     val bursts = rememberBursts()
-    val clock = rememberClock(p.positionMs, p.isPlaying, scrubbing)
+    val pos = vm.position.collectAsStateWithLifecycle()   // read by the clock only, never here
+    val clock = rememberClock({ pos.value }, p.isPlaying, scrubbing)
     val hint = rememberHint()
     WarmSoftCovers(listOfNotNull(p.queue.getOrNull(p.index - 1)?.artUri, p.artUri, p.queue.getOrNull(p.index + 1)?.artUri))
 
@@ -161,7 +162,9 @@ internal fun PlayerScreen(ui: PlayerUi, vm: PlayerViewModel, fold: PlayerFold, o
                 scaleX = 1f - 0.035f * o; scaleY = 1f - 0.035f * o; translationY = -6.dp.toPx() * o
             },
         ) {
-            val geo = geometry(screenW, screenH - bars)
+            // how much 15 sp text really grows: Android 14+ scales large sizes less than small ones, so
+            // the font scale itself overstates it
+            val geo = geometry(screenW, screenH - bars, with(density) { 15.sp.toDp().value } / 15f)
             val away = Modifier.graphicsLayer { val k = e(); alpha = (1f - k * 2.4f).coerceIn(0f, 1f); translationY = k * 36.dp.toPx() }
 
             // the top bar: fold, the file's quality, the pause of the words and sound sides; a handle too
@@ -207,9 +210,10 @@ internal fun PlayerScreen(ui: PlayerUi, vm: PlayerViewModel, fold: PlayerFold, o
 
             // the title block
             Meta(ui, side, sound, scaleKey, geo.lines, accent, onArtist = { ctx?.track?.artists?.firstOrNull()?.id?.let(onArtist) }, onAlbum = { ctx?.track?.albumId?.let(onAlbum) },
-                onMore = { sheet = PlayerSheet.About }, modifier = Modifier.padding(top = geo.air + 16.dp).padding(horizontal = 24.dp).then(away))
+                onMore = { sheet = PlayerSheet.About }, modifier = Modifier.weight(1f).padding(top = geo.air + 16.dp).padding(horizontal = 24.dp).then(away))
 
-            Spacer(Modifier.weight(1f))
+            // (no spacer: the title block takes what is left, and its phrase may use it — the line and
+            // the buttons below keep their places)
 
             Box(away) {
                 SongLine(clock,(p.durationMs.takeIf { it > 0 } ?: ctx?.track?.durationMs ?: 0L) / 1000.0, sound?.sections.orEmpty(), sound?.let { lineMoments(it.moments) }.orEmpty(),
@@ -241,11 +245,19 @@ internal fun PlayerScreen(ui: PlayerUi, vm: PlayerViewModel, fold: PlayerFold, o
  *  keeps three lines where the screen is tall, two elsewhere; what is left over is air between the parts. */
 internal data class Geometry(val cover: Dp, val lines: Int, val air: Dp)
 
-internal fun geometry(w: Dp, h: Dp): Geometry {
+/** [fontScale] is the system's font size: of the 359 dp under the cover about 167 are text (the title, the
+ *  links, the sides, the line's labels, «Далее») and the phrase is 22 a line — all of it grows with the font,
+ *  so a larger font takes from the cover, not from the line and the buttons (a Pixel at 1.2 overlapped them). */
+internal fun geometry(w: Dp, h: Dp, fontScale: Float = 1f): Geometry {
     val full = w - 24.dp
-    fun below(lines: Int) = (359 + lines * 22).dp
+    val grow = (fontScale - 1f).coerceAtLeast(0f)
+    // 375: measured on a 427 × 952 dp phone (2026-11-15); the 359 guessed before left the phrase ~16 dp short,
+    // which the bottom paddings silently paid for
+    fun below(lines: Int) = (375 + lines * 22).dp + ((167 + lines * 22) * grow).dp
     val c3 = h - 50.dp - below(3)
     if (c3 >= full) return Geometry(full, 3, ((c3 - full) / 4).coerceAtMost(14.dp))
+    // a third line of the phrase is worth a cover a little narrower — down to 95 % of the screen's width
+    if (c3 >= full * 0.95f) return Geometry(c3, 3, 0.dp)
     val c2 = (h - 50.dp - below(2)).coerceAtMost(full).coerceAtLeast(220.dp)
     return Geometry(c2, 2, 0.dp)
 }

@@ -88,6 +88,8 @@ import ru.musixai.app.core.designsystem.motion.coverSource
 import ru.musixai.app.core.designsystem.gesture.pressable
 import ru.musixai.app.core.designsystem.motion.rememberCoverSource
 import ru.musixai.app.core.designsystem.hexColor
+import ru.musixai.app.core.designsystem.surface.GlassTone
+import ru.musixai.app.core.designsystem.surface.liquidGlass
 import ru.musixai.app.core.model.DayAlbum
 import ru.musixai.app.core.model.Image
 import java.time.LocalDate
@@ -172,12 +174,12 @@ internal fun AlbumTicket(
         val index = AlbumDayText.phraseIndex(d.albumId, phraseSlot, fitting.size)
         val (name, edition) = remember(d.title) { AlbumDayText.edition(d.title) }
         Column(
-            Modifier.fillMaxWidth().clip(shape)
-                .background(if (dark) Color(0xB31C1922) else Color(0xD9FFFFFF))
+            // matte glass (the owner, 2026-11-15): the phrase is read over the sky; no shadow — the
+            // card ends near the page, and a shadow cut at its edge shows as a seam over the mini-player
+            Modifier.fillMaxWidth().liquidGlass(shape, GlassTone.Deep, shadow = false).clip(shape)
                 .drawBehind {  // the cover's glow, muted (as after the r2 fix)
                     drawCircle(Brush.radialGradient(listOf(accent.copy(alpha = if (dark) 0.16f else 0.10f), Color.Transparent), Offset(0f, 0f), size.width * 0.7f), size.width * 0.7f, Offset(0f, 0f))
                 }
-                .border(1.dp, c.border, shape)
                 .padding(start = pad, end = 4.dp, top = pad, bottom = 2.dp),
         ) {
             Row(Modifier.padding(end = 10.dp), verticalAlignment = Alignment.Top) {
