@@ -1,0 +1,81 @@
+<div id="phone" class="phone" data-theme="dark" data-state="ready" data-mode="cover" data-arrows="cover">
+  <div class="statusbar" aria-hidden="true"><span>9:41</span><span class="sb-icons"><i></i><i></i><b></b></span></div>
+
+  <!-- what lies behind the player: a neutral page with the shared mini player -->
+  <div class="stub" id="stub" aria-hidden="true">
+    <div class="stub-page" id="stubPage"><span class="stub-mark">Musi<b>X</b></span><p>Главная — за плеером.<br>Здесь она только показывает, куда сворачивается обложка.</p></div>
+    <div class="mini" id="mini" role="button" tabindex="-1" aria-label="Открыть плеер"><span class="mini-art" id="miniArt"><img alt="" draggable="false"></span><span class="mini-meta"><b id="miniTitle"></b><small id="miniArtist"></small></span><button class="rb" id="miniPlay" aria-label="Пауза"></button><i class="mini-line"><i id="miniLine"></i></i></div>
+  </div>
+
+  <section class="player" id="player" aria-label="Плеер">
+    <div class="backdrop" id="backdrop"><i></i><i></i><span class="grain"></span><span class="shade"></span></div>
+    <div class="pl" id="pl">
+      <header class="top" id="top">
+        <button class="rb" id="collapse" aria-label="Свернуть плеер" data-icon="ChevronDown"></button>
+        <div class="top-mid" id="topMid"><span class="badge" id="lossless">Lossless</span></div>
+        <div class="top-right"><button class="rb pp-top" id="sidePP" aria-label="Пауза"></button></div>
+      </header>
+
+      <div class="stage" id="stage" role="group" aria-label="Сцена: касание — пауза, смахивание — другая песня">
+        <div class="flipper" id="flipper">
+          <div class="side front" id="front">
+            <div class="track" id="track"></div>
+            <div class="soundface" id="soundface" aria-hidden="true"><div class="sf-floor"></div><div class="sf-viz" id="sfViz"></div><div class="sf-scales" id="sfScales"></div></div>
+          </div>
+          <div class="side back" id="lyricsFace"><div class="ly-bg"></div><div class="ly-list" id="lyList"></div></div>
+        </div>
+        <canvas class="burst" id="burst" aria-hidden="true"></canvas>
+        <div class="hint lg" id="hint" role="status">Коснись — пауза · смахни — другая песня</div>
+        <div class="veil" id="veil" role="status"></div>
+      </div>
+
+      <div class="modes" id="modes" role="tablist" aria-label="Сторона сцены"><i class="lens" id="lens"></i><button role="tab" data-mode="cover" aria-selected="true">Обложка</button><button role="tab" data-mode="text" aria-selected="false">Текст</button><button role="tab" data-mode="sound" aria-selected="false">Звук</button></div>
+
+      <div class="meta" id="meta">
+        <h2 class="title" id="title"></h2>
+        <div class="links"><button class="link main" id="artist"></button><button class="link" id="album"></button></div>
+        <div class="slot" id="slot"></div>
+        <p class="reason" id="reason" hidden><span data-icon="Sparkles"></span><span id="reasonText"></span></p>
+      </div>
+
+      <div class="grow"></div>
+
+      <div class="seekbox" id="seekbox">
+        <div class="seek" id="seek" role="slider" tabindex="0" aria-label="Позиция в песне" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+          <div class="moments" id="moments"></div>
+          <div class="blocks" id="blocks"></div>
+          <svg class="wave" id="wave" aria-hidden="true"><path id="wavePath"/></svg>
+          <i class="thumb" id="thumb"></i>
+          <div class="bubble lg" id="bubble" aria-hidden="true"><b></b><span></span></div>
+          <div class="mlabel lg" id="mlabel" aria-hidden="true"></div>
+        </div>
+        <div class="secrow"><span class="sec" id="sec"><i></i><span id="secName"></span></span></div>
+        <div class="times"><span id="elapsed">0:00</span><button id="duration" aria-label="Показать, сколько осталось">0:00</button></div>
+      </div>
+
+      <div class="tray" id="tray" role="button" tabindex="0" aria-label="Очередь: коснись или потяни вверх"><div class="tray-row"><span class="stack" id="stack"></span><span class="tray-text"><small>Далее</small><b id="nextTitle"></b></span><span class="tray-count" id="queueCount"></span><span class="tray-up" data-icon="ChevronDown"></span></div></div>
+
+      <div class="actions" id="actions">
+        <div><button class="rb react fire" id="fire" aria-label="Огонёк" aria-pressed="false" data-icon="Fire"></button><button class="rb react water" id="water" aria-label="Вода" aria-pressed="false" data-icon="Water"></button><button class="rb" id="shuffle" aria-label="Вперемешку" aria-pressed="false" data-icon="Shuffle"></button><button class="rb" id="addBtn" aria-label="В плейлист" aria-haspopup="menu"><svg viewBox="0 0 24 24" class="plus-check"><path d="M12 5v14"/><path d="M5 12h14"/></svg></button></div>
+        <button class="pill ask" id="ask"><span data-icon="Sparkles"></span>Спросить</button>
+      </div>
+
+    </div>
+
+    <div class="empty" id="empty" hidden><h2>Поставим что-нибудь?</h2><p>Выбери песню в библиотеке или включи Поток — он начнёт с того, что ты любишь.</p><button class="pill solid" id="emptyPlay"><span data-icon="Play"></span>Включить Поток</button></div>
+  </section>
+
+  <button class="scrim" id="scrim" aria-label="Закрыть" tabindex="-1"></button>
+  <section class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle" aria-hidden="true">
+    <div class="sheet-head" id="sheetHead"><i class="grab"></i><h2 id="sheetTitle"></h2><span class="sheet-aside" id="sheetAside"></span><button class="rb" id="sheetClose" aria-label="Закрыть" data-icon="Close"></button></div>
+    <div class="sheet-body" id="sheetBody"></div>
+    <div class="sheet-foot" id="sheetFoot"></div>
+  </section>
+
+  <button class="mscrim" id="mscrim" aria-label="Закрыть меню" tabindex="-1"></button>
+  <div class="menu" id="menu" role="menu" aria-label="В плейлист"><div class="menu-in" id="menuIn"></div></div>
+
+  <div class="toasts" id="toasts" aria-live="polite"></div>
+  <div class="hchip" id="hchip" aria-hidden="true"><i></i><span></span></div>
+  <div class="gesturebar" aria-hidden="true"></div>
+</div>

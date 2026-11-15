@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="color-scheme" content="dark light"><meta name="theme-color" content="#0d0d10"><title>MusiX · Плеер на Android</title><style>/* INLINE_CSS */</style></head>
+<body><div class="review-layout"><aside class="review-panel">
+  <a class="review-brand" href="#phone">MusiX <span>/ Android</span></a>
+  <h1>Плеер «Кино».<br>В руке.</h1>
+  <p class="review-intro">Одна сцена, три стороны: обложка, текст, звук.<br>Всё остальное приходит, когда позовут.</p>
+  <div class="review-options">
+    <label>Тема<select id="rvTheme"><option value="dark">Тёмная</option><option value="light">Светлая</option></select></label>
+    <label>Экран<select id="rvSize"><option value="360,780">360 × 780</option><option value="412,915" selected>412 × 915</option><option value="448,998">448 × 998</option></select></label>
+  </div>
+  <label class="review-field">Состояние<select id="rvState"><option value="ready">Обычное</option><option value="long">Длинное название</option><option value="stream">Поток · причина и без «вперемешку»</option><option value="loading">Буферизация</option><option value="error">Ошибка и повтор</option><option value="nosound">Нет профиля звука</option><option value="elsewhere">Играет на другом устройстве</option><option value="empty">Ничего не играет</option></select></label>
+  <label class="review-field">Очередь<select id="rvQueue"><option value="6">6 песен</option><option value="1">1 песня</option><option value="1000">1000 строк · повтор снимка</option></select></label>
+  <div class="review-options">
+    <label>Смена песни<select id="rvTurn"><option value="page">Перелист</option><option value="slide">Карусель</option></select></label>
+    <label>Текст песни<select id="rvLyrics"><option value="static">Статический</option><option value="sync">Караоке</option></select></label>
+  </div>
+  <label class="review-field">Слепок звука<select id="rvViz"><option value="stage">А · Сцена</option><option value="layers">Б · Слои</option></select></label>
+  <label class="review-toggle"><input type="checkbox" id="rvMotion" checked>Анимации</label>
+  <label class="review-toggle"><input type="checkbox" id="rvHaptic" checked>Показывать сигнал вибрации</label>
+  <div class="review-actions"><button id="rvOpen">Свернуть / открыть</button><button id="rvHints">Сбросить подсказку</button></div>
+  <p class="review-meter" id="rvMeter"><i></i><span>Кадры: покой</span></p>
+  <p class="review-note">Счётчик показывает настоящую частоту кадров, пока что-то движется, и самый длинный кадр за полсекунды. На экране 120 Гц должно быть около 120.</p>
+  <p class="review-note">Коснись обложки — пауза. Потяни её влево: конверт откроется, как дверца, под ним — следующая песня. Потяни сцену вниз — плеер свернётся. Потяни «Далее» вверх — очередь выйдет за пальцем.</p>
+  <details open><summary>Три идеи раунда</summary>
+    <p><b>Перелист.</b> Смена песни: конверт на петле слева, свободный край идёт за пальцем. Следующая обложка уже лежит под ним и выходит на свет; назад — прошлый конверт закрывается поверх. Свет экрана меняется вместе с пальцем.</p>
+    <p><b>Вопрос становится репликой.</b> В «Спросить» нет шапки с песней. Вопросы написаны крупно; выбранный сам улетает наверх и становится твоей строкой. Пока идёт ответ, поле сворачивается в круглую кнопку с индикатором (она же «стоп»), рядом — одна строка о том, что делается. Потом разворачивается обратно.</p>
+    <p><b>Лента фактов и титры.</b> «О песне»: факты — блоки, как разделы на линии перемотки; касание справа — дальше, слева — назад. Ниже — титры в две колонки вокруг одной оси, как в кино. Инструментов здесь нет: они на стороне «Звук».</p>
+  </details>
+  <details open><summary>Ещё в этом раунде</summary>
+    <p><b>Строчки текста.</b> Касание выделяет строчку, соседнюю можно добавить (до четырёх). Под ней — стеклянная капсула «Спросить о строчке»; в караоке ещё «Отсюда». Статичный текст листается пальцем; караоке идёт за голосом, пока его не трогают.</p>
+    <p><b>Очередь выше.</b> Строка «Далее» стоит над нижним рядом кнопок — тянуть её вверх начинаешь выше зоны системных жестов. Шит очереди — прозрачное стекло.</p>
+    <p><b>Пауза на сторонах «Текст» и «Звук»</b> — кнопка в шапке справа, она не лежит на содержимом.</p>
+  </details>
+  <details><summary>Мелочи</summary>
+    <p>Перемотка: линия толстеет под пальцем, над ним — время и раздел; на границе раздела — щелчок.</p>
+    <p>За шесть секунд до момента его точка вздрагивает дважды и называет себя.</p>
+    <p>Время справа: касание меняет «всего» на «осталось».</p>
+    <p>Огонёк поджигает обложку снизу, вода стекает по ней сверху — один раз, без повтора.</p>
+    <p>В плейлист обложка улетает по дуге; плюс становится галочкой.</p>
+    <p>На слепке звука коснись пятна — оно назовёт себя и подсветит свой момент на линии.</p>
+  </details>
+  <details><summary>Что здесь сценарий</summary><p>Звука нет: время идёт по таймеру. Песни, обложки, факты, титры и профили звука — из сохранённого снимка библиотеки. Строки текста — демонстрационные, слов песен в макете нет. Ответы ассистента, плейлисты и причина Потока написаны для макета. Стекло — рецепт web liquid glass v2; шаги ассистента — исходный Richbox Миши Наера.</p></details>
+  <div class="review-bottom"><a href="android-player-review.html" download>Скачать HTML ↓</a><span>14.11.2026 · предложение</span></div>
+</aside><div class="review-stage"><!-- PHONE --><p class="device-caption">Предложение для просмотра · не принятый экран</p></div></div><script>/* INLINE_JS */</script></body></html>

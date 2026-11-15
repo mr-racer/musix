@@ -85,6 +85,10 @@ blurring it.
 - The EQ bars of the current row, when the queue is visible.
 - The seek line (a transform, updated 4 times a second, with no transition: a transition
   would keep the compositor animating 60 frames a second for a pixel of travel).
+- Android assistant «Хрусталь»: gentle breathing of the orb and its light, explicitly requested
+  by the owner on 2026-11-14 (`preferences.md`). Use scale/translation/opacity; stop while hidden,
+  covered by a sheet or under reduced motion. This exception also applies beside the follow-up
+  input after an answer; it does not reintroduce the legacy `BreathingOrb` component.
 
 Nothing else. In particular: no pulsing or flashing with the beat, no drifting backgrounds.
 
