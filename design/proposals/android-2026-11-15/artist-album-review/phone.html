@@ -1,0 +1,63 @@
+<div id="phone" class="phone" data-theme="dark" data-size="412" data-sb="light">
+  <svg class="defs" width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false"><defs>
+    <linearGradient id="mxGold" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff3c9"/><stop offset=".35" stop-color="#ecc96f"/><stop offset=".7" stop-color="#b88b30"/><stop offset="1" stop-color="#7a5717"/></linearGradient>
+    <linearGradient id="mxBase" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3b3b42"/><stop offset="1" stop-color="#0f0f12"/></linearGradient>
+  </defs></svg>
+  <div class="statusbar" aria-hidden="true"><span>9:41</span><span class="sb-icons"><i></i><i></i><b></b></span></div>
+
+  <!-- the shell's stage: the pages, the album layer over them, the open mini player under everything -->
+  <main class="stage" id="stage">
+    <section class="page" id="pgLibrary" aria-label="Библиотека" hidden>
+      <div class="scroller" id="libScroll"><div class="sc-in" id="libIn"></div></div>
+    </section>
+
+    <section class="page artist" id="pgArtist" aria-label="Артист">
+      <div class="scroller" id="arScroll"><div class="sc-in" id="arIn"></div></div>
+      <i class="topveil" aria-hidden="true"></i>
+      <button class="rb lg on-art ar-back" id="arBack" aria-label="Назад" data-icon="ChevronLeft"></button>
+      <div class="mhead lg deep" id="arHead"><span class="ph"><img id="arHeadImg" alt=""></span><span class="nm"><b id="arHeadName"></b><small id="arHeadSub"></small></span><button class="rb" id="arHeadPlay" aria-label="Слушать артиста"></button></div>
+    </section>
+
+    <!-- «Конверт»: the cover stays where it landed, the leaf rides over it and opens on its hinge -->
+    <section class="album" id="album" aria-label="Альбом" hidden>
+      <div class="al-bg" id="alBg"><img alt=""><i></i></div>
+      <div class="al-slot" id="alSlot"><img id="alCoverLo" alt=""><img id="alCover" alt=""></div>
+      <div class="scroller al-scroll" id="alScroll"><div class="sc-in"><div class="al-spacer"></div><article class="leaf" id="leaf"><i class="leaf-shade" id="leafShade"></i><div class="leaf-in" id="leafIn"></div></article></div></div>
+      <i class="topveil" aria-hidden="true"></i>
+      <button class="rb al-close" id="alClose" aria-label="Закрыть альбом" data-icon="ChevronDown"></button>
+      <div class="mhead lg deep" id="alHead"><span class="ph sq"><img id="alHeadImg" alt=""></span><span class="nm"><b id="alHeadT"></b><small id="alHeadA"></small></span><button class="rb" id="alHeadPlay" aria-label="Слушать альбом"></button></div>
+    </section>
+
+    <div class="qchip" id="qchip" aria-live="polite"></div>
+    <div class="toasts" id="toasts" aria-live="polite"></div>
+    <div class="mini" id="mini" role="button" tabindex="0" aria-label="Открыть плеер" hidden><i class="mini-line"><i></i></i><span class="mini-art" id="miniArt"></span><span class="mini-meta"><b id="miniTitle"></b><small id="miniArtist"></small></span><button class="rb" id="miniPlay" aria-label="Слушать"></button><button class="rb" id="miniNext" aria-label="Следующая" data-icon="Next"></button></div>
+  </main>
+
+  <nav class="tabbar" id="tabbar" aria-label="Разделы">
+    <button class="tab" data-t="home" data-icon="Home">Главная</button>
+    <button class="tab" data-t="assistant" data-icon="Assistant">Ассистент</button>
+    <button class="tab" data-t="library" data-icon="Library" aria-current="page">Библиотека</button>
+    <button class="tab" data-t="quiz" data-icon="Quiz">Игра</button>
+  </nav>
+
+  <!-- a stub of the player: only its two word entries, «Артист ›» and «Альбом · год ›» -->
+  <section class="pstub" id="pstub" aria-label="Плеер (заглушка)">
+    <img class="bgf" id="psField" alt=""><i class="bgv"></i>
+    <button class="rb pstub-top" id="psClose" aria-label="Свернуть плеер" data-icon="ChevronDown"></button>
+    <div class="pstub-cover"><img id="psCover" alt=""></div>
+    <div class="pstub-meta"><h2 id="psTitle"></h2><div class="pstub-links" id="psLinks"></div></div>
+    <p class="pstub-note">Заглушка плеера. Здесь только два входа «из слова»: имя артиста и название альбома.</p>
+  </section>
+
+  <button class="scrim" id="scrim" aria-label="Закрыть" tabindex="-1"></button>
+  <section class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle" aria-hidden="true">
+    <div class="sheet-head" id="sheetHead"><i class="grab"></i><h2 id="sheetTitle"></h2><span class="sheet-aside" id="sheetAside"></span><button class="rb" id="sheetClose" aria-label="Закрыть" data-icon="Close"></button></div>
+    <div class="sheet-body" id="sheetBody"></div>
+  </section>
+
+  <button class="mscrim" id="mscrim" aria-label="Закрыть" tabindex="-1"></button>
+  <div class="menu" id="menu" role="dialog"><div class="menu-in" id="menuIn"></div></div>
+
+  <div class="hchip" id="hchip" aria-hidden="true"><i></i><span></span></div>
+  <div class="gesturebar" aria-hidden="true"></div>
+</div>
