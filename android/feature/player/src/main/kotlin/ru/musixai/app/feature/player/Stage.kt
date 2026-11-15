@@ -32,6 +32,8 @@ import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.input.pointer.util.VelocityTracker
+import androidx.compose.ui.layout.LayoutCoordinates
+import androidx.compose.ui.layout.onPlaced
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
@@ -119,6 +121,10 @@ internal fun Stage(
     val changeNow by rememberUpdatedState(onChange)
     val stageGlass = rememberGlassSource()
     val flick = with(density) { 56.dp.toPx() }
+    // the stage's place on screen: the fold moves and shrinks the stage under the finger, so the fold's
+    // drag is measured on screen — in the stage's own space the finger seems to come back as the stage
+    // goes down, and the fold shook between two sizes frame after frame (the owner's video, 2026-11-15)
+    val place = remember { arrayOfNulls<LayoutCoordinates>(1) }
 
     // the side of the stage: the cover turns its back to show the words (a little wobble at the end)
     val flip by animateFloatAsState(if (input.side == Side.Text) 180f else 0f, springKcm(120f, 13.5f), label = "flip")
@@ -128,6 +134,7 @@ internal fun Stage(
 
     Box(
         modifier.size(size)
+            .onPlaced { place[0] = it }
             .pointerInput(Unit) {
                 awaitEachGesture {
                     val down = awaitFirstDown(requireUnconsumed = false)
@@ -137,6 +144,11 @@ internal fun Stage(
                     val onFace = s.side != Side.Cover
                     val tracker = VelocityTracker()
                     tracker.addPosition(down.uptimeMillis, down.position)
+                    fun onScreen(p: Offset): Offset = place[0]?.takeIf { it.isAttached }?.localToRoot(p) ?: p
+                    val screenDown = onScreen(down.position)
+                    val screenTracker = VelocityTracker()
+                    screenTracker.addPosition(down.uptimeMillis, screenDown)
+                    var sy0 = 0f
                     val base = turn.sx.value
                     scope.launch { turn.sx.stop() }                     // grab it mid-flight
                     if (!onFace) turn.down(down.position.x / w, down.position.y / w)
@@ -153,6 +165,9 @@ internal fun Stage(
                         lastUp = ch
                         if (!ch.pressed) { ended = true; break }
                         tracker.addPosition(ch.uptimeMillis, ch.position)
+                        val screen = onScreen(ch.position)
+                        screenTracker.addPosition(ch.uptimeMillis, screen)
+                        val sy = screen.y - screenDown.y
                         val dx = ch.position.x - down.position.x
                         val dy = ch.position.y - down.position.y
                         lastDx = dx
@@ -161,7 +176,7 @@ internal fun Stage(
                             // someone below took it (the words scroll, a pool was pressed and moved)
                             if (ch.isConsumed && onFace) { cancelled = true; break }
                             dir = if (abs(dx) > abs(dy)) (if (onFace) 'f' else 'x') else if (dy > 0 && s.side != Side.Text) 'd' else 'n'
-                            x0 = dx; y0 = dy
+                            x0 = dx; y0 = dy; sy0 = sy
                             turn.up()
                             if (dir == 'd') onFold.grab()
                             if (dir == 'n') break
@@ -179,7 +194,7 @@ internal fun Stage(
                                 if (now != over) { over = now; haptics.perform(if (now) HapticCue.Threshold else HapticCue.ThresholdOff, fromUser = true) }
                             }
                             'f' -> ch.consume()
-                            'd' -> { ch.consume(); onFold.drag(dy - y0) }
+                            'd' -> { ch.consume(); onFold.drag(sy - sy0) }
                         }
                     }
                     turn.up()
@@ -205,7 +220,7 @@ internal fun Stage(
                             val go = if (lastDx < 0) 1 else -1
                             if ((go > 0 && s2.index < s2.queue.lastIndex) || (go < 0 && s2.index > 0)) { changeNow(go); turn.shown = s2.index + go; turn.turn(go, 0f) }
                         }
-                        'd' -> onFold.release(v.y, !ended)
+                        'd' -> onFold.release(screenTracker.calculateVelocity().y, !ended)
                         else -> {}
                     }
                 }

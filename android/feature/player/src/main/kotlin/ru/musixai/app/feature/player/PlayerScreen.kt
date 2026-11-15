@@ -42,6 +42,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.zIndex
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.TransformOrigin
@@ -173,7 +174,9 @@ internal fun PlayerScreen(ui: PlayerUi, vm: PlayerViewModel, fold: PlayerFold, o
 
             // the stage, measured where it stands open (the fold flies it into the bar's cover)
             Box(
-                Modifier.padding(top = 2.dp).align(Alignment.CenterHorizontally).size(geo.cover)
+                // over the rows below it: the folding cover passes them on its way down, and their fading
+                // text would veil it
+                Modifier.zIndex(1f).padding(top = 2.dp).align(Alignment.CenterHorizontally).size(geo.cover)
                     .onGloballyPositioned { fold.stage = it.boundsInRoot() },
             ) {
                 Box(Modifier.fillMaxSize().graphicsLayer {
