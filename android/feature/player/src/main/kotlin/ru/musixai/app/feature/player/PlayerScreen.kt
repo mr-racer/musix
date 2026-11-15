@@ -1,160 +1,279 @@
 package ru.musixai.app.feature.player
 
-import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontStyle
+import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.util.VelocityTracker
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import kotlinx.coroutines.launch
 import ru.musixai.app.core.designsystem.MusixFontFamilies
 import ru.musixai.app.core.designsystem.MusixIcons
+import ru.musixai.app.core.designsystem.MusixTheme
+import ru.musixai.app.core.designsystem.control.RoundButton
+import ru.musixai.app.core.designsystem.control.Segments
+import ru.musixai.app.core.designsystem.control.TextLink
+import ru.musixai.app.core.designsystem.control.PlayPauseGlyph
 import ru.musixai.app.core.designsystem.gesture.HapticCue
 import ru.musixai.app.core.designsystem.gesture.LocalMusixHaptics
-import ru.musixai.app.core.designsystem.MusixTheme
-import ru.musixai.app.core.designsystem.legacy.RoundGlassButton
+import ru.musixai.app.core.designsystem.gesture.Press
 import ru.musixai.app.core.designsystem.gesture.pressable
 import ru.musixai.app.core.designsystem.hexColor
+import ru.musixai.app.core.designsystem.motion.rememberReducedMotion
+import ru.musixai.app.core.designsystem.text
 import ru.musixai.app.core.player.QueueMode
 
 @Composable
-fun PlayerRoute(onClose: () -> Unit, onArtist: (String) -> Unit, vm: PlayerViewModel = hiltViewModel()) {
+fun PlayerRoute(fold: PlayerFold, onArtist: (String) -> Unit, onAlbum: (String) -> Unit = {}, vm: PlayerViewModel = hiltViewModel()) {
     val ui by vm.ui.collectAsStateWithLifecycle()
-    PlayerScreen(ui, vm, onClose, onArtist)
+    PlayerScreen(ui, vm, fold, onArtist, onAlbum)
 }
 
-/** v1 `PlayerSection` in its phone form (golden player-phone-*): the cover stage, the
- *  title block with the vibe line, the scrubber over the energy envelope, the action row,
- *  the Lossless mark, then the facts rail (or the synced lyrics) and the queue. */
+internal enum class PlayerSheet { About, Queue, Ask }
+
+/** The ask sheet's opening: about the song, about lines of its words, or with a question already asked. */
+internal data class AskFor(val quote: List<String>? = null, val ask: String? = null)
+
+/** Text roles of the player (the mock's type: Geist UI, Noto Sans reading, JetBrains Mono time). */
+private val TitleStyle @Composable get() = MusixTheme.text.title.copy(fontSize = 34.sp, lineHeight = 1.02.em, letterSpacing = (-0.035).em)
+
+/**
+ * The player (round 3 of the phone mock, 2026-11-14; the owner took «Перелист» and scene A,
+ * 2026-11-15): one screen without scrolling, the cover as its hero. One stage, three sides —
+ * the cover, its back with the words, the sound's cast. Everything else comes when it is called:
+ * «О песне» from the phrase, the queue from «Далее», «Спросить» from the bottom row.
+ */
 @Composable
-fun PlayerScreen(ui: PlayerUi, vm: PlayerViewModel, onClose: () -> Unit, onArtist: (String) -> Unit) {
+internal fun PlayerScreen(ui: PlayerUi, vm: PlayerViewModel, fold: PlayerFold, onArtist: (String) -> Unit, onAlbum: (String) -> Unit) {
     val c = MusixTheme.colors
     val dark = MusixTheme.isDark
     val p = ui.player
-    val haptics = LocalMusixHaptics.current
     val ctx = ui.context
+    val haptics = LocalMusixHaptics.current
+    val density = LocalDensity.current
+    val scope = rememberCoroutineScope()
+    val reduced = rememberReducedMotion()
     val palette = ctx?.image?.palette
-    // the ambient field: the server palette of the cover, not a device-side color guess
-    val glow by animateColorAsState(hexColor(palette?.vibrant)?.copy(alpha = if (dark) 0.34f else 0.22f) ?: Color(0x335874EA), tween(900), label = "glow")
-    val glow2 by animateColorAsState(hexColor(palette?.dominant)?.copy(alpha = if (dark) 0.26f else 0.16f) ?: Color(0x22FF78C8), tween(900), label = "glow2")
-    Box(Modifier.fillMaxSize().background(c.bg)) {
-        Canvas(Modifier.fillMaxSize()) {
-            drawRect(Brush.radialGradient(listOf(glow, Color.Transparent), center = Offset(size.width * 0.5f, size.height * 0.22f), radius = size.width * 1.1f))
-            drawRect(Brush.radialGradient(listOf(glow2, Color.Transparent), center = Offset(size.width * 0.9f, size.height * 0.55f), radius = size.width * 0.9f))
+    val accent = hexColor(if (dark) palette?.accentDark ?: palette?.vibrant else palette?.accentLight ?: palette?.dominant) ?: c.accent
+    val accent2 = hexColor(palette?.muted) ?: c.accent
+    val sound = ui.sound
+    val blocked = p.trackId == null
+
+    var side by rememberSaveable { mutableStateOf(Side.Cover) }
+    if (side == Side.Sound && sound == null) side = Side.Cover
+    var sheet by remember { mutableStateOf<PlayerSheet?>(null) }
+    var askFor by remember { mutableStateOf(AskFor()) }
+    var scaleKey by remember { mutableStateOf<String?>(null) }    // a scale picked on the sound side
+    var scrubbing by remember { mutableStateOf(false) }
+    var adding by remember { mutableStateOf(false) }
+    var addAnchor by remember { mutableStateOf<Rect?>(null) }
+    var added by remember(p.trackId) { mutableStateOf<Pair<String?, String>?>(null) }
+    val toasts = ru.musixai.app.core.designsystem.surface.LocalToasts.current
+    val turn = remember { PageTurn(scope) }
+    val light = remember { PlayerLight() }
+    val lit = remember { LitMoment() }
+    val bursts = rememberBursts()
+    val clock = rememberClock(p.positionMs, p.isPlaying, scrubbing)
+    val hint = rememberHint()
+    WarmSoftCovers(listOfNotNull(p.queue.getOrNull(p.index - 1)?.artUri, p.artUri, p.queue.getOrNull(p.index + 1)?.artUri))
+
+    val foldDrag = remember(fold) {
+        object : FoldDrag {
+            override fun grab() { fold.grab(); hint.hide(false) }
+            override fun drag(dy: Float) { scope.launch { if (fold.drag(dy)) haptics.perform(if (fold.past) HapticCue.Threshold else HapticCue.ThresholdOff, fromUser = true) } }
+            override fun release(vy: Float, cancel: Boolean) { scope.launch { fold.release(vy, cancel) } }
         }
-        Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).statusBarsPadding().navigationBarsPadding()) {
-            Box(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp)) {
-                RoundGlassButton(onClose, size = 42.dp) { Icon(MusixIcons.ChevronDown, null, Modifier.size(20.dp), tint = c.text) }
-                Text("ЖМИ НА ОБЛОЖКУ, ЧТОБЫ ПОСТАВИТЬ НА ПАУЗУ", Modifier.align(Alignment.Center).padding(start = 48.dp), maxLines = 1, overflow = TextOverflow.Ellipsis,
-                    style = MusixTheme.type.mono.copy(fontSize = 10.sp, letterSpacing = 0.16.em, color = c.textMuted))
-            }
-            val accent = hexColor(palette?.vibrant) ?: Color(0xFF7C5BFF)
-            Box(Modifier.fillMaxWidth()) {
-                // the lyrics aura sits behind the cover row (v1 order); the spectrum wave that
-                // played behind the album is gone at the owner's word (2026-10-02)
-                LyricsAura(ui.lyricsOpen, accent, Modifier.matchParentSize().padding(vertical = 0.dp))
-                CoverStage(ui, flipped = ui.lyricsOpen, onToggle = {
-                    haptics.perform(if (p.isPlaying) HapticCue.ToggleOff else HapticCue.ToggleOn, fromUser = true)
-                    vm.toggle()
-                }, onNext = vm::next, onPrev = vm::previous,
-                    explain = ui.explain, onExplain = vm::explainLine, modifier = Modifier.padding(horizontal = 24.dp))
-            }
-            Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 14.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(p.title.ifEmpty { ctx?.track?.title.orEmpty() }, maxLines = 2, overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center,
-                    style = MusixTheme.type.body.copy(fontSize = 25.sp, lineHeight = 1.15.em, fontWeight = FontWeight.Bold, letterSpacing = (-0.01).em, color = c.text))
-                val artist = ctx?.track?.artists?.firstOrNull()
-                Row(Modifier.padding(top = 6.dp).pressable { artist?.let { onArtist(it.id) } }, verticalAlignment = Alignment.CenterVertically) {
-                    Text(p.artist, maxLines = 1, overflow = TextOverflow.Ellipsis, style = MusixTheme.type.body.copy(fontSize = 17.sp, color = c.textMuted))
-                    Spacer(Modifier.size(6.dp))
-                    Icon(MusixIcons.ChevronDown, null, Modifier.size(14.dp), tint = c.textSubtle)
-                }
-                val meta = listOfNotNull(ctx?.track?.album?.takeIf { it.isNotBlank() }, ctx?.track?.year?.toString()).joinToString(" · ")
-                if (meta.isNotEmpty()) Text(meta, Modifier.padding(top = 4.dp), maxLines = 1, overflow = TextOverflow.Ellipsis,
-                    style = MusixTheme.type.body.copy(fontSize = 13.sp, color = c.textSubtle))
-                ctx?.vibe?.let { raw ->
-                    // v1 VibeLine: an italic serif line between two hairline wings (the wings
-                    // give way before the phrase wraps), sliding in on each new track
-                    val phrase = raw.trim().trim('"', '«', '»', '“', '”', '\'')
-                    val tint = if (dark) Color(0xD1D8CCFF) else Color(0xFF4F3F7F)
-                    androidx.compose.animation.AnimatedContent(phrase, transitionSpec = {
-                        (androidx.compose.animation.fadeIn(tween(240)) + androidx.compose.animation.slideInVertically(tween(240, easing = androidx.compose.animation.core.CubicBezierEasing(0.22f, 0.9f, 0.3f, 1f))) { it / 3 })
-                            .togetherWith(androidx.compose.animation.fadeOut(tween(120)))
-                    }, label = "vibe") { text ->
-                        Row(Modifier.padding(top = 10.dp).fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
-                            Box(Modifier.weight(0.12f, fill = true).height(1.dp).background(Brush.horizontalGradient(listOf(Color.Transparent, tint.copy(alpha = 0.55f)))))
-                            Text(text, Modifier.padding(horizontal = 10.dp).weight(1f, fill = false), textAlign = TextAlign.Center,
-                                style = MusixTheme.type.body.copy(fontFamily = MusixFontFamilies.SerifDisplay, fontStyle = FontStyle.Italic, fontWeight = FontWeight.Light,
-                                    fontSize = 14.5.sp, lineHeight = 1.45.em, color = tint))
-                            Box(Modifier.weight(0.12f, fill = true).height(1.dp).background(Brush.horizontalGradient(listOf(tint.copy(alpha = 0.55f), Color.Transparent))))
-                        }
-                    }
-                }
-            }
-            if (p.mode == QueueMode.STREAM) p.reason?.let { WhyThis(p.trackId, it, p.reasonDetails) }
-            Scrubber(p.positionMs, p.durationMs, ui.envelope, vm::seek, Modifier.padding(horizontal = 36.dp))
-            ActionRow(ui, vm, Modifier.padding(top = 14.dp))
-            ElsewhereBar(ui, vm, Modifier.align(Alignment.CenterHorizontally).padding(top = 10.dp))
-            if (ui.devicesOpen) DevicesCard(ui, vm, Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
-            if (ctx?.lossless == true) LosslessMark(Modifier.align(Alignment.CenterHorizontally).padding(top = 10.dp))
-            Spacer(Modifier.height(18.dp))
-            FactsRail(ctx, Modifier.padding(horizontal = 12.dp))
-            Credits(ctx, Modifier.padding(horizontal = 16.dp, vertical = 12.dp))
-            QueueButton(p.queue.size, vm::toggleQueue, Modifier.padding(horizontal = 14.dp).padding(bottom = 24.dp))
-        }
-        QueueDrawer(ui.queueOpen, p, onClose = vm::toggleQueue, onJump = vm::jump, onMove = vm::move, onRemove = vm::remove)
-        TrackChatSheet(ui, vm)
-        if (ui.addOpen) AddToPlaylist(vm, listOf(p.title, p.artist).filter { it.isNotBlank() }.joinToString(" — "))
     }
+    val toggle = {
+        haptics.perform(if (p.isPlaying) HapticCue.ToggleOff else HapticCue.ToggleOn, fromUser = true)
+        hint.hide(true)
+        vm.toggle()
+    }
+    // the player steps back while a sheet is over it
+    val back by animateFloatAsState(if (sheet != null) 1f else 0f, springKcm(260f, 30f), label = "back")
+
+    BoxWithConstraints(Modifier.fillMaxSize()) {
+        val screenW = maxWidth
+        val screenH = maxHeight
+        // what the system bars really take (gesture or button navigation, a cutout)
+        val bars = with(density) { (WindowInsets.statusBars.getTop(density) + WindowInsets.navigationBars.getBottom(density)).toDp() }
+        val e = { fold.p.value.coerceIn(0f, 1f) }
+        PlayerBackdrop(light, accent2, fade = { val k = e(); 1f - k * k })
+        Column(
+            Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().graphicsLayer {
+                val o = back
+                scaleX = 1f - 0.035f * o; scaleY = 1f - 0.035f * o; translationY = -6.dp.toPx() * o
+            },
+        ) {
+            val geo = geometry(screenW, screenH - bars)
+            val away = Modifier.graphicsLayer { val k = e(); alpha = (1f - k * 2.4f).coerceIn(0f, 1f); translationY = k * 36.dp.toPx() }
+
+            // the top bar: fold, the file's quality, the pause of the words and sound sides; a handle too
+            TopBar(ctx?.lossless == true, side != Side.Cover, p.isPlaying, onFold = { scope.launch { fold.to(true) } }, onToggle = toggle, fold = foldDrag, modifier = away)
+
+            // the stage, measured where it stands open (the fold flies it into the bar's cover)
+            Box(
+                Modifier.padding(top = 2.dp).align(Alignment.CenterHorizontally).size(geo.cover)
+                    .onGloballyPositioned { fold.stage = it.boundsInRoot() },
+            ) {
+                Box(Modifier.fillMaxSize().graphicsLayer {
+                    val k = e(); val raw = fold.p.value
+                    val a = fold.stage; val b = fold.mini
+                    if ((k > 0f || raw < 0f) && a.width > 0f && b.width > 0f) {
+                        transformOrigin = TransformOrigin(0f, 0f)
+                        val s = 1f + (b.width / a.width - 1f) * k
+                        scaleX = s; scaleY = s
+                        translationX = (b.left - a.left) * k
+                        translationY = (b.top - a.top) * k + (if (raw < 0f) raw * 160.dp.toPx() else 0f)
+                    }
+                    alpha = if (k > 0.9f) 1f - (k - 0.9f) / 0.1f else 1f       // the last steps: the bar's picture takes over
+                }) {
+                    Stage(
+                        StageInput(p.queue, p.index, p.isPlaying, side, blocked), turn, geo.cover, light,
+                        onToggle = toggle,
+                        onChange = { dir -> hint.hide(true); if (dir > 0) vm.next() else vm.previous() },
+                        onFold = foldDrag,
+                        back = { LyricsFace(ctx, sound, clock, p.isPlaying, accent, p.artUri, geo.cover, onAsk = { lines -> askFor = AskFor(quote = lines); sheet = PlayerSheet.Ask }, onFrom = { s -> vm.seek((s * 1000).toLong()); if (!p.isPlaying) vm.toggle() }, tip = hint) },
+                        soundFace = { if (sound != null) SoundFace(sound, accent, geo.cover, lineMoments(sound.moments), p.isPlaying, scaleKey, onPick = { scaleKey = it }, onPart = { at -> lit.at = at }) },
+                        overlay = { HintPill(hint, Modifier.align(Alignment.BottomCenter).padding(bottom = 16.dp)) },
+                    )
+                }
+                BurstLayer(bursts, geo.cover, Modifier.align(Alignment.Center).requiredSize(geo.cover + 128.dp))
+            }
+
+            // the three sides
+            Box(Modifier.fillMaxWidth().padding(top = geo.air + 17.dp).then(away), contentAlignment = Alignment.Center) {
+                val sides = buildList { add(Side.Cover to "Обложка"); add(Side.Text to "Текст"); if (sound != null) add(Side.Sound to "Звук") }
+                Segments(side, sides, { s -> if (s != side) { side = s; scaleKey = null; hint.hide(true); if (s == Side.Text) hint.tip("mx-lyrics-hint", "Коснись строчки — и спроси о ней") } }, compact = true)
+            }
+
+            // the title block
+            Meta(ui, side, sound, scaleKey, geo.lines, accent, onArtist = { ctx?.track?.artists?.firstOrNull()?.id?.let(onArtist) }, onAlbum = { ctx?.track?.albumId?.let(onAlbum) },
+                onMore = { sheet = PlayerSheet.About }, modifier = Modifier.padding(top = geo.air + 16.dp).padding(horizontal = 24.dp).then(away))
+
+            Spacer(Modifier.weight(1f))
+
+            Box(away) {
+                SeekLine(clock, (p.durationMs.takeIf { it > 0 } ?: ctx?.track?.durationMs ?: 0L) / 1000.0, sound?.sections.orEmpty(), sound?.let { lineMoments(it.moments) }.orEmpty(),
+                    p.isPlaying, accent, lit, onScrub = { scrubbing = it }, onSeek = { s -> vm.seek((s * 1000).toLong()) }, modifier = Modifier.padding(horizontal = 24.dp))
+            }
+            Tray(p, onOpen = { sheet = PlayerSheet.Queue }, modifier = away)
+            Actions(ui, vm, accent, bursts, side, onAsk = { askFor = AskFor(); sheet = PlayerSheet.Ask }, onAdd = { r -> addAnchor = r; adding = true }, added = added != null, modifier = away)
+        }
+    }
+
+    AboutSheet(sheet == PlayerSheet.About, ui, accent, onClose = { sheet = null }, onArtist = onArtist, onAsk = { q -> askFor = AskFor(ask = q); sheet = PlayerSheet.Ask })
+    QueueSheet(sheet == PlayerSheet.Queue, ui, vm, accent, onClose = { sheet = null })
+    AskSheet(sheet == PlayerSheet.Ask, ui, vm, askFor, accent, onClose = { sheet = null })
+    val playlists by vm.allPlaylists.collectAsStateWithLifecycle(emptyList())
+    AddMenu(adding, addAnchor, playlists, p.artUri, onPick = { pl, name ->
+        adding = false
+        vm.addTo(pl, name)
+        val title = pl?.name ?: name.orEmpty()
+        added = p.trackId to title
+        haptics.perform(HapticCue.Confirm, fromUser = true)
+        toasts?.show("Добавлено в «$title»")
+    }, onClose = { adding = false })
+
+    LaunchedEffect(Unit) { hint.firstVisit { if (side == Side.Cover && p.index < p.queue.lastIndex) turn.nudge(-1500f * density.density) } }
 }
 
-/**
- * «Почему этот трек» in «Поток» (the web player's `✦ reason`): the wave's one-line reason in
- * amber under the title; a tap opens the lines behind it. The phone had none (the owner,
- * 2026-10-02).
- */
+/** How the screen divides its height: the cover is as wide as the screen where there is room; the phrase
+ *  keeps three lines where the screen is tall, two elsewhere; what is left over is air between the parts. */
+internal data class Geometry(val cover: Dp, val lines: Int, val air: Dp)
+
+internal fun geometry(w: Dp, h: Dp): Geometry {
+    val full = w - 24.dp
+    fun below(lines: Int) = (359 + lines * 22).dp
+    val c3 = h - 50.dp - below(3)
+    if (c3 >= full) return Geometry(full, 3, ((c3 - full) / 4).coerceAtMost(14.dp))
+    val c2 = (h - 50.dp - below(2)).coerceAtMost(full).coerceAtLeast(220.dp)
+    return Geometry(c2, 2, 0.dp)
+}
+
 @Composable
-private fun WhyThis(trackId: String?, reason: String, details: List<String>) {
+private fun TopBar(lossless: Boolean, sidePause: Boolean, playing: Boolean, onFold: () -> Unit, onToggle: () -> Unit, fold: FoldDrag, modifier: Modifier) {
     val c = MusixTheme.colors
-    var open by androidx.compose.runtime.saveable.rememberSaveable(trackId) { androidx.compose.runtime.mutableStateOf(false) }
-    Column(Modifier.fillMaxWidth().padding(horizontal = 28.dp).padding(bottom = 12.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-        Text("✦ $reason" + if (details.isNotEmpty()) (if (open) "  ▴" else "  ▾") else "",
-            Modifier.pressable(enabled = details.isNotEmpty()) { open = !open }.padding(vertical = 4.dp, horizontal = 8.dp), textAlign = TextAlign.Center,
-            style = MusixTheme.type.body.copy(fontSize = 13.sp, lineHeight = 1.4.em, color = c.amber))
-        androidx.compose.animation.AnimatedVisibility(open) {
-            Column(Modifier.padding(top = 4.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                for (d in details) Text(d, textAlign = TextAlign.Center, style = MusixTheme.type.body.copy(fontSize = 12.5.sp, lineHeight = 1.4.em, color = c.textMuted))
+    Box(
+        modifier.fillMaxWidth().height(48.dp).padding(horizontal = 8.dp).pointerInput(Unit) {
+            // the top bar is a handle too
+            awaitEachGesture {
+                val down = awaitFirstDown(requireUnconsumed = true)
+                val tracker = VelocityTracker()
+                var on = false
+                var y0 = 0f
+                while (true) {
+                    val ev = awaitPointerEvent()
+                    val ch = ev.changes.firstOrNull { it.id == down.id } ?: break
+                    tracker.addPosition(ch.uptimeMillis, ch.position)
+                    if (!ch.pressed) { if (on) fold.release(tracker.calculateVelocity().y, false); break }
+                    val dy = ch.position.y - down.position.y
+                    if (!on) { if (kotlin.math.abs(dy) < 10.dp.toPx()) continue; on = true; y0 = dy; fold.grab() }
+                    ch.consume()
+                    fold.drag(dy - y0)
+                }
             }
-        }
+        },
+    ) {
+        RoundButton(MusixIcons.ChevronDown, "Свернуть плеер", onFold, Modifier.align(Alignment.CenterStart), filled = false)
+        if (lossless) Text("Lossless", Modifier.align(Alignment.Center).border(1.dp, c.text.copy(alpha = 0.14f), RoundedCornerShape(7.dp)).padding(horizontal = 7.dp, vertical = 3.dp),
+            style = MusixTheme.text.number.copy(fontFamily = MusixFontFamilies.Mono, fontSize = 11.sp, fontWeight = FontWeight.Medium, letterSpacing = 0.02.em, color = c.textMuted))
+        // on the words and the sound the stage is busy with its own taps: the pause moves up here
+        val shown by animateFloatAsState(if (sidePause) 1f else 0f, springKcm(320f, 24f), label = "pp")
+        val glyph by animateFloatAsState(if (playing) 1f else 0f, springKcm(520f, 26f), label = "ppg")
+        if (shown > 0.01f) Box(
+            Modifier.align(Alignment.CenterEnd).size(48.dp).graphicsLayer { alpha = shown.coerceIn(0f, 1f); val k = 0.6f + 0.4f * shown; scaleX = k; scaleY = k }
+                .pressable(role = Press.Icon) { onToggle() },
+            contentAlignment = Alignment.Center,
+        ) { PlayPauseGlyph(glyph, Modifier.size(22.dp), c.text) }
     }
 }

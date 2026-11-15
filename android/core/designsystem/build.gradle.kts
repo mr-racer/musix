@@ -11,8 +11,7 @@ androidComponents.onVariants { it.sources.kotlin?.addStaticSourceDirectory(token
 dependencies {
     implementation(project(":core:model"))
     api(libs.coil.compose)
-    api(libs.haze)
-    api(libs.haze.glass)
+    api(libs.backdrop)  // Kyant0 AndroidLiquidGlass: the glass (owner, 2026-11-15)
     implementation(libs.graphics.shapes)
     implementation(libs.activity.compose)  // Back for sheets and menus
     api(libs.reorderable)

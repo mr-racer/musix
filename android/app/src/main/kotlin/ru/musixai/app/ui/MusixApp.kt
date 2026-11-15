@@ -69,6 +69,15 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import ru.musixai.app.feature.player.PlayerRoute
+import ru.musixai.app.feature.player.PlayerFold
+import ru.musixai.app.feature.player.LocalPlayerFold
+import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
 import ru.musixai.app.feature.library.AlbumRoute
 import ru.musixai.app.feature.library.LibraryRoute
 import ru.musixai.app.feature.library.PlaylistRoute
@@ -171,7 +180,13 @@ private fun Shell(vm: AppViewModel) {
         activity?.addOnNewIntentListener(listener)
         onDispose { activity?.removeOnNewIntentListener(listener) }
     }
+    // the player folds into the mini player and unfolds out of it (round 2 of the phone player): one value, 0 open … 1 folded
+    val fold = remember { PlayerFold() }
     var playerOpen by rememberSaveable { mutableStateOf(false) }
+    val foldScope = rememberCoroutineScope()
+    LaunchedEffect(Unit) { if (playerOpen) fold.snap(false) }
+    LaunchedEffect(fold) { snapshotFlow { fold.p.targetValue < 0.5f }.collect { playerOpen = it } }
+    val openPlayer: () -> Unit = { foldScope.launch { fold.to(false) } }
     val entry by nav.currentBackStackEntryAsState()
     val tab = remember(entry) { nav.currentTab() }
     // a cover that starts playing flies into the mini-player's cover (r3 §5.5); before anything
@@ -180,17 +195,24 @@ private fun Shell(vm: AppViewModel) {
     val density = LocalDensity.current
     // sheets (one at a time, over everything) and the stack of toasts (above the mini-player)
     val toasts = rememberToasts()
-    CompositionLocalProvider(LocalCoverFlight provides flight, LocalToasts provides toasts) { SheetHost { Box(Modifier.fillMaxSize().background(MusixTheme.colors.bg)) {
-        Column(Modifier.fillMaxSize()) {
+    CompositionLocalProvider(LocalCoverFlight provides flight, LocalToasts provides toasts, LocalPlayerFold provides fold) { SheetHost { Box(Modifier.fillMaxSize().background(MusixTheme.colors.bg).onSizeChanged { fold.height = it.height.toFloat() }) {
+        // the page behind the player comes forward as it folds away
+        Column(Modifier.fillMaxSize().graphicsLayer {
+            val e = fold.p.value.coerceIn(0f, 1f)
+            if (e < 1f) { val k = 0.94f + 0.06f * e; scaleX = k; scaleY = k; alpha = 0.35f + 0.65f * e }
+        }) {
             // the stage: the screens and the open mini-player over them share it; a screen gives way
             // to the bar, its backdrop goes on under it (LocalStageHeight)
             var stage by remember { mutableIntStateOf(0) }
             Column(Modifier.weight(1f).onSizeChanged { stage = it.height }) {
                 Box(Modifier.weight(1f)) {
-                    CompositionLocalProvider(LocalStageHeight provides stage) { Routes(nav, openPlayer = { playerOpen = true }, install = vm::install) }
+                    CompositionLocalProvider(LocalStageHeight provides stage) { Routes(nav, openPlayer = openPlayer, install = vm::install) }
                     ToastHost(toasts, Modifier.align(Alignment.BottomCenter))
                 }
-                MiniPlayer(onOpen = { playerOpen = true })
+                Box(Modifier.graphicsLayer {
+                    val e = fold.p.value.coerceIn(0f, 1f)
+                    alpha = ((e - 0.45f) / 0.5f).coerceIn(0f, 1f); translationY = (1f - e) * 22.dp.toPx()
+                }) { MiniPlayer(onOpen = openPlayer) }
             }
             Box(Modifier.onGloballyPositioned { flight.dock = miniPlayerCoverAbove(it.boundsInRoot().top, density) }) {
                 BottomTabBar(tab, onNav = nav::toTab, Modifier.navigationBarsPadding())
@@ -208,19 +230,22 @@ private fun Shell(vm: AppViewModel) {
                 dismissButton = { androidx.compose.material3.TextButton(vm.updates::dismiss) { Text("Позже") } },
             )
         }
-        // the player sheet: up over 320 ms; the back gesture pulls it down with the finger
-        var backPull by remember { mutableFloatStateOf(0f) }
-        AnimatedVisibility(playerOpen, Modifier.graphicsLayer { translationY = size.height * 0.5f * backPull; alpha = 1f - 0.2f * backPull },
-            enter = slideInVertically(tween(320, easing = CubicBezierEasing(0.22f, 0.9f, 0.3f, 1f))) { it }, exit = slideOutVertically(tween(260)) { it }) {
-            PredictiveBackHandler { progress ->
+        // the player: the cover flies out of the bar's cover and back into it; back (the predictive gesture too) folds it with the finger
+        val playerShown by remember { derivedStateOf { fold.shown } }
+        val playerHolds by remember { derivedStateOf { fold.p.value < 0.5f } }
+        // while it is mostly open the player takes every touch; folding away it lets the page have them
+        if (playerShown) Box(Modifier.fillMaxSize().then(if (playerHolds) Modifier.pointerInput(Unit) { awaitEachGesture { awaitFirstDown(requireUnconsumed = false) } } else Modifier)) {
+            PredictiveBackHandler(enabled = playerOpen) { progress ->
                 try {
-                    progress.collect { backPull = it.progress }
-                    playerOpen = false
-                } finally {
-                    backPull = 0f
+                    fold.grab()
+                    progress.collect { fold.p.snapTo(it.progress * 0.35f) }
+                    fold.to(true)
+                } catch (x: kotlin.coroutines.cancellation.CancellationException) {
+                    foldScope.launch { fold.to(false) }
+                    throw x
                 }
             }
-            PlayerRoute(onClose = { playerOpen = false }, onArtist = { playerOpen = false; nav.navigate(ArtistDest(it)) })
+            PlayerRoute(fold, onArtist = { foldScope.launch { fold.to(true) }; nav.navigate(ArtistDest(it)) }, onAlbum = { foldScope.launch { fold.to(true) }; nav.navigate(AlbumDest(it)) })
         }
     } } }
 }

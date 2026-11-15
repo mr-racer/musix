@@ -30,6 +30,7 @@ data class PlayerUi(
     val player: PlayerState = PlayerState(),
     val context: PlayerContext? = null,
     val envelope: ByteArray? = null,
+    val sound: ru.musixai.app.core.model.TrackSound? = null,   // the form, the moments and the parts of the mix
     val lyricsOpen: Boolean = false,
     val queueOpen: Boolean = false,
     val burst: Pair<String, Long>? = null,  // (fire|water, nonce): the combustion replays per tap
@@ -39,8 +40,6 @@ data class PlayerUi(
     val chatStage: String? = null,
     val chatStream: String? = null,               // the reply so far, while the model writes it
     val chatFor: String? = null,                  // the chat belongs to this track (v1 useTrackChat(trackId))
-    val explain: Map<Int, Explain> = emptyMap(),  // lyric line → the guru's answer (v1 InlineLyricExplain)
-    val explainFor: String? = null,               // … for this track only
     val devicesOpen: Boolean = false,              // «Слушать на…»
     val devices: List<Handoff.Device>? = null,     // null: loading
     val remote: Handoff.Remote? = null,            // the account plays on another device
@@ -54,6 +53,7 @@ class PlayerViewModel @Inject constructor(
     private val playlists: PlaylistRepository,
     private val assistant: AssistantRepository,
     private val handoff: Handoff,
+    private val sounds: ru.musixai.app.core.data.SoundRepository,
 ) : ViewModel() {
     val allPlaylists = playlists.playlists
 
@@ -77,10 +77,19 @@ class PlayerViewModel @Inject constructor(
         }
     }
 
-    val ui: StateFlow<PlayerUi> = combine(player.state, context, envelope, local, handoff.remote) { p, ctx, env, l, remote ->
-        l.copy(player = p, context = ctx?.takeIf { it.track.id == p.trackId }, envelope = env,
-            explain = if (l.explainFor == p.trackId) l.explain else emptyMap(), remote = remote?.takeIf { it.playing },
-            chat = if (l.chatFor == p.trackId) l.chat else emptyList())
+    private val sound = current.flatMapLatest { id ->
+        flow { emit(id?.let(sounds::cached)); if (id != null) emit(sounds.sound(id)) }
+    }
+    private val about = combine(context, sound) { c, s -> c to s }
+
+    val ui: StateFlow<PlayerUi> = combine(player.state, about, envelope, local, handoff.remote) { p, cs, env, l, remote ->
+        val (ctx, snd) = cs
+        l.copy(player = p, context = ctx?.takeIf { it.track.id == p.trackId }, envelope = env, sound = snd,
+            remote = remote?.takeIf { it.playing },
+            // the conversation is about one song: another song shows none of it, nor its «Думаю…»
+            chat = if (l.chatFor == p.trackId) l.chat else emptyList(),
+            chatStage = l.chatStage.takeIf { l.chatFor == p.trackId },
+            chatStream = l.chatStream.takeIf { l.chatFor == p.trackId })
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), PlayerUi())
 
     fun toggle() = player.toggle()
@@ -119,35 +128,42 @@ class PlayerViewModel @Inject constructor(
     /** The track chat (v1 AIChatDrawer): about this song; with [line], lyric explain. */
     fun shuffle() = player.toggleShuffle()
 
+    private var askJob: kotlinx.coroutines.Job? = null
+
+    /** The listener stops the answer: what came so far is dropped, the turn says it was stopped. */
+    fun stopAsk() {
+        val job = askJob ?: return
+        if (local.value.chatStage == null) return
+        job.cancel()
+        local.update { u -> u.copy(chatStage = null, chatStream = null, chat = u.chat + (false to STOPPED)) }
+    }
+
+    /** «Вернуть»: a removed song goes back where it stood (after the current one, then moved). */
+    fun restore(trackId: String, at: Int) = viewModelScope.launch {
+        player.playNext(trackId)
+        kotlinx.coroutines.delay(250)
+        val now = player.state.value.index + 1
+        if (at != now) player.move(now, at.coerceAtMost(player.state.value.queue.lastIndex))
+    }
+
     fun ask(message: String, line: String? = null) {
         val id = player.state.value.trackId ?: return
-        if (local.value.chatStage != null) return
+        if (local.value.chatStage != null) {
+            if (local.value.chatFor == id) return
+            // the song changed while the answer about the last one was on its way: that one is dropped
+            askJob?.cancel()
+            local.update { it.copy(chatStage = null, chatStream = null) }
+        }
         if (local.value.chatFor != id) local.update { it.copy(chat = emptyList(), chatFor = id) }
         val history = local.value.chat.takeLast(6).map { (mine, text) -> (if (mine) "user" else "assistant") to text }
-        local.update { it.copy(chatOpen = true, chat = it.chat + (true to (line?.let { l -> "«$l»" } ?: message)), chatStage = "Думаю…") }
-        viewModelScope.launch {
+        local.update { it.copy(chatOpen = true, chat = it.chat + (true to message), chatStage = "Думаю…") }
+        askJob = viewModelScope.launch {
             val r = runCatching {
                 assistant.trackChat(id, message, line, history, onStage = { s -> local.update { it.copy(chatStage = s) } },
                     onText = { t -> local.update { it.copy(chatStream = t.ifEmpty { null }) } })
             }
+            if (r.exceptionOrNull() is kotlinx.coroutines.CancellationException) return@launch
             local.update { u -> u.copy(chatStage = null, chatStream = null, chat = u.chat + (false to (r.getOrNull()?.text ?: "Не получилось ответить"))) }
-        }
-    }
-
-    /** A tap on a lyric line: open (asking the guru once) or close its explanation. */
-    fun explainLine(i: Int, line: String) {
-        val id = player.state.value.trackId ?: return
-        val now = local.value.takeIf { it.explainFor == id }?.explain.orEmpty()
-        if (i in now) { local.update { it.copy(explain = now - i, explainFor = id) }; return }
-        local.update { it.copy(explain = now + (i to Explain.Loading), explainFor = id) }
-        viewModelScope.launch {
-            // the explanation fills in while the model writes it
-            val r = runCatching {
-                assistant.trackChat(id, "Объясни строчку", line, emptyList(), onStage = { },
-                    onText = { t -> if (t.isNotEmpty()) local.update { u -> if (u.explainFor != id || i !in u.explain) u else u.copy(explain = u.explain + (i to Explain.Done(t))) } })
-            }
-            val text = r.getOrNull()?.text ?: "Гуру сейчас не ответил — попробуй ещё раз"
-            local.update { u -> if (u.explainFor != id) u else u.copy(explain = u.explain + (i to Explain.Done(text))) }
         }
     }
 

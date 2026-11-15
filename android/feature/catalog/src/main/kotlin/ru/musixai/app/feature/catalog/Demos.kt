@@ -423,11 +423,19 @@ internal fun RoundButtonDemo() {
     var fire by remember { mutableStateOf(false) }
     var water by remember { mutableStateOf(true) }
     val c = MusixTheme.colors
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
         RoundButton(MusixIcons.Fire, "Огонёк", { fire = !fire }, on = fire, toggle = true, accent = c.amber)
         RoundButton(MusixIcons.Water, "Вода", { water = !water }, on = water, toggle = true, accent = c.soundSpace)
         RoundButton(MusixIcons.Shuffle, "Перемешать", {})
         RoundButton(MusixIcons.QueueNext, "Очередь", {})
+    }
+    // without a fill: the player's bottom row, only the glyph speaks (pressed reactions are filled glyphs)
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+        RoundButton(if (fire) MusixIcons.FireFilled else MusixIcons.Fire, "Огонёк", { fire = !fire }, on = fire, toggle = true, accent = c.amber, filled = false)
+        RoundButton(if (water) MusixIcons.WaterFilled else MusixIcons.Water, "Вода", { water = !water }, on = water, toggle = true, accent = c.soundSpace, filled = false)
+        RoundButton(MusixIcons.Plus, "В плейлист", {}, filled = false)
+    }
     }
 }
 

@@ -59,7 +59,8 @@ internal fun softFill(): Color = if (MusixTheme.isDark) Color.White.copy(alpha =
  * «Круглая кнопка» (`components.md`, Icon button): a 40 dp circle in a 48 dp touch zone, the
  * glyph at 22, giving to 0.9 under the finger. [on] lights it in [accent] (огонёк orange, вода
  * blue) and — the moment it turns on — the glyph bounces: swells to 1.45, leans 8° and springs
- * back in 520 ms. A [toggle] says ToggleOn / ToggleOff; a plain button is silent.
+ * back in 520 ms. A [toggle] says ToggleOn / ToggleOff; a plain button is silent. Without [filled]
+ * the circle has no fill at all and only the glyph speaks (the player's bottom row).
  */
 @Composable
 fun RoundButton(
@@ -71,10 +72,11 @@ fun RoundButton(
     toggle: Boolean = false,
     accent: Color = MusixTheme.colors.accent,
     size: Dp = 40.dp,
+    filled: Boolean = true,
 ) {
     val c = MusixTheme.colors
     val reduced = rememberReducedMotion()
-    val fill by animateColorAsState(if (on) accent.copy(alpha = 0.18f) else softFill(), tween(220), label = "fill")
+    val fill by animateColorAsState(if (!filled) Color.Transparent else if (on) accent.copy(alpha = 0.18f) else softFill(), tween(220), label = "fill")
     val tint by animateColorAsState(if (on) accent else c.text, tween(220), label = "tint")
     val bounce = remember { Animatable(0f) }
     var was by remember { mutableStateOf(on) }

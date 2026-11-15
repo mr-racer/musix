@@ -68,6 +68,9 @@ val CATALOG: List<CatalogEntry> = listOf(
     CatalogEntry("rubber", "Резинка и бросок", Layer.Gesture, listOf(Player, Library, Playlist),
         "За пределом ход даётся всё труднее; отпустили — решают место и скорость. На этом стоят шиты.",
         STILL) { RubberDemo() },
+    CatalogEntry("swipeRemove", "Смахнуть, чтобы убрать", Layer.Gesture, listOf(Player, Playlist, Library),
+        "Строка идёт за пальцем влево 1:1, вправо только поддаётся. За 110 dp — корзина и порог; отпустил — строка уходит, тост «Вернуть». Играющую убрать нельзя: «нет»-встряска.",
+        "кадры только под пальцем", haptic = "Threshold · ThresholdOff · Reject") { SwipeDemo() },
 
     // — Поверхности
     CatalogEntry("glass", "Стекло", Layer.Surface, listOf(Home, Player),
@@ -108,6 +111,12 @@ val CATALOG: List<CatalogEntry> = listOf(
     CatalogEntry("playPause", "Пуск и пауза", Layer.Control, listOf(Player, Home, Album, Playlist),
         "Треугольник перетекает в две черты на пружине значка.",
         "кадры только в пути") { PlayPauseDemo() },
+    CatalogEntry("richbox", "Richbox", Layer.Control, listOf(Player, Assistant, Upload, Import),
+        "Порт mishanaer/richbox (MIT): пунктир ждёт и поворачивается на четверть раз в 1,3 с, заполняется четвертями, рисует знак штрих за штрихом — ✓, ✕, !.",
+        "в ожидании — 0,3 с кадров на 1,3 с", states = RICHBOX_STATES) { RichboxDemo(it) },
+    CatalogEntry("foldingComposer", "Сворачивающееся поле", Layer.Control, listOf(Player, Assistant, Chat),
+        "Пока готовится ответ, поле сворачивается в свою круглую кнопку с Richbox — касание останавливает ответ; рядом одна мерцающая строка о том, что делается.",
+        "кадры только в пути и пока мерцает", haptic = "ToggleOff (стоп)") { ComposerDemo() },
 
     // — Содержимое
     CatalogEntry("cover", "Обложка", Layer.Content, listOf(Home, Library, Album, Artist, Playlist, Search, Player, Quiz),
@@ -122,4 +131,7 @@ val CATALOG: List<CatalogEntry> = listOf(
     CatalogEntry("markdown", "Текст ассистента", Layer.Content, listOf(Assistant, Chat),
         "Абзацы, списки, жирный и курсив, код, ссылки и свои значки сносок.",
         STILL) { MarkdownDemo() },
+    CatalogEntry("conversation", "Вопрос и ответ", Layer.Content, listOf(Player, Assistant, Chat),
+        "Свой вопрос — справа, в цвете акцента обложки; ответ — текстом для чтения слева; ходы разделены акцентной волосяной линией. Мерцающая строка — что делается сейчас.",
+        "мерцание — пока работает") { ConversationDemo() },
 )

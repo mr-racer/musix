@@ -47,6 +47,7 @@ import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
+import com.kyant.backdrop.backdrops.LayerBackdrop
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import ru.musixai.app.core.designsystem.MusixTheme
@@ -63,7 +64,11 @@ const val SheetTag = "musix-sheet"
 
 /** [locals] are the caller's: a sheet drawn by the shell still wears the theme, the haptics and
  *  the motion setting of the place that declared it (as Popup and Dialog do). */
-internal class SheetEntry(val id: Any, val onClose: () -> Unit, val locals: State<CompositionLocalContext>, val content: @Composable ColumnScope.() -> Unit)
+internal class SheetEntry(val id: Any, val onClose: () -> Unit, val locals: State<CompositionLocalContext>, val look: State<SheetLook>, val content: @Composable ColumnScope.() -> Unit)
+
+/** [glass] — the sheet is liquid glass of that tone over the screen (null: the solid float);
+ *  [scrim] — how dark the screen behind it goes. */
+internal data class SheetLook(val glass: GlassTone?, val scrim: Float)
 
 /** The shell's sheet slot: one sheet at a time (`surfaces.md`) — a new one closes the one before. */
 @Stable
@@ -86,10 +91,12 @@ val LocalSheetHost = staticCompositionLocalOf<SheetHostState?> { null }
 @Composable
 fun SheetHost(modifier: Modifier = Modifier, content: @Composable () -> Unit) {
     val state = remember { SheetHostState() }
+    val source = rememberGlassSource()
     CompositionLocalProvider(LocalSheetHost provides state) {
         Box(modifier.fillMaxSize()) {
-            content()
-            SheetLayer(state.entry)
+            // everything on screen is the picture a glass sheet is made of
+            Box(Modifier.fillMaxSize().glassSource(source)) { content() }
+            SheetLayer(state.entry, source)
         }
     }
 }
@@ -104,13 +111,14 @@ fun SheetHost(modifier: Modifier = Modifier, content: @Composable () -> Unit) {
  * tick (the finger's only haptic here). Outside a host (previews, tests) it draws in place.
  */
 @Composable
-fun Sheet(open: Boolean, onClose: () -> Unit, content: @Composable ColumnScope.() -> Unit) {
+fun Sheet(open: Boolean, onClose: () -> Unit, glass: GlassTone? = null, scrim: Float = 0.42f, content: @Composable ColumnScope.() -> Unit) {
     val host = LocalSheetHost.current
     val id = remember { Any() }
     val close by rememberUpdatedState(onClose)
     val body by rememberUpdatedState(content)
     val locals = rememberUpdatedState(currentCompositionLocalContext)
-    val entry = remember(id) { SheetEntry(id, { close() }, locals) { body() } }
+    val look = rememberUpdatedState(SheetLook(glass, scrim))
+    val entry = remember(id) { SheetEntry(id, { close() }, locals, look) { body() } }
     if (host == null) {
         Box(Modifier.fillMaxSize()) { SheetLayer(if (open) entry else null) }
         return
@@ -122,7 +130,7 @@ fun Sheet(open: Boolean, onClose: () -> Unit, content: @Composable ColumnScope.(
 }
 
 @Composable
-internal fun SheetLayer(entry: SheetEntry?) {
+internal fun SheetLayer(entry: SheetEntry?, source: LayerBackdrop? = null) {
     var shown by remember { mutableStateOf<SheetEntry?>(null) }
     val p = remember { Animatable(0f) }      // 0 closed … 1 open
     val drag = remember { Animatable(0f) }   // px pulled down from open
@@ -150,7 +158,7 @@ internal fun SheetLayer(entry: SheetEntry?) {
             Modifier.fillMaxSize()
                 .drawBehind {
                     val pulled = if (height > 0f) (drag.value / height).coerceIn(0f, 1f) else 0f
-                    drawRect(Color.Black, alpha = 0.42f * p.value.coerceIn(0f, 1f) * (1f - pulled))
+                    drawRect(Color.Black, alpha = e.look.value.scrim * p.value.coerceIn(0f, 1f) * (1f - pulled))
                 }
                 .pointerInput(e) { detectTapGestures { e.onClose() } },
         )
@@ -170,7 +178,7 @@ internal fun SheetLayer(entry: SheetEntry?) {
                     alpha = if (height == 0f) 0f else 1f  // unmeasured: not a frame drawn open
                     translationY = (1f - p.value) * height + drag.value
                 }
-                .float(RoundedCornerShape(topStart = 26.dp, topEnd = 26.dp))
+                .sheetSurface(e.look.value.glass, source)
                 .testTag(SheetTag)
                 .pointerInput(e) {
                     val tracker = VelocityTracker()
@@ -211,3 +219,9 @@ internal fun SheetLayer(entry: SheetEntry?) {
     }
     }
 }
+
+private val SheetShape = RoundedCornerShape(topStart = 26.dp, topEnd = 26.dp)
+
+/** The solid float, or liquid glass of [glass]'s tone made of the screen behind ([source]). */
+private fun Modifier.sheetSurface(glass: GlassTone?, source: LayerBackdrop?): Modifier =
+    if (glass == null) float(SheetShape) else liquidGlass(SheetShape, glass, source = source)

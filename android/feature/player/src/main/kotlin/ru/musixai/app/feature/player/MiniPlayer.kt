@@ -1,5 +1,12 @@
 package ru.musixai.app.feature.player
 
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
+import kotlinx.coroutines.launch
+
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.EnterExitState
 import androidx.compose.animation.core.Animatable
@@ -139,7 +146,30 @@ internal fun MiniPlayerBar(p: PlayerState, onOpen: () -> Unit, onToggle: () -> U
     val c = MusixTheme.colors
     val haptics = LocalMusixHaptics.current
     val glyph by animateFloatAsState(if (p.isPlaying) 1f else 0f, spring(dampingRatio = 0.8f, stiffness = 520f), label = "glyph")
-    Box(Modifier.fillMaxWidth().height(BarH).pressable(onClick = onOpen).padding(horizontal = PadH)) {
+    val fold = LocalPlayerFold.current
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
+    // a tap opens the player; a pull up opens it after the finger (the cover flies up out of the bar)
+    val pull = if (fold == null) Modifier else Modifier.pointerInput(fold) {
+        awaitEachGesture {
+            val down = awaitFirstDown(requireUnconsumed = false)
+            val tracker = androidx.compose.ui.input.pointer.util.VelocityTracker()
+            var on = false
+            var y0 = 0f
+            var cancelled = true
+            while (true) {
+                val ev = awaitPointerEvent()
+                val ch = ev.changes.firstOrNull { it.id == down.id } ?: break
+                tracker.addPosition(ch.uptimeMillis, ch.position)
+                if (!ch.pressed) { cancelled = false; break }
+                val dy = ch.position.y - down.position.y
+                if (!on) { if (kotlin.math.abs(dy) < 10.dp.toPx()) continue; on = true; y0 = dy; fold.grab() }
+                ch.consume()
+                scope.launch { if (fold.drag(dy - y0)) haptics.perform(if (fold.past) HapticCue.Threshold else HapticCue.ThresholdOff, fromUser = true) }
+            }
+            if (on) { val v = tracker.calculateVelocity().y; scope.launch { fold.release(v, cancelled) } }
+        }
+    }
+    Box(Modifier.fillMaxWidth().height(BarH).then(pull).pressable(onClick = onOpen).padding(horizontal = PadH)) {
         // the progress line across the top: the whole song faint, the played part in the accent
         val frac = if (p.durationMs > 0) (p.positionMs.toFloat() / p.durationMs).coerceIn(0f, 1f) else 0f
         Box(Modifier.fillMaxWidth().height(2.dp).clip(RoundedCornerShape(1.dp)).background(c.text.copy(alpha = 0.09f)).testTag("mini-progress"))
@@ -153,8 +183,10 @@ internal fun MiniPlayerBar(p: PlayerState, onOpen: () -> Unit, onToggle: () -> U
                     scaleX = 0.6f + 0.4f * k
                     scaleY = 0.6f + 0.4f * k
                     rotationZ = -6f * (1f - k)
-                    alpha = k.coerceIn(0f, 1f)
-                }.size(CoverSize).coverFlightTarget(if (aim) LocalCoverFlight.current else null).testTag(MiniCoverTag)
+                    // while the player folds, the bar's picture takes over only in the last steps
+                    val e = fold?.p?.value?.coerceIn(0f, 1f) ?: 1f
+                    alpha = k.coerceIn(0f, 1f) * ((e - 0.84f) / 0.12f).coerceIn(0f, 1f)
+                }.onGloballyPositioned { if (fold != null) fold.mini = it.boundsInRoot() }.size(CoverSize).coverFlightTarget(if (aim) LocalCoverFlight.current else null).testTag(MiniCoverTag)
                     .shadow(6.dp, CoverShape).clip(CoverShape).background(c.surface2),
             )
             Column(Modifier.weight(1f).padding(horizontal = 12.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {

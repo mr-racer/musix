@@ -41,6 +41,7 @@ import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
 import ru.musixai.app.core.designsystem.MusixTheme
 import ru.musixai.app.core.designsystem.gesture.HapticCue
@@ -124,9 +125,10 @@ fun Tabs(items: List<String>, selected: Int, onSelect: (Int) -> Unit, modifier: 
  * «Сегменты с текучей подсветкой» (accepted 2026-11-13, FluidHighlight): equal segments in a
  * soft groove; the raised highlight flows between them — and follows the finger dragged across,
  * a tick on each segment it lands on (the only haptic). Letting go picks where it stands.
+ * [compact] — the groove hugs its labels (the player's sides), instead of filling the row.
  */
 @Composable
-fun <T> Segments(value: T, options: List<Pair<T, String>>, onChange: (T) -> Unit, modifier: Modifier = Modifier) {
+fun <T> Segments(value: T, options: List<Pair<T, String>>, onChange: (T) -> Unit, modifier: Modifier = Modifier, compact: Boolean = false) {
     val c = MusixTheme.colors
     val dark = MusixTheme.isDark
     val haptics = LocalMusixHaptics.current
@@ -138,7 +140,7 @@ fun <T> Segments(value: T, options: List<Pair<T, String>>, onChange: (T) -> Unit
     val current by rememberUpdatedState(options)
     val raised = if (dark) Color.White.copy(alpha = 0.16f) else Color.White
     Row(
-        modifier.fillMaxWidth().background(softFill(), RoundedCornerShape(999.dp)).padding(3.dp)
+        (if (compact) modifier else modifier.fillMaxWidth()).background(softFill(), RoundedCornerShape(999.dp)).padding(3.dp)
             .drawBehind {
                 if (left.value.isNaN()) return@drawBehind
                 drawRoundRect(raised, Offset(left.value, 0f), Size(right.value - left.value, size.height), CornerRadius(size.height / 2))
@@ -160,11 +162,12 @@ fun <T> Segments(value: T, options: List<Pair<T, String>>, onChange: (T) -> Unit
             val on = i == (hover ?: chosen)
             val color by animateColorAsState(if (on) c.text else c.textMuted, tween(180), label = "seg")
             Box(
-                Modifier.weight(1f).height(38.dp).onPlaced { spans.set(i, it.positionInParent().x, it.positionInParent().x + it.size.width) }
+                (if (compact) Modifier.height(30.dp) else Modifier.weight(1f).height(38.dp)).onPlaced { spans.set(i, it.positionInParent().x, it.positionInParent().x + it.size.width) }
                     .semantics { role = Role.RadioButton; selected = i == chosen }
-                    .pressable(role = Press.Chip) { if (v != value) { haptics.perform(HapticCue.Tick, fromUser = true); pick(v) } },
+                    .pressable(role = Press.Chip) { if (v != value) { haptics.perform(HapticCue.Tick, fromUser = true); pick(v) } }
+                    .then(if (compact) Modifier.padding(horizontal = 15.dp) else Modifier),
                 contentAlignment = Alignment.Center,
-            ) { Text(label, style = MusixTheme.text.label.copy(color = color), textAlign = TextAlign.Center, maxLines = 1) }
+            ) { Text(label, style = MusixTheme.text.label.copy(color = color, fontSize = if (compact) 13.sp else MusixTheme.text.label.fontSize), textAlign = TextAlign.Center, maxLines = 1) }
         }
     }
 }
