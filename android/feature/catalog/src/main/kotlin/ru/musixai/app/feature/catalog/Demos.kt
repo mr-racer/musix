@@ -89,6 +89,7 @@ import ru.musixai.app.core.designsystem.motion.rememberPageFocus
 import ru.musixai.app.core.designsystem.motion.rememberParkingLoop
 import ru.musixai.app.core.designsystem.plate
 import ru.musixai.app.core.designsystem.surface.GlassScene
+import ru.musixai.app.core.designsystem.surface.GlassTone
 import ru.musixai.app.core.designsystem.surface.LiquidGlass
 import ru.musixai.app.core.designsystem.surface.LocalToasts
 import ru.musixai.app.core.designsystem.surface.MorphMenu
@@ -358,8 +359,14 @@ internal fun GlassDemo() {
         Box(Modifier.matchParentSize().background(Brush.linearGradient(listOf(Color(0xFF5874EA), Color(0xFFFF78C8), Color(0xFFF2B95A)))))
         Box(Modifier.size(70.dp).align(Alignment.TopStart).padding(8.dp).background(Color(0xFF62CEF0), CircleShape))
     }) {
-        LiquidGlass(Modifier.align(Alignment.Center).size(width = 200.dp, height = 64.dp), radius = 32.dp) {
-            Text("Стекло", Modifier.align(Alignment.Center), style = MusixTheme.text.lead.copy(color = Color.White))
+        // two glasses by purpose (the owner, 2026-11-15): clear for a control, matte for words to read
+        Row(Modifier.align(Alignment.Center), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            LiquidGlass(Modifier.size(width = 140.dp, height = 56.dp), radius = 28.dp, tone = GlassTone.Chip, onArt = true) {
+                Text("Прозрачное", Modifier.align(Alignment.Center), style = MusixTheme.text.label.copy(color = Color.White))
+            }
+            LiquidGlass(Modifier.size(width = 140.dp, height = 56.dp), radius = 28.dp, tone = GlassTone.Label, onArt = true) {
+                Text("Матовое", Modifier.align(Alignment.Center), style = MusixTheme.text.label.copy(color = Color.White))
+            }
         }
     }
 }

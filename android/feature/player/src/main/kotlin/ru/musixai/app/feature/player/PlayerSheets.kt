@@ -237,7 +237,9 @@ private fun minutes(ms: Long): String {
 
 @Composable
 internal fun QueueSheet(open: Boolean, ui: PlayerUi, vm: PlayerViewModel, accent: Color, onClose: () -> Unit) {
-    Sheet(open, onClose, glass = GlassTone.Clear, scrim = 0.14f) {
+    // a list of words to read: the matte glass (the owner's rule of 2026-11-15), the light scrim keeps
+    // the player seen through
+    Sheet(open, onClose, glass = GlassTone.Deep, scrim = 0.14f) {
         SheetHead("Далее", aside = null, onClose = onClose)
         Queue(ui, vm, accent, onClose)
     }

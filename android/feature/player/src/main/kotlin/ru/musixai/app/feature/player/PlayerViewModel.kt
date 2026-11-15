@@ -31,6 +31,7 @@ data class PlayerUi(
     val context: PlayerContext? = null,
     val envelope: ByteArray? = null,
     val sound: ru.musixai.app.core.model.TrackSound? = null,   // the form, the moments and the parts of the mix
+    val stage: ru.musixai.app.core.model.StageFrames? = null,  // the live frames of the «Звук» side
     val lyricsOpen: Boolean = false,
     val queueOpen: Boolean = false,
     val burst: Pair<String, Long>? = null,  // (fire|water, nonce): the combustion replays per tap
@@ -80,17 +81,27 @@ class PlayerViewModel @Inject constructor(
     private val sound = current.flatMapLatest { id ->
         flow { emit(id?.let(sounds::cached)); if (id != null) emit(sounds.sound(id)) }
     }
-    private val about = combine(context, sound) { c, s -> c to s }
+    // the live stage frames, only for a track whose profile has them (the «Звук» side moves with them)
+    private val stage = current.flatMapLatest { id ->
+        flow {
+            emit(null)
+            if (id != null && sounds.sound(id)?.hasStage == true) emit(sounds.stage(id))
+        }
+    }
+    private val about = combine(context, sound, stage) { c, s, st -> Triple(c, s, st) }
 
     val ui: StateFlow<PlayerUi> = combine(player.state, about, envelope, local, handoff.remote) { p, cs, env, l, remote ->
-        val (ctx, snd) = cs
-        l.copy(player = p, context = ctx?.takeIf { it.track.id == p.trackId }, envelope = env, sound = snd,
+        val (ctx, snd, st) = cs
+        l.copy(player = p, context = ctx?.takeIf { it.track.id == p.trackId }, envelope = env, sound = snd, stage = st,
             remote = remote?.takeIf { it.playing },
             // the conversation is about one song: another song shows none of it, nor its «Думаю…»
             chat = if (l.chatFor == p.trackId) l.chat else emptyList(),
             chatStage = l.chatStage.takeIf { l.chatFor == p.trackId },
             chatStream = l.chatStream.takeIf { l.chatFor == p.trackId })
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), PlayerUi())
+
+    /** The stage's sharp cover (the 1024 px variant the prefetcher warms); the media item's art is 256 px. */
+    fun stageArt(trackId: String): String? = repo.cached(trackId)?.image?.url(PlayerPrefetch.STAGE_PX)
 
     fun toggle() = player.toggle()
     fun next() = player.next()

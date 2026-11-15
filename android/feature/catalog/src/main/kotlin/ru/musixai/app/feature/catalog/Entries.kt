@@ -54,6 +54,9 @@ val CATALOG: List<CatalogEntry> = listOf(
     CatalogEntry("coverFlight", "Перелёт обложки", Layer.Motion, listOf(Home, Library, Album, Artist, Search),
         "Обложка, которую запустили, летит в мини-плеер. Живёт в оболочке приложения.",
         "кадры только в полёте") { CoverFlightNote() },
+    CatalogEntry("wave", "Волна", Layer.Motion, listOf(Player, Playlist, Home),
+        "Линия рябит, пока играет, и ложится ровно на паузе: высота — на пружине без отскока, фаза бежит только пока играет. Рисуется в отрисовке, без перекомпоновки.",
+        "кадры только пока играет") { WaveDemo() },
 
     // — Жесты
     CatalogEntry("press", "Нажатие", Layer.Gesture, ALL,
@@ -73,8 +76,8 @@ val CATALOG: List<CatalogEntry> = listOf(
         "кадры только под пальцем", haptic = "Threshold · ThresholdOff · Reject") { SwipeDemo() },
 
     // — Поверхности
-    CatalogEntry("glass", "Стекло", Layer.Surface, listOf(Home, Player),
-        "Haze: прозрачное стекло над снятым фоном, с запасным путём на старых Android.",
+    CatalogEntry("glass", "Стекло: прозрачное и матовое", Layer.Surface, listOf(Home, Player, Search, Auth, Import),
+        "Kyant liquid glass, два стекла по назначению. Прозрачное (Chip, Clear) — кнопка или одиночный элемент, читать нечего. Матовое (Label, Deep) — там, где текст: плотнее тело, в светлой теме плотнее, чем в тёмной.",
         STILL) { GlassDemo() },
     CatalogEntry("morphMenu", "Перетекающее меню", Layer.Surface, listOf(Home, Library, Assistant, Player),
         "Кнопка перетекает в панель и обратно на одной пружине; настоящая кнопка гаснет навстречу — ни кадра подмены.",
@@ -117,11 +120,17 @@ val CATALOG: List<CatalogEntry> = listOf(
     CatalogEntry("foldingComposer", "Сворачивающееся поле", Layer.Control, listOf(Player, Assistant, Chat),
         "Пока готовится ответ, поле сворачивается в свою круглую кнопку с Richbox — касание останавливает ответ; рядом одна мерцающая строка о том, что делается.",
         "кадры только в пути и пока мерцает", haptic = "ToggleOff (стоп)") { ComposerDemo() },
+    CatalogEntry("songLine", "Полоса песни", Layer.Control, listOf(Player, Quiz),
+        "Разделы блоками (припевы светлее), прослушанное — акцентом, не поверх серого; волна над сыгранным; моменты называют себя за 6 с. Перемотка пальцем 1:1: блоки толще, время и раздел — на матовом стекле, тик на каждой границе.",
+        "кадры только пока играет", haptic = "Tick на границе раздела") { SongLineDemo() },
 
     // — Содержимое
     CatalogEntry("cover", "Обложка", Layer.Content, listOf(Home, Library, Album, Artist, Playlist, Search, Player, Quiz),
         "Картинка с blurhash, без неё — свой градиент по названию и инициалы. Мозаика — для плейлистов.",
         STILL) { CoverDemo() },
+    CatalogEntry("progressive", "Сначала лёгкая, потом чёткая", Layer.Content, listOf(Player, Album, Artist),
+        "Лёгкая картинка сразу (обычно уже в кеше), чёткая проявляется поверх, когда раскодирована, — без пустого кадра между ними. Плеер: 256 → 1024.",
+        "кадры только при проявлении") { ProgressiveDemo() },
     CatalogEntry("loading", "Скелет, крутилка, пусто", Layer.Content, listOf(Library, Artist, Playlist, Stats, Upload, Import),
         "Скелет — пока грузится раскладка, крутилка — пока ждём ответа, «пусто» — тихая строка.",
         "кадры пока грузится") { LoadingDemo() },

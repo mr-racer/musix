@@ -59,6 +59,20 @@ suspend fun MusixApi.getBytes(path: String): ByteArray? = call {
     }
 }
 
+/** A raw response body with the headers that describe it (the stage frames' stems and rate). */
+class Blob(val bytes: ByteArray, val headers: okhttp3.Headers)
+
+/** GET raw bytes and their headers; null on 404. */
+suspend fun MusixApi.getBlob(path: String): Blob? = call {
+    client.newCall(Request.Builder().url("$base$path").build()).execute().use { r ->
+        when {
+            r.code == 404 -> null
+            !r.isSuccessful -> throw ApiError(r.code, "GET $path: HTTP ${r.code}")
+            else -> Blob(r.body.bytes(), r.headers)
+        }
+    }
+}
+
 /** GET a JSON document as a tree (payloads the generated client types poorly: oneOf, free dicts). */
 suspend fun MusixApi.getJson(path: String): kotlinx.serialization.json.JsonElement = call {
     client.newCall(Request.Builder().url("$base$path").build()).execute().use { r ->

@@ -24,7 +24,12 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.withFrameNanos
+import kotlinx.coroutines.flow.collectLatest
+import ru.musixai.app.core.model.StageFrames
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.BlurredEdgeTreatment
@@ -54,6 +59,7 @@ import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import ru.musixai.app.core.designsystem.DarkMusixColors
 import ru.musixai.app.core.designsystem.MusixFontFamilies
 import ru.musixai.app.core.designsystem.MusixTheme
 import ru.musixai.app.core.designsystem.gesture.HapticCue
@@ -71,7 +77,7 @@ import kotlin.math.max
 import kotlin.math.sqrt
 
 /** One part of the mix on the stage plot: who, where (pan, width), how loud ([a]), and its row (0 drums … 3 voice). */
-internal data class Part(val key: String, val label: String, val pan: Float, val width: Float, val a: Float, val row: Int, val voice: Boolean, val where: String, val at: Double?)
+internal data class Part(val key: String, val label: String, val pan: Float, val width: Float, val a: Float, val row: Int, val voice: Boolean, val where: String, val at: Double?, val stem: String = "")
 
 private val RARE = setOf("brass", "winds", "sax", "woodwind", "piano", "electric_piano", "organ", "harpsichord", "harp", "sitar", "banjo", "mandolin", "ukulele", "accordion", "harmonica", "bagpipes", "theremin")
 private val ORDER = listOf("strings", "acoustic_guitar", "electric_guitar", "slide_guitar", "guitar", "synthesizer", "synths", "lead", "bass_guitar", "double_bass", "synth_bass", "bass_808")
@@ -94,23 +100,23 @@ internal fun instruments(s: TrackSound, moments: List<SoundMoment>): List<Triple
 internal fun parts(s: TrackSound, moments: List<SoundMoment>): List<Part> {
     val ins = instruments(s, moments)
     fun by(stems: Set<String>) = s.stems.filter { it.stem in stems }
-    data class Raw(val key: String, val label: String, val pan: Float, val width: Float, val share: Float, val row: Int, val voice: Boolean)
+    data class Raw(val key: String, val label: String, val pan: Float, val width: Float, val share: Float, val row: Int, val voice: Boolean, val stem: String)
     val raw = ArrayList<Raw>()
-    for (v in by(setOf("vocals"))) raw += Raw(v.name.key, s.vocals?.label ?: "голос", v.pan, v.width, SHARE.getValue("vocals"), 3, true)
+    for (v in by(setOf("vocals"))) raw += Raw(v.name.key, s.vocals?.label ?: "голос", v.pan, v.width, SHARE.getValue("vocals"), 3, true, "vocals")
     for (x in by(setOf("guitar", "piano", "other"))) {
         val known = s.instruments.firstOrNull { it.key == x.name.key }
         val l = known?.label ?: x.name.label.ifBlank { mapOf("synth_other" to "синтезаторы", "strings" to "струнные", "guitar" to "гитара", "piano" to "пианино")[x.name.key] ?: x.name.key }
-        raw += Raw(x.name.key, l, x.pan, x.width, SHARE[x.stem] ?: 0.1f, 2, false)
+        raw += Raw(x.name.key, l, x.pan, x.width, SHARE[x.stem] ?: 0.1f, 2, false, x.stem)
     }
-    for (b in by(setOf("bass"))) raw += Raw(b.name.key, s.instruments.firstOrNull { it.key == b.name.key }?.label ?: "бас", b.pan, b.width, SHARE.getValue("bass"), 1, false)
+    for (b in by(setOf("bass"))) raw += Raw(b.name.key, s.instruments.firstOrNull { it.key == b.name.key }?.label ?: "бас", b.pan, b.width, SHARE.getValue("bass"), 1, false, "bass")
     val drums = by(setOf("kick", "snare", "toms", "hh", "cym", "drums"))
     if (drums.isNotEmpty()) {
         val lo = drums.minOf { it.pan }; val hi = drums.maxOf { it.pan }
-        raw += Raw(if (s.drums?.key == "machine") "drum_machine" else "drums_live", s.drums?.label ?: "ударные", (lo + hi) / 2, ((hi - lo) / 2 + 0.3f).coerceIn(0.2f, 0.9f), SHARE.getValue("drums"), 0, false)
+        raw += Raw(if (s.drums?.key == "machine") "drum_machine" else "drums_live", s.drums?.label ?: "ударные", (lo + hi) / 2, ((hi - lo) / 2 + 0.3f).coerceIn(0.2f, 0.9f), SHARE.getValue("drums"), 0, false, "drums")
     }
     val top = max(raw.maxOfOrNull { it.share } ?: 0.01f, 0.01f)
     fun side(pan: Float) = if (pan < -0.2f) "слева" else if (pan > 0.2f) "справа" else "по центру"
-    return raw.map { r -> Part(r.key, r.label, r.pan, r.width, 0.34f + 0.66f * sqrt(r.share / top), r.row, r.voice, side(r.pan), ins.firstOrNull { it.second == r.label }?.third) }
+    return raw.map { r -> Part(r.key, r.label, r.pan, r.width, 0.34f + 0.66f * sqrt(r.share / top), r.row, r.voice, side(r.pan), ins.firstOrNull { it.second == r.label }?.third, r.stem) }
 }
 
 private val SHOW = mapOf("tech" to (25f to 70f), "space" to (10f to 90f), "odd" to (0f to 70f))
@@ -132,7 +138,7 @@ private val DEPTH = floatArrayOf(0.74f, 0.82f, 0.9f, 1f)
  */
 @Composable
 internal fun SoundFace(
-    s: TrackSound, accent: Color, cover: Dp, moments: List<SoundMoment>, playing: Boolean, pick: String?,
+    s: TrackSound, stage: StageFrames?, clock: Clock, accent: Color, cover: Dp, moments: List<SoundMoment>, playing: Boolean, pick: String?,
     onPick: (String?) -> Unit, onPart: (Double?) -> Unit,
 ) {
     val c = MusixTheme.colors
@@ -147,7 +153,28 @@ internal fun SoundFace(
     var on by remember(s) { mutableIntStateOf(-1) }
     var shot by remember { mutableIntStateOf(0) }
     LaunchedEffect(on, shot) { if (on >= 0) { delay(2600); on = -1 } }
-    val vizA by animateFloatAsState(if (playing) 1f else 0.45f, tween(400), label = "viz")
+    // the live stage (the song's frames): steps while it plays or settles, still otherwise; a seek on
+    // pause steps it to the new moment. Without frames, or when no part really plays, the still plot.
+    val live = remember(stage, ps) { stage?.let { LiveStage(it, ps) }?.takeIf { it.alive } }
+    val playNow by rememberUpdatedState(playing)
+    LaunchedEffect(live) {
+        val l = live ?: return@LaunchedEffect
+        snapshotFlow { if (playNow) -1f else clock.sec }.collectLatest {
+            var last = 0L
+            while (true) {
+                val go = withFrameNanos { n -> val dt = stepMs(last, n); last = n; l.step(clock.sec, dt, playNow, n / 1_000_000) }
+                if (!go) break
+            }
+        }
+    }
+    val moves = live != null && !reduced
+    fun panOf(i: Int) = if (moves) live!!.pan[i] else ps[i].pan
+    fun visOf(i: Int) = live?.vis?.get(i) ?: 1f
+    // where each part stands in its row, dp (a second part of a row steps aside)
+    val ys = remember(ps, H) {
+        val taken = IntArray(4)
+        ps.map { p -> val n = ++taken[p.row]; H * (ROW_Y[p.row] + if (n > 1) (if (n % 2 == 1) -0.085f else 0.085f) else 0f) + 8.dp }
+    }
     // the cast comes in one by one when the side opens (or the song changes on it)
     val arrive = remember(s) { List(ps.size) { Animatable(if (reduced) 1f else 0f) } }
     val rise = remember(s) { Animatable(if (reduced) 1f else 0f) }
@@ -161,39 +188,72 @@ internal fun SoundFace(
         Canvas(Modifier.fillMaxSize()) {
             drawRect(Brush.radialGradient(0f to accent.copy(alpha = 0.26f), 0.62f to Color.Transparent, center = Offset(size.width / 2, size.height * 1.08f), radius = size.width * 0.9f))
         }
-        Box(Modifier.fillMaxWidth().height(H).graphicsLayer { alpha = vizA }) {
-            // the rows of the stage, seen from the seat
+        Box(Modifier.fillMaxWidth().height(H)) {
+            // the rows of the stage, seen from the seat, and the rings of the parts that came in
             Canvas(Modifier.fillMaxSize()) {
                 val w = size.width; val h = size.height
                 for (i in 0..3) {
                     val rx = w * (0.86f - i * 0.2f); val ry = h * (1.12f - ROW_Y[i])
                     drawOval(Color.White.copy(alpha = 0.07f), Offset(w / 2 - rx, h * 1.12f - ry), Size(rx * 2, ry * 2), style = Stroke(1.dp.toPx()))
                 }
+                val l = live ?: return@Canvas
+                l.tick.longValue   // redrawn on every step of the stage
+                if (reduced) return@Canvas
+                for (r in l.ripples) {
+                    val age = ((l.now - r.t0).toFloat() / LiveStage.RIPPLE_MS).coerceIn(0f, 1f)
+                    val e = 1f - (1f - age) * (1f - age) * (1f - age)
+                    val d = DEPTH[ps[r.part].row]
+                    val cx = w * (0.5f + l.pan[r.part] * 0.46f).coerceIn(0.2f, 0.8f)
+                    val cy = ys[r.part].toPx()
+                    val light = lerp(Color.White, accent, if (ps[r.part].voice) 0.22f else 0.52f)
+                    // flat on the floor: wider than deep, as the rows are
+                    val rx = ((24f + 96f * e) * k * d).dp.toPx(); val ry = rx * 0.42f
+                    drawOval(light.copy(alpha = 0.5f * (1f - age)), Offset(cx - rx, cy - ry), Size(rx * 2, ry * 2), style = Stroke(1.5f.dp.toPx()))
+                }
             }
             SideWord("слева", Modifier.align(Alignment.TopStart).padding(start = 28.dp, top = 12.dp))
             SideWord("справа", Modifier.align(Alignment.TopEnd).padding(end = 28.dp, top = 12.dp))
-            val taken = IntArray(4)
             ps.forEachIndexed { i, p ->
-                val n = ++taken[p.row]
                 val d = DEPTH[p.row]
                 val pw = ((64 + p.width * 132) * k * d).dp
                 val ph = ((54 + 34 * p.a) * k * d).dp
-                val x = W * (0.5f + p.pan * 0.46f).coerceIn(0.2f, 0.8f)
-                val y = H * (ROW_Y[p.row] + if (n > 1) (if (n % 2 == 1) -0.085f else 0.085f) else 0f) + 8.dp
+                val y = ys[i]
                 val light = lerp(Color.White, accent, if (p.voice) 0.22f else 0.52f)
                 val lit = on == i
                 val glyphS by animateFloatAsState(if (lit) 1.25f else 1f, springKcm(300f, 18f), label = "g$i")
                 Box(
-                    Modifier.offset { IntOffset((x - pw / 2).roundToPx(), (y - ph / 2).roundToPx()) }.requiredSize(pw, ph)
-                        .graphicsLayer { val a = arrive[i].value; alpha = a.coerceIn(0f, 1f); val sc = 0.6f + 0.4f * a; scaleX = sc; scaleY = sc }
+                    Modifier
+                        .offset {
+                            live?.tick?.longValue
+                            val x = W.toPx() * (0.5f + panOf(i) * 0.46f).coerceIn(0.2f, 0.8f)
+                            IntOffset((x - pw.toPx() / 2).toInt(), (y - ph / 2).roundToPx())
+                        }
+                        .requiredSize(pw, ph)
+                        .graphicsLayer {
+                            live?.tick?.longValue
+                            // it comes on the stage as it starts to play and leaves after it stops
+                            val v = visOf(i)
+                            val a = arrive[i].value; alpha = (a * v).coerceIn(0f, 1f); val sc = (0.6f + 0.4f * a) * (0.82f + 0.18f * v); scaleX = sc; scaleY = sc
+                        }
                         .pressable(role = Press.Card) {
+                            if (visOf(i) < 0.15f) return@pressable
                             haptics.perform(HapticCue.Tick, fromUser = true)
                             on = i; shot++
                             if (p.at != null) onPart(p.at)
                         },
                     contentAlignment = Alignment.Center,
                 ) {
-                    Canvas(Modifier.fillMaxSize().blur((soft * d).dp, BlurredEdgeTreatment.Unbounded)) {
+                    // the light breathes with the part's level: only the layer changes, the blur is not redrawn
+                    Canvas(
+                        Modifier.fillMaxSize()
+                            .graphicsLayer {
+                                val l = live ?: return@graphicsLayer
+                                l.tick.longValue
+                                val g = l.glow[i]
+                                alpha = 0.3f + 0.7f * g; val sc = 0.9f + 0.16f * g; scaleX = sc; scaleY = sc
+                            }
+                            .blur((soft * d).dp, BlurredEdgeTreatment.Unbounded),
+                    ) {
                         val r = size.minDimension / 2
                         scale(size.width / size.minDimension, size.height / size.minDimension) {
                             drawCircle(Brush.radialGradient(0f to light, 0.42f to light.copy(alpha = 0.62f), 0.74f to light.copy(alpha = 0.18f), 1f to Color.Transparent, center = center, radius = r), r, alpha = p.a)
@@ -203,16 +263,15 @@ internal fun SoundFace(
                 }
             }
             Glyph("listener", Color.White.copy(alpha = 0.55f), Modifier.align(Alignment.BottomCenter).padding(bottom = 2.dp).size(18.dp))
-            // the name of a tapped part, over it
+            // the name of a tapped part, over it (and with it, if it moves)
             val p = ps.getOrNull(on)
             if (p != null) {
-                val n = ps.take(on + 1).count { it.row == p.row }
+                val i = on
                 val d = DEPTH[p.row]
                 val ph = ((54 + 34 * p.a) * k * d)
-                val x = (W * (0.5f + p.pan * 0.46f).coerceIn(0.2f, 0.8f)).coerceIn(96.dp, W - 96.dp)
-                val y = (H * (ROW_Y[p.row] + if (n > 1) (if (n % 2 == 1) -0.085f else 0.085f) else 0f) + 8.dp - (ph / 2).dp - 6.dp).coerceAtLeast(34.dp)
+                val y = (ys[i] - (ph / 2).dp - 6.dp).coerceAtLeast(34.dp)
                 val text = p.label.replaceFirstChar { it.uppercase() } + " · " + p.where + (p.at?.let { " · вступает в " + fmt(it) } ?: "")
-                PartLabel(text, x, y, on, shot)
+                PartLabel(text, { live?.tick?.longValue; (W * (0.5f + panOf(i) * 0.46f).coerceIn(0.2f, 0.8f)).coerceIn(96.dp, W - 96.dp) }, y, on, shot)
             }
         }
         // three scales, the stage's numbers
@@ -223,7 +282,9 @@ internal fun SoundFace(
         ) {
             for (key in listOf("tech", "space", "odd")) {
                 if (key == "space" && s.ratings.space == null) continue
-                val hue = when (key) { "tech" -> c.soundTech; "space" -> c.soundSpace; else -> c.soundOdd }
+                // the stage is dark in both themes: its scales take the dark theme's hues (the light
+                // theme's are deepened for a light page and sink into the stage)
+                val hue = when (key) { "tech" -> DarkMusixColors.soundTech; "space" -> DarkMusixColors.soundSpace; else -> DarkMusixColors.soundOdd }
                 val dim by animateFloatAsState(if (pick != null && pick != key) 0.42f else 1f, tween(250), label = "dim$key")
                 val fill by animateFloatAsState(if (rise.value > 0.5f || reduced) shown(s, key) / 100f else 0f, tween(900), label = "bar$key")
                 Column(
@@ -251,13 +312,13 @@ private fun SideWord(text: String, modifier: Modifier) =
     Text(text.uppercase(), modifier, style = MusixTheme.text.cap.copy(fontSize = 11.sp, color = Color.White.copy(alpha = 0.42f)))
 
 @Composable
-private fun PartLabel(text: String, x: Dp, y: Dp, key: Int, shot: Int) {
+private fun PartLabel(text: String, x: () -> Dp, y: Dp, key: Int, shot: Int) {
     val k = remember(key, shot) { Animatable(0f) }
     LaunchedEffect(key, shot) { k.animateTo(1f, springKcm(300f, 20f)) }
-    Box(Modifier.offset { IntOffset(x.roundToPx(), y.roundToPx()) }.layoutCentered()) {
+    Box(Modifier.offset { IntOffset(x().roundToPx(), y.roundToPx()) }.layoutCentered()) {
         LiquidGlass(Modifier.graphicsLayer {
             transformOrigin = TransformOrigin(0.5f, 1f); val s = 0.72f + 0.28f * k.value; scaleX = s; scaleY = s; alpha = k.value.coerceIn(0f, 1f)
-        }, radius = 999.dp, tone = GlassTone.Chip, onArt = true) {
+        }, radius = 999.dp, tone = GlassTone.Label, onArt = true) {
             Text(text, Modifier.padding(horizontal = 12.dp, vertical = 6.dp), maxLines = 1, style = MusixTheme.text.label.copy(fontSize = 13.sp, color = Color.White))
         }
     }

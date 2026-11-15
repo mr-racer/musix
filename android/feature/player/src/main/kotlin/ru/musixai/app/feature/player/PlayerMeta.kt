@@ -81,6 +81,7 @@ import ru.musixai.app.core.designsystem.gesture.pressable
 import ru.musixai.app.core.designsystem.surface.GlassTone
 import ru.musixai.app.core.designsystem.surface.LiquidGlass
 import ru.musixai.app.core.designsystem.surface.glassInk
+import ru.musixai.app.core.designsystem.surface.liquidGlass
 import ru.musixai.app.core.designsystem.surface.LocalToasts
 import ru.musixai.app.core.designsystem.text
 import ru.musixai.app.core.model.TrackSound
@@ -124,7 +125,7 @@ internal fun character(s: TrackSound, strong: SpanStyle): AnnotatedString = buil
 
 /** A picked scale explained: what it measures, and what of it is here. */
 internal fun scaleMeaning(s: TrackSound, key: String, hue: Color): AnnotatedString = buildAnnotatedString {
-    withStyle(SpanStyle(fontWeight = FontWeight.SemiBold, fontStyle = FontStyle.Normal, color = hue)) { append(SCALE[key] ?: key) }
+    withStyle(SpanStyle(fontStyle = FontStyle.Normal, color = hue)) { append(SCALE[key] ?: key) }
     append(" — ${MEAN[key]}")
     val f = s.ratings.facets[key].orEmpty().filter { it.value >= 40 }.entries.sortedByDescending { it.value }.take(2).map { FACET[it.key] ?: it.key }
     if (f.isNotEmpty()) append(" Здесь: ${f.joinToString(" и ")}.")
@@ -152,20 +153,19 @@ internal fun Meta(ui: PlayerUi, side: Side, sound: TrackSound?, scaleKey: String
         }
         // the phrase: the song's story on the cover and the words, the sound's character on the sound
         val titleLines = if (title.length > 16 && title.length > 26) 2 else if (title.length > 16) 1 else 1
-        val stream = p.mode == QueueMode.STREAM && p.reason != null
-        val keep = (lines - (if (titleLines > 1) 1 else 0) - (if (stream) 1 else 0)).coerceAtLeast(1)
+        // (the stream's «похоже на …» line is gone, the owner 2026-11-15: it pushed the line and the
+        // controls down and did not fit the scene)
+        val keep = (lines - (if (titleLines > 1) 1 else 0)).coerceAtLeast(1)
         Box(Modifier.padding(top = 10.dp).fillMaxWidth().heightIn(min = (lines * 22).dp)) {
             AnimatedContent(Triple(p.trackId, side == Side.Sound, scaleKey), transitionSpec = { rise(90) }, label = "slot") { (_, onSound, pick) ->
                 if (onSound && sound != null) {
-                    val strong = SpanStyle(fontWeight = FontWeight.SemiBold, color = c.text)
+                    // the named things stand out by colour, not weight (the owner: «обычным, без жирнения»)
+                    val strong = SpanStyle(color = c.text)
                     val hue = when (pick) { "tech" -> c.soundTech; "space" -> c.soundSpace; else -> c.soundOdd }
-                    Text(if (pick != null) scaleMeaning(sound, pick, hue) else character(sound, strong), style = MusixTheme.text.reading.copy(fontSize = 15.sp, lineHeight = 1.45.em, color = c.textMuted, letterSpacing = 0.em))
+                    Text(if (pick != null) scaleMeaning(sound, pick, hue) else character(sound, strong), maxLines = keep, overflow = TextOverflow.Ellipsis,
+                        style = MusixTheme.text.reading.copy(fontSize = 15.sp, lineHeight = 1.45.em, color = c.textMuted, letterSpacing = 0.em))
                 } else Phrase(ctx?.vibe ?: "Истории об этой песне ещё собираются.", keep, onMore)
             }
-        }
-        if (stream) Row(Modifier.padding(top = 4.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            Icon(MusixIcons.Sparkles, null, Modifier.size(14.dp), tint = c.amber)
-            Text(p.reason!!, maxLines = 1, overflow = TextOverflow.Ellipsis, style = MusixTheme.text.caption.copy(fontSize = 13.sp, color = c.amber))
         }
     }
 }
@@ -294,11 +294,12 @@ internal fun Actions(ui: PlayerUi, vm: PlayerViewModel, accent: Color, bursts: B
             }
         }
         Row(
-            Modifier.padding(end = 12.dp).height(40.dp).clip(CircleShape).background(c.text.copy(alpha = 0.09f)).pressable(role = Press.Chip) { onAsk() }.padding(horizontal = 16.dp),
+            // on glass, as the sheet it opens (the owner, 2026-11-15: the glass onto more surfaces)
+            Modifier.padding(end = 12.dp).height(40.dp).liquidGlass(CircleShape, GlassTone.Chip, shadow = false).clip(CircleShape).pressable(role = Press.Chip) { onAsk() }.padding(horizontal = 16.dp),
             verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(7.dp),
         ) {
-            Icon(MusixIcons.Sparkles, null, Modifier.size(18.dp), tint = c.text)
-            Text("Спросить", style = MusixTheme.text.label.copy(fontSize = 14.sp, color = c.text))
+            Icon(MusixIcons.Sparkles, null, Modifier.size(18.dp), tint = glassInk())
+            Text("Спросить", style = MusixTheme.text.label.copy(fontSize = 14.sp, color = glassInk()))
         }
     }
 }
@@ -352,7 +353,7 @@ internal fun rememberHint(): Hint {
 internal fun HintPill(hint: Hint, modifier: Modifier) {
     val k by animateFloatAsState(if (hint.shown) 1f else 0f, springKcm(300f, 24f), label = "hint")
     if (k < 0.01f && !hint.shown) return
-    LiquidGlass(modifier.graphicsLayer { alpha = k.coerceIn(0f, 1f); translationY = (1f - k) * 10.dp.toPx(); val s = 0.96f + 0.04f * k; scaleX = s; scaleY = s }, radius = 999.dp, tone = GlassTone.Chip) {
+    LiquidGlass(modifier.graphicsLayer { alpha = k.coerceIn(0f, 1f); translationY = (1f - k) * 10.dp.toPx(); val s = 0.96f + 0.04f * k; scaleX = s; scaleY = s }, radius = 999.dp, tone = GlassTone.Label) {
         Text(hint.text, Modifier.padding(horizontal = 16.dp, vertical = 9.dp), maxLines = 1, style = MusixTheme.text.label.copy(fontSize = 13.sp, color = glassInk()))
     }
 }

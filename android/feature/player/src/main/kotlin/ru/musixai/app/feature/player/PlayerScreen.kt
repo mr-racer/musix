@@ -7,6 +7,10 @@ import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import ru.musixai.app.core.designsystem.control.SongLine
+import ru.musixai.app.core.designsystem.surface.ProvideGlassSource
+import ru.musixai.app.core.designsystem.surface.glassSource
+import ru.musixai.app.core.designsystem.surface.rememberGlassSource
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -134,7 +138,7 @@ internal fun PlayerScreen(ui: PlayerUi, vm: PlayerViewModel, fold: PlayerFold, o
         }
     }
     val toggle = {
-        haptics.perform(if (p.isPlaying) HapticCue.ToggleOff else HapticCue.ToggleOn, fromUser = true)
+        haptics.perform(HapticCue.Press, fromUser = true)
         hint.hide(true)
         vm.toggle()
     }
@@ -147,7 +151,10 @@ internal fun PlayerScreen(ui: PlayerUi, vm: PlayerViewModel, fold: PlayerFold, o
         // what the system bars really take (gesture or button navigation, a cutout)
         val bars = with(density) { (WindowInsets.statusBars.getTop(density) + WindowInsets.navigationBars.getBottom(density)).toDp() }
         val e = { fold.p.value.coerceIn(0f, 1f) }
-        PlayerBackdrop(light, accent2, fade = { val k = e(); 1f - k * k })
+        // the player's own picture for its glass (the sheet host cuts the shared one off inside it)
+        val playerGlass = rememberGlassSource()
+        Box(Modifier.fillMaxSize().glassSource(playerGlass)) { PlayerBackdrop(light, accent2, fade = { val k = e(); 1f - k * k }) }
+        ProvideGlassSource(playerGlass) {
         Column(
             Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().graphicsLayer {
                 val o = back
@@ -178,12 +185,14 @@ internal fun PlayerScreen(ui: PlayerUi, vm: PlayerViewModel, fold: PlayerFold, o
                     alpha = if (k > 0.9f) 1f - (k - 0.9f) / 0.1f else 1f       // the last steps: the bar's picture takes over
                 }) {
                     Stage(
-                        StageInput(p.queue, p.index, p.isPlaying, side, blocked), turn, geo.cover, light,
+                        StageInput(p.queue, p.index, p.isPlaying, side, blocked, loading = p.buffering && !p.isPlaying), turn, geo.cover, light,
+                        art = { vm.stageArt(it.trackId) },
+                        folding = e,
                         onToggle = toggle,
                         onChange = { dir -> hint.hide(true); if (dir > 0) vm.next() else vm.previous() },
                         onFold = foldDrag,
                         back = { LyricsFace(ctx, sound, clock, p.isPlaying, accent, p.artUri, geo.cover, onAsk = { lines -> askFor = AskFor(quote = lines); sheet = PlayerSheet.Ask }, onFrom = { s -> vm.seek((s * 1000).toLong()); if (!p.isPlaying) vm.toggle() }, tip = hint) },
-                        soundFace = { if (sound != null) SoundFace(sound, accent, geo.cover, lineMoments(sound.moments), p.isPlaying, scaleKey, onPick = { scaleKey = it }, onPart = { at -> lit.at = at }) },
+                        soundFace = { if (sound != null) SoundFace(sound, ui.stage, clock, accent, geo.cover, lineMoments(sound.moments), p.isPlaying, scaleKey, onPick = { scaleKey = it }, onPart = { at -> lit.at = at }) },
                         overlay = { HintPill(hint, Modifier.align(Alignment.BottomCenter).padding(bottom = 16.dp)) },
                     )
                 }
@@ -203,11 +212,12 @@ internal fun PlayerScreen(ui: PlayerUi, vm: PlayerViewModel, fold: PlayerFold, o
             Spacer(Modifier.weight(1f))
 
             Box(away) {
-                SeekLine(clock, (p.durationMs.takeIf { it > 0 } ?: ctx?.track?.durationMs ?: 0L) / 1000.0, sound?.sections.orEmpty(), sound?.let { lineMoments(it.moments) }.orEmpty(),
+                SongLine(clock,(p.durationMs.takeIf { it > 0 } ?: ctx?.track?.durationMs ?: 0L) / 1000.0, sound?.sections.orEmpty(), sound?.let { lineMoments(it.moments) }.orEmpty(),
                     p.isPlaying, accent, lit, onScrub = { scrubbing = it }, onSeek = { s -> vm.seek((s * 1000).toLong()) }, modifier = Modifier.padding(horizontal = 24.dp))
             }
             Tray(p, onOpen = { sheet = PlayerSheet.Queue }, modifier = away)
             Actions(ui, vm, accent, bursts, side, onAsk = { askFor = AskFor(); sheet = PlayerSheet.Ask }, onAdd = { r -> addAnchor = r; adding = true }, added = added != null, modifier = away)
+        }
         }
     }
 

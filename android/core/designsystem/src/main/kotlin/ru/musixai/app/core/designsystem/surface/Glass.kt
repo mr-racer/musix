@@ -30,15 +30,29 @@ import ru.musixai.app.core.designsystem.MusixTheme
  * How much of the world a piece of glass lets through (the owner, 2026-11-15: Kyant0's
  * AndroidLiquidGlass — «похоже на Apple», instead of Haze's optics).
  *
+ * Two glasses, picked by purpose (the owner, 2026-11-15: «два стекла и выбирать в зависимости от
+ * предназначения»):
+ *
+ * **Clear** — for a control or a lone element, where nothing is read: the world through it almost as is.
  * - [Chip] — buttons and capsules (`.lg` of the web): a thin blur and a strong lens at the rim.
- * - [Clear] — a sheet one looks through, the queue: the library seen almost as it is.
- * - [Deep] — a sheet one reads from (about the song, the assistant): more blur and a darker body.
+ * - [Clear] — a large surface one looks through, with nothing to read on it.
+ *
+ * **Matte** — for words: a denser body, so the text holds over any cover.
+ * - [Label] — a small chip that says a phrase (a hint, the time while scrubbing, a part's name).
+ * - [Deep] — a sheet one reads from (about the song, the assistant, the queue).
+ *
+ * The matte light bodies are denser than the dark ones: a dark cover through white glass turns it
+ * to a muddy grey that dark text loses on; a light one through dark glass does not.
  */
 enum class GlassTone(internal val blur: Dp, internal val lensHeight: Dp, internal val lensAmount: Dp, internal val dark: Color, internal val light: Color) {
     Chip(4.dp, 16.dp, 32.dp, Color(0x5C181820), Color(0x99FFFFFF)),
     Clear(6.dp, 24.dp, 48.dp, Color(0x42181820), Color(0x80F4F3FA)),
-    Deep(18.dp, 24.dp, 48.dp, Color(0x80141420), Color(0xBFF4F3FA)),
+    Label(6.dp, 16.dp, 32.dp, Color(0x75181820), Color(0xC2FFFFFF)),
+    Deep(10.dp, 24.dp, 48.dp, Color(0x6E141420), Color(0xC9F4F3FA)),
 }
+
+/** The lens of the small tones keeps its depth off: a chip is too thin to show a rim of depth. */
+private val GlassTone.small get() = this == GlassTone.Chip || this == GlassTone.Label
 
 /** The picture glass is made of: what is drawn under it, recorded into one layer. */
 internal val LocalGlassSource = staticCompositionLocalOf<LayerBackdrop?> { null }
@@ -62,11 +76,20 @@ fun GlassScene(
     }
 }
 
-/** The shell's own source: everything on screen, for the glass of sheets drawn over it. */
+/**
+ * A picture of its own for glass that lives inside another recorded picture (a sheet host, a scene),
+ * where the shared source is cut off so glass never reads itself — the cover under its play button,
+ * the stage under its hint. Record the picture with [glassSource]; the glass must stay outside it.
+ */
 @Composable
-internal fun rememberGlassSource(): LayerBackdrop = rememberLayerBackdrop()
+fun rememberGlassSource(): LayerBackdrop = rememberLayerBackdrop()
 
-internal fun Modifier.glassSource(source: LayerBackdrop): Modifier = layerBackdrop(source)
+fun Modifier.glassSource(source: LayerBackdrop): Modifier = layerBackdrop(source)
+
+/** The glass inside [content] reads [source] (recorded by [glassSource] on a sibling, never an ancestor). */
+@Composable
+fun ProvideGlassSource(source: LayerBackdrop, content: @Composable () -> Unit) =
+    CompositionLocalProvider(LocalGlassSource provides source, content = content)
 
 /**
  * Liquid glass of the given [tone] in [shape]. Without a [source] (outside a [GlassScene], or
@@ -95,7 +118,7 @@ fun Modifier.liquidGlass(
             effects = {
                 vibrancy()
                 blur(tone.blur.toPx())
-                lens(tone.lensHeight.toPx(), tone.lensAmount.toPx(), depthEffect = tone != GlassTone.Chip)
+                lens(tone.lensHeight.toPx(), tone.lensAmount.toPx(), depthEffect = !tone.small)
             },
             highlight = { Highlight.Default },
             shadow = if (shadow) ({ Shadow(radius = 24.dp, color = Color.Black.copy(alpha = if (dark) 0.28f else 0.10f)) }) else null,

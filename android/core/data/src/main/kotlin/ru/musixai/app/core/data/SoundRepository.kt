@@ -15,10 +15,15 @@ import ru.musixai.app.core.model.SoundMoment
 import ru.musixai.app.core.model.SoundRatings
 import ru.musixai.app.core.model.SoundSection
 import ru.musixai.app.core.model.SoundTag
+import ru.musixai.app.core.model.StageFrames
 import ru.musixai.app.core.model.StemPlace
 import ru.musixai.app.core.model.TrackSound
 import ru.musixai.app.core.network.MusixApi
+import ru.musixai.app.core.network.getBlob
 import ru.musixai.app.core.network.getJson
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import java.util.zip.GZIPInputStream
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -36,6 +41,24 @@ class SoundRepository @Inject constructor(private val api: MusixApi) {
         val s = runCatching { parse(json.jsonObject) }.getOrNull() ?: return null
         cache.put(trackId, s)
         return s
+    }
+
+    private val stages = LruCache<String, StageFrames>(6)
+
+    /** The live stage frames (gzip on the wire, not as a transfer encoding); null when there are none. */
+    suspend fun stage(trackId: String): StageFrames? {
+        stages.get(trackId)?.let { return it }
+        val blob = runCatching { api.getBlob("/api/v2/tracks/$trackId/sound/stage") }.getOrNull() ?: return null
+        val st = runCatching {
+            withContext(Dispatchers.Default) {
+                val raw = GZIPInputStream(blob.bytes.inputStream()).use { it.readBytes() }
+                val stems = (blob.headers["X-Stage-Stems"] ?: "vocals,drums,bass,guitar,piano,other").split(',')
+                val fps = blob.headers["X-Stage-Fps"]?.toIntOrNull() ?: 10
+                StageFrames(fps, stems, raw.size / (stems.size * 2), raw)
+            }
+        }.getOrNull() ?: return null
+        stages.put(trackId, st)
+        return st
     }
 
     companion object {

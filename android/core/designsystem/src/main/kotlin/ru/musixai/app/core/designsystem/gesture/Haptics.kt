@@ -16,6 +16,9 @@ import androidx.compose.ui.platform.LocalView
 /** Only deliberate gestures use this vocabulary; navigation and automatic events are silent. */
 enum class HapticCue {
     Tick, ToggleOn, ToggleOff, Threshold, ThresholdOff, Lift, Drop, Confirm, Reject,
+    /** A short, clearly felt click under a press that acts at once (play and pause on the cover):
+     *  the toggle cues are too faint on many phones for it. */
+    Press,
 }
 
 /** A shared gate prevents separate controls from producing a burst of haptics. */
@@ -62,6 +65,7 @@ fun ProvideMusixHaptics(enabled: Boolean, content: @Composable () -> Unit) {
                         HapticCue.Drop -> HapticFeedbackType.GestureEnd
                         HapticCue.Confirm -> HapticFeedbackType.Confirm
                         HapticCue.Reject -> HapticFeedbackType.Reject
+                        HapticCue.Press -> HapticFeedbackType.ContextClick
                     })
                 } else {
                     view.performHapticFeedback(legacyHaptic(cue, Build.VERSION.SDK_INT))
@@ -79,5 +83,6 @@ internal fun legacyHaptic(cue: HapticCue, sdk: Int): Int = when (cue) {
     HapticCue.Threshold -> if (sdk >= 30) HapticFeedbackConstants.GESTURE_START else HapticFeedbackConstants.LONG_PRESS
     HapticCue.Drop -> if (sdk >= 30) HapticFeedbackConstants.GESTURE_END else HapticFeedbackConstants.VIRTUAL_KEY
     HapticCue.ToggleOn -> HapticFeedbackConstants.VIRTUAL_KEY
+    HapticCue.Press -> HapticFeedbackConstants.CONTEXT_CLICK
     HapticCue.Tick, HapticCue.ToggleOff, HapticCue.ThresholdOff -> HapticFeedbackConstants.CLOCK_TICK
 }

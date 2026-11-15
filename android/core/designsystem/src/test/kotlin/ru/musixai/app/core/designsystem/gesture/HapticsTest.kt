@@ -35,5 +35,7 @@ class HapticsTest {
         assertEquals(HapticFeedbackConstants.LONG_PRESS, legacyHaptic(HapticCue.Reject, 29))
         assertEquals(HapticFeedbackConstants.CONFIRM, legacyHaptic(HapticCue.Confirm, 30))
         assertEquals(HapticFeedbackConstants.GESTURE_END, legacyHaptic(HapticCue.Drop, 33))
+        // play and pause on the cover: a click every phone plays, not the faint toggle tick
+        assertEquals(HapticFeedbackConstants.CONTEXT_CLICK, legacyHaptic(HapticCue.Press, 26))
     }
 }

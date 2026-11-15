@@ -15,6 +15,18 @@ data class StemPlace(val stem: String, val name: SoundTag, val side: SoundTag, v
 /** The three absolute 0–100 scales; [space] is null for a mono file. */
 data class SoundRatings(val tech: Int, val space: Int?, val odd: Int, val facets: Map<String, Map<String, Int>>)
 
+/**
+ * The live stage (`GET /tracks/{id}/sound/stage`): for every 1/[fps] s of the song, each stem's level
+ * and place, `[frame][stem][level, pan]` — level in half-dB under the loudest stem frame (0…−120),
+ * pan −100…100; [stems] in the server's order.
+ */
+class StageFrames(val fps: Int, val stems: List<String>, val frames: Int, val data: ByteArray) {
+    /** dB under the loudest stem frame. */
+    fun level(frame: Int, stem: Int): Float = data[(frame * stems.size + stem) * 2] / 2f
+    /** −1 (left) … 1 (right). */
+    fun pan(frame: Int, stem: Int): Float = data[(frame * stems.size + stem) * 2 + 1] / 100f
+}
+
 /** What the player shows about the sound of a track (`GET /tracks/{id}/sound`). */
 data class TrackSound(
     val sections: List<SoundSection>,

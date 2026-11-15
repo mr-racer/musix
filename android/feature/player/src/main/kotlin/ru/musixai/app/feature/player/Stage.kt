@@ -46,6 +46,11 @@ import ru.musixai.app.core.designsystem.gesture.HapticCue
 import ru.musixai.app.core.designsystem.gesture.LocalMusixHaptics
 import ru.musixai.app.core.designsystem.surface.GlassTone
 import ru.musixai.app.core.designsystem.surface.liquidGlass
+import ru.musixai.app.core.designsystem.surface.ProvideGlassSource
+import ru.musixai.app.core.designsystem.surface.glassSource
+import ru.musixai.app.core.designsystem.surface.rememberGlassSource
+import ru.musixai.app.core.designsystem.content.Spinner
+import ru.musixai.app.core.designsystem.content.ProgressiveImage
 import ru.musixai.app.core.player.QueueEntry
 import kotlin.math.abs
 import kotlin.math.hypot
@@ -71,6 +76,8 @@ internal class StageInput(
     val playing: Boolean,
     val side: Side,
     val blocked: Boolean,
+    /** The song is on its way (buffering): the cover says so instead of looking paused. */
+    val loading: Boolean = false,
 )
 
 /**
@@ -89,6 +96,10 @@ internal fun Stage(
     onChange: (dir: Int) -> Unit,
     onFold: FoldDrag,
     modifier: Modifier = Modifier,
+    /** The sharp variant of a page's cover (its media art is the light 256 px one). */
+    art: (QueueEntry) -> String? = { null },
+    /** 0 open … 1 folded into the bar: a paused page clears up on the way. */
+    folding: () -> Float = { 0f },
     back: @Composable () -> Unit,
     soundFace: @Composable () -> Unit,
     overlay: @Composable () -> Unit,
@@ -99,6 +110,10 @@ internal fun Stage(
     val w = with(density) { size.toPx() }
     turn.width = w
     val current by rememberUpdatedState(input)
+    // the gesture below lives as long as the stage: it must call the latest handlers, not the first ones
+    val toggleNow by rememberUpdatedState(onToggle)
+    val changeNow by rememberUpdatedState(onChange)
+    val stageGlass = rememberGlassSource()
     val flick = with(density) { 56.dp.toPx() }
 
     // the side of the stage: the cover turns its back to show the words (a little wobble at the end)
@@ -169,7 +184,7 @@ internal fun Stage(
                     when (dir) {
                         null -> {
                             // a tap: on the cover it pauses; on the sound side only the empty floor does
-                            if (ended && !cancelled && !lastUp.isConsumed) onToggle()
+                            if (ended && !cancelled && !lastUp.isConsumed) toggleNow()
                             turn.back()
                         }
                         'x' -> {
@@ -179,12 +194,12 @@ internal fun Stage(
                                 ended && land > turn.commitAt && s2.index > 0 -> -1
                                 else -> 0
                             }
-                            if (go != 0) { onChange(go); turn.shown = s2.index + go; turn.turn(go, v.x) }
+                            if (go != 0) { changeNow(go); turn.shown = s2.index + go; turn.turn(go, v.x) }
                             else { scope.launch { light.settle() }; turn.back(v.x) }
                         }
                         'f' -> if (ended && abs(lastDx) > flick) {
                             val go = if (lastDx < 0) 1 else -1
-                            if ((go > 0 && s2.index < s2.queue.lastIndex) || (go < 0 && s2.index > 0)) { onChange(go); turn.shown = s2.index + go; turn.turn(go, 0f) }
+                            if ((go > 0 && s2.index < s2.queue.lastIndex) || (go < 0 && s2.index > 0)) { changeNow(go); turn.shown = s2.index + go; turn.turn(go, 0f) }
                         }
                         'd' -> onFold.release(v.y, !ended)
                         else -> {}
@@ -192,6 +207,8 @@ internal fun Stage(
                 }
             },
     ) {
+        // both sides, recorded for the glass that floats over them (the hint)
+        Box(Modifier.fillMaxSize().glassSource(stageGlass)) {
         // the front: the covers and the sound's cast over them
         Box(Modifier.fillMaxSize().graphicsLayer {
             rotationY = flip; cameraDistance = camera(CAMERA_FLIP, density.density)
@@ -200,16 +217,21 @@ internal fun Stage(
             for (slot in -1..1) {
                 val i = turn.shown + slot
                 val entry = if (slot == -1 && turn.away != null && way > 0) input.queue.getOrNull(turn.away!!) else input.queue.getOrNull(i)
-                CoverCard(entry, slot, turn, z = zOf(slot, way), paused = slot == 0 && !input.playing && !input.blocked && input.side == Side.Cover, soft = slot == 0 && (input.side == Side.Sound || (!input.playing && !input.blocked)))
+                val still = !input.playing && !input.loading && !input.blocked
+                CoverCard(entry, slot, turn, z = zOf(slot, way), art = entry?.let(art), folding = folding,
+                    paused = slot == 0 && still && input.side == Side.Cover,
+                    loading = slot == 0 && input.loading && !input.blocked && input.side == Side.Cover,
+                    soft = slot == 0 && (input.side == Side.Sound || still))
             }
-            if (soundOn > 0.01f) Box(Modifier.fillMaxSize().zIndex(4f).graphicsLayer { alpha = soundOn; val k = 0.96f + 0.04f * soundOn; scaleX = k; scaleY = k }) { soundFace() }
+            if (soundOn > 0.01f) Box(Modifier.fillMaxSize().zIndex(4f).clip(CardShape).graphicsLayer { alpha = soundOn; val k = 0.96f + 0.04f * soundOn; scaleX = k; scaleY = k }) { soundFace() }
         }
         // the back: the words
         if (flip > 1f) Box(Modifier.fillMaxSize().graphicsLayer {
             rotationY = flip - 180f; cameraDistance = camera(CAMERA_FLIP, density.density)
             alpha = if (flip > 90f) 1f else 0f
         }.dropShadow(CardShape, Shadow(radius = 30.dp, color = Color.Black.copy(alpha = 0.6f), offset = DpOffset(0.dp, 20.dp))).clip(CardShape)) { back() }
-        overlay()
+        }
+        ProvideGlassSource(stageGlass) { overlay() }
     }
 
     // a song that changed without the finger (the end of a song, the queue, the notification) turns the page too
@@ -225,7 +247,7 @@ internal fun Stage(
         }
         light.arrive(input.queue.getOrNull(now)?.artUri, instant = false)
     }
-    LaunchedEffect(input.playing, input.side) { turn.paused(!input.playing && input.side == Side.Cover && !input.blocked) }
+    LaunchedEffect(input.playing, input.loading, input.side) { turn.paused(!input.playing && !input.loading && input.side == Side.Cover && !input.blocked) }
 }
 
 /** The finger's way into the fold (the shell's [PlayerFold] behind it). */
@@ -236,13 +258,15 @@ internal interface FoldDrag {
 }
 
 @Composable
-private fun CoverCard(entry: QueueEntry?, slot: Int, turn: PageTurn, z: Float, paused: Boolean, soft: Boolean) {
+private fun CoverCard(entry: QueueEntry?, slot: Int, turn: PageTurn, z: Float, art: String?, folding: () -> Float, paused: Boolean, loading: Boolean, soft: Boolean) {
     if (entry == null) return
     val density = LocalDensity.current
     val dark = MusixTheme.isDark
     val softA by animateFloatAsState(if (soft) 1f else 0f, tween(300), label = "soft")
+    val shown = paused || loading
     val ppi = remember { Animatable(0f) }
-    LaunchedEffect(paused) { ppi.animateTo(if (paused) 1f else 0f, if (paused) springKcm(260f, 20f) else tween(280)) }
+    LaunchedEffect(shown) { ppi.animateTo(if (shown) 1f else 0f, if (shown) springKcm(260f, 20f) else tween(280)) }
+    val glass = rememberGlassSource()
     Box(
         Modifier.fillMaxSize().zIndex(z).graphicsLayer {
             val pz = turn.pose(slot)
@@ -257,16 +281,25 @@ private fun CoverCard(entry: QueueEntry?, slot: Int, turn: PageTurn, z: Float, p
             // an opaque body under the plate: a cover still on its way never lets the shaded page under it show through
             .clip(CardShape).background(MusixTheme.colors.bg).background(MusixTheme.colors.plate),
     ) {
-        AsyncImage(entry.artUri, null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
-        if (softA > 0.01f) Image(rememberSoftCover(entry.artUri, DIM_PAUSED), null, Modifier.fillMaxSize().graphicsLayer { alpha = softA }, contentScale = ContentScale.Crop)
+        // the picture the button's glass reads: the light art at once, the sharp one over it when it is decoded
+        Box(Modifier.fillMaxSize().then(if (slot == 0) Modifier.glassSource(glass) else Modifier)) {
+            // 256 px at once, the stage's 1024 over it once decoded
+            ProgressiveImage(entry.artUri, art, Modifier.fillMaxSize())
+            // a paused page clears up while it flies into the bar, so the bar's sharp cover takes over the same picture
+            if (softA > 0.01f) Image(rememberSoftCover(entry.artUri, DIM_PAUSED), null, Modifier.fillMaxSize().graphicsLayer { alpha = softA * (1f - folding() * 1.25f).coerceIn(0f, 1f) }, contentScale = ContentScale.Crop)
+        }
         // the page in shadow while it turns, and the one under it until it is out
         Box(Modifier.fillMaxSize().graphicsLayer { alpha = turn.pose(slot).shade }.background(Color.Black))
         if (slot == 0 && ppi.value > 0.01f) Box(
             Modifier.align(Alignment.Center).size(76.dp).graphicsLayer {
-                val k = ppi.value; alpha = k.coerceIn(0f, 1f); val sc = if (paused) 0.6f + 0.4f * k else 1.25f - 0.25f * k; scaleX = sc; scaleY = sc
-            }.liquidGlass(CircleShape, GlassTone.Chip, shadow = false, onArt = true),
+                val k = ppi.value; alpha = k.coerceIn(0f, 1f) * (1f - folding() * 2f).coerceIn(0f, 1f)
+                val sc = if (shown) 0.6f + 0.4f * k else 1.25f - 0.25f * k; scaleX = sc; scaleY = sc
+            }.liquidGlass(CircleShape, GlassTone.Chip, shadow = false, source = glass, onArt = true),
             contentAlignment = Alignment.Center,
-        ) { PlayPauseGlyph(0f, Modifier.size(30.dp).graphicsLayer { translationX = 3.dp.toPx() }, Color.White.copy(alpha = 0.92f)) }
+        ) {
+            if (loading) Spinner(28.dp, Color.White.copy(alpha = 0.92f))
+            else PlayPauseGlyph(0f, Modifier.size(30.dp).graphicsLayer { translationX = 3.dp.toPx() }, Color.White.copy(alpha = 0.92f))
+        }
     }
 }
 

@@ -31,7 +31,8 @@ fun PlayPauseGlyph(t: Float, modifier: Modifier, color: Color) {
             lineTo(mix(0.57f, 0.60f) * w, mix(0.69f, 0.88f) * h)
             close()
         }
-        drawPath(left, color)
-        drawPath(right, color)
+        // one path, not two: the halves' shared edge of the triangle stays inside the shape, so its
+        // anti-aliasing does not show as a hairline through the ▶ (seen over the cover, 2026-11-15)
+        drawPath(Path().apply { addPath(left); addPath(right) }, color)
     }
 }
