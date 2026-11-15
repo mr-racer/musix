@@ -1,5 +1,6 @@
 package ru.musixai.app.feature.player
 
+import ru.musixai.app.core.designsystem.content.Eq
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.RepeatMode
@@ -269,7 +270,7 @@ private fun ColumnScope.Queue(ui: PlayerUi, vm: PlayerViewModel, accent: Color, 
         item(key = "now-cap") { Cap("Сейчас") }
         if (now != null) item(key = "now") {
             SwipeToRemove(onRemove = {}, enabled = false, onReject = { toasts?.show("Играющую песню убрать нельзя") }) {
-                QueueRow(now.artUri, now.title, now.artist, null, titleColor = nowInk) { Eq(p.isPlaying, accent) }
+                QueueRow(now.artUri, now.title, now.artist, null, titleColor = nowInk) { Box(Modifier.size(40.dp, 14.dp), contentAlignment = Alignment.Center) { Eq(p.isPlaying, accent) } }
             }
         }
         item(key = "next-cap") {
@@ -334,22 +335,6 @@ private fun QueueRow(art: String?, title: String, artist: String, duration: Stri
         }
         if (duration != null) Text(duration, style = MusixTheme.text.number.copy(fontSize = 12.sp, color = c.textMuted))
         trailing()
-    }
-}
-
-/** Three bars of the playing row; still when the song is paused. */
-@Composable
-private fun Eq(playing: Boolean, accent: Color) {
-    val reduced = rememberReducedMotion()
-    Row(Modifier.size(40.dp, 14.dp), horizontalArrangement = Arrangement.spacedBy(2.dp, Alignment.CenterHorizontally), verticalAlignment = Alignment.Bottom) {
-        val base = floatArrayOf(0.4f, 1f, 0.65f)
-        if (playing && !reduced) {
-            val t = rememberInfiniteTransition(label = "eq")
-            for (i in 0..2) {
-                val h by t.animateFloat(0.25f, 1f, infiniteRepeatable(tween(900, delayMillis = 0), RepeatMode.Reverse, initialStartOffset = androidx.compose.animation.core.StartOffset(300 * i)), label = "eq$i")
-                Box(Modifier.width(3.dp).height(14.dp).graphicsLayer { scaleY = h; transformOrigin = androidx.compose.ui.graphics.TransformOrigin(0.5f, 1f) }.background(accent, RoundedCornerShape(1.5.dp)))
-            }
-        } else for (i in 0..2) Box(Modifier.width(3.dp).height((14 * base[i]).dp).background(accent, RoundedCornerShape(1.5.dp)))
     }
 }
 

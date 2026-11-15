@@ -1,5 +1,8 @@
 package ru.musixai.app.feature.search
 
+import ru.musixai.app.core.designsystem.motion.flightSpot
+import ru.musixai.app.core.designsystem.motion.FlightKind
+import ru.musixai.app.core.designsystem.motion.FlightKey
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -324,12 +327,12 @@ private fun androidx.compose.foundation.lazy.LazyListScope.results(r: SearchResu
     if (r.artists.isNotEmpty() || r.albums.isNotEmpty()) item {
         LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             items(r.artists) { a -> Column(Modifier.pressable { onArtist(a.id) }, horizontalAlignment = Alignment.CenterHorizontally) {
-                Cover(a.imageId?.let { r.images[it] }, a.name, "", size = 88.dp, radius = 44.dp)
-                Text(a.name, Modifier.padding(top = 6.dp), maxLines = 1, style = MusixTheme.type.body.copy(fontSize = 13.sp, color = MusixTheme.colors.text))
+                Cover(a.imageId?.let { r.images[it] }, a.name, "", Modifier.flightSpot(FlightKey.artistPhoto(a.id), radius = 44.dp), size = 88.dp, radius = 44.dp)
+                Text(a.name, Modifier.padding(top = 6.dp).flightSpot(FlightKey.artistName(a.id), FlightKind.Word, text = 13.sp), maxLines = 1, style = MusixTheme.type.body.copy(fontSize = 13.sp, color = MusixTheme.colors.text))
             } }
             items(r.albums) { a -> Column(Modifier.pressable { onAlbum(a.id) }) {
-                Cover(a.coverImageId?.let { r.images[it] }, a.title, "", size = 88.dp)
-                Text(a.title, Modifier.padding(top = 6.dp).size(width = 88.dp, height = 18.dp), maxLines = 1, overflow = TextOverflow.Ellipsis, style = MusixTheme.type.body.copy(fontSize = 13.sp, color = MusixTheme.colors.text))
+                Cover(a.coverImageId?.let { r.images[it] }, a.title, "", Modifier.flightSpot(FlightKey.albumCover(a.id), radius = 10.dp), size = 88.dp)
+                Text(a.title, Modifier.padding(top = 6.dp).size(width = 88.dp, height = 18.dp).flightSpot(FlightKey.albumTitle(a.id), FlightKind.Word, text = 13.sp), maxLines = 1, overflow = TextOverflow.Ellipsis, style = MusixTheme.type.body.copy(fontSize = 13.sp, color = MusixTheme.colors.text))
             } }
         }
     }

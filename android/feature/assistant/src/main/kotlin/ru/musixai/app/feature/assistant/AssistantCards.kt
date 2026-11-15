@@ -1,5 +1,8 @@
 package ru.musixai.app.feature.assistant
 
+import ru.musixai.app.core.designsystem.motion.flightSpot
+import ru.musixai.app.core.designsystem.motion.FlightKind
+import ru.musixai.app.core.designsystem.motion.FlightKey
 import android.os.Build
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.background
@@ -183,7 +186,7 @@ internal fun SearchCard(s: AsxSearch, query: String, onPlay: (Int) -> Unit, onNe
                     Column(Modifier.weight(1f)) {
                         Text(b.track.title, maxLines = 1, overflow = TextOverflow.Ellipsis, style = MusixTheme.type.body.copy(fontSize = 17.sp, fontWeight = FontWeight.Bold, letterSpacing = (-0.01).em, color = c.text))
                         val artist = b.track.track?.artists?.firstOrNull()
-                        Text(b.track.artist, Modifier.padding(top = 2.dp).then(if (artist != null) Modifier.pressable { onArtist(artist.id) } else Modifier),
+                        Text(b.track.artist, Modifier.padding(top = 2.dp).then(if (artist != null) Modifier.flightSpot(FlightKey.artistName(artist.id), FlightKind.Word, text = 13.5.sp).pressable { onArtist(artist.id) } else Modifier),
                             style = MusixTheme.type.body.copy(fontSize = 13.5.sp, color = c.textMuted))
                     }
                 }

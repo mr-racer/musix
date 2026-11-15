@@ -1,5 +1,8 @@
 package ru.musixai.app.feature.player
 
+import ru.musixai.app.core.designsystem.motion.flightSpot
+import ru.musixai.app.core.designsystem.motion.FlightKind
+import ru.musixai.app.core.designsystem.motion.FlightKey
 import android.content.Context
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.Animatable
@@ -148,9 +151,14 @@ internal fun Meta(ui: PlayerUi, side: Side, sound: TrackSound?, scaleKey: String
         }
         AnimatedContent(p.trackId, transitionSpec = { rise(45) }, label = "links") { _ ->
             Column(Modifier.padding(top = 8.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                TextLink(p.artist ?: ctx?.track?.artist.orEmpty(), onArtist, style = MusixTheme.text.body.copy(fontSize = 16.sp, fontWeight = FontWeight.Medium), primary = true)
+                // the name flies into the artist's frame, the album's title into the album's heading
+                val artistId = ctx?.track?.artists?.firstOrNull()?.id
+                TextLink(p.artist ?: ctx?.track?.artist.orEmpty(), onArtist,
+                    modifier = if (artistId != null) Modifier.flightSpot(FlightKey.artistName(artistId), FlightKind.Word, text = 16.sp) else Modifier, style = MusixTheme.text.body.copy(fontSize = 16.sp, fontWeight = FontWeight.Medium), primary = true)
                 val album = ctx?.track?.album
-                if (album != null) TextLink(album + (ctx.track.year?.let { " · $it" } ?: ""), onAlbum, style = MusixTheme.text.caption.copy(fontSize = 13.sp), color = c.textMuted, primary = true)
+                val albumId = ctx?.track?.albumId
+                if (album != null) TextLink(album + (ctx.track.year?.let { " · $it" } ?: ""), onAlbum,
+                    modifier = if (albumId != null) Modifier.flightSpot(FlightKey.albumTitle(albumId), FlightKind.Word, text = 13.sp) else Modifier, style = MusixTheme.text.caption.copy(fontSize = 13.sp), color = c.textMuted, primary = true)
             }
         }
         // the phrase: the song's story on the cover and the words, the sound's character on the sound

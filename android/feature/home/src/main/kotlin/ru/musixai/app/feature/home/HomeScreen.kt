@@ -94,6 +94,7 @@ import ru.musixai.app.core.model.Weather
 import ru.musixai.app.core.player.QueueMode
 import kotlin.math.roundToInt
 import ru.musixai.app.core.designsystem.bleed
+import ru.musixai.app.core.designsystem.surface.MorphFrom
 import ru.musixai.app.core.designsystem.surface.MorphMenu
 import ru.musixai.app.core.designsystem.surface.rememberMorph
 
@@ -161,7 +162,9 @@ fun HomeScreen(ui: HomeUi, a: HomeActions) {
                 }
             }
         }
-        MorphMenu(tuneMorph, capsule?.translate(-origin), a.closeTune, radiusFrom = 20.dp, scrim = 0.28f, glass = GlassTone.Deep) {
+        // the capsule itself grows into the tuner, its glass edge and all (the owner, 2026-11-15)
+        MorphMenu(tuneMorph, capsule?.translate(-origin), a.closeTune, radiusFrom = 20.dp, scrim = 0.28f, glass = GlassTone.Deep,
+            from = MorphFrom(glass = GlassTone.Chip, shadow = true, face = { CapsuleFace(ui.tune) })) {
             TunerPanel(ui.tune, a.pick, a.reset, a.closeTune)
         }
         MorphMenu(searchMorph, searchAt?.translate(-origin), { searchOpen = false }, radiusFrom = 20.dp, scrim = 0.4f) {

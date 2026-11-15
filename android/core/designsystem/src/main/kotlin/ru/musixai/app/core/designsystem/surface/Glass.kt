@@ -11,7 +11,12 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawOutline
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -102,6 +107,16 @@ fun Modifier.liquidGlass(
     shadow: Boolean = true,
     source: LayerBackdrop? = null,
     onArt: Boolean = false,
+): Modifier = liquidGlass({ shape }, tone, shadow, source, onArt)
+
+/** The same glass with a shape read as it draws — a corner that changes every frame (a morph)
+ *  without a recomposition. The lens needs a corner-based shape. */
+fun Modifier.liquidGlass(
+    shape: () -> Shape,
+    tone: GlassTone = GlassTone.Chip,
+    shadow: Boolean = true,
+    source: LayerBackdrop? = null,
+    onArt: Boolean = false,
 ): Modifier = composed {
     // glass laid over artwork stays dark in both themes (the web's `.lg.on-art`)
     val dark = MusixTheme.isDark || onArt
@@ -110,11 +125,15 @@ fun Modifier.liquidGlass(
     // without the blur behind it the body has to hide what it would have softened
     val body = (if (dark) tone.dark else tone.light).let { if (from == null || !reach) it.copy(alpha = (it.alpha + 0.42f).coerceAtMost(0.94f)) else it }
     if (from == null) {
-        this.clip(shape).background(body, shape)
+        // clipped as before (its content stays inside); the body drawn from the live shape
+        val live = object : Shape {
+            override fun createOutline(size: Size, layoutDirection: LayoutDirection, density: Density) = shape().createOutline(size, layoutDirection, density)
+        }
+        this.clip(live).drawBehind { drawOutline(shape().createOutline(size, layoutDirection, this), body) }
     } else {
         this.drawBackdrop(
             backdrop = from,
-            shape = { shape },
+            shape = shape,
             effects = {
                 vibrancy()
                 blur(tone.blur.toPx())

@@ -87,6 +87,9 @@ internal fun ImageEntity.model() = Image(
         fun s(k: String) = o[k]?.jsonPrimitive?.content
         Palette(s("dominant")!!, s("vibrant")!!, s("muted")!!, s("accentDark"), s("accentLight"))
     }.getOrNull() },
-    urls = runCatching { ApiJson.decodeFromString(MapSerializer(String.serializer(), String.serializer()), urlsJson) }
-        .getOrDefault(emptyMap()).mapNotNull { (k, v) -> k.toIntOrNull()?.let { it to v } }.toMap(),
+    urls = imageUrls(urlsJson).mapNotNull { (k, v) -> k.toIntOrNull()?.let { it to v } }.toMap(),
+    bg = imageUrls(urlsJson)["bg"],
 )
+
+private fun imageUrls(json: String): Map<String, String> =
+    runCatching { ApiJson.decodeFromString(MapSerializer(String.serializer(), String.serializer()), json) }.getOrDefault(emptyMap())

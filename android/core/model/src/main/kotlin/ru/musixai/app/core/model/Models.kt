@@ -32,6 +32,8 @@ data class Image(
     val palette: Palette?,
     /** variant px (96/256/512/1024) → signed URL */
     val urls: Map<Int, String>,
+    /** The server's pre-blurred backdrop of the picture (`urls["bg"]`): a field of its colour, no blur on the phone. */
+    val bg: String? = null,
 ) {
     /** The smallest variant at least [px] wide, else the largest. */
     fun url(px: Int): String? = urls.entries.sortedBy { it.key }.let { v -> (v.firstOrNull { it.key >= px } ?: v.lastOrNull())?.value }
@@ -158,4 +160,52 @@ data class ArtistPage(
     val cutout: Image? = null,  // the transparent figure for the hero (v1 «cutout» mode)
     val country: String? = null,
     val countryCode: String? = null,
+    /** The editorial photo (a square, or a 2:1 [wide] one); null = the artist's own image. */
+    val photo: Image? = null,
+    val wide: Image? = null,
+    /** The transparent logo, drawn instead of the name when there is one. */
+    val logo: Image? = null,
+    /** The editorial page colour (#rrggbb): a light one tames the photo. */
+    val pageColor: String? = null,
+    val grammy: Grammy? = null,
+    /** «А ты знал»: short facts, at most eight. */
+    val facts: List<String> = emptyList(),
+    /** The listener and this artist: plays, songs heard, the place among the library's artists. */
+    val you: ArtistYou? = null,
+    /** albumId → songs of it the listener has heard. */
+    val heard: Map<String, Int> = emptyMap(),
+    /** trackId → plays (the top tracks). */
+    val plays: Map<String, Int> = emptyMap(),
+    /** The album shelf with original years (a reissue stands where the album was born). */
+    val shelf: List<ShelfAlbum> = emptyList(),
+)
+
+/** An album as the artist's discography shows it: [year] is the original year. */
+data class ShelfAlbum(val id: String, val title: String, val year: Int?, val tracks: Int, val image: Image?, val durationMs: Long)
+
+data class Grammy(val wins: Int, val nominations: Int, val position: Int, val laureates: Int)
+
+/** [rank] among the [artists] of the library by plays (1 = the most played); null = never played. */
+data class ArtistYou(val plays: Int, val heardTracks: Int, val rank: Int?, val artists: Int)
+
+/** A producer of an album's songs; [artistId] when the library knows them as an artist. */
+data class Credit(val name: String, val artistId: String?, val songs: Int)
+
+/** The album page (`GET /albums/{id}`): its songs in order with the listener's plays. */
+data class AlbumPage(
+    val id: String,
+    val title: String,
+    val artistId: String?,
+    val artist: String?,
+    /** The original year when known (a reissue keeps the album's own year). */
+    val year: Int?,
+    val image: Image?,
+    val tracks: List<Track>,
+    val durationMs: Long,
+    /** trackId → plays; a song with none is «ещё не слышал». */
+    val trackPlays: Map<String, Int>,
+    val producers: List<Credit>,
+    val label: String?,
+    val lastPlayedAt: Long?,
+    val images: Map<String, Image>,
 )

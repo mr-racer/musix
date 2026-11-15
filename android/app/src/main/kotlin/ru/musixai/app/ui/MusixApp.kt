@@ -78,11 +78,18 @@ import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.launch
-import ru.musixai.app.feature.library.AlbumRoute
 import ru.musixai.app.feature.library.LibraryRoute
 import ru.musixai.app.feature.library.PlaylistRoute
 import ru.musixai.app.feature.search.SearchRoute
 import ru.musixai.app.feature.artist.ArtistRoute
+import ru.musixai.app.feature.artist.AlbumHost
+import ru.musixai.app.feature.artist.AlbumLayer
+import ru.musixai.app.feature.artist.LocalAlbums
+import ru.musixai.app.feature.artist.rememberAlbumHost
+import ru.musixai.app.core.designsystem.motion.FlightLayer
+import ru.musixai.app.core.designsystem.motion.FlightSources
+import ru.musixai.app.core.designsystem.motion.LocalFlightSources
+import androidx.navigation.toRoute
 import ru.musixai.app.feature.settings.SettingsRoute
 import ru.musixai.app.feature.imports.ImportRoute
 import ru.musixai.app.feature.upload.UploadRoute
@@ -112,7 +119,6 @@ import ru.musixai.app.core.designsystem.motion.rememberPageFocus
 @Serializable data object QuizDest
 @Serializable data class SearchDest(val q: String? = null)
 @Serializable data class ArtistDest(val id: String)
-@Serializable data class AlbumDest(val id: String)
 @Serializable data class PlaylistDest(val id: String)
 @Serializable data object SettingsDest
 @Serializable data object ImportDest
@@ -195,7 +201,11 @@ private fun Shell(vm: AppViewModel) {
     val density = LocalDensity.current
     // sheets (one at a time, over everything) and the stack of toasts (above the mini-player)
     val toasts = rememberToasts()
-    CompositionLocalProvider(LocalCoverFlight provides flight, LocalToasts provides toasts, LocalPlayerFold provides fold) { SheetHost { Box(Modifier.fillMaxSize().background(MusixTheme.colors.bg).onSizeChanged { fold.height = it.height.toFloat() }) {
+    // «что коснулся, то и летит»: the spots of every screen and the flyers over them; the album over the screens
+    val sources = remember { FlightSources() }
+    val albums = rememberAlbumHost()
+    CompositionLocalProvider(LocalCoverFlight provides flight, LocalToasts provides toasts, LocalPlayerFold provides fold,
+        LocalFlightSources provides sources, LocalAlbums provides albums) { SheetHost { Box(Modifier.fillMaxSize().background(MusixTheme.colors.bg).onSizeChanged { fold.height = it.height.toFloat() }) {
         // the page behind the player comes forward as it folds away
         Column(Modifier.fillMaxSize().graphicsLayer {
             val e = fold.p.value.coerceIn(0f, 1f)
@@ -206,7 +216,18 @@ private fun Shell(vm: AppViewModel) {
             var stage by remember { mutableIntStateOf(0) }
             Column(Modifier.weight(1f).onSizeChanged { stage = it.height }) {
                 Box(Modifier.weight(1f)) {
-                    CompositionLocalProvider(LocalStageHeight provides stage) { Routes(nav, openPlayer = openPlayer, install = vm::install) }
+                    // the page under an open album steps back and dims (the album's «drawBack»)
+                    Box(Modifier.fillMaxSize().graphicsLayer {
+                        val b = albums.back.coerceIn(0f, 1f)
+                        if (b > 0.001f) { val k = 1f - 0.04f * b; scaleX = k; scaleY = k; alpha = 1f - 0.5f * b }
+                    }) {
+                        CompositionLocalProvider(LocalStageHeight provides stage) { Routes(nav, albums, openPlayer = openPlayer, install = vm::install) }
+                    }
+                    AlbumLayer(
+                        albums,
+                        currentArtist = { nav.currentBackStackEntry?.takeIf { it.destination.hasRoute(ArtistDest::class) }?.toRoute<ArtistDest>()?.id },
+                        onArtist = { nav.navigate(ArtistDest(it)) },
+                    )
                     ToastHost(toasts, Modifier.align(Alignment.BottomCenter))
                 }
                 Box(Modifier.graphicsLayer {
@@ -215,10 +236,11 @@ private fun Shell(vm: AppViewModel) {
                 }) { MiniPlayer(onOpen = openPlayer) }
             }
             Box(Modifier.onGloballyPositioned { flight.dock = miniPlayerCoverAbove(it.boundsInRoot().top, density) }) {
-                BottomTabBar(tab, onNav = nav::toTab, Modifier.navigationBarsPadding())
+                BottomTabBar(tab, onNav = { albums.close(); nav.toTab(it) }, Modifier.navigationBarsPadding())
             }
         }
         CoverFlightLayer(flight)
+        FlightLayer(sources)
         val offer by vm.updates.offer.collectAsStateWithLifecycle()
         val progress by vm.updates.progress.collectAsStateWithLifecycle()
         offer?.let { r ->
@@ -245,7 +267,7 @@ private fun Shell(vm: AppViewModel) {
                     throw x
                 }
             }
-            PlayerRoute(fold, onArtist = { foldScope.launch { fold.to(true) }; nav.navigate(ArtistDest(it)) }, onAlbum = { foldScope.launch { fold.to(true) }; nav.navigate(AlbumDest(it)) })
+            PlayerRoute(fold, onArtist = { foldScope.launch { fold.to(true) }; nav.navigate(ArtistDest(it)) }, onAlbum = { foldScope.launch { fold.to(true) }; albums.open(it) })
         }
     } } }
 }
@@ -256,7 +278,7 @@ private fun AnimatedContentScope.Page(content: @Composable () -> Unit) =
     Box(Modifier.fillMaxSize().pageFocusBlur(this)) { content() }
 
 @Composable
-private fun Routes(nav: NavHostController, openPlayer: () -> Unit, install: (ru.musixai.app.core.data.Release) -> Unit) {
+private fun Routes(nav: NavHostController, albums: AlbumHost, openPlayer: () -> Unit, install: (ru.musixai.app.core.data.Release) -> Unit) {
     val back: () -> Unit = { nav.popBackStack() }
     // Page changes are the web's «focus» change (the owner, 2026-11-14 — it replaces the slide
     // to the right): nothing travels across the screen. What leaves goes out of focus, what
@@ -287,19 +309,16 @@ private fun Routes(nav: NavHostController, openPlayer: () -> Unit, install: (ru.
         predictivePopExitTransition = { _ -> (section(initialState, targetState, true) ?: backward).exit },
     ) {
         composable<HomeDest> { Page {
-            HomeRoute(onSearch = { q -> nav.navigate(SearchDest(q)) }, onSettings = { nav.navigate(SettingsDest) }, onLibrary = { nav.toTab(LibraryDest) }, onAlbum = { nav.navigate(AlbumDest(it)) })
+            HomeRoute(onSearch = { q -> nav.navigate(SearchDest(q)) }, onSettings = { nav.navigate(SettingsDest) }, onLibrary = { nav.toTab(LibraryDest) }, onAlbum = albums::open)
         } }
-        composable<AssistantDest> { Page { AssistantTab(onArtist = { nav.navigate(ArtistDest(it)) }, onAlbum = { nav.navigate(AlbumDest(it)) }) } }
+        composable<AssistantDest> { Page { AssistantTab(onArtist = { nav.navigate(ArtistDest(it)) }, onAlbum = albums::open) } }
         composable<LibraryDest> { Page {
-            LibraryRoute(onAlbum = { nav.navigate(AlbumDest(it)) }, onPlaylist = { nav.navigate(PlaylistDest(it)) }, stats = { StatsRoute() })
+            LibraryRoute(onAlbum = albums::open, onPlaylist = { nav.navigate(PlaylistDest(it)) }, stats = { StatsRoute() })
         } }
         composable<QuizDest> { Page { QuizRoute() } }
-        composable<SearchDest> { Page { SearchRoute(onArtist = { nav.navigate(ArtistDest(it)) }, onAlbum = { nav.navigate(AlbumDest(it)) }) } }
-        composable<ArtistDest> { Page { ArtistRoute(onBack = back, onAlbum = { nav.navigate(AlbumDest(it)) }) } }
-        // the gatefold draws its own flight and flip over the screen it came from
-        dialog<AlbumDest>(dialogProperties = androidx.compose.ui.window.DialogProperties(
-            usePlatformDefaultWidth = false, decorFitsSystemWindows = false, dismissOnBackPress = false, dismissOnClickOutside = false,
-        )) { AlbumRoute(onBack = back, onArtist = { id -> nav.popBackStack(); nav.navigate(ArtistDest(id)) }) }
+        composable<SearchDest> { Page { SearchRoute(onArtist = { nav.navigate(ArtistDest(it)) }, onAlbum = albums::open) } }
+        // the album is no destination: it is the shell's layer over the screen it opened from (AlbumLayer)
+        composable<ArtistDest> { Page { ArtistRoute(onBack = back, onAlbum = albums::open) } }
         composable<PlaylistDest> { Page { PlaylistRoute(onBack = back) } }
         composable<SettingsDest> { Page {
             SettingsRoute(onBack = back, onImport = { nav.navigate(ImportDest) }, onUpload = { nav.navigate(UploadDest) }, onUpdate = { install(it) }, onCatalog = { nav.navigate(CatalogDest) })

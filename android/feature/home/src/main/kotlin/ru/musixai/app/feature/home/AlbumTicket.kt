@@ -1,5 +1,7 @@
 package ru.musixai.app.feature.home
 
+import ru.musixai.app.core.designsystem.motion.flightSpot
+import ru.musixai.app.core.designsystem.motion.FlightKey
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.EnterTransition
@@ -184,7 +186,7 @@ internal fun AlbumTicket(
         ) {
             Row(Modifier.padding(end = 10.dp), verticalAlignment = Alignment.Top) {
                 Box(Modifier.pressable(onClick = onOpen)) {
-                    Cover(cover, d.title, d.artist.orEmpty(), Modifier.coverSource(coverSrc).testTag("ticket-cover"), size = coverSize, radius = 12.dp)
+                    Cover(cover, d.title, d.artist.orEmpty(), Modifier.coverSource(coverSrc).flightSpot(FlightKey.albumCover(d.albumId), radius = 12.dp).testTag("ticket-cover"), size = coverSize, radius = 12.dp)
                 }
                 BoxWithConstraints(Modifier.weight(1f).padding(start = 12.dp, top = 1.dp)) {
                     // one line at full size, else two a size smaller: with these line heights the

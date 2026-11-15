@@ -1,5 +1,8 @@
 package ru.musixai.app.feature.library
 
+import ru.musixai.app.core.designsystem.motion.flightSpot
+import ru.musixai.app.core.designsystem.motion.FlightKind
+import ru.musixai.app.core.designsystem.motion.FlightKey
 import ru.musixai.app.core.designsystem.content.Skel
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.background
@@ -185,14 +188,14 @@ private fun LazyGridScope.albums(ui: LibraryUi, vm: LibraryViewModel, onAlbum: (
 @Composable
 private fun AlbumTile(a: AlbumCard, onClick: () -> Unit) {
     val c = MusixTheme.colors
-    var bounds by remember { mutableStateOf<androidx.compose.ui.geometry.Rect?>(null) }
-    Column(Modifier.pressable { AlbumOrigin.rect = bounds; AlbumOrigin.image = a.image; onClick() }) {
-        Box(Modifier.onGloballyPositioned { bounds = it.boundsInRoot() }) {
-            Cover(a.image, a.title, a.artist.orEmpty(), Modifier.fillMaxWidth(), size = null, radius = 18.dp)
+    // the cover flies into the album, the title into its heading («что коснулся, то и летит»)
+    Column(Modifier.pressable(onClick = onClick)) {
+        Box {
+            Cover(a.image, a.title, a.artist.orEmpty(), Modifier.fillMaxWidth().flightSpot(FlightKey.albumCover(a.id), radius = 18.dp), size = null, radius = 18.dp)
             Text("${a.tracks} тр", Modifier.align(Alignment.TopEnd).padding(10.dp).clip(RoundedCornerShape(999.dp)).background(Color(0xB30D0D12))
                 .padding(horizontal = 10.dp, vertical = 5.dp), style = MusixTheme.type.body.copy(fontSize = 12.sp, color = Color(0xFFEEEEF3)))
         }
-        Text(a.title, Modifier.padding(top = 10.dp), maxLines = 1, overflow = TextOverflow.Ellipsis,
+        Text(a.title, Modifier.padding(top = 10.dp).flightSpot(FlightKey.albumTitle(a.id), FlightKind.Word, text = 15.sp), maxLines = 1, overflow = TextOverflow.Ellipsis,
             style = MusixTheme.type.body.copy(fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = c.text))
         Text(listOfNotNull(a.artist, a.year?.toString()).joinToString(" · "), maxLines = 1, overflow = TextOverflow.Ellipsis,
             style = MusixTheme.type.body.copy(fontSize = 13.sp, color = c.textMuted))
@@ -203,9 +206,9 @@ private fun AlbumTile(a: AlbumCard, onClick: () -> Unit) {
 private fun AlbumLine(a: AlbumCard, onClick: () -> Unit) {
     val c = MusixTheme.colors
     Row(Modifier.fillMaxWidth().pressable(onClick = onClick), verticalAlignment = Alignment.CenterVertically) {
-        Cover(a.image, a.title, a.artist.orEmpty(), size = 52.dp)
+        Cover(a.image, a.title, a.artist.orEmpty(), Modifier.flightSpot(FlightKey.albumCover(a.id), radius = 8.dp), size = 52.dp)
         Column(Modifier.weight(1f).padding(horizontal = 14.dp)) {
-            Text(a.title, maxLines = 1, overflow = TextOverflow.Ellipsis, style = MusixTheme.type.body.copy(fontSize = 15.sp, fontWeight = FontWeight.Medium, color = c.text))
+            Text(a.title, Modifier.flightSpot(FlightKey.albumTitle(a.id), FlightKind.Word, text = 15.sp), maxLines = 1, overflow = TextOverflow.Ellipsis, style = MusixTheme.type.body.copy(fontSize = 15.sp, fontWeight = FontWeight.Medium, color = c.text))
             Text(listOfNotNull(a.artist, a.year?.toString(), "${a.tracks} тр").joinToString(" · "), maxLines = 1, overflow = TextOverflow.Ellipsis,
                 style = MusixTheme.type.body.copy(fontSize = 12.5.sp, color = c.textMuted))
         }

@@ -38,8 +38,6 @@ class LayerRulesTest {
     /** v1 users as of 2026-11-14. A screen that moves to the library leaves the list; nothing joins it. */
     private val legacyUsers = setOf(
         "app/src/main/kotlin/ru/musixai/app/ui/MusixApp.kt",
-        "feature/artist/src/main/kotlin/ru/musixai/app/feature/artist/ArtistHero.kt",
-        "feature/artist/src/main/kotlin/ru/musixai/app/feature/artist/ArtistScreen.kt",
         "feature/auth/src/main/kotlin/ru/musixai/app/feature/auth/LoginScreen.kt",
         "feature/imports/src/main/kotlin/ru/musixai/app/feature/imports/ImportScreen.kt",
         "feature/library/src/main/kotlin/ru/musixai/app/feature/library/Detail.kt",

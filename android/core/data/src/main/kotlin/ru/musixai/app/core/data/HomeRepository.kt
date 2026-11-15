@@ -70,6 +70,7 @@ internal fun ImageData.model() = Image(
     id = id, blurhash = blurhash, width = width, height = height,
     palette = palette?.let { Palette(it.dominant, it.vibrant, it.muted, it.accent.dark, it.accent.light) },
     urls = urls.mapNotNull { (k, v) -> k.toIntOrNull()?.let { it to v } }.toMap(),
+    bg = urls["bg"],
 )
 
 private fun HomeOut.model() = Home(

@@ -55,28 +55,6 @@ import ru.musixai.app.core.model.Track
 import ru.musixai.app.core.player.PlayerController
 import javax.inject.Inject
 
-data class AlbumUi(val title: String = "", val artist: String? = null, val year: Int? = null, val image: Image? = null, val tracks: List<Track> = emptyList(), val artistId: String? = null)
-
-@HiltViewModel
-class AlbumViewModel @Inject constructor(state: SavedStateHandle, catalog: CatalogRepository, library: LibraryRepository, private val player: PlayerController) : ViewModel() {
-    private val id: String = checkNotNull(state["id"])
-    val ui: StateFlow<AlbumUi> = combine(flow { emit(catalog.album(id)) }, catalog.albumTracks(id)) { a, tracks ->
-        val img = (a?.coverImageId ?: tracks.firstOrNull()?.coverImageId)?.let { library.images(listOf(it))[it] }
-        AlbumUi(a?.title ?: tracks.firstOrNull()?.album.orEmpty(), tracks.firstOrNull()?.artists?.firstOrNull()?.name ?: tracks.firstOrNull()?.artist,
-            a?.year ?: tracks.firstOrNull()?.year, img, tracks, tracks.firstOrNull()?.artists?.firstOrNull()?.id)
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AlbumUi())
-
-    fun play(index: Int) = player.playTracks(ui.value.tracks.map { it.id }, index, "album")
-}
-
-/** An album is v1's gatefold (Gatefold.kt), shown as a full-screen dialog destination so the
- *  screen it was opened from stays underneath, dimmed, as in v1. */
-@Composable
-fun AlbumRoute(onBack: () -> Unit, onArtist: (String) -> Unit = {}, vm: AlbumViewModel = hiltViewModel()) {
-    val ui by vm.ui.collectAsStateWithLifecycle()
-    Gatefold(ui, onPlay = vm::play, onArtist = ui.artistId?.let { id -> { onArtist(id) } }, onClosed = onBack)
-}
-
 internal fun fmtDur(ms: Long) = (ms / 1000).let { "%d:%02d".format(it / 60, it % 60) }
 
 data class PlaylistUi(val name: String = "", val entries: List<PlaylistEntry> = emptyList(), val images: Map<String, Image> = emptyMap())
