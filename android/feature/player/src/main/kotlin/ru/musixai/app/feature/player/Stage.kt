@@ -58,6 +58,8 @@ import kotlin.math.hypot
 internal enum class Side { Cover, Text, Sound }
 
 internal val CardShape = RoundedCornerShape(10.dp)
+private const val CARD_R = 10f
+private const val MINI_R = 8f  // the mini-player's cover (MiniPlayer.CoverShape)
 
 /**
  * The cameras of the stage: the mock's `perspective` — 1300 px for the turning pages, 1400 px for the
@@ -100,6 +102,8 @@ internal fun Stage(
     art: (QueueEntry) -> String? = { null },
     /** 0 open … 1 folded into the bar: a paused page clears up on the way. */
     folding: () -> Float = { 0f },
+    /** The fold's scale of the stage: the corners keep their size on screen while it shrinks. */
+    foldScale: () -> Float = { 1f },
     back: @Composable () -> Unit,
     soundFace: @Composable () -> Unit,
     overlay: @Composable () -> Unit,
@@ -218,7 +222,7 @@ internal fun Stage(
                 val i = turn.shown + slot
                 val entry = if (slot == -1 && turn.away != null && way > 0) input.queue.getOrNull(turn.away!!) else input.queue.getOrNull(i)
                 val still = !input.playing && !input.loading && !input.blocked
-                CoverCard(entry, slot, turn, z = zOf(slot, way), art = entry?.let(art), folding = folding,
+                CoverCard(entry, slot, turn, z = zOf(slot, way), art = entry?.let(art), folding = folding, foldScale = foldScale,
                     paused = slot == 0 && still && input.side == Side.Cover,
                     loading = slot == 0 && input.loading && !input.blocked && input.side == Side.Cover,
                     soft = slot == 0 && (input.side == Side.Sound || still))
@@ -258,7 +262,7 @@ internal interface FoldDrag {
 }
 
 @Composable
-private fun CoverCard(entry: QueueEntry?, slot: Int, turn: PageTurn, z: Float, art: String?, folding: () -> Float, paused: Boolean, loading: Boolean, soft: Boolean) {
+private fun CoverCard(entry: QueueEntry?, slot: Int, turn: PageTurn, z: Float, art: String?, folding: () -> Float, foldScale: () -> Float = { 1f }, paused: Boolean, loading: Boolean, soft: Boolean) {
     if (entry == null) return
     val density = LocalDensity.current
     val dark = MusixTheme.isDark
@@ -279,7 +283,13 @@ private fun CoverCard(entry: QueueEntry?, slot: Int, turn: PageTurn, z: Float, a
             alpha = pz.alpha
         }.dropShadow(CardShape, Shadow(radius = 30.dp, color = Color.Black.copy(alpha = if (dark) 0.62f else 0.3f), spread = (-11).dp, offset = DpOffset(0.dp, 28.dp)))
             // an opaque body under the plate: a cover still on its way never lets the shaded page under it show through
-            .clip(CardShape).background(MusixTheme.colors.bg).background(MusixTheme.colors.plate),
+            // the corners: 10 dp open, the bar's 8 dp folded — as seen, so they stay round as the card shrinks
+            .graphicsLayer {
+                val k = folding().coerceIn(0f, 1f)
+                shape = if (k == 0f) CardShape else RoundedCornerShape(((CARD_R + (MINI_R - CARD_R) * k) / foldScale().coerceAtLeast(0.01f)).dp)
+                clip = true
+            }
+            .background(MusixTheme.colors.bg).background(MusixTheme.colors.plate),
     ) {
         // the picture the button's glass reads: the light art at once, the sharp one over it when it is decoded
         Box(Modifier.fillMaxSize().then(if (slot == 0) Modifier.glassSource(glass) else Modifier)) {

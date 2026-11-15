@@ -113,6 +113,7 @@ internal fun PlayerScreen(ui: PlayerUi, vm: PlayerViewModel, fold: PlayerFold, o
     val blocked = p.trackId == null
 
     var side by rememberSaveable { mutableStateOf(Side.Cover) }
+    androidx.compose.runtime.SideEffect { fold.seamless = side == Side.Cover }
     if (side == Side.Sound && sound == null) side = Side.Cover
     var sheet by remember { mutableStateOf<PlayerSheet?>(null) }
     var askFor by remember { mutableStateOf(AskFor()) }
@@ -185,12 +186,15 @@ internal fun PlayerScreen(ui: PlayerUi, vm: PlayerViewModel, fold: PlayerFold, o
                         translationX = (b.left - a.left) * k
                         translationY = (b.top - a.top) * k + (if (raw < 0f) raw * 160.dp.toPx() else 0f)
                     }
-                    alpha = if (k > 0.9f) 1f - (k - 0.9f) / 0.1f else 1f       // the last steps: the bar's picture takes over
+                    // the cover goes all the way into the bar, opaque; the words or the sound fade in the last steps,
+                    // where the bar's cover takes over
+                    alpha = if (!fold.seamless && k > 0.9f) 1f - (k - 0.9f) / 0.1f else 1f
                 }) {
                     Stage(
                         StageInput(p.queue, p.index, p.isPlaying, side, blocked, loading = p.buffering && !p.isPlaying), turn, geo.cover, light,
                         art = { vm.stageArt(it.trackId) },
                         folding = e,
+                        foldScale = { fold.scale() },
                         onToggle = toggle,
                         onChange = { dir -> hint.hide(true); if (dir > 0) vm.next() else vm.previous() },
                         onFold = foldDrag,

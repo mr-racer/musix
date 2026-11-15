@@ -28,6 +28,17 @@ class PlayerFold {
     var past = false
         private set
 
+    /** The stage shows the cover (not the words, not the sound): then one picture travels the whole way
+     *  and the bar's cover only takes its place once it has landed — no cross-fade of two pictures
+     *  (the owner, 2026-11-15: «накладывается на старое… а не целиком перетекает»). */
+    var seamless by mutableStateOf(true)
+
+    /** How much the stage is scaled at this point of the fold (1 open, the bar's cover / the stage folded). */
+    fun scale(): Float {
+        val k = p.value.coerceIn(0f, 1f)
+        return if (stage.width > 0f && mini.width > 0f) 1f + (mini.width / stage.width - 1f) * k else 1f
+    }
+
     /** Is any of the player on screen. */
     val shown: Boolean get() = p.value < 0.999f || p.targetValue < 1f
 

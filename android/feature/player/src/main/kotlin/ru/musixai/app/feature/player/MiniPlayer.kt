@@ -185,15 +185,19 @@ internal fun MiniPlayerBar(p: PlayerState, onOpen: () -> Unit, onToggle: () -> U
             // covers that start playing land here (CoverFlight)
             AsyncImage(
                 p.artUri, null,
-                Modifier.graphicsLayer {
+                // where the folding cover lands: measured at rest (the player away, the bar in place, the page
+                // at full size) and outside its own pop — the stage then lands exactly on it
+                Modifier.onGloballyPositioned { if (fold != null && fold.p.value >= 0.999f) fold.mini = it.boundsInRoot() }.graphicsLayer {
                     val k = pop()
                     scaleX = 0.6f + 0.4f * k
                     scaleY = 0.6f + 0.4f * k
                     rotationZ = -6f * (1f - k)
-                    // while the player folds, the bar's picture takes over only in the last steps
+                    // while the player is out the stage's cover is this picture: it shows once the cover has
+                    // landed (the words or the sound fade over to it in the last steps)
                     val e = fold?.p?.value?.coerceIn(0f, 1f) ?: 1f
-                    alpha = k.coerceIn(0f, 1f) * ((e - 0.84f) / 0.12f).coerceIn(0f, 1f)
-                }.onGloballyPositioned { if (fold != null) fold.mini = it.boundsInRoot() }.size(CoverSize).coverFlightTarget(if (aim) LocalCoverFlight.current else null).testTag(MiniCoverTag)
+                    val take = if (fold?.seamless != false) (if (e >= 0.999f) 1f else 0f) else ((e - 0.84f) / 0.12f).coerceIn(0f, 1f)
+                    alpha = k.coerceIn(0f, 1f) * take
+                }.size(CoverSize).coverFlightTarget(if (aim) LocalCoverFlight.current else null).testTag(MiniCoverTag)
                     .shadow(6.dp, CoverShape).clip(CoverShape).background(c.surface2),
             )
             Column(Modifier.weight(1f).padding(horizontal = 12.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
