@@ -3,6 +3,7 @@ package ru.musixai.app.feature.player
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
 import kotlinx.coroutines.launch
@@ -186,8 +187,15 @@ internal fun MiniPlayerBar(p: PlayerState, onOpen: () -> Unit, onToggle: () -> U
             AsyncImage(
                 p.artUri, null,
                 // where the folding cover lands: measured at rest (the player away, the bar in place, the page
-                // at full size) and outside its own pop — the stage then lands exactly on it
-                Modifier.onGloballyPositioned { if (fold != null && fold.p.value >= 0.999f) fold.mini = it.boundsInRoot() }.graphicsLayer {
+                // at full size) and outside its own pop — the stage then lands exactly on it. A press scales the
+                // whole bar to 0.98 about its middle, and a tap that opens the player is measured pressed: the
+                // cover then stood ~4 dp right of its place, and the fold landed there and slipped left at the
+                // end (the owner, 2026-11-15) — a rect not of the cover's own size is a moment, not the place
+                Modifier.onGloballyPositioned {
+                    if (fold == null || fold.p.value < 0.999f) return@onGloballyPositioned
+                    val r = it.boundsInRoot()
+                    if (kotlin.math.abs(r.width - it.size.width) < 0.5f && kotlin.math.abs(r.height - it.size.height) < 0.5f) fold.mini = r
+                }.graphicsLayer {
                     val k = pop()
                     scaleX = 0.6f + 0.4f * k
                     scaleY = 0.6f + 0.4f * k
@@ -199,6 +207,8 @@ internal fun MiniPlayerBar(p: PlayerState, onOpen: () -> Unit, onToggle: () -> U
                     alpha = k.coerceIn(0f, 1f) * take
                 }.size(CoverSize).coverFlightTarget(if (aim) LocalCoverFlight.current else null).testTag(MiniCoverTag)
                     .shadow(6.dp, CoverShape).clip(CoverShape).background(c.surface2),
+                // cut like the stage's page: a cover that is not quite square lands as the same picture
+                contentScale = ContentScale.Crop,
             )
             Column(Modifier.weight(1f).padding(horizontal = 12.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                 Text(p.title, maxLines = 1, overflow = TextOverflow.Ellipsis, style = MusixTheme.type.body.copy(fontSize = 15.sp, fontWeight = FontWeight.Medium, color = c.text))

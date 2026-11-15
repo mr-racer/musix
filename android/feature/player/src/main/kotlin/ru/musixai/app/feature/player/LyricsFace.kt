@@ -1,7 +1,8 @@
 package ru.musixai.app.feature.player
 
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
@@ -26,7 +27,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -45,7 +50,9 @@ import androidx.compose.ui.layout.onPlaced
 import androidx.compose.ui.layout.positionInParent
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
@@ -57,10 +64,15 @@ import ru.musixai.app.core.designsystem.gesture.LocalMusixHaptics
 import ru.musixai.app.core.designsystem.gesture.Press
 import ru.musixai.app.core.designsystem.gesture.pressable
 import ru.musixai.app.core.designsystem.surface.GlassTone
-import ru.musixai.app.core.designsystem.surface.LiquidGlass
+import ru.musixai.app.core.designsystem.surface.glassSource
+import ru.musixai.app.core.designsystem.surface.liquidGlass
+import ru.musixai.app.core.designsystem.surface.rememberGlassSource
 import ru.musixai.app.core.designsystem.text
 import ru.musixai.app.core.model.PlayerContext
 import ru.musixai.app.core.model.TrackSound
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.launch
+import kotlin.math.roundToInt
 
 /** A line of the words: when it is sung (synced words only) and which part of the song it belongs to. */
 internal data class Line(val text: String, val at: Float?, val part: Int)
@@ -103,7 +115,8 @@ internal fun pick(sel: List<Int>, i: Int, lines: List<Line>): List<Int> {
  * The back of the cover: the words over the cover softened and dimmed. Synced words follow the song —
  * the sung line lights up and stands 30 % from the top — until the reader scrolls (then they wait 4 s).
  * A tap picks a line (up to four neighbours); a glass capsule opens a line of room under the pick:
- * «Спросить о строчке» and, with synced words, «Отсюда».
+ * «Спросить о строчке» and, with synced words, «Отсюда». A pick let go folds its room and capsule away
+ * (the owner, 2026-11-15: «сейчас резко убирается»); the capsule is clear glass over the words themselves.
  */
 @Composable
 internal fun LyricsFace(
@@ -121,7 +134,30 @@ internal fun LyricsFace(
     // the sung line, as an index that changes a few times a minute (not the clock's every frame)
     val now by remember(lines) { derivedStateOf { if (!sync) -1 else lines.indexOfLast { (it.at ?: 0f) <= clock.sec + 0.2f } } }
 
+    // the rooms under picks: the open one, and the ones a pick let go of, folding away. `was` keeps the last
+    // pick's room in place until the effect below has moved it to `leaving` — no frame without it
+    val capAt = sel.lastOrNull() ?: -1
+    var was by remember(lines) { mutableIntStateOf(-1) }
+    val leaving = remember(lines) { mutableStateListOf<Int>() }
+    val held = remember(lines) { HashMap<Int, CapRoom>() }
+    fun room(i: Int) = held.getOrPut(i) { CapRoom() }
+    val rooms = buildList {
+        if (capAt >= 0) add(capAt)
+        if (was >= 0 && was != capAt) add(was)
+        for (j in leaving) if (j != capAt && j != was) add(j)
+    }
+    if (capAt >= 0) room(capAt).n = sel.size
+    LaunchedEffect(capAt) {
+        if (was >= 0 && was != capAt && was !in leaving) leaving += was
+        leaving -= capAt
+        was = capAt
+    }
+    // the words, recorded for the capsule's glass: it floats beside them, never inside its own picture
+    val words = rememberGlassSource()
+    val top = if (sync) cover * 0.28f else 20.dp
+
     Box(Modifier.fillMaxSize().background(Color(0xFF0E0E12))) {
+      Box(Modifier.fillMaxSize().then(if (rooms.isNotEmpty()) Modifier.glassSource(words) else Modifier)) {
         Image(rememberSoftCover(artUri, DIM_WORDS), null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
         if (lines.isEmpty()) {
             Text(if (ctx == null) "" else "Слов этой песни пока нет", Modifier.align(Alignment.Center).padding(28.dp),
@@ -132,7 +168,7 @@ internal fun LyricsFace(
             Modifier.fillMaxSize().pointerInput(Unit) {
                 // the reader takes over: the follow waits 4 s after the last touch
                 awaitPointerEventScope { while (true) { awaitPointerEvent(PointerEventPass.Initial); hold = System.currentTimeMillis() + 4000 } }
-            }.verticalScroll(scroll).padding(start = 28.dp, end = 28.dp, bottom = 130.dp, top = if (sync) cover * 0.28f else 20.dp),
+            }.verticalScroll(scroll).padding(start = 28.dp, end = 28.dp, bottom = 130.dp, top = top),
         ) {
             lines.forEachIndexed { i, l ->
                 // a part keeps its wide gap (18 + the rows' 2 × 7 = 32 dp, as before); lines inside it sit closer
@@ -162,16 +198,28 @@ internal fun LyricsFace(
                     style = MusixTheme.text.body.copy(fontFamily = MusixFontFamilies.Geist, fontWeight = FontWeight.SemiBold, fontSize = if (cover < 340.dp) 18.sp else 20.sp, lineHeight = 1.3.em, letterSpacing = (-0.015).em, color = color),
                 )
                 // the capsule opens a line of room for itself: the words below slide down, the next line stays free to tap
-                if (sel.isNotEmpty() && i == sel.last()) Capsule(sel.size, sync, onAsk = {
+                if (i in rooms) Room(room(i), open = i == capAt) { leaving.remove(i); held.remove(i) }
+            }
+        }
+      }
+        // the capsules over the rooms, outside the recorded words
+        for (i in rooms) key(i) {
+            val r = room(i)
+            val open = i == capAt
+            Capsule(r, open, sync,
+                at = { IntOffset(28.dp.roundToPx(), (top.toPx() + r.top - scroll.value + 3.dp.toPx()).roundToInt()) },
+                glass = Modifier.liquidGlass(RoundedCornerShape(999.dp), GlassTone.Clear, source = words, onArt = true),
+                onAsk = {
+                    if (!open) return@Capsule
                     haptics.perform(HapticCue.Tick, fromUser = true)
                     onAsk(sel.map { lines[it].text })
                 }, onFrom = {
+                    if (!open) return@Capsule
                     val at = lines[sel[0]].at ?: return@Capsule
                     sel = emptyList(); hold = 0L
                     if (playing) haptics.perform(HapticCue.Tick, fromUser = true)
                     onFrom(at)
                 })
-            }
         }
     }
 
@@ -190,27 +238,51 @@ internal fun LyricsFace(
     }
 }
 
+/** A pick's room and its capsule: how open they are and where the room stands among the words. */
+private class CapRoom {
+    val room = Animatable(0f)
+    val cap = Animatable(0f)
+    var top by mutableFloatStateOf(0f)
+    /** How many lines the capsule speaks of — kept while it folds away, after the pick is gone. */
+    var n = 1
+}
+
+/** The room under a pick: opens with it, and folds away (the words below slide back up) when it is let go. */
 @Composable
-private fun Capsule(n: Int, sync: Boolean, onAsk: () -> Unit, onFrom: () -> Unit) {
-    var shown by remember { mutableStateOf(false) }
-    LaunchedEffect(Unit) { shown = true }
-    val room by animateDpAsState(if (shown) 54.dp else 0.dp, springOf(0.34f), label = "room")
-    val k by animateFloatAsState(if (shown) 1f else 0f, springKcm(300f, 22f), label = "cap")
-    Box(Modifier.height(room).fillMaxWidth()) {
-        LiquidGlass(
-            Modifier.padding(top = 3.dp).graphicsLayer {
-                alpha = k.coerceIn(0f, 1f); transformOrigin = TransformOrigin(0.18f, 0f)
-                val s = 0.9f + 0.1f * k; scaleX = s; scaleY = s; translationY = (1f - k) * -8.dp.toPx()
-            },
-            radius = 999.dp, tone = GlassTone.Chip, onArt = true,
-        ) {
-            Row(Modifier.padding(4.dp)) {
-                CapButton(MusixIcons.Sparkles, if (n > 1) "Спросить о $n строчках" else "Спросить о строчке", onAsk)
-                if (sync) {
-                    Box(Modifier.padding(vertical = 8.dp).width(1.dp).height(24.dp).background(Color.White.copy(alpha = 0.16f)))
-                    CapButton(MusixIcons.Play, "Отсюда", onFrom)
-                }
+private fun Room(r: CapRoom, open: Boolean, onGone: () -> Unit) {
+    LaunchedEffect(open) {
+        coroutineScope {
+            if (open) {
+                launch { r.room.animateTo(1f, springOf(0.34f)) }
+                launch { r.cap.animateTo(1f, springKcm(300f, 22f)) }
+            } else {
+                launch { r.cap.animateTo(0f, tween(180, easing = FastOutSlowInEasing)) }
+                launch { r.room.animateTo(0f, tween(300, delayMillis = 40, easing = FastOutSlowInEasing)) }
             }
+        }
+        if (!open) onGone()
+    }
+    // the height in the layout pass: the words below move without a recomposition per frame
+    Spacer(Modifier.fillMaxWidth().onPlaced { r.top = it.positionInParent().y }.layout { m, c ->
+        val h = (54.dp.toPx() * r.room.value).roundToInt().coerceAtLeast(0)
+        val p = m.measure(Constraints.fixed(c.maxWidth, h))
+        layout(c.maxWidth, h) { p.place(0, 0) }
+    })
+}
+
+@Composable
+private fun Capsule(r: CapRoom, open: Boolean, sync: Boolean, at: androidx.compose.ui.unit.Density.() -> IntOffset, glass: Modifier, onAsk: () -> Unit, onFrom: () -> Unit) {
+    Row(
+        Modifier.offset(at).graphicsLayer {
+            val k = r.cap.value
+            alpha = k.coerceIn(0f, 1f); transformOrigin = TransformOrigin(0.18f, 0f)
+            val s = 0.9f + 0.1f * k; scaleX = s; scaleY = s; translationY = (1f - k) * -8.dp.toPx()
+        }.then(glass).clip(RoundedCornerShape(999.dp)).padding(4.dp),
+    ) {
+        CapButton(MusixIcons.Sparkles, if (r.n > 1) "Спросить о ${r.n} строчках" else "Спросить о строчке", onAsk)
+        if (sync) {
+            Box(Modifier.padding(vertical = 8.dp).width(1.dp).height(24.dp).background(Color.White.copy(alpha = 0.16f)))
+            CapButton(MusixIcons.Play, "Отсюда", onFrom)
         }
     }
 }
